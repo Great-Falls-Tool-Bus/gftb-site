@@ -58,6 +58,7 @@ class RepositoryContractTests(unittest.TestCase):
         cls.ci = (ROOT / ".github/workflows/ci.yml").read_text()
         cls.publisher = (ROOT / ".github/workflows/container-ghcr.yml").read_text()
         cls.flake = (ROOT / "flake.nix").read_text()
+        cls.playwright = (ROOT / "playwright.config.ts").read_text()
 
     def test_package_scripts_delegate_only_to_just(self) -> None:
         for name, command in self.package["scripts"].items():
@@ -70,6 +71,13 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
         self.assertIn('name = "container_image_context"', self.build)
+
+    def test_playwright_releases_bazel_before_chromium(self) -> None:
+        preview = recipe(self.justfile, "preview-e2e")
+        self.assertIn('preview-e2e port="4173": build', preview)
+        self.assertIn("bazelisk shutdown", preview)
+        self.assertLess(preview.index("bazelisk shutdown"), preview.index("scripts/bazel_output.py preview"))
+        self.assertIn("just preview-e2e ${port}", self.playwright)
 
     def test_static_adapter_is_exclusive(self) -> None:
         deps = self.package["devDependencies"]

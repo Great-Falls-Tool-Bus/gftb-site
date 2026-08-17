@@ -33,6 +33,11 @@ build-ci:
 preview port="4173": build
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 
+# Release the build JVM before Chromium starts inside the bounded ARC runner.
+preview-e2e port="4173": build
+    cd {{ root }} && bazelisk shutdown
+    cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
+
 preview-only port="4173":
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 

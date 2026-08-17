@@ -42,7 +42,7 @@ export default defineConfig({
 			: []),
 	],
 	webServer: {
-		command: `just preview ${port}`,
+		command: `just preview-e2e ${port}`,
 		port,
 		timeout: webServerTimeout,
 		reuseExistingServer: !process.env.CI,
