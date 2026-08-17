@@ -163,12 +163,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: tinyland-inc/ci-templates/.github/actions/setup-nix@v2.12.2
+      - uses: tinyland-inc/ci-templates/.github/actions/setup-nix@v2.13.0
 
       # Source of BAZEL_REMOTE_CACHE: runner-env authority, DNS-checked by
       # nix-setup; no endpoint is invented here or in any tracked file
       # (TIN-2487 wiring of the TIN-2226 verb; endpoint doctrine TIN-1997).
-      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v2.12.2
+      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v2.13.0
 
       - name: Flywheel check (cache-first read-only)
         env:
