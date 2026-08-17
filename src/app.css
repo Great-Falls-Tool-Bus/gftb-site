@@ -154,6 +154,10 @@ li {
 	text-underline-offset: 0.22em;
 }
 
+.site-nav a {
+	padding-block: 0.35rem;
+}
+
 .page-shell {
 	padding-block: 2rem 5rem;
 }
@@ -462,6 +466,14 @@ figcaption {
 
 .contact-card h2 {
 	color: white;
+}
+
+.contact-card .form-help {
+	color: #d8c9de;
+}
+
+.contact-card .field-error {
+	color: #ffd0cb;
 }
 
 .qr {
