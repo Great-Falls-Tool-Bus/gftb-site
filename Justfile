@@ -72,15 +72,37 @@ test-coverage:
     cd {{ root }} && bazelisk build //:unit_test_coverage
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/coverage --destination coverage --required-path index.html
 
-test-e2e: playwright-ensure
+test-e2e:
     cd {{ root }} && if command -v nix >/dev/null 2>&1; then \
-      nix develop .#playwright --command just _playwright-test; \
+      nix develop .#playwright --command just _playwright-run; \
     else \
-      just _playwright-test; \
+      just _playwright-run; \
     fi
 
 playwright-ensure:
     cd {{ root }} && pnpm exec playwright install chromium
+    cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
+      command -v auto-patchelf >/dev/null; \
+      test -x "${PLAYWRIGHT_NIX_PATCHELF:?Playwright Nix patchelf contract is required}"; \
+      chromium_executable="$(node -e 'const { chromium } = require("@playwright/test"); process.stdout.write(chromium.executablePath())')"; \
+      chromium_dir="$(dirname "$(dirname "$chromium_executable")")"; \
+      cache_root="$(dirname "$chromium_dir")"; \
+      revision="${chromium_dir##*-}"; \
+      headless_dir="${cache_root}/chromium_headless_shell-${revision}"; \
+      test -d "$headless_dir"; \
+      IFS=: read -r -a playwright_libraries <<<"${PLAYWRIGHT_NIX_LIBRARY_PATH:?Playwright Nix library contract is required}"; \
+      PATH="$(dirname "$PLAYWRIGHT_NIX_PATCHELF"):$PATH" auto-patchelf --preserve-origin --paths "$headless_dir" --libs "${playwright_libraries[@]}"; \
+      mapfile -d '' -t headless_executables < <(find "$headless_dir" -type f \( -name chrome-headless-shell -o -name headless_shell \) -perm -0100 -print0); \
+      test "${#headless_executables[@]}" -eq 1; \
+      patched_interpreter="$("$PLAYWRIGHT_NIX_PATCHELF" --print-interpreter "${headless_executables[0]}")"; \
+      test "$patched_interpreter" = "${PLAYWRIGHT_NIX_DYNAMIC_LINKER:?Playwright Nix loader contract is required}"; \
+      browser_version="$(env -u LD_LIBRARY_PATH "${headless_executables[0]}" --version)"; \
+      test -n "$browser_version"; \
+      printf 'Playwright browser ABI contract: %s via %s\n' "$browser_version" "$patched_interpreter"; \
+    fi
+
+_playwright-run: playwright-ensure
+    cd {{ root }} && just _playwright-test
 
 _playwright-test:
     cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
@@ -89,7 +111,7 @@ _playwright-test:
       grep -qi 'DejaVu' <<<"$family"; \
       printf 'Playwright font contract: %s via %s\n' "$family" "$FONTCONFIG_FILE"; \
     fi
-    cd {{ root }} && pnpm exec playwright test
+    cd {{ root }} && env -u LD_LIBRARY_PATH pnpm exec playwright test
 
 secrets-scan-dir:
     cd {{ root }} && gitleaks dir --config .gitleaks.toml --redact --verbose .

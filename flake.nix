@@ -54,6 +54,7 @@
             gtk3
             libdrm
             libgbm
+            libgcc.lib
             libxkbcommon
             mesa
             nspr
@@ -72,6 +73,13 @@
             libxtst
           ]
         );
+        playwrightPatchTools = pkgs.lib.optionals pkgs.stdenv.isLinux (
+          with pkgs;
+          [
+            auto-patchelf
+            patchelfUnstable
+          ]
+        );
         playwrightFontConfig = pkgs.makeFontsConf {
           fontDirectories = [ pkgs.dejavu_fonts.minimal ];
         };
@@ -86,7 +94,10 @@
           echo "  gitleaks $(gitleaks version 2>&1 | head -n1)"
         '';
         playwrightHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath playwrightRuntimeLibraries}:''${LD_LIBRARY_PATH:-}"
+          unset LD_LIBRARY_PATH
+          export PLAYWRIGHT_NIX_LIBRARY_PATH="${pkgs.lib.makeLibraryPath playwrightRuntimeLibraries}"
+          export PLAYWRIGHT_NIX_DYNAMIC_LINKER="${pkgs.stdenv.cc.bintools.dynamicLinker}"
+          export PLAYWRIGHT_NIX_PATCHELF="${pkgs.patchelfUnstable}/bin/patchelf"
           export FONTCONFIG_FILE="${playwrightFontConfig}"
         '';
 
@@ -193,7 +204,7 @@
           shellHook = shellHook "";
         };
         devShells.playwright = pkgs.mkShell {
-          buildInputs = corePackages ++ playwrightRuntimeLibraries;
+          buildInputs = corePackages ++ playwrightRuntimeLibraries ++ playwrightPatchTools;
           shellHook = shellHook playwrightHook;
         };
         packages.image = image;
