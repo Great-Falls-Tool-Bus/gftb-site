@@ -23,6 +23,9 @@ Public daily-log frontmatter is exactly:
 - required: `date`, `title`, `summary`, `tags`, `published`
 - optional: `updated`
 
+Every file in `src/content/log/` is public build input and must set
+`published: true`; drafts do not belong in that directory.
+
 Never publish Linear IDs, PR numbers, commit SHAs, repository pointers,
 credentials, member information, private locations, or internal operational
 notes. The public site must not expose agent indexes, source maps, developer

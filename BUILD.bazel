@@ -250,15 +250,6 @@ js_run_binary(
     tool = ":vitest_coverage_bin",
 )
 
-js_test(
-    name = "playwright_static_smoke",
-    data = [":build", ":e2e_srcs", ":node_modules/@playwright/test", "scripts/bazel/run-playwright-static-smoke.mjs"],
-    entry_point = "scripts/bazel/run-playwright-static-smoke.mjs",
-    tags = ["gloriousflywheel-rbe-candidate", "playwright", "web-playwright-chromium-static-smoke"],
-    timeout = "moderate",
-    visibility = ["//visibility:public"],
-)
-
 test_suite(
     name = "ci_validation_suite",
     tests = [":svelte_check_test", ":unit_tests"],
@@ -300,7 +291,6 @@ exports_files(
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "scripts/bazel/prepare-sveltekit-types.mjs",
-        "scripts/bazel/run-playwright-static-smoke.mjs",
         "scripts/bazel/run-svelte-check.mjs",
         "scripts/bazel/run-sveltekit-sync.mjs",
         "scripts/bazel/run-vitest.mjs",

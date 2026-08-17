@@ -2,7 +2,6 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = 3000;
 const baseURL = `http://localhost:${port}`;
-const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 const webServerTimeout = process.env.CI ? 600_000 : 180_000;
 
 export default defineConfig({
@@ -21,10 +20,7 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			use: {
-				...devices['Desktop Chrome'],
-				launchOptions: chromiumExecutablePath ? { executablePath: chromiumExecutablePath } : undefined,
-			},
+			use: { ...devices['Desktop Chrome'] },
 		},
 		// Firefox + WebKit gated behind PLAYWRIGHT_ALL_BROWSERS to keep M0 fast.
 		// Enable in M1 CI by setting PLAYWRIGHT_ALL_BROWSERS=1.

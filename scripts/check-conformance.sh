@@ -32,7 +32,7 @@ check "! grep -q 'codex/\\*\\*' .github/workflows/container-ghcr.yml && grep -q 
 check "grep -q 'sha-\${BUILD_COMMIT_SHA}' Justfile && grep -q 'sha-\${commitSha}' flake.nix" "candidate tag binds the full commit SHA"
 check "grep -q 'health.sha' flake.nix && grep -q 'file_server' flake.nix && test ! -e static/health.sha" "image generates an exact served-source marker"
 check "! grep -RqiE '(repository_dispatch|latest|production[-_ ]dispatch)' .github/workflows/container-ghcr.yml Justfile flake.nix" "publisher has no deploy dispatch or mutable production tag"
-check "test ! -e .github/workflows/deploy-pages.yml && ! grep -Rql 'actions/deploy-pages' .github/workflows" "GitHub Pages is absent"
+check "test ! -e .github/workflows/deploy-pages.yml && ! grep -RqlE --exclude=check-conformance.sh '(actions/deploy-pages|CF_PAGES_COMMIT_SHA)' .github/workflows Justfile scripts flake.nix" "GitHub Pages is absent"
 
 check "grep -q 'name = \"deployment_bundle\"' BUILD.bazel && grep -q 'name = \"container_image_context\"' BUILD.bazel" "Bazel exposes bundle and image-context targets"
 check "grep -q 'container-image-publish: build container-image-context' Justfile" "publisher enters through Just and the Bazel context"
@@ -43,6 +43,7 @@ for dead in \
   .claude-plugin plugins modules tofu \
   docs/release docs/research docs/spec docs/deploy docs/patterns docs/decisions \
   src/lib/generated src/lib/projection static/llms.txt static/agent-map.md \
+  .github/rulesets scripts/bazel/run-playwright-static-smoke.mjs \
   .github/workflows/pulse-ingest.yml .github/workflows/release.yml; do
   check "test ! -e '$dead'" "dead carrier absent: $dead"
 done
@@ -51,6 +52,7 @@ public_hits=$(grep -RInE '(TIN-[0-9]+|Linear|github\.com/.+/(pull|commit)/|\bPR 
 if [[ -z "$public_hits" ]]; then ok "public content contains no internal work pointers"; else no "public content contains internal work pointers"; printf '%s\n' "$public_hits"; fi
 
 check "test -f static/vendor/altcha/altcha.js && test -f static/vendor/altcha/LICENSE" "contact proof-of-work asset retains its license"
+check "! find static -type f -name '*.md' -print -quit | grep -q ." "public static tree contains no developer Markdown"
 check "grep -q 'forms.latoolb.us' src/lib/components/ContactForm.svelte && grep -q 'discuss@latoolb.us' src/routes/+page.svelte && grep -q 'keyholders@latoolb.us' src/routes/+page.svelte" "contact and list boundaries are explicit"
 
 echo "summary: ${pass} pass, ${fail} fail"

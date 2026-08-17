@@ -37,38 +37,44 @@
           actionlint
           nixfmt
         ];
-        playwrightRuntimeLibraries = with pkgs; [
-          alsa-lib
-          at-spi2-atk
-          at-spi2-core
-          atk
-          cairo
-          cups
-          dbus
-          expat
-          fontconfig
-          freetype
-          glib
-          gtk3
-          libdrm
-          libgbm
-          libxkbcommon
-          mesa
-          nspr
-          nss
-          pango
-          libx11
-          libxscrnsaver
-          libxcomposite
-          libxcursor
-          libxdamage
-          libxext
-          libxfixes
-          libxi
-          libxrandr
-          libxrender
-          libxtst
-        ];
+        playwrightRuntimeLibraries = pkgs.lib.optionals pkgs.stdenv.isLinux (
+          with pkgs;
+          [
+            alsa-lib
+            at-spi2-atk
+            at-spi2-core
+            atk
+            cairo
+            cups
+            dbus
+            expat
+            fontconfig
+            freetype
+            glib
+            gtk3
+            libdrm
+            libgbm
+            libxkbcommon
+            mesa
+            nspr
+            nss
+            pango
+            libx11
+            libxscrnsaver
+            libxcomposite
+            libxcursor
+            libxdamage
+            libxext
+            libxfixes
+            libxi
+            libxrandr
+            libxrender
+            libxtst
+          ]
+        );
+        playwrightFontConfig = pkgs.makeFontsConf {
+          fontDirectories = [ pkgs.dejavu_fonts.minimal ];
+        };
         shellHook = extra: ''
           corepack enable >/dev/null 2>&1 || true
           ${extra}
@@ -80,8 +86,8 @@
           echo "  gitleaks $(gitleaks version 2>&1 | head -n1)"
         '';
         playwrightHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-          export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${pkgs.chromium}/bin/chromium"
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath playwrightRuntimeLibraries}:''${LD_LIBRARY_PATH:-}"
+          export FONTCONFIG_FILE="${playwrightFontConfig}"
         '';
 
         n2c = nix2container.packages.${system}.nix2container;
@@ -187,7 +193,7 @@
           shellHook = shellHook "";
         };
         devShells.playwright = pkgs.mkShell {
-          buildInputs = corePackages ++ [ pkgs.chromium ] ++ playwrightRuntimeLibraries;
+          buildInputs = corePackages ++ playwrightRuntimeLibraries;
           shellHook = shellHook playwrightHook;
         };
         packages.image = image;

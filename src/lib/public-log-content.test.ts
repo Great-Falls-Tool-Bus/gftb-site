@@ -31,6 +31,7 @@ describe('checked-in public log content', () => {
 			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
 			const frontmatter = raw.match(/^---\n([\s\S]*?)\n---/u)?.[1];
 			expect(frontmatter, `${file} frontmatter`).toBeTruthy();
+			expect(frontmatter, `${file} publication gate`).toMatch(/^published:\s*true$/mu);
 			const keys = [...(frontmatter ?? '').matchAll(/^([a-z][a-zA-Z]*):/gmu)].map((match) => match[1]);
 			expect(
 				keys.filter((key) => !allowed.has(key)),

@@ -12,7 +12,7 @@ if [[ "${base_path}" == *$'\n'* || "${base_path}" == *$'\r'* || "${base_path}" =
   exit 1
 fi
 
-commit_sha="${BUILD_COMMIT_SHA:-${GITHUB_SHA:-${CF_PAGES_COMMIT_SHA:-}}}"
+commit_sha="${BUILD_COMMIT_SHA:-${GITHUB_SHA:-}}"
 if [[ -z "${commit_sha}" ]]; then
   commit_sha="$(git rev-parse HEAD 2>/dev/null || true)"
 fi

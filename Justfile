@@ -1,5 +1,5 @@
 # Great Falls Tool Bus public static site
-set dotenv-load := true
+set dotenv-load
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 root := justfile_directory()
@@ -57,13 +57,13 @@ format: format-nix
     cd {{ root }} && pnpm exec prettier --write .
 
 format-nix:
-	cd {{ root }} && nixfmt flake.nix
+    cd {{ root }} && nixfmt flake.nix
 
 format-check: format-check-nix
     cd {{ root }} && bazelisk test //:prettier_check_test
 
 format-check-nix:
-	cd {{ root }} && nixfmt --check flake.nix
+    cd {{ root }} && nixfmt --check flake.nix
 
 test-unit:
     cd {{ root }} && bazelisk test //:unit_tests
@@ -73,18 +73,23 @@ test-coverage:
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/coverage --destination coverage --required-path index.html
 
 test-e2e: playwright-ensure
-    cd {{ root }} && if [ "${CI:-}" = "true" ] && command -v nix >/dev/null 2>&1; then \
-      nix develop .#playwright --command pnpm exec playwright test; \
+    cd {{ root }} && if command -v nix >/dev/null 2>&1; then \
+      nix develop .#playwright --command just _playwright-test; \
     else \
-      pnpm exec playwright test; \
+      just _playwright-test; \
     fi
 
 playwright-ensure:
-    cd {{ root }} && if [ "${CI:-}" = "true" ] && command -v nix >/dev/null 2>&1; then \
-      echo "Using Nix Chromium"; \
-    else \
-      pnpm exec playwright install chromium; \
+    cd {{ root }} && pnpm exec playwright install chromium
+
+_playwright-test:
+    cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
+      test -r "${FONTCONFIG_FILE:?Playwright Linux requires the Nix font contract}"; \
+      family="$(fc-match --format='%{family}' sans-serif)"; \
+      grep -qi 'DejaVu' <<<"$family"; \
+      printf 'Playwright font contract: %s via %s\n' "$family" "$FONTCONFIG_FILE"; \
     fi
+    cd {{ root }} && pnpm exec playwright test
 
 secrets-scan-dir:
     cd {{ root }} && gitleaks dir --config .gitleaks.toml --redact --verbose .

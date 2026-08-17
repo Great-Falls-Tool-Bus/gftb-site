@@ -6,7 +6,7 @@ export interface PublicLogMetadata {
 	title: string;
 	summary: string;
 	tags: string[];
-	published: boolean;
+	published: true;
 	updated?: string;
 }
 
@@ -49,7 +49,9 @@ export function assertPublicLogMetadata(input: unknown, source = 'public log'): 
 	) {
 		throw new Error(`${source}: tags must be a non-empty string array`);
 	}
-	if (typeof record.published !== 'boolean') throw new Error(`${source}: published must be boolean`);
+	if (record.published !== true) {
+		throw new Error(`${source}: published must be true; drafts do not belong in src/content/log`);
+	}
 	if (record.updated !== undefined && !isValidIsoDate(record.updated)) {
 		throw new Error(`${source}: updated must be YYYY-MM-DD when present`);
 	}

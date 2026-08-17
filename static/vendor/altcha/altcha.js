@@ -17,7 +17,7 @@
  * from script (not inline <style> or style attributes), so a strict CSP needs
  * only: script-src 'self'; connect-src <form endpoint>.
  *
- * License: MIT (see ./LICENSE). Provenance and pin: see ./README.md.
+ * License: MIT (see ./LICENSE). Protocol/reference pin: ALTCHA v3.2.0.
  */
 (function () {
 	'use strict';
@@ -141,6 +141,7 @@
 	// Hard cap on brute-force work regardless of a challenge's maxnumber, so a
 	// hostile or misconfigured server cannot pin the tab.
 	var MAX_ITERATIONS = 5000000;
+	var MAX_SALT_LENGTH = 1024;
 	var CHUNK = 2000;
 
 	class AltchaWidget extends HTMLElement {
@@ -299,11 +300,23 @@
 					return res.json();
 				})
 				.then(function (ch) {
-					if (!ch || ch.algorithm !== 'SHA-256' || typeof ch.challenge !== 'string' || typeof ch.salt !== 'string') {
+					if (
+						!ch ||
+						ch.algorithm !== 'SHA-256' ||
+						typeof ch.challenge !== 'string' ||
+						!/^[0-9a-f]{64}$/.test(ch.challenge) ||
+						typeof ch.salt !== 'string' ||
+						ch.salt.length === 0 ||
+						ch.salt.length > MAX_SALT_LENGTH ||
+						typeof ch.signature !== 'string' ||
+						!/^[0-9a-f]{64}$/.test(ch.signature) ||
+						!Number.isSafeInteger(ch.maxnumber) ||
+						ch.maxnumber < 0 ||
+						ch.maxnumber > MAX_ITERATIONS
+					) {
 						throw new Error('bad challenge');
 					}
-					var max = typeof ch.maxnumber === 'number' && ch.maxnumber > 0 ? ch.maxnumber : 100000;
-					return self._brute(ch.salt, ch.challenge, max).then(function (number) {
+					return self._brute(ch.salt, ch.challenge, ch.maxnumber).then(function (number) {
 						if (number === null) throw new Error('unsolved');
 						var body = {
 							algorithm: 'SHA-256',

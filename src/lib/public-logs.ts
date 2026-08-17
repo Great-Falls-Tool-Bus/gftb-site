@@ -24,5 +24,4 @@ export const publicLogs: PublicLog[] = Object.entries(modules)
 		component: module.default,
 		metadata: assertPublicLogMetadata(module.metadata, path),
 	}))
-	.filter((entry) => entry.metadata.published)
 	.sort((left, right) => right.metadata.date.localeCompare(left.metadata.date));

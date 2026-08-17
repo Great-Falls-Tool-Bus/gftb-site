@@ -7,7 +7,7 @@ SOFTWARE
 	static/vendor/altcha/altcha.js
 	  ALTCHA-compatible proof-of-work widget, pinned to the v3.2.0 wire
 	  protocol. MIT License; upstream copyright Daniel Regeci / BAU Software
-	  s.r.o. See static/vendor/altcha/LICENSE and README.md.
+	  s.r.o. See static/vendor/altcha/LICENSE.
 
 VISUALS
   static/logo/bus-silhouette.svg

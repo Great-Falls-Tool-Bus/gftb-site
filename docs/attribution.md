@@ -21,7 +21,7 @@ requests. See `NOTICE` for the concise distribution notice.
 
 ## ALTCHA widget
 
-- Files: `static/vendor/altcha/altcha.js`, `LICENSE`, and `README.md`
+- Files: `static/vendor/altcha/altcha.js` and `static/vendor/altcha/LICENSE`
 - Protocol/reference: ALTCHA v3.2.0
 - License: MIT
 - Upstream: <https://altcha.org>

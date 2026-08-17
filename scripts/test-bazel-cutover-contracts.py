@@ -79,6 +79,23 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertLess(preview.index("bazelisk shutdown"), preview.index("scripts/bazel_output.py preview"))
         self.assertIn("just preview-e2e ${port}", self.playwright)
 
+    def test_playwright_uses_its_locked_browser(self) -> None:
+        ensure = recipe(self.justfile, "playwright-ensure")
+        self.assertIn("pnpm exec playwright install chromium", ensure)
+        self.assertNotIn("Using Nix Chromium", ensure)
+        self.assertNotIn("executablePath", self.playwright)
+        self.assertNotIn("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", self.flake)
+        self.assertNotIn("pkgs.chromium", self.flake)
+        self.assertIn("playwrightFontConfig = pkgs.makeFontsConf", self.flake)
+        self.assertIn("pkgs.dejavu_fonts.minimal", self.flake)
+        self.assertIn('export FONTCONFIG_FILE="${playwrightFontConfig}"', self.flake)
+        e2e = recipe(self.justfile, "test-e2e")
+        self.assertIn("nix develop .#playwright --command just _playwright-test", e2e)
+        self.assertNotIn("${CI:-}", e2e)
+        font_contract = recipe(self.justfile, "_playwright-test")
+        self.assertIn("fc-match", font_contract)
+        self.assertIn("DejaVu", font_contract)
+
     def test_static_adapter_is_exclusive(self) -> None:
         deps = self.package["devDependencies"]
         self.assertIn("@sveltejs/adapter-static", deps)

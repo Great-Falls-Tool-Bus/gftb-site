@@ -24,6 +24,7 @@ describe('public log frontmatter', () => {
 	it('rejects malformed values and backwards updates', () => {
 		expect(() => assertPublicLogMetadata({ ...valid, date: '08/16/2026' })).toThrow('date must be YYYY-MM-DD');
 		expect(() => assertPublicLogMetadata({ ...valid, tags: [] })).toThrow('tags must be a non-empty string array');
+		expect(() => assertPublicLogMetadata({ ...valid, published: false })).toThrow('published must be true');
 		expect(() => assertPublicLogMetadata({ ...valid, updated: '2026-08-15' })).toThrow('updated cannot predate date');
 	});
 });
