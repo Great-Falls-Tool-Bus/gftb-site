@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v2.12.2
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v2.13.0
     with:
       node_version: '22'
       pnpm_version: '10.13.1'
@@ -96,9 +96,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: tinyland-inc/ci-templates/.github/actions/setup-nix@v2.12.2
+      - uses: tinyland-inc/ci-templates/.github/actions/setup-nix@v2.13.0
 
-      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v2.12.2
+      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v2.13.0
 
       - name: tofu fmt, validate, and the native precondition tests
         run: |
