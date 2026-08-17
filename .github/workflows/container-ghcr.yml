@@ -27,22 +27,21 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  GF_CORE_REF: 2281b576bce0e8dd776a047b84e7464f5b508a62
 
 jobs:
   verify-carrier:
-    name: Verify exact public image carrier
+    name: Verify exact source carrier
     if: github.event_name == 'pull_request'
     runs-on: tinyland-nix
     steps:
       - uses: actions/checkout@v7
         with:
-          repository: tinyland-inc/GloriousFlywheel
-          ref: ${{ env.GF_CORE_REF }}
-          path: GloriousFlywheel
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Assert exact checkout
-        run: test "$(git -C GloriousFlywheel rev-parse HEAD)" = "$GF_CORE_REF"
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
   publish:
     name: Build + push immutable static candidate
@@ -64,24 +63,10 @@ jobs:
         run: |
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-      - uses: actions/checkout@v7
-        with:
-          repository: tinyland-inc/GloriousFlywheel
-          ref: ${{ env.GF_CORE_REF }}
-          path: GloriousFlywheel
-          persist-credentials: false
       - name: Build and publish exact-SHA candidate
-        uses: ./GloriousFlywheel/.github/actions/nix-job
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_COMMIT_SHA: ${{ github.sha }}
           BUILD_COMMIT_REF: ${{ github.ref_name }}
-        with:
-          push-cache: 'false'
-          command: |
-            set -euo pipefail
-            cd overlay
-            export GF_CORE_PATH=../GloriousFlywheel
-            export GF_CORE_CI_PATH=../GloriousFlywheel#ci
-            nix develop ../GloriousFlywheel#ci -c just container-image-publish
+        run: cd overlay && nix develop . -c just container-image-publish
