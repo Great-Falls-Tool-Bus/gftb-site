@@ -1,0 +1,28 @@
+"""tinyland_converge_agent — the pull-shaped production-convergence
+carrier, authored once and instantiated per tenant.
+
+Realizes site.scaffold docs/patterns/converge-agent.md and
+docs/patterns/stateful-workload-convergence.md §2 (one published module,
+N instantiations). Publication target: tinyland-inc/bazel-registry per the
+TIN-2030 extraction mechanism — steps documented in README.md, executed only
+as a separately reviewed registry PR.
+
+This module ships shell, YAML-template, and tofu sources plus a
+stdlib-Python contract test. It carries exactly one bazel_dep,
+rules_shell - see BUILD.bazel's own header: native sh_test/sh_binary/
+sh_library autoload only applies within a Bazel invocation's MAIN
+repository, so this package's own `load("@rules_shell//shell:sh_test.bzl",
+"sh_test")` needs this module's OWN repo mapping to resolve, once anything
+outside this repository depends on it as an external module (which its
+own README section "Consuming through the registry" documents as the
+supported path). Discovered empirically consuming this module from MMS
+#71/TIN-489, 2026-08-08.
+"""
+
+module(
+    name = "tinyland_converge_agent",
+    version = "0.1.0",
+    compatibility_level = 1,
+)
+
+bazel_dep(name = "rules_shell", version = "0.8.0")

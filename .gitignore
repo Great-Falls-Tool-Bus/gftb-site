@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.svelte-kit/
+build/
+dist/
+
+# Web-perf artifacts (TIN-2224): generated image variants and bundle treemap.
+# Regenerate via `just optimize-images`. The image manifest itself is tracked
+# at static/image-manifest.json (a committed empty-object fallback carries
+# zero-photo builds; the optimizer rewrites it in place when photos exist).
+static/optimized/
+.bundle-stats/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage/
+.lighthouseci/
+bundle-report.json
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# direnv + Nix
+.direnv/
+result
+result-*
+
+# Bazel (anchor to repo root: convenience symlinks live at the workspace root,
+# so an unanchored bazel-* would also swallow legitimate files like
+# docs/research/bazel-*.md)
+/bazel-*
+bazel-bin/
+bazel-out/
+bazel-testlogs/
+bazel-site.scaffold/
+.cache/bazel-*
+
+# Tofu (docs/CI-SCHEMA.md §8; spoke state belongs in env-owned S3, not the repo)
+tofu/.terraform/
+tofu/.terraform.lock.hcl
+tofu/tfplan
+**/*.tfstate
+**/*.tfstate.backup
+
+# AI/LLM tooling (CLAUDE.md, AGENTS.md, and project skills are tracked house contracts)
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+.gstack/
+.serena/
+.aider*
+# Local dev artifacts
+.huskycat/

@@ -1,0 +1,97 @@
+name: Deploy to GitHub Pages
+
+# House DEFAULT deploy lane (see AGENTS.md -> "Build target"): adapter-static -> GitHub Pages.
+# Project-path hosting at https://<owner>.github.io/<repo>/ via BASE_PATH="/<repo>".
+# Custom-domain spoke: add static/CNAME and build with BASE_PATH="" (root base).
+# Cloudflare Pages is a documented opt-in: docs/deploy/cloudflare-pages.md.
+
+on:
+  # Publish only after exact-main CI succeeds. This keeps the Pages artifact
+  # build off the concurrent CI fan-out that already validates the same SHA.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build static site
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_sha == github.sha
+      )
+    runs-on: tinyland-nix
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: tinyland-inc/ci-templates/.github/actions/setup-nix@v2.12.2
+
+      # Source of BAZEL_REMOTE_CACHE: runner-env authority, DNS-checked by
+      # nix-setup; no endpoint is invented here or in any tracked file
+      # (TIN-2487 wiring of the TIN-2226 verb; endpoint doctrine TIN-1997).
+      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v2.12.2
+
+      - name: Flywheel check (cache-first read-only)
+        env:
+          RUNNER_LABELS: ${{ join(runner.labels, ',') }}
+        run: |
+          set -euo pipefail
+          # Fail-closed attachment preflight mirrored from the ci-templates
+          # spoke-ci.yml cache_backed lane: a missing substrate is a
+          # deterministic failure, never a silent local degrade (TIN-2109).
+          declared_mode=""
+          if [ -f tinyland.repo.json ]; then
+            declared_mode="$(jq -r '.enrollment.substrateMode // empty' tinyland.repo.json)"
+          fi
+          export GF_BAZEL_SUBSTRATE_MODE="${declared_mode:-shared-cache-backed}"
+          export GF_BAZEL_RUNNER_LABELS="$RUNNER_LABELS"
+          bash scripts/cache-attachment-contract.sh --strict
+          nix develop --command just flywheel-check
+
+      - name: Check static site
+        # Successful exact-SHA CI is the workflow_run admission gate. Manual
+        # builds retain the complete standalone validation path.
+        if: github.event_name != 'workflow_run'
+        run: nix develop --command just check-ci
+
+      - name: Build static site (project base path = /<repo>)
+        run: nix develop --command just build-ci
+        env:
+          NODE_ENV: production
+          BASE_PATH: /${{ github.event.repository.name }}
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: build
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v5
+        id: deployment

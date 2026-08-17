@@ -1,0 +1,216 @@
+# converge-agent carrier CronJob — rendered by ../tofu/main.tf from one tenant's
+# input set (docs/patterns/stateful-workload-convergence.md §2) and declared
+# INSIDE the stack it converges (docs/patterns/converge-agent.md §1).
+#
+# Per-site agent names are retired semantically (addendum §4): the object is
+# always `converge-agent`; the instance label carries the tenant.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: converge-agent
+  namespace: ${namespace}
+  labels:
+    app.kubernetes.io/name: converge-agent
+    app.kubernetes.io/instance: ${tenant}
+    app.kubernetes.io/part-of: production-convergence
+  annotations:
+    # The §1 adoption prerequisite, carried by the object it watches: the
+    # named suspend+staleness detector covering this carrier. Required input,
+    # no default — an instantiation without one refuses to compose.
+    tinyland.dev/carrier-liveness-alert: "${carrier_liveness_alert_ref}"
+spec:
+  schedule: "${schedule}"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: converge-agent
+            app.kubernetes.io/instance: ${tenant}
+        spec:
+          serviceAccountName: ${service_account_name}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+          containers:
+            - name: converge-agent
+              image: ${carrier_image}
+              command:
+                - /bin/bash
+                - /opt/converge-agent/converge-agent.sh
+              env:
+                - name: TENANT
+                  value: "${tenant}"
+                - name: NAMESPACE
+                  value: "${namespace}"
+                - name: OVERLAY_REPO_SSH
+                  value: "${overlay_repo_ssh}"
+                - name: OVERLAY_BRANCH
+                  value: "${overlay_branch}"
+                - name: WORKFLOW_STATE_DOCUMENT
+                  value: "${workflow_state_document}"
+                - name: ENABLED_FLAG_POINTER
+                  value: "${enabled_flag_pointer}"
+                - name: ARMED_FLAG_POINTER
+                  value: "${armed_flag_pointer}"
+                - name: DESTROY_ADMISSION_POINTER
+                  value: "${destroy_admission_pointer}"
+                - name: DURABLE_DATA_ADDRESSES
+                  value: ${durable_data_addresses_json}
+                - name: EPHEMERAL
+                  value: "${ephemeral}"
+                - name: SOURCE_REPOSITORY_URL
+                  value: "${source_repository_url}"
+                - name: SOURCE_BRANCH
+                  value: "${source_branch}"
+                - name: STACK_DIR
+                  value: "${stack_dir}"
+                - name: BACKEND_CONFIG_PATH
+                  value: "${backend_config_path}"
+                - name: VAR_FILE_PATH
+                  value: "${var_file_path}"
+                - name: APPLY_VARIABLE_OVERRIDES
+                  value: ${apply_variable_overrides_json}
+                - name: APPLICATION_IMAGE_TAG
+                  value: "${application_image_tag}"
+                - name: APPLICATION_IMAGE_REPOSITORY
+                  value: "${application_image_repository}"
+                - name: IMAGE_TAG_TEMPLATE
+                  value: "${image_tag_template}"
+                - name: APPLICATION_IMAGE_VARIABLE
+                  value: "${application_image_variable}"
+                - name: EDGE_HEALTH_URL
+                  value: "${edge_health_url}"
+                - name: SERVED_SHA_FIELD
+                  value: "${served_sha_field}"
+                - name: ROLLOUT_TARGET
+                  value: "${rollout_target}"
+                - name: ROLLOUT_TIMEOUT
+                  value: "${rollout_timeout}"
+                - name: STATE_BACKEND_BUCKET
+                  value: "${state_backend_bucket}"
+                - name: STATE_BACKEND_KEY
+                  value: "${state_backend_key}"
+                - name: STATE_BACKEND_REGION
+                  value: "${state_backend_region}"
+                - name: STATE_BACKEND_ENDPOINT
+                  value: "${state_backend_endpoint}"
+                - name: GIT_SSH_COMMAND
+                  value: >-
+                    ssh -i ${deploy_key_path} -o IdentitiesOnly=yes
+                    -o StrictHostKeyChecking=accept-new
+                - name: OVERLAY_DEPLOY_KEY_PATH
+                  value: "${deploy_key_path}"
+%{ if application_deploy_key_secret_name != "" }
+                # D1 — the APPLICATION repository's own read-only deploy key.
+                # A deploy key authorizes exactly one repository, so a private
+                # application repository needs its own; the loop generates a
+                # per-host ssh config routing each remote to its own identity
+                # and overrides GIT_SSH_COMMAND above for that tick. Absent
+                # (the default), one identity and the value above stand.
+                - name: APPLICATION_DEPLOY_KEY_PATH
+                  value: "${application_deploy_key_path}"
+%{ endif }
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${state_credentials_secret_name}
+                      key: access_key_id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${state_credentials_secret_name}
+                      key: secret_access_key
+%{ if edge_probe_token_secret_name != "" }
+                # Cloudflare Access service-token pair for the edge probe
+                # (GFTB blocker B2). Name in git, values only in the Secret.
+                - name: CF_ACCESS_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${edge_probe_token_secret_name}
+                      key: client_id
+                - name: CF_ACCESS_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${edge_probe_token_secret_name}
+                      key: client_secret
+%{ endif }
+%{ if cloudflare_secret_name != "" }
+                # Zone-scoped Cloudflare API token the APPLY needs while the
+                # stack manages DNS. Name in git, value only in the Secret;
+                # both spellings are provided because a stack may consume the
+                # provider env or its own tofu variable.
+                - name: CLOUDFLARE_API_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${cloudflare_secret_name}
+                      key: api_token
+                - name: TF_VAR_cloudflare_api_token
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${cloudflare_secret_name}
+                      key: api_token
+%{ endif }
+%{ if registry_pull_secret_name != "" }
+                # Registry credentials for the tag->digest resolution against a
+                # private repository. crane reads a docker config directory;
+                # the kubernetes.io/dockerconfigjson Secret is projected as
+                # config.json, so no credential is ever written to the image.
+                - name: DOCKER_CONFIG
+                  value: /secrets/registry
+%{ endif }
+              volumeMounts:
+                - name: carrier-script
+                  mountPath: /opt/converge-agent
+                  readOnly: true
+                - name: deploy-key
+                  mountPath: ${deploy_key_mount}
+                  readOnly: true
+%{ if application_deploy_key_secret_name != "" }
+                - name: application-deploy-key
+                  mountPath: ${application_deploy_key_mount}
+                  readOnly: true
+%{ endif }
+%{ if registry_pull_secret_name != "" }
+                - name: registry-credentials
+                  mountPath: /secrets/registry
+                  readOnly: true
+%{ endif }
+          volumes:
+            - name: carrier-script
+              configMap:
+                name: converge-agent-script
+                defaultMode: 365 # 0o555 in decimal; YAML octal literals are ambiguous across parsers
+            - name: deploy-key
+              secret:
+                secretName: ${deploy_key_secret_name}
+                defaultMode: 256 # 0o400
+%{ if application_deploy_key_secret_name != "" }
+            # D1 — the application repository's own key, projected whole
+            # exactly like the overlay's above: each Secret entry becomes a
+            # file of the same name, so application_deploy_key_path's file
+            # name IS the Secret key the operator must mint it under.
+            - name: application-deploy-key
+              secret:
+                secretName: ${application_deploy_key_secret_name}
+                defaultMode: 256 # 0o400
+%{ endif }
+%{ if registry_pull_secret_name != "" }
+            - name: registry-credentials
+              secret:
+                secretName: ${registry_pull_secret_name}
+                defaultMode: 256 # 0o400
+                items:
+                  - key: .dockerconfigjson
+                    path: config.json
+%{ endif }
+# No external trigger surface exists for this carrier by construction: a
+# CronJob has a schedule and nothing else. This comment deliberately names no
+# banned trigger literal — the contract scanner ignores comments, but
+# provenance prose should not need the exemption.

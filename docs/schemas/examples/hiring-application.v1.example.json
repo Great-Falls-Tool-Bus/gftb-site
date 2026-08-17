@@ -1,0 +1,20 @@
+{
+	"envelope": "hiring-application/v1",
+	"role": "licensed-massage-therapist",
+	"applicant": {
+		"fullName": "Avery Example",
+		"email": "avery.applicant@example.com",
+		"phone": "+1 607 555 0100"
+	},
+	"letter": "Placeholder letter of interest. This fixture exists so `just hiring-application-validate` exercises the hiring-application/v1 envelope schema offline; it is never submitted anywhere.",
+	"references": [
+		{
+			"name": "Riley Reference",
+			"contact": "riley.reference@example.com"
+		},
+		{
+			"name": "Morgan Reference",
+			"contact": "+1 607 555 0101"
+		}
+	]
+}

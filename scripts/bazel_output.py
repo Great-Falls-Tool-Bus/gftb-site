@@ -1,0 +1,304 @@
+#!/usr/bin/env python3
+"""Materialize and preview Bazel-produced SvelteKit output trees."""
+
+from __future__ import annotations
+
+import argparse
+import functools
+import json
+import os
+import secrets
+import shlex
+import shutil
+import stat
+import sys
+import tempfile
+from dataclasses import dataclass
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+
+
+STATIC_ROLES = {"static-spoke", "static-spoke-scaffold"}
+NODE_ROLES = {"app-stateful-spoke"}
+
+
+class OutputError(RuntimeError):
+    """Raised when an output tree does not satisfy the spoke contract."""
+
+
+@dataclass(frozen=True)
+class AdapterContract:
+    name: str
+    required_entrypoint: Path
+
+
+def adapter_contract(manifest_path: Path) -> AdapterContract:
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        taxonomy = manifest["taxonomy"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise OutputError(f"cannot read adapter role from {manifest_path}: {error}") from error
+
+    role = taxonomy.get("spawned_repo_role") or taxonomy.get("primary_role")
+    if role in STATIC_ROLES:
+        return AdapterContract("adapter-static", Path("index.html"))
+    if role in NODE_ROLES:
+        return AdapterContract("adapter-node", Path("index.js"))
+    raise OutputError(f"unsupported taxonomy role in {manifest_path}: {role!r}")
+
+
+def _path_exists(path: Path) -> bool:
+    return os.path.lexists(path)
+
+
+def _remove_path(path: Path) -> None:
+    if not _path_exists(path):
+        return
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    else:
+        shutil.rmtree(path)
+
+
+def _make_owner_writable(root: Path) -> None:
+    for current, directories, files in os.walk(root):
+        current_path = Path(current)
+        current_path.chmod(current_path.stat().st_mode | stat.S_IWUSR | stat.S_IXUSR)
+        for name in directories:
+            path = current_path / name
+            if not path.is_symlink():
+                path.chmod(path.stat().st_mode | stat.S_IWUSR | stat.S_IXUSR)
+        for name in files:
+            path = current_path / name
+            if not path.is_symlink():
+                path.chmod(path.stat().st_mode | stat.S_IWUSR)
+
+
+def _previous_outputs(destination: Path) -> list[Path]:
+    return sorted(
+        destination.parent.glob(f".{destination.name}.previous-*"),
+        key=lambda path: path.stat().st_mtime_ns,
+    )
+
+
+def recover_interrupted_materialization(destination: Path) -> None:
+    """Restore or clear backups left by an uncatchable interruption."""
+
+    destination = destination.absolute()
+    backups = _previous_outputs(destination)
+    if not backups:
+        return
+    if not _path_exists(destination):
+        os.replace(backups.pop(), destination)
+    for backup in backups:
+        _remove_path(backup)
+
+
+def materialize_tree(source: Path, destination: Path, required_path: Path) -> None:
+    source = source.resolve(strict=True)
+    destination = destination.absolute()
+    required_path = Path(required_path)
+
+    if not source.is_dir():
+        raise OutputError(f"Bazel output is not a directory: {source}")
+    if required_path.is_absolute() or ".." in required_path.parts:
+        raise OutputError(f"required path must stay within the output tree: {required_path}")
+    if not (source / required_path).is_file():
+        raise OutputError(f"Bazel output {source} is missing required file {required_path}")
+
+    destination_parent = destination.parent
+    destination_parent.mkdir(parents=True, exist_ok=True)
+    recover_interrupted_materialization(destination)
+    destination_resolved = destination.resolve(strict=False)
+    if destination_resolved == source or destination_resolved.is_relative_to(source):
+        raise OutputError("destination must not be the Bazel output or one of its children")
+
+    stage = Path(tempfile.mkdtemp(prefix=f".{destination.name}.materialize-", dir=destination_parent))
+    backup = destination_parent / f".{destination.name}.previous-{os.getpid()}-{secrets.token_hex(6)}"
+    moved_destination = False
+
+    try:
+        shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=False)
+        _make_owner_writable(stage)
+        if not (stage / required_path).is_file():
+            raise OutputError(f"staged output is missing required file {required_path}")
+
+        if _path_exists(destination):
+            os.replace(destination, backup)
+            moved_destination = True
+        os.replace(stage, destination)
+    except BaseException:
+        if moved_destination and not _path_exists(destination) and _path_exists(backup):
+            os.replace(backup, destination)
+        raise
+    finally:
+        _remove_path(stage)
+        if _path_exists(destination):
+            _remove_path(backup)
+
+
+def _normalize_base_path(value: str) -> str:
+    if not value or value == "/":
+        return ""
+    parts = [part for part in value.split("/") if part]
+    if not parts or any(part in {".", ".."} for part in parts):
+        raise OutputError(f"invalid BASE_PATH: {value!r}")
+    return "/" + "/".join(parts)
+
+
+def _strip_static_base_path(path: str, base_path: str) -> str | None:
+    parsed = urlsplit(path)
+    if not base_path:
+        stripped = parsed.path
+    elif parsed.path == base_path:
+        stripped = "/"
+    elif parsed.path.startswith(f"{base_path}/"):
+        stripped = parsed.path[len(base_path) :]
+    else:
+        return None
+    return urlunsplit(("", "", stripped, parsed.query, parsed.fragment))
+
+
+class _StaticPreviewHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args: object, base_path: str, **kwargs: object) -> None:
+        self.base_path = base_path
+        super().__init__(*args, **kwargs)
+
+    def _serve(self, method: str) -> None:
+        rewritten = _strip_static_base_path(self.path, self.base_path)
+        if rewritten is None:
+            self.send_error(404)
+            return
+        original = self.path
+        self.path = rewritten
+        try:
+            getattr(super(), method)()
+        finally:
+            self.path = original
+
+    def do_GET(self) -> None:
+        self._serve("do_GET")
+
+    def do_HEAD(self) -> None:
+        self._serve("do_HEAD")
+
+
+def serve_static(build_dir: Path, host: str, port: int, base_path: str) -> None:
+    base_path = _normalize_base_path(base_path)
+    handler = functools.partial(
+        _StaticPreviewHandler,
+        directory=str(build_dir.resolve(strict=True)),
+        base_path=base_path,
+    )
+    with ThreadingHTTPServer((host, port), handler) as server:
+        prefix = base_path or "/"
+        print(f"serving {build_dir} at http://{host}:{port}{prefix}")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+
+
+def preview_command(
+    build_dir: Path,
+    contract: AdapterContract,
+    host: str,
+    port: int,
+    base_path: str = "",
+) -> tuple[list[str], dict[str, str]]:
+    entrypoint = build_dir / contract.required_entrypoint
+    if not entrypoint.is_file():
+        raise OutputError(f"{contract.name} preview requires {entrypoint}")
+
+    environment = os.environ.copy()
+    if contract.name == "adapter-node":
+        environment.update({"HOST": host, "PORT": str(port)})
+        return ["node", str(entrypoint)], environment
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "serve-static",
+        "--build-dir",
+        str(build_dir),
+        "--host",
+        host,
+        "--port",
+        str(port),
+    ]
+    normalized_base_path = _normalize_base_path(base_path)
+    if normalized_base_path:
+        command.extend(["--base-path", normalized_base_path])
+    return command, environment
+
+
+def _parse_port(value: str) -> int:
+    try:
+        port = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("port must be an integer") from error
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError("port must be between 1 and 65535")
+    return port
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    materialize = subparsers.add_parser("materialize", help="transactionally replace an output tree")
+    materialize.add_argument("--source", type=Path, required=True)
+    materialize.add_argument("--destination", type=Path, required=True)
+    materialize.add_argument("--manifest", type=Path, default=Path("tinyland.repo.json"))
+    materialize.add_argument("--required-path", type=Path)
+
+    preview = subparsers.add_parser("preview", help="serve a materialized output tree")
+    preview.add_argument("--build-dir", type=Path, default=Path("build"))
+    preview.add_argument("--manifest", type=Path, default=Path("tinyland.repo.json"))
+    preview.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    preview.add_argument("--port", type=_parse_port, default=_parse_port(os.environ.get("PORT", "4173")))
+    preview.add_argument("--base-path", default=os.environ.get("BASE_PATH", ""))
+    preview.add_argument("--print-command", action="store_true")
+
+    static_server = subparsers.add_parser("serve-static", help="serve static output with BASE_PATH routing")
+    static_server.add_argument("--build-dir", type=Path, required=True)
+    static_server.add_argument("--host", required=True)
+    static_server.add_argument("--port", type=_parse_port, required=True)
+    static_server.add_argument("--base-path", default="")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        if args.command == "materialize":
+            contract = adapter_contract(args.manifest)
+            required_path = args.required_path or contract.required_entrypoint
+            materialize_tree(args.source, args.destination, required_path)
+            print(f"materialized {args.source} -> {args.destination} ({required_path})")
+            return 0
+
+        if args.command == "serve-static":
+            serve_static(args.build_dir, args.host, args.port, args.base_path)
+            return 0
+
+        contract = adapter_contract(args.manifest)
+        command, environment = preview_command(
+            args.build_dir,
+            contract,
+            args.host,
+            args.port,
+            args.base_path,
+        )
+        if args.print_command:
+            print(shlex.join(command))
+            return 0
+        os.execvpe(command[0], command, environment)
+    except (OSError, OutputError) as error:
+        print(f"bazel-output: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
