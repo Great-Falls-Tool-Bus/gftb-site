@@ -38,7 +38,7 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.62.1",
-		"@skeletonlabs/skeleton": "4.15.2",
+		"@skeletonlabs/skeleton": "5.0.0",
 		"@skeletonlabs/skeleton-svelte": "4.15.2",
 		"@sveltejs/adapter-node": "^5.5.3",
 		"@sveltejs/adapter-static": "^3.0.10",
