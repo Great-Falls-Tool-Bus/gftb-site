@@ -1,76 +1,219 @@
 <script lang="ts">
-	const brand = {
-		domain: 'site.scaffold',
-		tagline: 'Spokes of the Tinyland ecosystem',
-		blurb:
-			'Static SvelteKit, Skeleton 4.15.2, Tailwind v4, Bazel, Nix, Just, gitleaks, validated lane metadata, and projection-first Tinyland operating rules.',
-		tier: 'Template - agent-readable house scaffold',
-	};
+	import { publicLogs } from '$lib/public-logs';
+	import ContactForm from '$lib/components/ContactForm.svelte';
 
-	const surfaces = [
+	const latest = publicLogs[0];
+	const prior = publicLogs.slice(1);
+
+	const goals = [
 		{
-			title: 'Agent Skills',
-			body: 'Codex project skills with Claude-compatible entrypoints for Flywheel Bazel, static spokes, and repo contracts.',
-			href: '/agent#skills',
+			title: 'Make the bus ready',
+			body: 'Keep water out, clear and prepare the interior, and establish a simple interim lock and safe working setup.',
 		},
 		{
-			title: 'llms.txt',
-			body: 'Public route index for the template repo, normative docs, Justfile, and project skills.',
-			href: '/llms.txt',
+			title: 'Design membership together',
+			body: 'Storyboard a welcoming sliding-scale membership path before collecting online payments or issuing accounts.',
 		},
 		{
-			title: 'Flywheel RBE',
-			body: 'Endpoint-free wrapper contract for cache-first Bazel builds, tests, fetches, and executor-backed proof lanes.',
-			href: '/agent',
+			title: 'Start with useful tools',
+			body: 'Build a small, legible inventory and checkout process that works well from a phone and still respects privacy.',
 		},
 	];
 
-	const contracts = [
-		'Justfile-only operations',
-		'Nix dev shell baseline',
-		'Gitleaks security gate',
-		'Bazel graphable topology',
+	const help = [
+		'Hands for removing and preparing bus seats',
+		'Sheet metal or sheet plastic for odd openings and inserts',
+		'A 9/16-inch impact or large breaker bar for stubborn bolts',
+		'Cleaning supplies, rags, a broom, and industrial cleaner',
+		'Security Torx drivers and a broader set of imperial square bits',
 	];
+
+	const formatDate = (value: string) =>
+		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
 
-<svelte:head>
-	<title>site.scaffold — Tinyland house static-site scaffold</title>
-	<meta name="description" content={brand.blurb} />
-</svelte:head>
+<div class="page-shell">
+	<section class="hero" aria-labelledby="page-title">
+		<div>
+			<p class="eyebrow">Lewiston–Auburn, Maine</p>
+			<h1 id="page-title">Tools belong in motion.</h1>
+			<p class="lede">
+				The Great Falls Tool Bus is becoming a community-run mobile tool library: a place to share tools, practical
+				knowledge, repair work, and the responsibility that keeps all three circulating.
+			</p>
+			<div class="button-row">
+				<a class="button" href="#contact">Help build the bus</a>
+				<a class="button button--secondary" href="#log">Read the latest log</a>
+			</div>
+		</div>
 
-<main class="mx-auto max-w-5xl px-6 py-16 md:py-24">
-	<header class="max-w-3xl space-y-4">
-		<p class="text-surface-500 text-xs tracking-widest uppercase">{brand.tier}</p>
-		<h1 class="text-4xl leading-tight font-bold md:text-5xl">{brand.domain}</h1>
-		<p class="text-primary-600 text-xl">{brand.tagline}</p>
-		<p class="text-surface-700 dark:text-surface-300 text-lg leading-relaxed">
-			{brand.blurb}
-		</p>
-	</header>
-
-	<section class="mt-12 grid gap-3 md:grid-cols-3" aria-label="Public agent surfaces">
-		{#each surfaces as surface (surface.title)}
-			<a
-				class="border-surface-200-800 bg-surface-50-950/75 hover:border-primary-500 block rounded-lg border p-5 transition-colors"
-				href={surface.href}
-				aria-label={surface.title}
-			>
-				<h2 class="text-lg font-semibold">{surface.title}</h2>
-				<p class="text-surface-700-300 mt-3 text-sm leading-relaxed">{surface.body}</p>
-			</a>
-		{/each}
+		<aside class="status-card" id="status" aria-labelledby="status-title">
+			<p class="eyebrow">Right now</p>
+			<h2 id="status-title">Building, not lending yet.</h2>
+			<p>
+				The bus and its public processes are being prepared. Tool checkout, digital membership payments, and member
+				accounts are not live yet.
+			</p>
+			<p class="muted">Updates here describe completed work and the next concrete invitation.</p>
+		</aside>
 	</section>
 
-	<section class="mt-12 border-y border-surface-200-800 py-8" aria-label="Scaffold contracts">
-		<ul class="grid gap-3 text-sm md:grid-cols-4">
-			{#each contracts as contract (contract)}
-				<li class="font-mono">{contract}</li>
+	<section class="section" aria-labelledby="next-title">
+		<div class="next-session">
+			<div>
+				<p class="eyebrow">Next work session</p>
+				<h2 id="next-title">Waterproofing + measurements</h2>
+				<p class="date-chip">Schedule being confirmed</p>
+			</div>
+			<div>
+				<p>
+					Our current hands-on focus is sealing the body and openings, then measuring wonky shapes that may need
+					fabricated inserts. The next open work time will be posted here once confirmed.
+				</p>
+				<p>
+					Use the <a class="text-link" href="#contact">contact form before coming</a>; timing and exact location details
+					are shared directly.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="section" aria-labelledby="goals-title">
+		<div class="section-heading">
+			<p class="eyebrow">Near-term goals</p>
+			<h2 id="goals-title">A useful thing, built in understandable steps.</h2>
+			<p class="lede">
+				The public page stays simple while the real member, tool, and stewardship flows are designed with the people who
+				will use them.
+			</p>
+		</div>
+		<div class="grid grid--3">
+			{#each goals as goal (goal.title)}
+				<article class="card">
+					<h3>{goal.title}</h3>
+					<p>{goal.body}</p>
+				</article>
 			{/each}
-		</ul>
+		</div>
 	</section>
 
-	<footer class="text-surface-500 pt-12 text-sm">
-		Part of the Tinyland enterprise. Public content may later flow from reviewed
-		<a class="underline" href="https://tinyland.dev">tinyland.dev</a> projections.
-	</footer>
-</main>
+	<section class="section" aria-labelledby="help-title">
+		<div class="grid grid--2">
+			<div class="section-heading">
+				<p class="eyebrow">Useful right now</p>
+				<h2 id="help-title">A few specific ways to help.</h2>
+				<p>
+					Please contact us before dropping anything off. We can confirm what is still needed and arrange a safe
+					handoff.
+				</p>
+			</div>
+			<div class="card">
+				<ul class="check-list">
+					{#each help as item (item)}
+						<li>{item}</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section class="section" id="log" aria-labelledby="log-title">
+		<div class="section-heading">
+			<p class="eyebrow">Public build log</p>
+			<h2 id="log-title">What changed, in plain language.</h2>
+			<p>
+				These short entries are reviewed before publication. They report public project progress without exposing
+				internal development or member information.
+			</p>
+		</div>
+
+		{#if latest}
+			{@const LatestLog = latest.component}
+			<article class="log-entry">
+				<header class="log-entry__header">
+					<p class="eyebrow">Latest · {formatDate(latest.metadata.date)}</p>
+					<h3>{latest.metadata.title}</h3>
+					<p>{latest.metadata.summary}</p>
+					<ul class="tag-list" aria-label="Log tags">
+						{#each latest.metadata.tags as tag (tag)}<li>{tag}</li>{/each}
+					</ul>
+				</header>
+				<div class="log-entry__body"><LatestLog /></div>
+			</article>
+		{/if}
+
+		<div class="prior-logs" aria-labelledby="prior-title">
+			<h3 id="prior-title">Prior logs</h3>
+			{#if prior.length === 0}
+				<p class="muted">This is the first public entry. Earlier internal notes were not backfilled.</p>
+			{:else}
+				{#each prior as log (log.slug)}
+					{@const PriorLog = log.component}
+					<details>
+						<summary>{formatDate(log.metadata.date)} · {log.metadata.title}</summary>
+						<p>{log.metadata.summary}</p>
+						<PriorLog />
+					</details>
+				{/each}
+			{/if}
+		</div>
+	</section>
+
+	<section class="section" aria-labelledby="history-title">
+		<div class="history-card">
+			<figure>
+				<img
+					src="/photos/great-falls-lewiston-1930s.jpg"
+					alt="Historic postcard view of Great Falls between Auburn and Lewiston"
+					width="3070"
+					height="1851"
+					loading="lazy"
+				/>
+				<figcaption>
+					Tichnor Brothers, Inc., Boston Public Library collection no. 69902. Public domain; no known restrictions.
+				</figcaption>
+			</figure>
+			<div class="history-card__copy">
+				<p class="eyebrow">Why Great Falls?</p>
+				<h2 id="history-title">A name shaped by this place.</h2>
+				<p>
+					The falls and working river connect Lewiston and Auburn. The bus borrows that local name for another kind of
+					shared infrastructure: useful things moving between neighbors instead of sitting alone.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="section" id="contact" aria-labelledby="contact-title">
+		<div class="contact-card contact-card--form">
+			<div class="contact-copy">
+				<p class="eyebrow">Contact</p>
+				<h2 id="contact-title">Bring a question, a skill, or a tool story.</h2>
+				<p>
+					The form reaches <a class="text-link" href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>, the
+					private role list for access requests. Its archive is not public.
+				</p>
+				<p>
+					For open project conversation, email <a class="text-link" href="mailto:discuss@latoolb.us"
+						>discuss@latoolb.us</a
+					>
+					or read the
+					<a class="text-link" href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
+						>public discussion archive</a
+					>.
+				</p>
+				<ContactForm />
+			</div>
+			<div class="qr-card">
+				<img
+					class="qr"
+					src="/qr/greatfallstoolbus-apex.svg"
+					alt="QR code for greatfallstoolbus.org"
+					width="196"
+					height="196"
+				/>
+				<p>Permanent public address: <strong>greatfallstoolbus.org</strong></p>
+			</div>
+		</div>
+	</section>
+</div>

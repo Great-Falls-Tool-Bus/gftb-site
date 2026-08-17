@@ -7,11 +7,7 @@ node_modules/
 build/
 dist/
 
-# Web-perf artifacts (TIN-2224): generated image variants and bundle treemap.
-# Regenerate via `just optimize-images`. The image manifest itself is tracked
-# at static/image-manifest.json (a committed empty-object fallback carries
-# zero-photo builds; the optimizer rewrites it in place when photos exist).
-static/optimized/
+# Local bundle analysis.
 .bundle-stats/
 
 # Environment files
@@ -23,6 +19,8 @@ static/optimized/
 # Logs
 logs/
 *.log
+__pycache__/
+*.pyc
 
 # Test artifacts
 test-results/
@@ -46,22 +44,13 @@ Thumbs.db
 result
 result-*
 
-# Bazel (anchor to repo root: convenience symlinks live at the workspace root,
-# so an unanchored bazel-* would also swallow legitimate files like
-# docs/research/bazel-*.md)
+# Bazel workspace outputs.
 /bazel-*
 bazel-bin/
 bazel-out/
 bazel-testlogs/
-bazel-site.scaffold/
+bazel-gftb_site/
 .cache/bazel-*
-
-# Tofu (docs/CI-SCHEMA.md §8; spoke state belongs in env-owned S3, not the repo)
-tofu/.terraform/
-tofu/.terraform.lock.hcl
-tofu/tfplan
-**/*.tfstate
-**/*.tfstate.backup
 
 # AI/LLM tooling (CLAUDE.md, AGENTS.md, and project skills are tracked house contracts)
 .claude/*

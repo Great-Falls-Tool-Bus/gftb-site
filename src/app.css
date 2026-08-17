@@ -1,370 +1,534 @@
 @import 'tailwindcss';
-
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
-
-/* omux Warm/Pragmatic house theme (Skeleton 4 house format, OKLCH). */
-@import './lib/styles/themes/omux.css';
-
-/* Self-hosted fonts. Inter for body + heading per omux theme.
-   FiraCode Nerd Font Mono (patched with Nerd Font glyph icons + Fira Code
-   ligatures) for all code surfaces — self-hosted woff2 below. */
 @import '@fontsource/inter/latin-400.css';
-@import '@fontsource/inter/latin-500.css';
 @import '@fontsource/inter/latin-600.css';
 @import '@fontsource/inter/latin-700.css';
 
-/* Tailwind v4 only generates utilities it can see at build time, and Skeleton's
-   component markup ships utility classes of its own (e.g. `size-4` on the
-   listbox/combobox/tree-view item indicators). Without this @source line those
-   utilities are silently never generated — the build stays green and the visual
-   surface breaks (house scars: bare `rounded` → 0 radius, `m-y-4` → no spacing).
-   Keep it pointing at the vendored dist; MassageIthaca carries the same line. */
-@source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
-
-@font-face {
-	font-family: 'FiraCode Nerd Font Mono';
-	src:
-		local('FiraCodeNerdFontMono-Regular'),
-		url('/fonts/FiraCodeNerdFontMono-Regular.woff2') format('woff2');
-	font-weight: 400;
-	font-style: normal;
-	font-display: swap;
-}
-@font-face {
-	font-family: 'FiraCode Nerd Font Mono';
-	src:
-		local('FiraCodeNerdFontMono-Bold'),
-		url('/fonts/FiraCodeNerdFontMono-Bold.woff2') format('woff2');
-	font-weight: 700;
-	font-style: normal;
-	font-display: swap;
-}
-
-/* Dark-mode strategy: data-mode attribute on <html>, set synchronously by the
-   FOUC-prevention script in src/app.html. Color pairs (bg-surface-100-900) use
-   the native light-dark() function which switches via document color-scheme. */
-@custom-variant dark (&:where([data-mode='dark'], [data-mode='dark'] *));
-
-[data-mode='light'] {
-	color-scheme: light;
-}
-[data-mode='dark'] {
-	color-scheme: dark;
-}
-
-/* ===== Semantic z-index scale =====
-   One ladder for every stacked surface: dropdown < sticky < modal-backdrop <
-   modal < toast < tooltip. Never an arbitrary 999/9999. Markup consumes the
-   tokens through the Tailwind v4 var shorthand (z-(--z-sticky)); scoped
-   component styles use var() directly. The 30/40 anchors match the values the
-   scaffold already shipped, so nothing shifts visually. Below-content layers
-   (the fixed brand background at -z-10) sit under the ladder by design. */
 :root {
-	--z-dropdown: 30;
-	--z-sticky: 40;
-	--z-modal-backdrop: 50;
-	--z-modal: 60;
-	--z-toast: 70;
-	--z-tooltip: 80;
+	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	color: #28222b;
+	background: #f7f0df;
+	font-synthesis: none;
+	--ink: #28222b;
+	--purple: #512c64;
+	--purple-dark: #351b43;
+	--yellow: #f2c84b;
+	--cream: #f7f0df;
+	--paper: #fffdf7;
+	--muted: #6f6671;
+	--line: #d8cbb5;
 }
 
-/* ===== Body + global typography baseline =====
-   Skeleton 4 themes declare --typo-base/heading--font-family, but app code
-   has to anchor body to that variable so prose actually picks up Inter. */
-html {
-	overflow-x: clip;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-	text-rendering: optimizeLegibility;
-}
-
-body {
-	font-family: var(--typo-base--font-family);
-	font-feature-settings:
-		'cv02' 1,
-		'cv03' 1,
-		'cv04' 1,
-		'cv11' 1;
-	overscroll-behavior-y: none;
-}
-
-/* Refined heading scale with theme typography variables.
-   omux theme already declares --typo-heading--*; we tune sizes + tracking
-   here so the visual hierarchy reads as a devtool launch surface (sharp,
-   tight) rather than generic prose. */
-h1,
-.h1 {
-	font-size: clamp(2.5rem, 5vw + 1rem, 5rem);
-	line-height: 1.05;
-	letter-spacing: -0.025em;
-	font-weight: 700;
-}
-
-h2,
-.h2 {
-	font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem);
-	line-height: 1.15;
-	letter-spacing: -0.02em;
-	font-weight: 700;
-}
-
-h3,
-.h3 {
-	font-size: 1.5rem;
-	line-height: 1.25;
-	letter-spacing: -0.015em;
-	font-weight: 600;
-}
-
-h4,
-.h4 {
-	font-size: 1.25rem;
-	line-height: 1.3;
-	font-weight: 600;
-}
-
-/* Section anchor offset so #hash jumps land below the sticky AppBar.
-   AppBar is ~56px tall at our spacing; 64px gives a small breathing gap. */
-:where([id]) {
-	scroll-margin-top: 64px;
+* {
+	box-sizing: border-box;
 }
 
 html {
 	scroll-behavior: smooth;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	html {
-		scroll-behavior: auto;
-	}
+body {
+	margin: 0;
+	min-width: 320px;
+	background: linear-gradient(180deg, rgb(242 200 75 / 16%), transparent 22rem), var(--cream);
+	color: var(--ink);
+}
+
+a {
+	color: inherit;
+}
+
+img {
+	display: block;
+	max-width: 100%;
 }
 
 h1,
 h2,
 h3,
-h4,
-h5,
-h6 {
-	font-family: var(--typo-heading--font-family);
+p,
+ul,
+figure {
+	margin-top: 0;
 }
 
-code,
-kbd,
-pre,
-samp,
-.font-mono {
-	font-family: 'FiraCode Nerd Font Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-	font-feature-settings:
-		'liga' 1,
-		'calt' 1;
+h1,
+h2,
+h3 {
+	font-family: Georgia, 'Times New Roman', serif;
+	color: var(--purple-dark);
+	text-wrap: balance;
 }
 
-/* Shiki-rendered code blocks: inherit our FiraCode Nerd Font Mono stack
-   AND wrap rather than scroll. User constraint: no scrollbars inside any
-   element, at any breakpoint. Long lines wrap on word boundaries; URLs
-   and other unbreakable tokens use overflow-wrap: anywhere. */
-pre.shiki {
-	padding: 0.875rem 1rem;
-	border-radius: 0.5rem;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	word-break: normal;
-	line-height: 1.55;
-	font-size: 0.8125rem;
+h1 {
+	max-width: 12ch;
+	font-size: clamp(2.9rem, 13vw, 6rem);
+	line-height: 0.94;
+	letter-spacing: -0.045em;
 }
 
-/* Shiki dual-theme cascade.
-   With `themes: { light, dark }` + `defaultColor: false`, Shiki emits
-   inline `style="--shiki-light:#xxx; --shiki-dark:#yyy"` per token but
-   does NOT apply the colors itself — the consuming CSS below walks the
-   variables to actual `color` / `background-color`.
-   Light is the default; data-mode='dark' switches to the dark palette. */
-pre.shiki,
-pre.shiki code,
-pre.shiki span {
-	color: var(--shiki-light);
-	background-color: var(--shiki-light-bg);
-}
-[data-mode='dark'] pre.shiki,
-[data-mode='dark'] pre.shiki code,
-[data-mode='dark'] pre.shiki span {
-	color: var(--shiki-dark);
-	background-color: var(--shiki-dark-bg);
-}
-pre.shiki,
-pre.shiki code,
-pre.shiki span {
-	font-family: 'FiraCode Nerd Font Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-	font-feature-settings:
-		'liga' 1,
-		'calt' 1 !important;
+h2 {
+	font-size: clamp(2rem, 8vw, 3.5rem);
+	line-height: 1;
+	letter-spacing: -0.03em;
 }
 
-/* Inline code in prose stays compact; no card chrome. */
-:not(pre) > code {
-	font-size: 0.875em;
-	padding: 0.1em 0.3em;
-	border-radius: 0.25rem;
-	background: color-mix(in oklch, var(--color-surface-200) 40%, transparent);
-}
-[data-mode='dark'] :not(pre) > code {
-	background: color-mix(in oklch, var(--color-surface-800) 50%, transparent);
+h3 {
+	font-size: 1.35rem;
 }
 
-/* ===== Prose styling for marketing copy =====
-   Lifted from jesssullivan.github.io-vite8 baseline, trimmed for single-page
-   devtool surface (no blog-prose, no embed images). */
-.prose {
-	line-height: 1.7;
+p,
+li {
+	line-height: 1.65;
 }
 
-.prose p {
-	margin-bottom: 1.25em;
+:where([id]) {
+	scroll-margin-top: 5rem;
 }
 
-.prose a {
-	color: var(--color-primary-500);
-	text-decoration: underline;
-	text-underline-offset: 2px;
+.skip-link {
+	position: fixed;
+	top: 0.75rem;
+	left: 0.75rem;
+	z-index: 10;
+	transform: translateY(-180%);
+	border-radius: 999px;
+	background: var(--yellow);
+	padding: 0.65rem 1rem;
+	font-weight: 700;
 }
 
-.prose a:hover {
-	color: var(--color-primary-600);
+.skip-link:focus {
+	transform: translateY(0);
 }
 
-.prose ul,
-.prose ol {
-	margin-bottom: 1.25em;
-	padding-left: 1.5em;
-}
-
-.prose ul {
-	list-style: disc;
-}
-.prose ol {
-	list-style: decimal;
-}
-
-.prose li {
-	margin-bottom: 0.4em;
-}
-
-.prose blockquote {
-	border-left: 3px solid var(--color-primary-500);
-	padding-left: 1em;
-	margin: 1.5em 0;
-	font-style: italic;
-	color: var(--color-surface-700-300);
-}
-
-.prose code:not(pre code) {
-	font-size: 0.875em;
-	padding: 0.15em 0.35em;
-	border-radius: 0.25rem;
-	background: var(--color-surface-100-900);
-	color: var(--color-surface-900-100);
-}
-
-/* ===== Saturn-nav AppBar =====
-   Glass variant evolved from .glass-nav. Two saturn motifs:
-   1. A 1.5px primary-tinted bottom edge (the planet's ring line).
-   2. A faint warm radial halo at the top-right (the planet's atmosphere
-      tinting the chrome from outside the document flow).
-   Both are subtle: the brand voice, not a focal element.
-
-   Do NOT set `position` here: this rule is unlayered, so it out-cascades the
-   layered Tailwind utilities and a `position: relative` silently defeated the
-   markup's `sticky top-0` (the header never actually stuck). The ::after halo
-   only needs a positioned ancestor, which `sticky` already provides. Note the
-   backdrop-filter below also makes this element the containing block for any
-   fixed-position descendants (CSS Filter Effects 2), which is why the mobile
-   drawer must portal out of the AppBar (see +layout.svelte). */
-.saturn-nav {
-	background: color-mix(in oklch, var(--color-surface-50) 88%, transparent);
-	border-bottom: 2px solid color-mix(in oklch, var(--color-primary-500) 50%, transparent);
-}
-
-[data-mode='dark'] .saturn-nav {
-	background: color-mix(in oklch, var(--color-surface-950) 85%, transparent);
-	border-bottom-color: color-mix(in oklch, var(--color-primary-500) 60%, transparent);
-}
-
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-	.saturn-nav {
-		background: color-mix(in oklch, var(--color-surface-50) 55%, transparent);
-		backdrop-filter: blur(20px) saturate(160%);
-		-webkit-backdrop-filter: blur(18px) saturate(140%);
-	}
-
-	[data-mode='dark'] .saturn-nav {
-		background: color-mix(in oklch, var(--color-surface-950) 60%, transparent);
-		backdrop-filter: blur(20px) saturate(140%);
-		-webkit-backdrop-filter: blur(18px) saturate(120%);
-	}
-}
-
-/* Warm radial halo at top-right corner — only visible at md+ where the
-   AppBar has horizontal real estate. Fades into the chrome. */
-.saturn-nav::after {
-	content: '';
-	position: absolute;
+.site-header {
+	position: sticky;
 	top: 0;
-	right: 0;
-	width: clamp(120px, 18vw, 240px);
-	height: 100%;
-	background: radial-gradient(
-		ellipse at 80% 20%,
-		color-mix(in oklch, var(--color-primary-500) 16%, transparent),
-		transparent 70%
-	);
-	pointer-events: none;
+	z-index: 5;
+	border-bottom: 1px solid rgb(81 44 100 / 18%);
+	background: rgb(247 240 223 / 92%);
+	backdrop-filter: blur(12px);
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.saturn-nav {
-		backdrop-filter: none !important;
-		-webkit-backdrop-filter: none !important;
+.site-header__inner,
+.page-shell,
+.site-footer__inner {
+	width: min(100% - 2rem, 72rem);
+	margin-inline: auto;
+}
+
+.site-header__inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	min-height: 4.3rem;
+}
+
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.65rem;
+	font-weight: 800;
+	text-decoration: none;
+}
+
+.brand img {
+	width: 3.2rem;
+	height: 2rem;
+	object-fit: contain;
+}
+
+.site-nav {
+	display: flex;
+	gap: 0.9rem;
+	font-size: 0.82rem;
+	font-weight: 700;
+}
+
+.site-nav a,
+.text-link {
+	text-decoration-thickness: 0.1em;
+	text-underline-offset: 0.22em;
+}
+
+.page-shell {
+	padding-block: 2rem 5rem;
+}
+
+.hero {
+	display: grid;
+	gap: 2rem;
+	padding-block: clamp(2rem, 10vw, 7rem);
+}
+
+.eyebrow {
+	margin-bottom: 1rem;
+	color: var(--purple);
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.13em;
+	text-transform: uppercase;
+}
+
+.lede {
+	max-width: 43rem;
+	font-size: clamp(1.15rem, 3vw, 1.45rem);
+}
+
+.button-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 1.5rem;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 3rem;
+	border: 2px solid var(--purple);
+	border-radius: 999px;
+	padding: 0.7rem 1.15rem;
+	background: var(--purple);
+	color: white;
+	font-weight: 800;
+	text-decoration: none;
+}
+
+.button--secondary {
+	background: transparent;
+	color: var(--purple-dark);
+}
+
+.button:hover,
+.button:focus-visible {
+	box-shadow: 0 0 0 4px rgb(242 200 75 / 65%);
+}
+
+.status-card,
+.card,
+.log-entry,
+.history-card,
+.contact-card {
+	border: 1px solid var(--line);
+	border-radius: 1.25rem;
+	background: rgb(255 253 247 / 88%);
+	box-shadow: 0 0.8rem 2.5rem rgb(53 27 67 / 7%);
+}
+
+.status-card,
+.card,
+.contact-card {
+	padding: 1.35rem;
+}
+
+.contact-card--form {
+	align-items: start;
+}
+
+.contact-copy {
+	min-width: 0;
+}
+
+.contact-form {
+	position: relative;
+	display: grid;
+	gap: 0.55rem;
+	margin-top: 1.5rem;
+}
+
+.contact-form label {
+	margin-top: 0.5rem;
+	font-weight: 700;
+}
+
+.contact-form input,
+.contact-form textarea,
+.contact-form altcha-widget {
+	width: 100%;
+	border: 1px solid var(--line);
+	border-radius: 0.45rem;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+}
+
+.contact-form input,
+.contact-form textarea {
+	padding: 0.75rem;
+}
+
+.contact-form altcha-widget {
+	display: flex;
+	margin-top: 0.75rem;
+	padding: 0.75rem;
+}
+
+.contact-form :is(input, textarea):focus-visible {
+	outline: 3px solid var(--yellow);
+	outline-offset: 2px;
+}
+
+.contact-form .button {
+	width: fit-content;
+	margin-top: 0.5rem;
+}
+
+.contact-form .button:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
+.form-help,
+.field-error {
+	margin: 0;
+	font-size: 0.86rem;
+}
+
+.form-help {
+	color: var(--muted);
+}
+
+.field-error,
+.form-notice--error {
+	color: #8b1f25;
+}
+
+.form-notice {
+	border-left: 0.4rem solid var(--purple);
+	padding: 1rem;
+	background: var(--paper);
+	color: var(--ink);
+}
+
+.form-notice--success {
+	border-left-color: #32704a;
+}
+
+.text-button {
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 700;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.honeypot {
+	position: absolute;
+	left: -10000px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+.status-card {
+	align-self: center;
+	border-top: 0.55rem solid var(--yellow);
+}
+
+.status-card strong,
+.date-chip {
+	color: var(--purple-dark);
+}
+
+.muted {
+	color: var(--muted);
+}
+
+.section {
+	padding-block: clamp(2.5rem, 8vw, 5rem);
+}
+
+.section-heading {
+	max-width: 48rem;
+	margin-bottom: 2rem;
+}
+
+.grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.check-list,
+.plain-list {
+	padding-left: 1.25rem;
+}
+
+.check-list li::marker {
+	color: var(--purple);
+}
+
+.next-session {
+	display: grid;
+	gap: 1.25rem;
+	border-radius: 1.5rem;
+	background: var(--yellow);
+	padding: clamp(1.5rem, 6vw, 3rem);
+}
+
+.next-session h2 {
+	margin-bottom: 0.75rem;
+}
+
+.date-chip {
+	font-size: 1.1rem;
+	font-weight: 800;
+}
+
+.log-entry {
+	overflow: hidden;
+}
+
+.log-entry__header,
+.log-entry__body {
+	padding: 1.25rem;
+}
+
+.log-entry__header {
+	border-bottom: 1px solid var(--line);
+}
+
+.log-entry__body > :last-child {
+	margin-bottom: 0;
+}
+
+.tag-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.tag-list li {
+	border-radius: 999px;
+	background: rgb(81 44 100 / 10%);
+	padding: 0.2rem 0.6rem;
+	font-size: 0.76rem;
+	font-weight: 700;
+}
+
+.prior-logs {
+	margin-top: 1rem;
+}
+
+.prior-logs details {
+	border-bottom: 1px solid var(--line);
+	padding-block: 1rem;
+}
+
+.prior-logs summary {
+	cursor: pointer;
+	font-weight: 800;
+}
+
+.history-card {
+	display: grid;
+	overflow: hidden;
+}
+
+.history-card img {
+	width: 100%;
+	height: 100%;
+	min-height: 16rem;
+	object-fit: cover;
+}
+
+.history-card__copy {
+	padding: clamp(1.5rem, 5vw, 3rem);
+}
+
+figcaption {
+	margin-top: 0.7rem;
+	color: var(--muted);
+	font-size: 0.78rem;
+	line-height: 1.45;
+}
+
+.contact-card {
+	display: grid;
+	gap: 1.5rem;
+	background: var(--purple-dark);
+	color: white;
+}
+
+.contact-card h2 {
+	color: white;
+}
+
+.qr {
+	width: min(100%, 11rem);
+	border-radius: 0.6rem;
+	background: white;
+	padding: 0.45rem;
+}
+
+.site-footer {
+	border-top: 1px solid var(--line);
+	background: var(--paper);
+}
+
+.site-footer__inner {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	padding-block: 1.5rem;
+	color: var(--muted);
+	font-size: 0.78rem;
+}
+
+@media (min-width: 48rem) {
+	.site-header__inner,
+	.page-shell,
+	.site-footer__inner {
+		width: min(100% - 4rem, 72rem);
+	}
+
+	.site-nav {
+		gap: 1.5rem;
+		font-size: 0.9rem;
+	}
+
+	.hero {
+		grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
+	}
+
+	.grid--3 {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.grid--2,
+	.next-session,
+	.contact-card {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: center;
+	}
+
+	.qr-card {
+		position: sticky;
+		top: 6rem;
+	}
+
+	.history-card {
+		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+	}
+
+	.site-footer__inner {
+		flex-direction: row;
+		justify-content: space-between;
 	}
 }
 
-/* ===== Focus visibility =====
-   Required for WCAG AA per the founding-prompt accessibility line. */
-:focus-visible {
-	outline: 2px solid var(--color-primary-500);
-	outline-offset: 2px;
-	border-radius: 2px;
-}
-
-/* ===== Scrollbar polish (sidebar + drawer)
-   Subtle, picks up theme surface tokens. */
-.sidebar-scroll {
-	scrollbar-width: thin;
-	scrollbar-color: var(--color-surface-400) transparent;
-}
-
-.sidebar-scroll::-webkit-scrollbar {
-	width: 4px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb {
-	background: var(--color-surface-400);
-	border-radius: 2px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb:hover {
-	background: var(--color-surface-500);
-}
-
-/* ===== Reduced motion =====
-   Disable animations + transitions for users who request it. */
 @media (prefers-reduced-motion: reduce) {
-	*,
-	*::before,
-	*::after {
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 0.01ms !important;
-		scroll-behavior: auto !important;
+	html {
+		scroll-behavior: auto;
 	}
 }

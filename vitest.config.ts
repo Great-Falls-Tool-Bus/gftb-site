@@ -14,9 +14,7 @@ export default defineConfig({
 		include: ['src/**/*.test.ts', 'src/**/*.test.svelte.ts', 'scripts/**/*.test.mts'],
 		environment: 'node',
 		globals: true,
-		// Allow vacuous green on empty test set (M0.4 → M0.6 ramp).
-		// Set to false in M3 once content + smoke tests land.
-		passWithNoTests: true,
+		passWithNoTests: false,
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],
@@ -26,14 +24,7 @@ export default defineConfig({
 				branches: 50,
 				statements: 50,
 			},
-			// Unit coverage owns pure library logic. Browser actions/runes, Svelte
-			// routes, and operator CLIs are exercised by E2E/contract lanes instead.
-			include: [
-				'src/lib/projection/static-snapshot.ts',
-				'src/lib/responsive-image.ts',
-				'src/lib/theme/contrast-check.ts',
-				'src/lib/util/**/*.ts',
-			],
+			include: ['src/lib/contact-form.ts', 'src/lib/public-log-schema.ts'],
 			exclude: ['**/*.test.ts', '**/*.test.mts', '**/*.test.svelte.ts'],
 		},
 	},

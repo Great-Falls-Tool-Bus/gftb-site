@@ -1,9 +1,4 @@
-"""
-Root BUILD.bazel for site.scaffold.
-
-Just is the operator entrypoint; these finite Bazel targets own local and CI
-build, check, test, development, and analysis execution.
-"""
+"""Finite Bazel graph for the Great Falls Tool Bus static microsite."""
 
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary", "js_test")
@@ -15,46 +10,14 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 npm_link_all_packages(name = "node_modules")
 
-# =============================================================================
-# TIN-2838: Bazel-only ingestion of the first-party @tummycrypt/* packages.
-#
-# The four in-house packages are graph-linked directly from the
-# tinyland-inc/bazel-registry `pkg` targets (module-authority), NOT resolved as
-# npm specifiers. package.json no longer carries them, so the pnpm/npm path can
-# no longer supply them — Bazel owns their ingestion. Mirrors the mothership
-# tinyland.dev root BUILD.bazel. Versions are pinned in MODULE.bazel via
-# bazel_dep; `just inhouse-package-parity` asserts the bazel_dep + npm_link_package
-# invariant. See docs/research/bazel-ssot-packaging-dogfooding-2026-07.md.
-# =============================================================================
+# Bazel is the only carrier for this first-party Vite plugin.
 npm_link_package(
     name = "node_modules/@tummycrypt/vite-plugin-a11y",
     src = "@tummycrypt_vite_plugin_a11y//:pkg",
 )
-npm_link_package(
-    name = "node_modules/@tummycrypt/vite-plugin-skeleton-colors",
-    src = "@tummycrypt_vite_plugin_skeleton_colors//:pkg",
-)
-npm_link_package(
-    name = "node_modules/@tummycrypt/tinyland-color-utils",
-    src = "@tummycrypt_tinyland_color_utils//:pkg",
-)
-npm_link_package(
-    name = "node_modules/@tummycrypt/tinyvectors",
-    src = "@tummycrypt_tinyvectors//:pkg",
-)
 
-TINYLAND_HOUSE_PACKAGES = [
-    ":node_modules/@tummycrypt/vite-plugin-a11y",
-    ":node_modules/@tummycrypt/vite-plugin-skeleton-colors",
-    ":node_modules/@tummycrypt/tinyland-color-utils",
-    ":node_modules/@tummycrypt/tinyvectors",
-]
-
-# Direct npm links keep runfiles bounded. The frozen third-party graph carries
-# both sanctioned adapters; rebrand selects the label below and config together.
 APP_NPM_PACKAGES = [
     ":node_modules/@fontsource/inter",
-    ":node_modules/@lucide/svelte",
     ":node_modules/@skeletonlabs/skeleton",
     ":node_modules/@skeletonlabs/skeleton-svelte",
     ":node_modules/@sveltejs/adapter-static",
@@ -62,15 +25,14 @@ APP_NPM_PACKAGES = [
     ":node_modules/@sveltejs/vite-plugin-svelte",
     ":node_modules/@tailwindcss/vite",
     ":node_modules/@types/node",
-    ":node_modules/effect",
-    ":node_modules/magic-string",
+    ":node_modules/mdsvex",
     ":node_modules/rollup-plugin-visualizer",
-    ":node_modules/shiki",
     ":node_modules/svelte",
     ":node_modules/tailwindcss",
     ":node_modules/typescript",
     ":node_modules/vite",
-] + TINYLAND_HOUSE_PACKAGES
+    ":node_modules/@tummycrypt/vite-plugin-a11y",
+]
 
 LINT_NPM_PACKAGES = [
     ":node_modules/@eslint/js",
@@ -101,7 +63,6 @@ filegroup(
         [
             "src/**",
             "static/**",
-            "scripts/**/*.mts",
             "scripts/bazel/**/*.mjs",
         ],
         allow_empty = True,
@@ -118,30 +79,24 @@ filegroup(
     ],
 )
 
-# Mirror the repo-wide Prettier surface (subject to .prettierignore) inside the
-# finite Bazel test sandbox. Hidden workflow/config trees need explicit globs.
 filegroup(
     name = "format_srcs",
     srcs = glob(
         [
             ".agents/**/*.yaml",
-            ".claude-plugin/**/*.json",
             ".github/**/*.json",
             ".github/**/*.yaml",
             ".github/**/*.yml",
-            "config/**/*.json",
             "docs/**/*.json",
             "e2e/**/*.ts",
-            "plugins/**/*.json",
             "scripts/**/*.js",
-            "scripts/**/*.json",
             "scripts/**/*.mjs",
-            "scripts/**/*.mts",
             "src/**/*.css",
             "src/**/*.html",
             "src/**/*.js",
             "src/**/*.json",
             "src/**/*.svelte",
+            "src/**/*.svx",
             "src/**/*.ts",
         ],
         allow_empty = True,
@@ -178,9 +133,6 @@ js_run_binary(
     tool = ":sveltekit_sync_bin",
 )
 
-# Keep sources and their extended tsconfig in one declared tree. Build and test
-# wrappers dereference this input into action-local scratch so Oxc's canonical
-# paths never escape to the Bazel execroot while resolving tsconfig.json.
 copy_to_directory(
     name = "app_workspace",
     srcs = [
@@ -196,51 +148,27 @@ js_binary(
     name = "svelte_check_bin",
     data = TYPECHECK_NPM_PACKAGES,
     entry_point = "scripts/bazel/run-svelte-check.mjs",
-    tags = [
-        "manual",
-        "no-remote-exec",
-    ],
+    tags = ["manual", "no-remote-exec"],
 )
 
 js_test(
     name = "svelte_check_test",
-    data = [
-        ":app_srcs",
-        ":sveltekit_types",
-    ] + TYPECHECK_NPM_PACKAGES,
+    data = [":app_srcs", ":sveltekit_types"] + TYPECHECK_NPM_PACKAGES,
     entry_point = "scripts/bazel/run-svelte-check.mjs",
     timeout = "long",
 )
 
-# Shared-cache-eligible lint as a Bazel TEST target (TIN-2226). It stays
-# executor-ineligible until its target class is admitted to the GF allowlist.
 eslint_bin.eslint_test(
     name = "eslint_test",
     args = ["."],
-    data = [
-        ":app_srcs",
-        ":e2e_srcs",
-        ":sveltekit_types",
-        "eslint.config.ts",
-    ] + LINT_NPM_PACKAGES,
+    data = [":app_srcs", ":e2e_srcs", ":sveltekit_types", "eslint.config.ts"] + LINT_NPM_PACKAGES,
     timeout = "moderate",
 )
 
-# Shared-cache-eligible format check as a Bazel TEST target (TIN-2226). It is
-# read-only and executor-ineligible until its target class is admitted.
 prettier_bin.prettier_test(
     name = "prettier_check_test",
-    args = [
-        "--check",
-        ".",
-    ],
-    data = [
-        ":format_srcs",
-    ] + [
-        ":node_modules/prettier",
-        ":node_modules/prettier-plugin-svelte",
-        ":node_modules/svelte",
-    ],
+    args = ["--check", "."],
+    data = [":format_srcs", ":node_modules/prettier", ":node_modules/prettier-plugin-svelte", ":node_modules/svelte"],
     timeout = "short",
 )
 
@@ -252,17 +180,12 @@ js_binary(
 
 js_run_binary(
     name = "build",
-    args = [
-        "--workspace",
-        "$(rootpath :app_workspace)",
-        "--output-dir",
-        "build",
-    ],
+    args = ["--workspace", "$(rootpath :app_workspace)", "--output-dir", "build"],
     srcs = [":app_workspace"],
     out_dirs = ["build"],
     patch_node_fs = False,
     stamp = 1,
-    tags = ["flywheel-eligible"],
+    tags = ["flywheel-eligible", "sveltekit-app-build"],
     tool = ":vite_build_bin",
     visibility = ["//visibility:public"],
 )
@@ -278,9 +201,9 @@ js_run_binary(
         "--analyze-output",
         ".bundle-stats/stats.html",
     ],
+    srcs = [":app_workspace"],
     out_dirs = ["build-analyze", ".bundle-stats"],
     patch_node_fs = False,
-    srcs = [":app_workspace"],
     stamp = 1,
     tool = ":vite_build_bin",
     visibility = ["//visibility:public"],
@@ -290,40 +213,22 @@ js_binary(
     name = "dev",
     data = APP_NPM_PACKAGES,
     entry_point = "scripts/bazel/run-vite-dev.mjs",
-    tags = [
-        "manual",
-        "no-remote-exec",
-    ],
+    tags = ["manual", "no-remote-exec"],
     visibility = ["//visibility:public"],
 )
 
 js_test(
     name = "unit_tests",
-    data = [
-        ":app_workspace",
-        "scripts/bazel/prepare-sveltekit-types.mjs",
-    ] + UNIT_TEST_NPM_PACKAGES,
-    args = [
-        "--workspace",
-        "$(rootpath :app_workspace)",
-        "run",
-        "--reporter=verbose",
-        "--config",
-        "vitest.config.ts",
-    ],
+    data = [":app_workspace", "scripts/bazel/prepare-sveltekit-types.mjs"] + UNIT_TEST_NPM_PACKAGES,
+    args = ["--workspace", "$(rootpath :app_workspace)", "run", "--reporter=verbose", "--config", "vitest.config.ts"],
     entry_point = "scripts/bazel/run-vitest.mjs",
-    tags = [
-        "flywheel-eligible",
-        "vitest",
-    ],
+    tags = ["flywheel-eligible", "sveltekit-unit-tests", "vitest"],
     visibility = ["//visibility:public"],
 )
 
 js_binary(
     name = "vitest_coverage_bin",
-    data = [
-        "scripts/bazel/prepare-sveltekit-types.mjs",
-    ] + UNIT_TEST_NPM_PACKAGES,
+    data = ["scripts/bazel/prepare-sveltekit-types.mjs"] + UNIT_TEST_NPM_PACKAGES,
     entry_point = "scripts/bazel/run-vitest.mjs",
 )
 
@@ -341,156 +246,49 @@ js_run_binary(
     ],
     out_dirs = ["coverage"],
     srcs = [":app_workspace"],
-    tags = [
-        "manual",
-        "no-remote-exec",
-    ],
+    tags = ["manual", "no-remote-exec"],
     tool = ":vitest_coverage_bin",
 )
 
 js_test(
     name = "playwright_static_smoke",
-    data = [
-        ":build",
-        ":e2e_srcs",
-        ":node_modules/@playwright/test",
-        "scripts/bazel/run-playwright-static-smoke.mjs",
-    ],
+    data = [":build", ":e2e_srcs", ":node_modules/@playwright/test", "scripts/bazel/run-playwright-static-smoke.mjs"],
     entry_point = "scripts/bazel/run-playwright-static-smoke.mjs",
-    tags = [
-        "gloriousflywheel-rbe-candidate",
-        "playwright",
-        "web-playwright-chromium-static-smoke",
-    ],
+    tags = ["gloriousflywheel-rbe-candidate", "playwright", "web-playwright-chromium-static-smoke"],
     timeout = "moderate",
     visibility = ["//visibility:public"],
 )
 
-sh_test(
-    name = "application_owner_overlay_contract_test",
-    srcs = ["scripts/test-application-owner-overlay-contract.py"],
-    data = [
-        "docs/schemas/application-owner-overlay.schema.json",
-        "docs/schemas/tinyland-repo-manifest.schema.json",
-        "docs/schemas/tinyland-repo-manifest.v2.schema.json",
-        "scripts/validate_application_owner_overlay.py",
-        "tests/fixtures/application-owner-overlay.json",
-    ],
-    size = "small",
-    tags = [
-        "agent-contract",
-        "no-remote-exec",
-    ],
-)
-
 test_suite(
     name = "ci_validation_suite",
-    tests = [
-        ":svelte_check_test",
-        ":unit_tests",
-    ],
+    tests = [":svelte_check_test", ":unit_tests"],
 )
 
 test_suite(
     name = "lint_suite",
-    tests = [
-        ":eslint_test",
-        ":prettier_check_test",
-    ],
+    tests = [":eslint_test", ":prettier_check_test"],
 )
 
 test_suite(
     name = "local_validation_suite",
-    tests = [
-        ":application_owner_overlay_contract_test",
-        ":eslint_test",
-        ":prettier_check_test",
-        ":svelte_check_test",
-        ":unit_tests",
-    ],
+    tests = [":eslint_test", ":prettier_check_test", ":svelte_check_test", ":unit_tests"],
 )
 
-# ─────────────────────────────────────────────
-# Packaging target class (extends the target-class ladder past build+test).
-#
-# Tag discipline: cache-first vs executor eligibility (see
-# docs/CI-SCHEMA.md §4 and the tinyland-flywheel-bazel skill "Tag discipline"
-# rule). Two disjoint tag shapes gate a target against the executor filter that
-# `.bazelrc.flywheel` applies (`--{build,test}_tag_filters=flywheel-eligible`):
-#
-#   1. Executor-safe classes carry `flywheel-eligible`. They are hermetic and
-#      belong to a proved class in the GloriousFlywheel eligibility manifest, so
-#      they run under both cache-first (config=flywheel) and executor-backed
-#      (config=flywheel-executor) modes.
-#   2. Cache-eligible-but-never-executor classes carry
-#      `gloriousflywheel-cache-only` plus `no-remote-exec` and deliberately OMIT
-#      `flywheel-eligible`. The executor tag-filter therefore excludes them,
-#      while cache-first mode still serves a cached result. The reference example
-#      is the `container_image_context` target below: image assembly and push are
-#      blocked at the GloriousFlywheel manifest layer (`container-image-and-push`,
-#      docs/CI-SCHEMA.md §4), so it must never reach a remote executor even though
-#      its unchanged inputs stay cacheable. It is the OPTIONAL adapter-node
-#      packaging class: additive and inert under the adapter-static default (its
-#      adapter-node-only recipe inputs, a ContainerFile and the nix OCI recipe,
-#      are absent, so nothing assembles an image from the context), only
-#      meaningful once a spoke flips to adapter-node and adds them.
-# ─────────────────────────────────────────────
-
-# Proved static-spoke class: deployment-bundle-packaging. Packages the static
-# SvelteKit production build (//:build) into a deterministic deployment tarball.
-# This is a hermetic rules_pkg action, so it is BOTH cache- and
-# executor-eligible, tagged flywheel-eligible per case (1) above.
 pkg_tar(
     name = "deployment_bundle",
     srcs = [":build"],
     extension = "tar.gz",
-    tags = [
-        "deployment-bundle-packaging",
-        "flywheel-eligible",
-    ],
+    tags = ["deployment-bundle-packaging", "flywheel-eligible"],
     visibility = ["//visibility:public"],
 )
 
-# Optional adapter-node class: container-image-context packaging (backport of the
-# reference implementation shipped by the greatfallstoolbus.org spoke). Packages
-# the deterministic input set a daemonless OCI image build consumes: a
-# ContainerFile plus the nix OCI recipe (nix/oci-image.nix, alongside flake
-# pins), and the shared package/lock/config inputs the image build reads. It is
-# CACHE-only per case (2) above: the shared GloriousFlywheel cache may serve a
-# green result for an unchanged recipe, but per Operating Rule 8 +
-# docs/CI-SCHEMA.md §4 `container-image-and-push` is blocked at the manifest
-# layer, so image assembly/push never runs on a remote executor. The tag set
-# deliberately OMITS `flywheel-eligible`, so the
-# `--{build,test}_tag_filters=flywheel-eligible` executor filter excludes it.
-#
-# ADDITIVE + adapter-static-safe: the srcs are a `glob(allow_empty = True)`, so
-# the scaffold default (adapter-static, with no ContainerFile and no
-# nix/oci-image.nix) still builds this target green: it just packages the shared
-# inputs with no image recipe, so nothing consumes it. The target only becomes
-# meaningful when a spoke flips to adapter-node (scripts/rebrand.sh
-# --adapter=node) and adds a ContainerFile + nix/oci-image.nix; the glob then
-# packages them into the context tar. Endpoint-free: no cache/executor endpoint
-# is referenced here (see .bazelrc / .bazelrc.flywheel).
+# The publisher consumes this cacheable context, but image assembly and registry
+# mutation stay local to the trusted GitHub runner and never use remote exec.
 pkg_tar(
     name = "container_image_context",
-    srcs = glob(
-        [
-            "ContainerFile",
-            "flake.lock",
-            "flake.nix",
-            "nix/oci-image.nix",
-            "package.json",
-            "pnpm-lock.yaml",
-            "svelte.config.js",
-        ],
-        allow_empty = True,
-    ),
+    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "svelte.config.js"],
     extension = "tar",
-    tags = [
-        "container-image-and-push",
-        "gloriousflywheel-cache-only",
-        "no-remote-exec",
-    ],
+    tags = ["container-image-and-push", "gloriousflywheel-cache-only", "no-remote-exec"],
     visibility = ["//visibility:public"],
 )
 
@@ -501,8 +299,8 @@ exports_files(
         "playwright.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
-        "scripts/bazel/run-playwright-static-smoke.mjs",
         "scripts/bazel/prepare-sveltekit-types.mjs",
+        "scripts/bazel/run-playwright-static-smoke.mjs",
         "scripts/bazel/run-svelte-check.mjs",
         "scripts/bazel/run-sveltekit-sync.mjs",
         "scripts/bazel/run-vitest.mjs",

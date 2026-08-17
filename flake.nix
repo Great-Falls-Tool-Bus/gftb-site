@@ -1,45 +1,41 @@
 {
-  description = "site.scaffold development shell";
+  description = "Great Falls Tool Bus public static microsite";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    nix2container.url = "github:nlewo/nix2container";
+    nix2container.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
-    { self, nixpkgs, flake-utils }:
+    {
+      nixpkgs,
+      flake-utils,
+      nix2container,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         corePackages = with pkgs; [
-          # Core JS toolchain
           nodejs_22
           pnpm
           typescript
           typescript-language-server
-
-          # Build / VCS / CLI
           just
           git
           gh
           bazelisk
           gitleaks
           syft
-
-          # CI-schema + lane tooling (docs/CI-SCHEMA.md)
           python3
           python3Packages.jsonschema
           jq
-
-          # Tofu + reachability probe (docs/CI-SCHEMA.md §8)
-          opentofu
-          terraform-ls
-          tflint
-          netcat-gnu
-
-          # Changelog (cliff.toml-driven; see just changelog)
-          git-cliff
+          qrencode
+          actionlint
+          nixfmt
         ];
         playwrightRuntimeLibraries = with pkgs; [
           alsa-lib
@@ -73,46 +69,129 @@
           libxrender
           libxtst
         ];
-        shellHook =
-          extraHook:
-          ''
-            # Enable corepack so pnpm@10.13.1 (from packageManager field in
-            # package.json once M0.2 lands) takes over from the nix-shipped pnpm.
-            corepack enable >/dev/null 2>&1 || true
-
-            ${extraHook}
-
-            echo "site.scaffold dev shell"
-            echo "  node     $(node --version)"
-            echo "  pnpm     $(pnpm --version 2>/dev/null || echo 'not available yet')"
-            echo "  just     $(just --version)"
-            echo "  bazel    $(bazelisk --version 2>&1 | head -n1)"
-            echo "  gh       $(gh --version | head -n1)"
-            echo "  gitleaks $(gitleaks version 2>&1 | head -n1)"
-            echo "  python   $(python3 --version)"
-            echo "  tofu     $(tofu --version 2>&1 | head -n1)"
-            echo "  jq       $(jq --version)"
-            echo "  git-cliff $(git-cliff --version 2>&1 | head -n1)"
-          '';
-        playwrightShellHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+        shellHook = extra: ''
+          corepack enable >/dev/null 2>&1 || true
+          ${extra}
+          echo "gftb-site dev shell"
+          echo "  node     $(node --version)"
+          echo "  pnpm     $(pnpm --version 2>/dev/null || echo unavailable)"
+          echo "  just     $(just --version)"
+          echo "  bazel    $(bazelisk --version 2>&1 | head -n1)"
+          echo "  gitleaks $(gitleaks version 2>&1 | head -n1)"
+        '';
+        playwrightHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
           export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${pkgs.chromium}/bin/chromium"
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath playwrightRuntimeLibraries}:''${LD_LIBRARY_PATH:-}"
         '';
+
+        n2c = nix2container.packages.${system}.nix2container;
+        appBuildEnv = builtins.getEnv "APP_BUILD";
+        appBuild =
+          if appBuildEnv == "" then
+            throw "flake .#image requires APP_BUILD pointing at the Bazel-materialized static build"
+          else
+            builtins.path {
+              name = "gftb-static-build";
+              path = appBuildEnv;
+            };
+        envOr =
+          name: fallback:
+          let
+            value = builtins.getEnv name;
+          in
+          if value == "" then fallback else value;
+        commitSha = envOr "BUILD_COMMIT_SHA" "unknown";
+        commitRef = envOr "BUILD_COMMIT_REF" "unknown";
+        created = envOr "BUILD_DATE" "1970-01-01T00:00:00Z";
+        imageName = "ghcr.io/great-falls-tool-bus/gftb-site";
+        caddyfile = pkgs.writeText "Caddyfile" ''
+          {
+            admin off
+            persist_config off
+          }
+
+          :3000 {
+            root * /srv
+            encode zstd gzip
+            respond /health "ok" 200
+            respond /healthz "ok" 200
+            file_server
+          }
+        '';
+        imageRoot = pkgs.buildEnv {
+          name = "gftb-static-image-root";
+          paths = [
+            pkgs.caddy
+            pkgs.dumb-init
+            pkgs.cacert
+          ];
+          pathsToLink = [
+            "/bin"
+            "/etc"
+            "/share"
+            "/lib"
+          ];
+        };
+        appLayer = n2c.buildLayer {
+          copyToRoot = pkgs.runCommand "gftb-static-site" { } ''
+            mkdir -p "$out/srv" "$out/etc/caddy" "$out/tmp"
+            chmod 1777 "$out/tmp"
+            cp -a ${appBuild}/. "$out/srv/"
+            printf '%s' '${commitSha}' > "$out/srv/health.sha"
+            cp ${caddyfile} "$out/etc/caddy/Caddyfile"
+          '';
+        };
+        image = n2c.buildImage {
+          name = imageName;
+          tag = "sha-${commitSha}";
+          inherit created;
+          copyToRoot = imageRoot;
+          layers = [ appLayer ];
+          config = {
+            Entrypoint = [
+              "/bin/dumb-init"
+              "--"
+            ];
+            Cmd = [
+              "/bin/caddy"
+              "run"
+              "--config"
+              "/etc/caddy/Caddyfile"
+              "--adapter"
+              "caddyfile"
+            ];
+            User = "65532:65532";
+            WorkingDir = "/srv";
+            ExposedPorts = {
+              "3000/tcp" = { };
+            };
+            Env = [
+              "HOME=/tmp"
+              "XDG_CONFIG_HOME=/tmp"
+              "XDG_DATA_HOME=/tmp"
+              "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
+            ];
+            Labels = {
+              "org.opencontainers.image.source" = "https://github.com/Great-Falls-Tool-Bus/gftb-site";
+              "org.opencontainers.image.revision" = commitSha;
+              "org.opencontainers.image.ref.name" = commitRef;
+              "org.opencontainers.image.created" = created;
+              "org.opencontainers.image.description" = "Great Falls Tool Bus static candidate";
+            };
+          };
+        };
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = corePackages;
           shellHook = shellHook "";
         };
-
         devShells.playwright = pkgs.mkShell {
-          buildInputs =
-            corePackages
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux ([ pkgs.chromium ] ++ playwrightRuntimeLibraries);
-          shellHook = shellHook playwrightShellHook;
+          buildInputs = corePackages ++ [ pkgs.chromium ] ++ playwrightRuntimeLibraries;
+          shellHook = shellHook playwrightHook;
         };
-
-        formatter = pkgs.nixpkgs-fmt;
+        packages.image = image;
+        formatter = pkgs.nixfmt;
       }
     );
 }

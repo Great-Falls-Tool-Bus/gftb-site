@@ -2,8 +2,9 @@
 	"$schema": "../docs/schemas/lanes.schema.json",
 	"schema_version": 1,
 	"spoke": {
-		"name": "site-scaffold",
-		"domain": "site.scaffold.tinyland.dev"
+		"name": "gftb-site",
+		"domain": "greatfallstoolbus.org",
+		"image_repository": "ghcr.io/great-falls-tool-bus/gftb-site"
 	},
 	"defaults": {
 		"runner_class": "tinyland-nix",
@@ -14,9 +15,9 @@
 		{
 			"name": "default",
 			"trigger": "pull_request",
-			"theme": "scaffold",
+			"theme": "gftb",
 			"snapshot_source": "checked-in",
-			"e2e": false
+			"e2e": true
 		}
 	]
 }

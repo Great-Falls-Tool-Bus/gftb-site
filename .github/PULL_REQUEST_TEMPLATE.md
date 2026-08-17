@@ -2,18 +2,9 @@
 
 <!-- One-paragraph description of what this PR changes and why. -->
 
-## Linear
+## Contract reference
 
-<!--
-Canonical TIN-1234 references are welcome in the title, body, and head branch.
-Use Fixes/Closes/Resolves/Completes TIN-1234 only when this PR should complete
-the issue. Otherwise add a non-closing line such as: Related to TIN-1234
-If there is no issue, write: Linear: none — <reason>
--->
-
-## Spec Reference
-
-<!-- Section(s) of the relevant docs/spec/*.md or docs/CI-SCHEMA.md this PR implements. -->
+<!-- Point to AGENTS.md, docs/CI-SCHEMA.md, or the public-content rule affected. -->
 
 ## Validation
 
@@ -21,7 +12,7 @@ If there is no issue, write: Linear: none — <reason>
 - [ ] `just conformance` or its remote equivalent is green
 - [ ] `just inhouse-package-parity` or its remote equivalent is green
 - [ ] No new gitleaks findings
-- [ ] Skeleton `4.15.2` exact pin preserved (no v5 or prerelease drift)
+- [ ] GFTB Skeleton `5.0.0` exact pin preserved
 - [ ] Bazel graph / RBE proof evidence is linked when Bazel authority changes
 
 ## Screenshots / Output

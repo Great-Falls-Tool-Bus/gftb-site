@@ -20,7 +20,6 @@ from urllib.parse import urlsplit, urlunsplit
 
 
 STATIC_ROLES = {"static-spoke", "static-spoke-scaffold"}
-NODE_ROLES = {"app-stateful-spoke"}
 
 
 class OutputError(RuntimeError):
@@ -43,8 +42,6 @@ def adapter_contract(manifest_path: Path) -> AdapterContract:
     role = taxonomy.get("spawned_repo_role") or taxonomy.get("primary_role")
     if role in STATIC_ROLES:
         return AdapterContract("adapter-static", Path("index.html"))
-    if role in NODE_ROLES:
-        return AdapterContract("adapter-node", Path("index.js"))
     raise OutputError(f"unsupported taxonomy role in {manifest_path}: {role!r}")
 
 
@@ -212,9 +209,6 @@ def preview_command(
         raise OutputError(f"{contract.name} preview requires {entrypoint}")
 
     environment = os.environ.copy()
-    if contract.name == "adapter-node":
-        environment.update({"HOST": host, "PORT": str(port)})
-        return ["node", str(entrypoint)], environment
     command = [
         sys.executable,
         str(Path(__file__).resolve()),

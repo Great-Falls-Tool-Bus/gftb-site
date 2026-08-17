@@ -1,166 +1,50 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "https://raw.githubusercontent.com/tinyland-inc/site.scaffold/main/docs/schemas/lanes.schema.json",
-	"title": "Tinyland Spoke lanes.json",
-	"description": "Normative schema for .github/lanes.json in any repo spawned from tinyland-inc/site.scaffold. Source of truth for per-spoke CI lane metadata and Flywheel target-class binding. It grants no receiver, apply, DNS, or lifecycle authority. See docs/CI-SCHEMA.md for the full contract.",
+	"title": "GFTB static-spoke lanes manifest",
 	"type": "object",
-	"required": ["schema_version", "spoke", "lanes"],
 	"additionalProperties": false,
+	"required": ["schema_version", "spoke", "defaults", "lanes"],
 	"properties": {
-		"$schema": {
-			"type": "string",
-			"description": "Editor support hint pointing at this schema. Tolerated; ignored by the validator."
-		},
-		"$comment": {
-			"type": "string",
-			"description": "Free-form comment. Tolerated; ignored by the validator."
-		},
-		"schema_version": {
-			"const": 1,
-			"description": "Schema major version. Bumped on breaking changes; migration notes in docs/CI-SCHEMA-CHANGELOG.md."
-		},
+		"$schema": { "type": "string" },
+		"schema_version": { "const": 1 },
 		"spoke": {
 			"type": "object",
-			"required": ["name", "domain"],
 			"additionalProperties": false,
+			"required": ["name", "domain", "image_repository"],
 			"properties": {
-				"name": {
-					"type": "string",
-					"pattern": "^[a-z][a-z0-9-]{1,62}$",
-					"description": "Spoke slug used by CI, artifact metadata, and owner-defined lifecycle consumers."
-				},
-				"domain": {
-					"type": "string",
-					"format": "hostname",
-					"description": "Spoke brand domain metadata. Any QA hostname or DNS lifecycle is defined and owned outside this scaffold."
-				},
-				"image_repository": {
-					"type": "string",
-					"pattern": "^ghcr\\.io/[a-z0-9._-]+/[a-z0-9._-]+$",
-					"description": "Optional GHCR repository metadata for product-owned build or QA consumers. It grants no publication or deployment authority."
-				}
+				"name": { "const": "gftb-site" },
+				"domain": { "const": "greatfallstoolbus.org" },
+				"image_repository": { "const": "ghcr.io/great-falls-tool-bus/gftb-site" }
 			}
 		},
 		"defaults": {
 			"type": "object",
 			"additionalProperties": false,
-			"description": "Per-lane field defaults. Each lane may override.",
+			"required": ["runner_class", "ttl_hours", "flywheel_target_classes"],
 			"properties": {
-				"runner_class": { "$ref": "#/$defs/runnerClass" },
-				"ttl_hours": {
-					"type": "integer",
-					"minimum": 1,
-					"maximum": 720,
-					"default": 72,
-					"description": "Compatibility TTL hint for an owner-defined QA consumer. It is inert in this scaffold and creates no reaper or retention policy."
-				},
-				"image_tag_template": {
-					"type": "string",
-					"default": "pr-{PR_NUMBER}-sha-{COMMIT_SHA}",
-					"description": "Compatibility artifact-tag metadata for an owner-defined QA consumer. Tokens: {PR_NUMBER}, {COMMIT_SHA}, {LANE}."
-				},
+				"runner_class": { "const": "tinyland-nix" },
+				"ttl_hours": { "type": "integer", "minimum": 1, "maximum": 720 },
 				"flywheel_target_classes": {
 					"type": "array",
-					"items": { "$ref": "#/$defs/provedTargetClass" },
-					"default": [],
 					"uniqueItems": true,
-					"description": "Proved REAPI target classes the spoke may invoke through GF_BAZEL_SUBSTRATE_MODE=executor-backed. Must be a subset of the allowlist enum. See docs/CI-SCHEMA.md §4."
-				},
-				"trigger": {
-					"$ref": "#/$defs/laneTrigger",
-					"default": "pull_request"
-				},
-				"e2e": { "type": "boolean", "default": false }
+					"items": { "enum": ["sveltekit-app-build", "sveltekit-unit-tests", "deployment-bundle-packaging"] }
+				}
 			}
 		},
 		"lanes": {
 			"type": "array",
 			"minItems": 1,
-			"maxItems": 8,
-			"items": { "$ref": "#/$defs/lane" }
-		}
-	},
-	"$defs": {
-		"runnerClass": {
-			"enum": [
-				"tinyland-nix",
-				"tinyland-nix-heavy",
-				"tinyland-nix-kvm",
-				"tinyland-nix-gpu",
-				"tinyland-docker",
-				"tinyland-dind",
-				"ubuntu-latest"
-			],
-			"description": "GitHub Actions runs-on label. Cluster classes require runner-pool ACL grant via tinyland-infra/modules/spoke/runner-binding. `ubuntu-latest` is permitted only for jobs whose entire purpose is a `gh api` call."
-		},
-		"laneTrigger": {
-			"enum": ["pull_request", "merge_main", "release_tag", "manual"],
-			"description": "Compatibility classification for build or QA consumers. It is metadata only and does not provision, converge, or reap an environment."
-		},
-		"provedTargetClass": {
-			"enum": [
-				"sveltekit-app-build",
-				"sveltekit-unit-tests",
-				"deployment-bundle-packaging",
-				"docs-site-static-build",
-				"web-playwright-chromium-static-smoke"
-			],
-			"description": "Mirrors tinyland-inc/GloriousFlywheel/config/rbe-target-eligibility.json at the tag this schema was cut against. `web-playwright-chromium-static-smoke` is candidate-status and will be rejected at runtime until promoted in a future schema bump."
-		},
-		"lane": {
-			"type": "object",
-			"required": ["name", "theme", "snapshot_source"],
-			"additionalProperties": false,
-			"properties": {
-				"name": {
-					"type": "string",
-					"pattern": "^[a-z][a-z0-9-]{0,30}$",
-					"description": "Lane slug used by CI matrices and optional owner-defined QA consumers. It grants no DNS, status-publication, or state authority."
-				},
-				"trigger": { "$ref": "#/$defs/laneTrigger" },
-				"domain": {
-					"type": "string",
-					"format": "hostname",
-					"description": "Optional hostname metadata for an owner-defined QA consumer. This scaffold defines no default route or DNS mutation."
-				},
-				"theme": {
-					"type": "string",
-					"description": "Brand theme key, typically under src/lib/styles/themes/, consumed by product-owned build or QA tooling."
-				},
-				"snapshot_source": {
-					"type": "string",
-					"description": "Projection or broker-display source identifier. Examples: `tinyland://pulse/m1`, `checked-in`, `broker:/projections/jesssullivan-github-io/blog/broker-stream.v1.json`, or a full URL."
-				},
-				"runner_class": { "$ref": "#/$defs/runnerClass" },
-				"e2e": {
-					"type": "boolean",
-					"description": "If true, a product-owned QA consumer may include this lane in its E2E matrix. No runner, route, or environment is implied."
-				},
-				"ttl_hours": {
-					"type": "integer",
-					"minimum": 1,
-					"maximum": 720,
-					"description": "Per-lane compatibility TTL hint for an owner-defined QA consumer; inert unless that owner adopts it explicitly."
-				},
-				"tofu_state_suffix": {
-					"type": "string",
-					"pattern": "^[a-z0-9-]{1,32}$",
-					"description": "Legacy state-suffix hint retained for schema compatibility. The product owner defines the full state identity; this field creates no state or apply authority."
-				},
-				"image_tag_template": {
-					"type": "string",
-					"description": "Per-lane compatibility artifact-tag metadata. Tokens: {PR_NUMBER}, {COMMIT_SHA}, {LANE}."
-				},
-				"flywheel_target_classes": {
-					"type": "array",
-					"items": { "$ref": "#/$defs/provedTargetClass" },
-					"uniqueItems": true,
-					"description": "Per-lane proved REAPI target class allowlist. Must be a subset of defaults.flywheel_target_classes if both are set."
-				},
-				"extra": {
-					"type": "object",
-					"additionalProperties": true,
-					"description": "Free-form lane-specific metadata for product-owned build or QA tooling. Must be JSON-serializable and carries no apply authority."
+			"maxItems": 1,
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["name", "trigger", "theme", "snapshot_source", "e2e"],
+				"properties": {
+					"name": { "const": "default" },
+					"trigger": { "const": "pull_request" },
+					"theme": { "const": "gftb" },
+					"snapshot_source": { "const": "checked-in" },
+					"e2e": { "const": true }
 				}
 			}
 		}

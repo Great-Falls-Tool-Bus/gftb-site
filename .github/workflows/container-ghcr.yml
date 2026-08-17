@@ -1,0 +1,87 @@
+name: Publish candidate OCI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact 40-character commit SHA selected for this candidate
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/container-ghcr.yml'
+      - 'BUILD.bazel'
+      - 'Justfile'
+      - 'flake.nix'
+      - 'flake.lock'
+
+concurrency:
+  group: candidate-oci-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  GF_CORE_REF: 2281b576bce0e8dd776a047b84e7464f5b508a62
+
+jobs:
+  verify-carrier:
+    name: Verify exact public image carrier
+    if: github.event_name == 'pull_request'
+    runs-on: tinyland-nix
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: tinyland-inc/GloriousFlywheel
+          ref: ${{ env.GF_CORE_REF }}
+          path: GloriousFlywheel
+          persist-credentials: false
+      - name: Assert exact checkout
+        run: test "$(git -C GloriousFlywheel rev-parse HEAD)" = "$GF_CORE_REF"
+
+  publish:
+    name: Build + push immutable static candidate
+    if: github.event_name != 'pull_request'
+    runs-on: tinyland-nix
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: overlay
+          persist-credentials: false
+      - name: Bind attended dispatch to the exact selected commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+        run: |
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+      - uses: actions/checkout@v7
+        with:
+          repository: tinyland-inc/GloriousFlywheel
+          ref: ${{ env.GF_CORE_REF }}
+          path: GloriousFlywheel
+          persist-credentials: false
+      - name: Build and publish exact-SHA candidate
+        uses: ./GloriousFlywheel/.github/actions/nix-job
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_COMMIT_SHA: ${{ github.sha }}
+          BUILD_COMMIT_REF: ${{ github.ref_name }}
+        with:
+          push-cache: 'false'
+          command: |
+            set -euo pipefail
+            cd overlay
+            export GF_CORE_PATH=../GloriousFlywheel
+            export GF_CORE_CI_PATH=../GloriousFlywheel#ci
+            nix develop ../GloriousFlywheel#ci -c just container-image-publish

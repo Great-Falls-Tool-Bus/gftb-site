@@ -1,0 +1,28 @@
+Great Falls Tool Bus — third-party assets and attribution
+
+SOFTWARE
+	Third-party dependencies are resolved through package.json, pnpm-lock.yaml,
+	MODULE.bazel, and the Nix flake. Each retains its upstream license.
+
+	static/vendor/altcha/altcha.js
+	  ALTCHA-compatible proof-of-work widget, pinned to the v3.2.0 wire
+	  protocol. MIT License; upstream copyright Daniel Regeci / BAU Software
+	  s.r.o. See static/vendor/altcha/LICENSE and README.md.
+
+VISUALS
+  static/logo/bus-silhouette.svg
+    "Bus Silhouette", author unknown. CC0 public-domain dedication.
+    Source: https://commons.wikimedia.org/wiki/File:Bus_Silhouette.svg
+
+  static/photos/great-falls-lewiston-1930s.jpg
+    "The Falls and Old Man, Auburn and Lewiston, Maine", published by
+    Tichnor Brothers, Inc.; Boston Public Library, Tichnor Brothers Collection
+    no. 69902. Public domain / no known copyright restrictions.
+    Source: https://www.digitalcommonwealth.org/search/commonwealth:5t34tc98g
+
+  static/qr/greatfallstoolbus-apex.svg
+    QR symbol generated with qrencode 4.1.1 from the permanent public URL
+    https://greatfallstoolbus.org/. The symbol encodes only that URL.
+
+Software is under the zlib License (LICENSE). GFTB written content is under
+CC BY-SA 4.0 (LICENSE-content). Third-party works retain the terms above.

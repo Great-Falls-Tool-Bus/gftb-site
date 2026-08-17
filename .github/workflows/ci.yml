@@ -15,149 +15,29 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Thin wrapper over tinyland-inc/ci-templates' spoke-ci.yml. See
-# docs/CI-SCHEMA.md §5 + §6 for runner classes and source gates. Bump the
-# @v... pin deliberately after reviewing the ci-templates CHANGELOG.
-
 jobs:
   ci:
     uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v2.12.2
     with:
       node_version: '22'
       pnpm_version: '10.13.1'
-      # Cache-first shared-cache enrollment (TIN-2119). flywheel_config must be
-      # `flywheel` (not local) so flywheel-bazel forwards --remote_cache; the
-      # cache_backed lane switches setup to nix-setup@v2 (exports
-      # BAZEL_REMOTE_CACHE), asserts attachment via the vendored
-      # scripts/cache-attachment-contract.sh --strict, and runs the
-      # flywheel-eligible CAS targets through the shared Bazel cache.
       flywheel_config: flywheel
       cache_backed: true
       playwright_enabled: true
       lanes_path: .github/lanes.json
       default_runner_class: tinyland-nix
+      heavy_runner_class: tinyland-nix
+      kvm_runner_class: tinyland-nix
     secrets: inherit
 
-  # Substrate-boundary conformance (TIN-2423 / TIN-3066): this scaffold has
-  # zero application/PR receiver reach. Stdlib-only Python,
-  # no Nix devshell needed. `ubuntu-latest` is in-bounds per §5's escape
-  # hatch rule: a pure tracked-files scan that must run before any cluster
-  # reachability is assumed, same class as `secrets-scan`. This was
-  # previously validated only via `just conformance` / `just scaffold-doctor`
-  # ad hoc — neither runs in CI, so this job is the first thing that
-  # actually gates every PR on it.
-  substrate-boundary:
-    name: substrate-boundary
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Validate substrate boundary
-        run: |
-          python3 scripts/validate-substrate-boundary.py --self-test
-          python3 scripts/validate-substrate-boundary.py
-
-  # Published converge-agent carrier module contract (TIN-2030). The module
-  # directory is .bazelignore'd from the root graph on purpose (nested Bazel
-  # module published to the registry), so the reusable CI's Bazel lanes never
-  # execute its contract test — without this job the suite is a one-time
-  # manual run, not a standing gate. Stdlib Python plus bash/jq/git for the
-  # behavioral kill-switch harness (the gate is EXECUTED against
-  # enabled:true/false fixtures, not string-matched); all preinstalled on
-  # ubuntu-latest, same §5 escape-hatch class as substrate-boundary.
-  carrier-module-contract:
-    name: carrier-module-contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Run the carrier module contract suite
-        run: python3 modules/converge_agent/tests/test_converge_agent_contract.py
-
-  # The tofu half of the carrier module, judged by the REAL parser
-  # (TIN-489 D1). The Python suite above asserts shapes and error_message
-  # prose; it cannot evaluate HCL condition logic — so until this job, the
-  # module's preconditions had zero executable coverage. Runs the repo nix
-  # devshell's opentofu (flake.nix corePackages, the same toolchain
-  # developers already hold): fmt -check, validate, and the native test
-  # matrix in modules/converge_agent/tofu/tests/, which exercises the three
-  # D1 credential-seam preconditions and the deploy-key path validations
-  # against valid AND invalid input rows under a mocked kubernetes provider
-  # — no cluster, no backend, plan-only, nothing leaves the runner.
-  # Deliberately NOT path-filtered: it runs on every PR, so it needs no
-  # reporting shim (the required-context-deadlock discipline applies to
-  # dormant paths, and this leg never goes dormant).
-  carrier-module-tofu:
-    name: carrier-module-tofu
-    runs-on: tinyland-nix
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: tinyland-inc/ci-templates/.github/actions/setup-nix@v2.12.2
-
-      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v2.12.2
-
-      - name: tofu fmt, validate, and the native precondition tests
-        run: |
-          set -euo pipefail
-          nix develop --command bash -c '
-            set -euo pipefail
-            cd modules/converge_agent/tofu
-            tofu fmt -check -recursive -diff
-            tofu init -backend=false -input=false
-            tofu validate
-            tofu test
-          '
-
-  # Production-convergence contract (TIN-489 / TIN-3065): the adversarial
-  # contract behind docs/patterns/production-convergence.md. Stdlib-only
-  # Python, same `ubuntu-latest` escape-hatch class as substrate-boundary:
-  # a pure tracked-files scan with no cluster reachability. Previously
-  # reachable only via `just production-convergence-contract` /
-  # `just conformance` ad hoc — neither runs in CI — so its laws (durable
-  # branch, one carrier, SHA literals, toggle shape, no checked-in
-  # receipts) were green-on-violation at merge until this job.
-  production-convergence:
-    name: production-convergence
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Enforce the production-convergence contract
-        run: python3 scripts/test-production-convergence-contract.py
-
-  # Stable branch-protection context. The called workflow expands matrix job
-  # names from lanes.json, so requiring those leaves directly would make the
-  # repository ruleset depend on display-name details. A reusable-workflow call
-  # does not complete until all of its jobs complete; this wrapper gate turns
-  # that result plus the local substrate contract into one durable status.
   merge-gate:
     name: merge-gate
     if: always()
-    needs: [ci, substrate-boundary, carrier-module-contract, carrier-module-tofu, production-convergence]
+    needs: [ci]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require the complete CI workflow
+      - name: Require complete reusable CI
         env:
           REUSABLE_CI_RESULT: ${{ needs.ci.result }}
-          SUBSTRATE_BOUNDARY_RESULT: ${{ needs.substrate-boundary.result }}
-          CARRIER_MODULE_CONTRACT_RESULT: ${{ needs.carrier-module-contract.result }}
-          CARRIER_MODULE_TOFU_RESULT: ${{ needs.carrier-module-tofu.result }}
-          PRODUCTION_CONVERGENCE_RESULT: ${{ needs.production-convergence.result }}
-        run: |
-          set -euo pipefail
-          printf 'reusable CI: %s\n' "$REUSABLE_CI_RESULT"
-          printf 'substrate boundary: %s\n' "$SUBSTRATE_BOUNDARY_RESULT"
-          printf 'carrier module contract: %s\n' "$CARRIER_MODULE_CONTRACT_RESULT"
-          printf 'carrier module tofu: %s\n' "$CARRIER_MODULE_TOFU_RESULT"
-          printf 'production convergence: %s\n' "$PRODUCTION_CONVERGENCE_RESULT"
-          test "$REUSABLE_CI_RESULT" = success
-          test "$SUBSTRATE_BOUNDARY_RESULT" = success
-          test "$CARRIER_MODULE_CONTRACT_RESULT" = success
-          test "$CARRIER_MODULE_TOFU_RESULT" = success
-          test "$PRODUCTION_CONVERGENCE_RESULT" = success
+        run: test "$REUSABLE_CI_RESULT" = success

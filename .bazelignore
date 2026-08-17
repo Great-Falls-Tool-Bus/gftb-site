@@ -9,6 +9,3 @@ test-results
 playwright-report
 .lighthouseci
 tmp
-# Nested Bazel module published to tinyland-inc/bazel-registry (TIN-2030);
-# built/tested from its own directory, never as part of the site_scaffold graph.
-modules/converge_agent
