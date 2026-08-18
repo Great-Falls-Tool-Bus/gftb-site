@@ -37,7 +37,7 @@ import { installExternalGuard, stubChallenge } from './support/network';
 // the OPTIMISTIC one in dark, where --wash is primary-300 at 12% and lightens
 // the top 352px of the page from #28222b to #383042. Recomputed inside that
 // washed band the dark pairs still clear AA, by less than the gate reports:
-// error-300 4.79 (reported 4.89), primary-300 4.93 (reported 6.06),
+// error-300 4.79 (reported 5.89), primary-300 4.93 (reported 6.06),
 // surface-400 6.17, and the status card at y=237 gives 4.88 / 5.02 / 6.29.
 // --inverse-edge would read 2.52 in the wash, but the contact card sits at
 // y=3641, far below the band. A disclosure about which number is quoted, not
@@ -281,16 +281,22 @@ for (const scheme of ['light', 'dark'] as const) {
 					'the focused submit button paints no indicator at all',
 				).toBe(false);
 
+				// What THIS test measures: the submit button lives inside the inverted
+				// contact card, so the ring is boxed between the paper button fill
+				// (--inverse-fg) and the panel behind it (--inverse-panel). Neither
+				// role flips between schemes, so both readings hold in both: about
+				// 3.54:1 against the button and 3.50:1 against the panel.
+				//
 				// The ring is drawn on the panel, so composite it there first, then
-				// measure it against both colours it borders and take the better of
-				// the two. That is a REINTERPRETATION of the TIN-3855 gate, which
-				// required 3:1 against the control unconditionally, and it is what
-				// lets the dark scheme pass (1.52:1 against the primary-300 button,
-				// 3.98:1 against the page). The reading: SC 1.4.11 asks an indicator
-				// to be distinguishable from ADJACENT colours, and an outer ring
-				// adjoins two; separating from either edge makes it perceivable. The
-				// unit gate still requires BOTH where the glow is boxed in on the
-				// contact panel.
+				// take the better of the two edges. max() rather than both is a
+				// REINTERPRETATION of the TIN-3855 gate, which required 3:1 against
+				// the control unconditionally: SC 1.4.11 (technique G195) asks a focus
+				// indicator to be distinguishable from an ADJACENT colour, and an
+				// outer ring adjoins two, so separating from either edge makes it
+				// perceivable. The same rule has to hold for a button out on the page,
+				// where exactly one edge clears 3:1 in a given scheme; here on the
+				// panel both do, and src/lib/design-token-contrast.test.ts re-measures
+				// this pair and requires BOTH.
 				const surface = resolveBackground(measured.surfaceLayers);
 				const ringOnPanel = compositeOver(parseCssColor(measured.ring), surface);
 				const againstControl = roundRatio(contrastRatio(ringOnPanel, measured.fill));

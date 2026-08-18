@@ -37,9 +37,8 @@
 	--accent: var(--color-primary-700);
 	--accent-contrast: var(--color-primary-contrast-700);
 	--link: var(--typo-anchor--color-light);
-	/* decorative container edges; --control-edge is the 3:1 (WCAG 1.4.11) one */
+	/* decorative container edges */
 	--rule: var(--color-surface-300);
-	--control-edge: var(--color-surface-600);
 	--highlight: var(--color-secondary-300);
 	--highlight-contrast: var(--color-secondary-contrast-300);
 	/* secondary fills sit at 1.43:1 on paper — every yellow control needs this */
@@ -47,7 +46,6 @@
 	/* headings and links on a --highlight fill, which never flips */
 	--highlight-heading: var(--color-primary-800);
 	--danger: var(--color-error-700);
-	--positive: var(--color-success-600);
 	--wash: color-mix(in oklab, var(--color-secondary-300) 16%, transparent);
 	--shadow: color-mix(in oklab, var(--color-primary-900) 12%, transparent);
 
@@ -667,7 +665,6 @@ figcaption {
 		--accent-contrast: var(--color-primary-contrast-300);
 		--link: var(--typo-anchor--color-dark);
 		--rule: var(--color-surface-700);
-		--control-edge: var(--color-surface-500);
 		/* The yellow block is brand livery, not a surface: it reads at 9.57:1 on
 		 * the dark page and must not shift, so highlight and its ink hold. */
 		--highlight: var(--color-secondary-300);
@@ -677,7 +674,6 @@ figcaption {
 		--highlight-edge: var(--color-secondary-500);
 		--highlight-heading: var(--color-primary-800);
 		--danger: var(--color-error-300);
-		--positive: var(--color-success-300);
 		--wash: color-mix(in oklab, var(--color-primary-300) 12%, transparent);
 		--shadow: color-mix(in oklab, var(--color-surface-950) 55%, transparent);
 	}

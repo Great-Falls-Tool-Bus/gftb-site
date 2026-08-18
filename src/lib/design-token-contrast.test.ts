@@ -45,7 +45,7 @@ const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
  * is therefore the conservative ground; in dark --wash is primary-300 at 12%
  * and LIGHTENS that band from #28222b to #383042, which makes the dark numbers
  * below the optimistic ones. Recomputed inside the band the dark pairs still
- * clear AA: error-300 4.79 (this gate reports 4.89), primary-300 4.93
+ * clear AA: error-300 4.79 (this gate reports 5.89), primary-300 4.93
  * (reports 6.06), surface-400 6.17. Disclosed rather than modelled, because
  * modelling a gradient means picking a y and every pair has a different one.
  */
@@ -137,15 +137,25 @@ const nonTextPairs: Pair[] = [
 /**
  * The `.button` focus glow: a translucent highlight composited on its ground.
  *
- * The opacity is READ OUT of src/app.css rather than restated here. Pinning it
- * with a literal made a change to the stylesheet fail as a string mismatch on
- * the structural test while the ratio assertions kept measuring this file's own
- * number; reading it means a nudge to the glow is measured, and the failure
- * names the ratio that broke.
+ * The opacity is READ OUT of src/app.css rather than restated here, and the
+ * read-out is anchored INSIDE the `.button:focus-visible` rule. Scanning the
+ * whole file takes the FIRST `color-mix(… var(--highlight) …)` it finds, so a
+ * decorative glow declared earlier — on `.skip-link`, say — becomes what the
+ * ratio sweeps below measure while the real focus ring drifts unmeasured.
+ *
+ * Reading the shipped value rather than restating it is what makes a nudge to
+ * the glow surface as the ratio that broke instead of as a string mismatch on
+ * the structural test. The separate assertion on RATIFIED_GLOW_PERCENT is what
+ * makes a nudge that stays inside the ratio floors surface at all.
  */
-const GLOW_DECLARATION = /color-mix\(in oklab, var\(--highlight\) (\d+(?:\.\d+)?)%, transparent\)/u.exec(appCss);
+const RATIFIED_GLOW_PERCENT = 56;
+const FOCUS_RULE = /\.button:focus-visible\s*\{([^}]*)\}/u.exec(appCss);
+if (!FOCUS_RULE) {
+	throw new Error('src/app.css no longer declares a .button:focus-visible rule this gate can measure');
+}
+const GLOW_DECLARATION = /color-mix\(in oklab, var\(--highlight\) (\d+(?:\.\d+)?)%, transparent\)/u.exec(FOCUS_RULE[1]);
 if (!GLOW_DECLARATION) {
-	throw new Error('src/app.css no longer declares a --highlight focus glow this gate can measure');
+	throw new Error('.button:focus-visible no longer paints a --highlight focus glow this gate can measure');
 }
 const GLOW = GLOW_DECLARATION[0];
 const GLOW_PERCENT = Number(GLOW_DECLARATION[1]);
@@ -228,14 +238,20 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		expect(appCss).toMatch(
 			/\.button:focus-visible \{\s*box-shadow: 0 0 0 4px color-mix\(in oklab, var\(--highlight\)/u,
 		);
-		expect(GLOW_PERCENT, `focus glow declared at ${GLOW_PERCENT}%`).toBeGreaterThan(0);
+		// 56% is the ratified operating point, not an arbitrary number that happens
+		// to be positive: it is where the WEAKER of the two contact-panel readings
+		// peaks (3.54:1 against the paper button, 3.50:1 against the panel), and
+		// 65% drops the paper side to 2.95:1. The sweeps below measure whatever is
+		// declared, so a nudge moves those ratios too; this line is what fails when
+		// a nudge stays inside them.
+		expect(GLOW_PERCENT, `focus glow declared at ${GLOW_PERCENT}%`).toBe(RATIFIED_GLOW_PERCENT);
 	});
 
 	it('pins the contact panel to primary-900, the ratified inversion depth', () => {
 		// The ratio sweeps do not catch a drift back to primary-800: every pair on
 		// the panel still clears its floor there, and the --highlight-edge guard
 		// below asserts `< 4`, which primary-800's 2.45 also satisfies. The role
-		// mapping is an operator ruling (2026-08-18 palette interview), so it is
+		// mapping is an operator ruling (2026-08-17 palette interview), so it is
 		// asserted directly rather than inferred from a number.
 		expect(appCss).toMatch(/--inverse-panel: var\(--color-primary-900\);/u);
 		expect(formatRgb(resolveRole(SCHEMES.light, '--inverse-panel'))).toBe(
@@ -327,6 +343,15 @@ describe('regression guards', () => {
 // The typed palette module mirrors theme-gftb.css. When it is present, its
 // documented hexes must be what the CSS oklch values actually paint.
 const palettePath = path.join(repoRoot, 'src/lib/theme/palette.ts');
+
+// The suite below is `runIf`-gated, so on its own a deleted palette.ts makes
+// the parity checks VANISH rather than fail. This asserts the gate's own
+// premise first: the SSOT has to be on disk before "when present" is a
+// reasonable thing to say.
+it('palette SSOT file exists', () => {
+	expect(existsSync(palettePath), 'src/lib/theme/palette.ts is the typed mirror of theme-gftb.css').toBe(true);
+});
+
 describe.runIf(existsSync(palettePath))('typed palette module, when present', () => {
 	it('agrees with the CSS custom properties it mirrors', () => {
 		const source = readFileSync(palettePath, 'utf8');
