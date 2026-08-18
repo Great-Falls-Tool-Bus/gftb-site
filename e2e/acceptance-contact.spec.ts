@@ -57,14 +57,13 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 
 		expect(capture.headers).toHaveLength(1);
 		expect(capture.headers[0].origin).toBe(new URL(baseURL ?? 'http://localhost:3000').origin);
-		expect(capture.headers[0]['content-type']).toBe('application/json');
-		expect(requests.filter((entry) => entry.endsWith('/api/contact'))).toContain(`POST ${CONTACT_URL}`);
 		// `content-type: application/json` is what makes this a non-simple request,
 		// so a real browser preflights it and the endpoint's exact-origin policy is
 		// enforced on the preflight. Playwright serves fulfilled routes without
 		// issuing that preflight, so the preflight itself is asserted only in the
 		// live-endpoint block at the bottom of this file.
 		expect(capture.headers[0]['content-type']).toBe('application/json');
+		expect(requests.filter((entry) => entry.endsWith('/api/contact'))).toContain(`POST ${CONTACT_URL}`);
 	});
 
 	test('a response addressed to a different origin is rejected by the browser', async ({ page, baseURL }) => {

@@ -18,11 +18,15 @@ const widths = [
 	{ label: '1280 (desktop)', width: 1280 },
 ];
 
-const zoomCases = [
-	{ label: '1280 at 200% zoom', width: 640, physicalWidth: 1280 },
-	{ label: '768 at 200% zoom', width: 384, physicalWidth: 768 },
-	{ label: '640 at 200% zoom', width: 320, physicalWidth: 640 },
-];
+// One source of truth: the physical device width. The layout viewport a browser
+// reports at 200% zoom is that width halved, so the tested viewport is DERIVED
+// here rather than restated (an assertion that `width * 2 === physicalWidth`
+// over two literals in the same table proves arithmetic, not the page).
+const zoomCases = [1280, 768, 640].map((physicalWidth) => ({
+	label: `${physicalWidth} at 200% zoom`,
+	physicalWidth,
+	width: physicalWidth / 2,
+}));
 
 const INTERACTIVE =
 	'a[href], button, input:not([type=hidden]), textarea, select, summary, [tabindex]:not([tabindex="-1"])';
@@ -81,10 +85,9 @@ for (const { label, width } of widths) {
 	});
 }
 
-for (const { label, width, physicalWidth } of zoomCases) {
+for (const { label, width } of zoomCases) {
 	test(`home page reflows without horizontal scroll at ${label}`, async ({ page, baseURL }) => {
 		await openPage(page, baseURL, width);
-		expect(width * 2, 'zoom case maps to its physical width').toBe(physicalWidth);
 		const overflow = await horizontalOverflow(page);
 		expect(overflow.widest, `elements overflowing at ${label}`).toEqual([]);
 		expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth + 1);

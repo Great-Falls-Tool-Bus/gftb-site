@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { installExternalGuard, stubChallenge } from './support/network';
+import { installExternalGuard, stubChallenge, stubContactEndpoint } from './support/network';
 
 // Acceptance rows (§3): prefers-reduced-motion is respected (no non-essential
 // animation), and the page is fully keyboard operable with a visible, ordered
@@ -160,7 +160,16 @@ test.describe('keyboard operability', () => {
 	});
 
 	test('the contact form can be completed and submitted without a pointer', async ({ page, baseURL }) => {
-		await openPage(page, baseURL);
+		// Submitted, not just typed into: the acceptance row is that a keyboard-only
+		// visitor can actually send the form, so this drives Tab/Enter all the way
+		// to the POST and asserts the endpoint received it.
+		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		await stubChallenge(page);
+		const capture = await stubContactEndpoint(page);
+		await page.goto('/');
+		await page.waitForLoadState('domcontentloaded');
+
+		const message = 'I would like to help with the waterproofing session.';
 		await page.locator('#contact-name').focus();
 		await page.keyboard.type('Keyboard Tester');
 		await page.keyboard.press('Tab');
@@ -168,10 +177,31 @@ test.describe('keyboard operability', () => {
 		await page.keyboard.type('tester@example.org');
 		await page.keyboard.press('Tab');
 		await expect(page.locator('#contact-message')).toBeFocused();
-		await page.keyboard.type('I would like to help with the waterproofing session.');
+		await page.keyboard.type(message);
 
 		await expect(page.locator('#contact-name')).toHaveValue('Keyboard Tester');
 		await expect(page.locator('#contact-email')).toHaveValue('tester@example.org');
+
+		// Enter inside a textarea inserts a newline, so reaching the submit control
+		// has to happen by Tab. Bounded so a focus trap fails the test rather than
+		// hanging it.
+		const submitButton = page.getByRole('button', { name: 'Send to keyholders' });
+		let reached = false;
+		for (let step = 0; step < 12 && !reached; step += 1) {
+			await page.keyboard.press('Tab');
+			reached = await submitButton.evaluate((element) => element === document.activeElement);
+		}
+		expect(reached, 'the submit button is reachable from the message field by Tab alone').toBe(true);
+		await expect(submitButton).toBeFocused();
+
+		await page.keyboard.press('Enter');
+		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		expect(capture.payloads).toHaveLength(1);
+		expect(capture.payloads[0]).toMatchObject({
+			name: 'Keyboard Tester',
+			email: 'tester@example.org',
+			message,
+		});
 	});
 
 	test('validation errors move focus to the first field that needs attention', async ({ page, baseURL }) => {
