@@ -38,10 +38,46 @@ is not public.
 - Use `just <recipe>` for every operation. Do not invoke pnpm, Vite, or Bazel
   directly outside the Justfile.
 - Enter through `nix develop` / direnv. CI runs Just inside Nix.
-- `just build` produces the adapter-static site under `build/` through Bazel.
-- `just check` runs secret, endpoint, conformance, entrypoint, formatting,
-  typecheck, and unit-test gates.
+- `just build` produces the adapter-static site under `build/` through Bazel,
+  then leak-scans it (see below). A published tree that has never been scanned
+  is not publishable.
+- `just check` runs secret, endpoint, printed-QR, conformance, entrypoint,
+  formatting, typecheck, and unit-test gates.
 - `just conformance` validates the live minimal-spoke contract.
+- `just qr-verify` regenerates the printed apex QR and proves the committed
+  SVG matches, ignoring only the `<!-- Created with qrencode X.Y.Z -->`
+  provenance line so an encoder patch bump is not a false failure. The unit
+  suite separately decodes the payload.
+- `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
+  built artefact. `scripts/check-build-output.mjs` is a thin runner over
+  `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`
+  exercises: one implementation, tested once. It fails closed — a missing or
+  empty directory, or a file whose extension is in neither `TEXT_EXTENSIONS`
+  nor `SKIP_EXTENSIONS`, is a failure, not a pass. Set `GFTB_LEAK_SCAN_DENY`
+  to add operator-held literals; never commit them.
+- `scripts/lib/*` is acceptance-test-only and deliberately outside `src/lib`:
+  the leak ruleset carries credential-detection regexes and must never be
+  reachable from a client bundle. `eslint.config.ts` forbids `src/**` from
+  importing it and `src/lib/leak-scan.test.ts` asserts the same from the other
+  side.
+
+### Which CI job runs which gate
+
+CI is `tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v2.12.2`. Every
+gate below is named with the job and line that executes it, so a gate can never
+again be described as enforced when nothing runs it:
+
+| Gate | spoke-ci.yml job | Line |
+| --- | --- | --- |
+| `just check` — conformance, endpoint, secrets, entrypoint, `qr-verify`, and `//:local_validation_suite` (which carries `//:unit_tests`, the acceptance unit gates) | `flywheel-test` | 291 |
+| `just build` — Bazel static build, then `just leak-scan build` | `flywheel-build` | 267 |
+| `just build` again, transitively, as the Playwright web server | `playwright` | 375 |
+| `just test-e2e` — the browser acceptance suite | `playwright` | 375 |
+| `bazelisk mod graph`, `bazelisk build //:node_modules` | `bazel-graph` | 307, 311 |
+| gitleaks over full history | `secrets-scan` | 115 |
+
+`just ci` is a local convenience aggregate. **No template job invokes it**, so
+nothing may be enforced only from there.
 - Skeleton and Skeleton Svelte are exact-pinned at `5.0.0`, following the
   proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
   Skeleton 4 compatibility shim.
