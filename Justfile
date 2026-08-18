@@ -230,6 +230,93 @@ qr-verify:
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
+# Repeatable QA evidence packet for one build, ready to paste into a review.
+#
+# NOT A CI GATE: no ci-templates job invokes it, and `qa-packet/` is git-ignored.
+# It is the reviewer/operator entrypoint, and it deliberately re-runs the gates
+# rather than trusting a green tick from an earlier tree — the receipt in
+# INDEX.md has to describe the SAME bytes the screenshots were taken of.
+#
+# Order matters: `build` materializes and leak-scans the artefact, `check` runs
+# the four repo gates, then the preview comes up on ITS OWN port through the same
+# `preview-e2e` machinery Playwright uses in CI. The acceptance suite is pointed
+# at that already-running preview through playwright.qa-packet.config.ts, so this
+# recipe never competes for the CI port and never silently reuses another lane's
+# server. playwright.config.ts, which CI reads, is untouched.
+#
+# A failing acceptance suite does not abort the capture — a packet that shows
+# what a regression looks like is the point — but the recipe still exits non-zero.
+qa-packet port="3355":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{ root }}
+    receipts="$(mktemp -d)"
+    preview_pid=""
+    kill_tree() {
+      local pid="$1" child
+      for child in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$child"; done
+      kill "$pid" 2>/dev/null || true
+    }
+    cleanup() {
+      if [[ -n "$preview_pid" ]]; then
+        kill_tree "$preview_pid"
+        wait "$preview_pid" 2>/dev/null || true
+      fi
+      rm -rf "$receipts"
+    }
+    trap cleanup EXIT
+
+    # A build failure aborts: there is no artefact to photograph. A gate failure
+    # does not — a packet showing what the failure looks like is the point.
+    {{ just_executable() }} build 2>&1 | tee "$receipts/build.log"
+    check_status=0
+    {{ just_executable() }} check 2>&1 | tee "$receipts/check.log" || check_status=$?
+
+    {{ just_executable() }} preview-e2e {{ port }} >"$receipts/preview.log" 2>&1 &
+    preview_pid=$!
+    for attempt in $(seq 1 300); do
+      if (exec 3<>/dev/tcp/127.0.0.1/{{ port }}) 2>/dev/null; then break; fi
+      if ! kill -0 "$preview_pid" 2>/dev/null; then
+        echo "qa-packet: the preview exited before it started listening on {{ port }}" >&2
+        cat "$receipts/preview.log" >&2
+        exit 1
+      fi
+      sleep 1
+      if [[ "$attempt" == "300" ]]; then
+        echo "qa-packet: the preview never started listening on {{ port }}" >&2
+        exit 1
+      fi
+    done
+
+    e2e_status=0
+    if command -v nix >/dev/null 2>&1; then
+      nix develop .#playwright --command {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
+    else
+      {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
+    fi
+
+    node scripts/qa-packet.mjs --port {{ port }} \
+      --build-log "$receipts/build.log" \
+      --check-log "$receipts/check.log" \
+      --e2e-json "$receipts/e2e.json"
+
+    if [[ "$check_status" != "0" || "$e2e_status" != "0" ]]; then
+      echo "qa-packet: the packet was captured, but a gate failed (check exit $check_status, acceptance suite exit $e2e_status)" >&2
+      exit 1
+    fi
+
+_qa-packet-e2e port json: playwright-ensure
+    cd {{ root }} && env -u LD_LIBRARY_PATH QA_PACKET_BASE_URL="http://127.0.0.1:{{ port }}" \
+      PLAYWRIGHT_JSON_OUTPUT_NAME="{{ json }}" \
+      pnpm exec playwright test --config playwright.qa-packet.config.ts --reporter=json
+
+# Per-image pixel diff between two packets produced by `just qa-packet`.
+# Both arguments are `qa-packet/<sha>` directories and may live in other
+# worktrees. The comparison runs inside the same pinned Chromium rather than
+# pulling `pixelmatch`/`pngjs` into package.json; see scripts/qa-packet-diff.mjs.
+qa-packet-diff baseline candidate *options:
+    cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
+
 # CI ENFORCEMENT: ci-templates spoke-ci.yml@v2.12.2 job `flywheel-test`, line 291
 # (`nix develop --command just check`), once per lane in .github/lanes.json.
 # //:local_validation_suite carries //:unit_tests, so the acceptance unit gates

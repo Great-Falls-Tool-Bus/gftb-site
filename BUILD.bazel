@@ -75,6 +75,7 @@ filegroup(
         ".npmrc",
         "package.json",
         "playwright.config.ts",
+        "playwright.qa-packet.config.ts",
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
@@ -115,6 +116,7 @@ filegroup(
         "eslint.config.ts",
         "package.json",
         "playwright.config.ts",
+        "playwright.qa-packet.config.ts",
         "pnpm-workspace.yaml",
         "svelte.config.js",
         "tinyland.repo.json",
