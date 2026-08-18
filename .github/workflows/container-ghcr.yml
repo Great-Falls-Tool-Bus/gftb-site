@@ -14,9 +14,12 @@ on:
     paths:
       - '.github/workflows/container-ghcr.yml'
       - 'BUILD.bazel'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
       - 'Justfile'
       - 'flake.nix'
       - 'flake.lock'
+      - 'scripts/test-bazel-cutover-contracts.py'
 
 concurrency:
   group: candidate-oci-${{ github.ref }}
@@ -42,6 +45,8 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Prove the publisher container context
+        run: nix develop . -c just container-image-context
 
   publish:
     name: Build + push immutable static candidate
