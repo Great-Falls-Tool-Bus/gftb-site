@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
+/* CityLink palette (TIN-3853/3854) — inert until data-theme='gftb' is set */
+@import './lib/styles/theme-gftb.css';
 @import '@fontsource/inter/latin-400.css';
 @import '@fontsource/inter/latin-600.css';
 @import '@fontsource/inter/latin-700.css';
