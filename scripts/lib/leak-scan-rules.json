@@ -1,9 +1,10 @@
 {
 	"comment": [
-		"Public-output leak rules. Shared by src/lib/leak-scan.ts (unit tested) and",
-		"scripts/check-build-output.mjs (the just leak-scan gate over build/), so the",
-		"rule text has exactly one home. Patterns are RegExp source strings; flags are",
-		"applied per rule and 'g' is added by the scanner."
+		"Public-output leak rules. Read by scripts/lib/leak-scan.mjs, the single",
+		"scanner implementation that both src/lib/leak-scan.test.ts (unit tested) and",
+		"scripts/check-build-output.mjs (the just leak-scan gate over build/) run, so",
+		"the rule text has exactly one home. Patterns are RegExp source strings;",
+		"flags are applied per rule and 'g' is added by the scanner."
 	],
 	"rules": [
 		{

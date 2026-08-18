@@ -8,7 +8,7 @@ import {
 	parseCssColor,
 	relativeLuminance,
 	roundRatio,
-} from './color-contrast';
+} from '../../scripts/lib/color-contrast.mjs';
 
 describe('WCAG colour maths', () => {
 	it('parses every colour spelling this repo ships', () => {

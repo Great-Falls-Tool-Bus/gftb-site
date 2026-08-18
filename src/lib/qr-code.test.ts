@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { decodeQrSvg, parseQrSvg, serializeQrPath } from './qr-code';
+import { decodeQrSvg, parseQrSvg, serializeQrPath } from '../../scripts/lib/qr-code.mjs';
 
 // Acceptance row: the printed QR payload resolves to the canonical apex URL and
 // the shipped SVG source is byte-reproducible. Nobody can proofread a QR code by

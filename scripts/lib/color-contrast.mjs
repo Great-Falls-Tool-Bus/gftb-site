@@ -5,15 +5,20 @@
  * contrast on the tokens declared in `src/app.css` without booting a browser.
  * The browser-side spot checks in `e2e/` duplicate none of this: they read
  * *computed* colours and feed them through the same ratio definition.
+ *
+ * Test-only, so it lives here rather than under `src/lib` (the SvelteKit
+ * library root): nothing the site ships needs colour maths at run time, and a
+ * module that cannot be imported by a route cannot be bundled by accident.
+ * Plain ESM so `node` and `vitest` load the same bytes with no transpile step.
  */
 
-export interface Rgb {
-	red: number;
-	green: number;
-	blue: number;
-	/** 0..1; 1 for fully opaque colours. */
-	alpha: number;
-}
+/**
+ * @typedef {object} Rgb
+ * @property {number} red
+ * @property {number} green
+ * @property {number} blue
+ * @property {number} alpha 0..1; 1 for fully opaque colours.
+ */
 
 /** WCAG 2.2 SC 1.4.3 — normal body text. */
 export const TEXT_AA_RATIO = 4.5;
@@ -25,13 +30,22 @@ export const NON_TEXT_RATIO = 3;
 const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const FUNCTIONAL_RE = /^rgba?\(([^)]*)\)$/i;
 
-function clampChannel(value: number): number {
+/**
+ * @param {number} value
+ * @returns {number}
+ */
+function clampChannel(value) {
 	return Math.min(255, Math.max(0, value));
 }
 
-function parseHex(value: string): Rgb {
+/**
+ * @param {string} value
+ * @returns {Rgb}
+ */
+function parseHex(value) {
 	const digits = value.slice(1);
-	const expand = (pair: string) => Number.parseInt(pair.length === 1 ? pair + pair : pair, 16);
+	/** @param {string} pair */
+	const expand = (pair) => Number.parseInt(pair.length === 1 ? pair + pair : pair, 16);
 	if (digits.length <= 4) {
 		const [r, g, b, a] = digits.split('');
 		return {
@@ -49,7 +63,12 @@ function parseHex(value: string): Rgb {
 	};
 }
 
-function parseComponent(token: string, scale: number): number {
+/**
+ * @param {string} token
+ * @param {number} scale
+ * @returns {number}
+ */
+function parseComponent(token, scale) {
 	const trimmed = token.trim();
 	if (trimmed.endsWith('%')) return (Number.parseFloat(trimmed) / 100) * scale;
 	return Number.parseFloat(trimmed);
@@ -59,8 +78,11 @@ function parseComponent(token: string, scale: number): number {
  * Accepts the colour spellings this codebase actually ships: `#rgb`, `#rrggbb`,
  * `#rrggbbaa`, `rgb(r g b / a%)`, `rgb(r, g, b)` and `rgba(...)` — the forms
  * emitted both by `src/app.css` and by `getComputedStyle`.
+ *
+ * @param {string} input
+ * @returns {Rgb}
  */
-export function parseCssColor(input: string): Rgb {
+export function parseCssColor(input) {
 	const value = input.trim();
 	if (value.toLowerCase() === 'white') return { red: 255, green: 255, blue: 255, alpha: 1 };
 	if (value.toLowerCase() === 'black') return { red: 0, green: 0, blue: 0, alpha: 1 };
@@ -84,8 +106,14 @@ export function parseCssColor(input: string): Rgb {
 	};
 }
 
-/** Simple (non-premultiplied) source-over composite of `foreground` onto `backdrop`. */
-export function compositeOver(foreground: Rgb, backdrop: Rgb): Rgb {
+/**
+ * Simple (non-premultiplied) source-over composite of `foreground` onto `backdrop`.
+ *
+ * @param {Rgb} foreground
+ * @param {Rgb} backdrop
+ * @returns {Rgb}
+ */
+export function compositeOver(foreground, backdrop) {
 	const alpha = foreground.alpha;
 	return {
 		red: foreground.red * alpha + backdrop.red * (1 - alpha),
@@ -95,8 +123,13 @@ export function compositeOver(foreground: Rgb, backdrop: Rgb): Rgb {
 	};
 }
 
-/** WCAG 2.x relative luminance. */
-export function relativeLuminance(color: Rgb | string): number {
+/**
+ * WCAG 2.x relative luminance.
+ *
+ * @param {Rgb | string} color
+ * @returns {number}
+ */
+export function relativeLuminance(color) {
 	const rgb = typeof color === 'string' ? parseCssColor(color) : color;
 	const linear = [rgb.red, rgb.green, rgb.blue].map((channel) => {
 		const normalized = channel / 255;
@@ -106,11 +139,15 @@ export function relativeLuminance(color: Rgb | string): number {
 }
 
 /**
- * WCAG contrast ratio. Translucent inputs are composited over `backdrop`
+ * WCAG contrast ratio. Translucent inputs are composited over `background`
  * first, because a ratio computed against an un-composited alpha colour is
  * meaningless — and quietly optimistic.
+ *
+ * @param {Rgb | string} foreground
+ * @param {Rgb | string} background
+ * @returns {number}
  */
-export function contrastRatio(foreground: Rgb | string, background: Rgb | string): number {
+export function contrastRatio(foreground, background) {
 	const backdrop = typeof background === 'string' ? parseCssColor(background) : background;
 	if (backdrop.alpha < 1) throw new Error('The background of a contrast pair must be opaque');
 	const rawForeground = typeof foreground === 'string' ? parseCssColor(foreground) : foreground;
@@ -120,19 +157,39 @@ export function contrastRatio(foreground: Rgb | string, background: Rgb | string
 	return (lighter + 0.05) / (darker + 0.05);
 }
 
-/** Ratios are reported to two decimals so failure messages stay readable. */
-export function roundRatio(ratio: number): number {
+/**
+ * Ratios are reported to two decimals so failure messages stay readable.
+ *
+ * @param {number} ratio
+ * @returns {number}
+ */
+export function roundRatio(ratio) {
 	return Math.round(ratio * 100) / 100;
 }
 
-export function meetsTextAA(foreground: Rgb | string, background: Rgb | string): boolean {
+/**
+ * @param {Rgb | string} foreground
+ * @param {Rgb | string} background
+ * @returns {boolean}
+ */
+export function meetsTextAA(foreground, background) {
 	return contrastRatio(foreground, background) >= TEXT_AA_RATIO;
 }
 
-export function meetsLargeTextAA(foreground: Rgb | string, background: Rgb | string): boolean {
+/**
+ * @param {Rgb | string} foreground
+ * @param {Rgb | string} background
+ * @returns {boolean}
+ */
+export function meetsLargeTextAA(foreground, background) {
 	return contrastRatio(foreground, background) >= LARGE_TEXT_AA_RATIO;
 }
 
-export function meetsNonTextContrast(foreground: Rgb | string, background: Rgb | string): boolean {
+/**
+ * @param {Rgb | string} foreground
+ * @param {Rgb | string} background
+ * @returns {boolean}
+ */
+export function meetsNonTextContrast(foreground, background) {
 	return contrastRatio(foreground, background) >= NON_TEXT_RATIO;
 }

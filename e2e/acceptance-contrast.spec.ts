@@ -7,13 +7,13 @@ import {
 	contrastRatio,
 	parseCssColor,
 	roundRatio,
-} from '../src/lib/color-contrast';
+} from '../scripts/lib/color-contrast.mjs';
 import { installExternalGuard, stubChallenge } from './support/network';
 
 // Acceptance rows (§3): AA text contrast, and WCAG 1.4.11 3:1 non-text contrast
 // for filled buttons and controls against their surface.
 //
-// The colour maths is imported from src/lib/color-contrast.ts so this spec and
+// The colour maths is imported from scripts/lib/color-contrast.mjs so this spec and
 // the unit suite cannot disagree about what 4.5:1 means. The browser's job here
 // is only to report what is actually painted, including inherited colours and
 // composited panels the token test can only model.

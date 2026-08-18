@@ -10,7 +10,7 @@ import {
 	contrastRatio,
 	parseCssColor,
 	roundRatio,
-} from './color-contrast';
+} from '../../scripts/lib/color-contrast.mjs';
 
 // Acceptance rows: AA text contrast, and WCAG 1.4.11 3:1 non-text contrast for
 // filled buttons and controls against the surface they sit on. This measures

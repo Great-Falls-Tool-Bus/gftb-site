@@ -11,48 +11,47 @@
  * No Reed-Solomon decoding happens here: a checked-in artefact either reads
  * cleanly or is wrong, and "repaired" bytes would hide exactly the corruption
  * this test exists to catch.
+ *
+ * Test-only, so it lives here rather than under `src/lib` (the SvelteKit
+ * library root): nothing the site ships decodes QR codes, and a 300-line
+ * decoder that cannot be imported by a route cannot be bundled by accident.
+ * Plain ESM so `node` and `vitest` load the same bytes with no transpile step.
  */
 
-export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
-
-export interface QrSvgGeometry {
-	/** Modules per side, e.g. 33 for a version-4 symbol. */
-	size: number;
-	/** QR version, 1..40. */
-	version: number;
-	/** Quiet-zone modules on each side, as passed to `qrencode --margin`. */
-	margin: number;
-	/** `viewBox` extent; equals `size + 2 * margin` for a well-formed symbol. */
-	viewBox: number;
-	/** `modules[row][column]`, true where the module is dark. */
-	modules: boolean[][];
-}
-
-export interface QrDecodeResult {
-	text: string;
-	version: number;
-	errorCorrectionLevel: QrErrorCorrectionLevel;
-	maskPattern: number;
-	/** Byte length declared by the symbol's character-count indicator. */
-	byteLength: number;
-}
-
-interface BlockGroup {
-	blocks: number;
-	dataCodewords: number;
-}
-
-interface EcBlockLayout {
-	ecCodewordsPerBlock: number;
-	groups: BlockGroup[];
-}
+/**
+ * @typedef {'L' | 'M' | 'Q' | 'H'} QrErrorCorrectionLevel
+ *
+ * @typedef {object} QrSvgGeometry
+ * @property {number} size Modules per side, e.g. 33 for a version-4 symbol.
+ * @property {number} version QR version, 1..40.
+ * @property {number} margin Quiet-zone modules on each side, as passed to `qrencode --margin`.
+ * @property {number} viewBox `viewBox` extent; equals `size + 2 * margin` for a well-formed symbol.
+ * @property {boolean[][]} modules `modules[row][column]`, true where the module is dark.
+ *
+ * @typedef {object} QrDecodeResult
+ * @property {string} text
+ * @property {number} version
+ * @property {QrErrorCorrectionLevel} errorCorrectionLevel
+ * @property {number} maskPattern
+ * @property {number} byteLength Byte length declared by the symbol's character-count indicator.
+ *
+ * @typedef {object} BlockGroup
+ * @property {number} blocks
+ * @property {number} dataCodewords
+ *
+ * @typedef {object} EcBlockLayout
+ * @property {number} ecCodewordsPerBlock
+ * @property {BlockGroup[]} groups
+ */
 
 /**
  * ISO/IEC 18004 Table 9, level-H column, versions 1-10. `just qr-generate`
  * pins `--level=H`, so only that column is carried; any other level raises
  * rather than guessing at a layout this repository never produces.
+ *
+ * @type {Record<number, EcBlockLayout>}
  */
-const LEVEL_H_BLOCKS: Record<number, EcBlockLayout> = {
+const LEVEL_H_BLOCKS = {
 	1: { ecCodewordsPerBlock: 17, groups: [{ blocks: 1, dataCodewords: 9 }] },
 	2: { ecCodewordsPerBlock: 28, groups: [{ blocks: 1, dataCodewords: 16 }] },
 	3: { ecCodewordsPerBlock: 22, groups: [{ blocks: 2, dataCodewords: 13 }] },
@@ -95,8 +94,12 @@ const LEVEL_H_BLOCKS: Record<number, EcBlockLayout> = {
 	},
 };
 
-/** ISO/IEC 18004 Table E.1 — alignment-pattern row/column centres, versions 1-10. */
-const ALIGNMENT_CENTERS: Record<number, number[]> = {
+/**
+ * ISO/IEC 18004 Table E.1 — alignment-pattern row/column centres, versions 1-10.
+ *
+ * @type {Record<number, number[]>}
+ */
+const ALIGNMENT_CENTERS = {
 	1: [],
 	2: [6, 18],
 	3: [6, 22],
@@ -109,9 +112,11 @@ const ALIGNMENT_CENTERS: Record<number, number[]> = {
 	10: [6, 28, 50],
 };
 
-const EC_LEVEL_BY_BITS: Record<number, QrErrorCorrectionLevel> = { 0b01: 'L', 0b00: 'M', 0b11: 'Q', 0b10: 'H' };
+/** @type {Record<number, QrErrorCorrectionLevel>} */
+const EC_LEVEL_BY_BITS = { 0b01: 'L', 0b00: 'M', 0b11: 'Q', 0b10: 'H' };
 
-const MASK_FUNCTIONS: Array<(row: number, column: number) => boolean> = [
+/** @type {Array<(row: number, column: number) => boolean>} */
+const MASK_FUNCTIONS = [
 	(row, column) => (row + column) % 2 === 0,
 	(row) => row % 2 === 0,
 	(_row, column) => column % 3 === 0,
@@ -133,8 +138,11 @@ const RUN_RE = /M(\d+),(\d+)h(\d+)/gu;
  * `--svg-path` emits one `M{x},{y}h{run}` per horizontal run of dark modules,
  * stroked at unit width and translated by the quiet zone. The y translation
  * carries a half-module offset because the stroke is centred on the line.
+ *
+ * @param {string} svg
+ * @returns {QrSvgGeometry}
  */
-export function parseQrSvg(svg: string): QrSvgGeometry {
+export function parseQrSvg(svg) {
 	const viewBoxMatch = VIEW_BOX_RE.exec(svg);
 	if (!viewBoxMatch) throw new Error('QR SVG: expected a square integer viewBox anchored at 0 0');
 	const viewBox = Number(viewBoxMatch[1]);
@@ -154,7 +162,8 @@ export function parseQrSvg(svg: string): QrSvgGeometry {
 	if (size < 21 || (size - 17) % 4 !== 0) throw new Error(`QR SVG: ${size} modules is not a valid QR symbol size`);
 	const version = (size - 17) / 4;
 
-	const modules: boolean[][] = Array.from({ length: size }, () => new Array<boolean>(size).fill(false));
+	/** @type {boolean[][]} */
+	const modules = Array.from({ length: size }, () => new Array(size).fill(false));
 	RUN_RE.lastIndex = 0;
 	let consumed = 0;
 	for (let match = RUN_RE.exec(pathMatch[1]); match !== null; match = RUN_RE.exec(pathMatch[1])) {
@@ -175,8 +184,11 @@ export function parseQrSvg(svg: string): QrSvgGeometry {
  * `M{x},{y}h1` command per dark module, in row-major order, with no run
  * coalescing. A test can then prove the shipped path is a pure function of the
  * symbol and carries no incidental byte drift.
+ *
+ * @param {boolean[][]} modules
+ * @returns {string}
  */
-export function serializeQrPath(modules: boolean[][]): string {
+export function serializeQrPath(modules) {
 	let path = '';
 	for (let row = 0; row < modules.length; row += 1) {
 		for (let column = 0; column < modules[row].length; column += 1) {
@@ -186,7 +198,14 @@ export function serializeQrPath(modules: boolean[][]): string {
 	return path;
 }
 
-function isFunctionModule(row: number, column: number, size: number, version: number): boolean {
+/**
+ * @param {number} row
+ * @param {number} column
+ * @param {number} size
+ * @param {number} version
+ * @returns {boolean}
+ */
+function isFunctionModule(row, column, size, version) {
 	// Finder patterns with their separators (three 8x8 corner blocks).
 	if (row <= 7 && column <= 7) return true;
 	if (row <= 7 && column >= size - 8) return true;
@@ -212,11 +231,13 @@ function isFunctionModule(row: number, column: number, size: number, version: nu
 	return false;
 }
 
-function readFormatInformation(modules: boolean[][]): {
-	errorCorrectionLevel: QrErrorCorrectionLevel;
-	maskPattern: number;
-} {
-	const positions: Array<[number, number]> = [
+/**
+ * @param {boolean[][]} modules
+ * @returns {{ errorCorrectionLevel: QrErrorCorrectionLevel; maskPattern: number }}
+ */
+function readFormatInformation(modules) {
+	/** @type {Array<[number, number]>} */
+	const positions = [
 		[8, 0],
 		[8, 1],
 		[8, 2],
@@ -244,10 +265,16 @@ function readFormatInformation(modules: boolean[][]): {
 	return { errorCorrectionLevel, maskPattern };
 }
 
-function readCodewords(geometry: QrSvgGeometry, maskPattern: number): number[] {
+/**
+ * @param {QrSvgGeometry} geometry
+ * @param {number} maskPattern
+ * @returns {number[]}
+ */
+function readCodewords(geometry, maskPattern) {
 	const { size, version, modules } = geometry;
 	const mask = MASK_FUNCTIONS[maskPattern];
-	const codewords: number[] = [];
+	/** @type {number[]} */
+	const codewords = [];
 	let current = 0;
 	let bitsRead = 0;
 	let upward = true;
@@ -273,15 +300,22 @@ function readCodewords(geometry: QrSvgGeometry, maskPattern: number): number[] {
 	return codewords;
 }
 
-function deinterleaveDataCodewords(codewords: number[], layout: EcBlockLayout): number[] {
-	const blockSizes: number[] = [];
+/**
+ * @param {number[]} codewords
+ * @param {EcBlockLayout} layout
+ * @returns {number[]}
+ */
+function deinterleaveDataCodewords(codewords, layout) {
+	/** @type {number[]} */
+	const blockSizes = [];
 	for (const group of layout.groups) {
 		for (let index = 0; index < group.blocks; index += 1) blockSizes.push(group.dataCodewords);
 	}
 	const totalData = blockSizes.reduce((sum, count) => sum + count, 0);
 	if (codewords.length < totalData) throw new Error('QR: symbol carries fewer codewords than its block layout needs');
 
-	const blocks: number[][] = blockSizes.map(() => []);
+	/** @type {number[][]} */
+	const blocks = blockSizes.map(() => []);
 	let cursor = 0;
 	const longest = Math.max(...blockSizes);
 	for (let index = 0; index < longest; index += 1) {
@@ -294,8 +328,13 @@ function deinterleaveDataCodewords(codewords: number[], layout: EcBlockLayout): 
 	return blocks.flat();
 }
 
-/** Decodes a byte-mode, level-H symbol produced by `just qr-generate`. */
-export function decodeQrSvg(svg: string): QrDecodeResult {
+/**
+ * Decodes a byte-mode, level-H symbol produced by `just qr-generate`.
+ *
+ * @param {string} svg
+ * @returns {QrDecodeResult}
+ */
+export function decodeQrSvg(svg) {
 	const geometry = parseQrSvg(svg);
 	const { errorCorrectionLevel, maskPattern } = readFormatInformation(geometry.modules);
 	if (errorCorrectionLevel !== 'H') {
@@ -305,11 +344,13 @@ export function decodeQrSvg(svg: string): QrDecodeResult {
 	if (!layout) throw new Error(`QR: level-H block layout for version ${geometry.version} is not carried`);
 
 	const data = deinterleaveDataCodewords(readCodewords(geometry, maskPattern), layout);
-	const bits: number[] = [];
+	/** @type {number[]} */
+	const bits = [];
 	for (const codeword of data) {
 		for (let shift = 7; shift >= 0; shift -= 1) bits.push((codeword >> shift) & 1);
 	}
-	const take = (count: number) => {
+	/** @param {number} count */
+	const take = (count) => {
 		if (bits.length < count) throw new Error('QR: symbol ended mid-field');
 		return bits.splice(0, count).reduce((value, bit) => (value << 1) | bit, 0);
 	};

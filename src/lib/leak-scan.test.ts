@@ -1,4 +1,5 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -7,10 +8,15 @@ import {
 	ALLOWED_MAILBOXES,
 	LEAK_RULES,
 	PERMITTED_HOST_INITIAL,
+	SKIP_EXTENSIONS,
+	TEXT_EXTENSIONS,
+	UnclassifiedOutputError,
+	collectFiles,
 	formatFindings,
+	scanBuildDirectory,
 	scanFiles,
 	scanText,
-} from './leak-scan';
+} from '../../scripts/lib/leak-scan.mjs';
 
 // Acceptance row: nothing private reaches the published artefact. The rules are
 // proven here against synthetic material; `just leak-scan` runs the same rules
@@ -169,5 +175,117 @@ describe('leak-scan over the checked-in public inputs', () => {
 		for (const host of ALLOWED_HOSTS) expect(host).not.toMatch(/^\*|\s/u);
 		expect(ALLOWED_HOSTS).toContain('greatfallstoolbus.org');
 		expect(ALLOWED_HOSTS).toContain('forms.latoolb.us');
+	});
+});
+
+describe('collectFiles fails closed on unknown file types', () => {
+	// A scanner whose stated purpose is proving the ABSENCE of secrets must never
+	// report "clean" over bytes it silently declined to open. Anything in neither
+	// TEXT_EXTENSIONS nor SKIP_EXTENSIONS is a human decision, not a default.
+	const publishedTree = (files: Record<string, string>) => {
+		const root = mkdtempSync(path.join(tmpdir(), 'gftb-leak-scan-'));
+		for (const [relative, text] of Object.entries(files)) {
+			const absolute = path.join(root, relative);
+			mkdirSync(path.dirname(absolute), { recursive: true });
+			writeFileSync(absolute, text, 'utf8');
+		}
+		return root;
+	};
+
+	it('classifies every extension it walks as text or knowingly-opaque', () => {
+		for (const extension of TEXT_EXTENSIONS) expect(SKIP_EXTENSIONS.has(extension)).toBe(false);
+		expect(TEXT_EXTENSIONS.has('')).toBe(true);
+	});
+
+	it('collects the text output and skips the opaque output', () => {
+		const root = publishedTree({
+			'index.html': '<!doctype html>',
+			_headers: 'X-Frame-Options: DENY',
+			'nested/app.js': 'export {};',
+			'font.woff2': 'binary',
+			'photo.png': 'binary',
+		});
+		expect(collectFiles(root).map((file) => path.relative(root, file))).toEqual([
+			'_headers',
+			'index.html',
+			path.join('nested', 'app.js'),
+		]);
+	});
+
+	it('throws, naming every offending file, rather than skipping an unknown type', () => {
+		const root = publishedTree({
+			'index.html': '<!doctype html>',
+			'site.webmanifest': '{}',
+			'nested/schedule.ics': 'BEGIN:VCALENDAR',
+		});
+		let raised: unknown;
+		try {
+			collectFiles(root);
+		} catch (error) {
+			raised = error;
+		}
+		expect(raised).toBeInstanceOf(UnclassifiedOutputError);
+		const message = (raised as Error).message;
+		expect(message).toContain('site.webmanifest');
+		expect(message).toContain('schedule.ics');
+		expect(message).toContain('TEXT_EXTENSIONS');
+		expect(message).toContain('SKIP_EXTENSIONS');
+	});
+
+	it('propagates the same failure through the directory scan the gate runs', () => {
+		const root = publishedTree({ 'index.html': '<!doctype html>', 'notes.md': '# hi' });
+		expect(() => scanBuildDirectory(root)).toThrow(UnclassifiedOutputError);
+	});
+
+	it('scans a clean published tree end to end', () => {
+		const root = publishedTree({ 'index.html': '<a href="https://greatfallstoolbus.org/">home</a>' });
+		const report = scanBuildDirectory(root);
+		expect(report.files).toHaveLength(1);
+		expect(report.findings).toEqual([]);
+	});
+});
+
+describe('the leak-scan gate has exactly one implementation', () => {
+	const runner = readFileSync(path.join(repoRoot, 'scripts/check-build-output.mjs'), 'utf8');
+
+	it('imports the tested module instead of re-deriving the scan', () => {
+		expect(runner).toContain("from './lib/leak-scan.mjs'");
+		// The runner may only do CLI work: argv, exit codes, printing. Any of these
+		// tokens reappearing here means a second copy of the scanner has grown back.
+		for (const forbidden of ['function scanText', 'function collectFiles', 'matchAll(', 'new RegExp(', 'rules:']) {
+			expect(runner, `check-build-output.mjs must not re-implement ${forbidden}`).not.toContain(forbidden);
+		}
+	});
+});
+
+describe('the credential ruleset stays unreachable from shipped code', () => {
+	// Belt and braces over the file location: scripts/lib is outside the SvelteKit
+	// library root, so $lib cannot resolve it, and eslint.config.ts adds a
+	// no-restricted-imports guard. This proves the guard's premise still holds.
+	const routeFiles: string[] = [];
+	const walk = (directory: string) => {
+		for (const entry of readdirSync(directory)) {
+			const absolute = path.join(directory, entry);
+			if (statSync(absolute).isDirectory()) {
+				walk(absolute);
+				continue;
+			}
+			if (/\.(svelte|ts|js)$/u.test(absolute)) routeFiles.push(absolute);
+		}
+	};
+	walk(path.join(repoRoot, 'src/routes'));
+	walk(path.join(repoRoot, 'src/lib/components'));
+
+	it('found the shipped sources it claims to check', () => {
+		expect(routeFiles.length).toBeGreaterThan(3);
+	});
+
+	it('never imports the test-only modules under scripts/lib', () => {
+		for (const file of routeFiles) {
+			const source = readFileSync(file, 'utf8');
+			expect(source, `${path.relative(repoRoot, file)} imports scripts/lib`).not.toMatch(
+				/from\s+['"][^'"]*scripts\/lib\//u,
+			);
+		}
 	});
 });
