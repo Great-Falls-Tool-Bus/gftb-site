@@ -153,6 +153,10 @@ class RepositoryContractTests(unittest.TestCase):
 
     def test_image_serves_an_exact_generated_source_marker(self) -> None:
         self.assertIn("printf '%s' '${commitSha}' > \"$out/srv/health.sha\"", self.flake)
+        # The materialized build root is a read-only store path; cp -a copies its
+        # 0555 mode onto $out/srv, so the marker write needs the directory reopened.
+        self.assertIn('chmod u+w "$out/srv"', self.flake)
+        self.assertLess(self.flake.index('chmod u+w "$out/srv"'), self.flake.index("> \"$out/srv/health.sha\""))
         self.assertIn("admin off", self.flake)
         self.assertIn("persist_config off", self.flake)
         self.assertIn('respond /health "ok" 200', self.flake)
