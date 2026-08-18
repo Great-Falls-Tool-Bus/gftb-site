@@ -138,6 +138,15 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertNotIn(":latest", combined)
         self.assertFalse((ROOT / ".github/workflows/deploy-pages.yml").exists())
 
+    def test_publisher_root_carrier_configures_hermetic_python(self) -> None:
+        self.assertIn('bazel_dep(name = "rules_python", version = "1.0.0")', self.module)
+        self.assertIn(
+            'python = use_extension("@rules_python//python/extensions:python.bzl", "python")',
+            self.module,
+        )
+        self.assertIn('python_version = "3.11"', self.module)
+        self.assertIn("ignore_root_user_error = True", self.module)
+
     def test_image_serves_an_exact_generated_source_marker(self) -> None:
         self.assertIn("printf '%s' '${commitSha}' > \"$out/srv/health.sha\"", self.flake)
         self.assertIn("admin off", self.flake)
