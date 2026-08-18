@@ -1,10 +1,27 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { mdsvex } from 'mdsvex';
+
+const mdsvexPreprocessor = mdsvex({ extensions: ['.svx'] });
+// mdsvex 0.12.7 still emits the legacy Svelte module-script spelling for
+// frontmatter. Skeleton 5's proven Svelte 5 carrier rewrites it at preprocess
+// time so the public log remains build-time content, not a runtime CMS.
+const mdsvexSvelte5Preprocessor = {
+	...mdsvexPreprocessor,
+	async markup(options) {
+		const result = await mdsvexPreprocessor.markup(options);
+		if (!result?.code) return result;
+		return {
+			...result,
+			code: result.code.replaceAll('<script context="module">', '<script module>'),
+		};
+	},
+};
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-	extensions: ['.svelte'],
-	preprocess: [vitePreprocess()],
+	extensions: ['.svelte', '.svx'],
+	preprocess: [vitePreprocess(), mdsvexSvelte5Preprocessor],
 	compilerOptions: {
 		runes: true,
 	},
@@ -17,8 +34,7 @@ const config = {
 			strict: false,
 		}),
 		paths: {
-			// GitHub Pages project-path hosting needs base="/<repo>" (set BASE_PATH in CI);
-			// a custom domain / Cloudflare uses base="" (see docs/deploy/cloudflare-pages.md).
+			// The static artifact is mounted at the apex by the external apply plane.
 			base: process.env.BASE_PATH ?? '',
 		},
 		prerender: {

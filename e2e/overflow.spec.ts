@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// Static scaffold regression guard: no document-level horizontal overflow at
+// Static-site regression guard: no document-level horizontal overflow at
 // canonical breakpoints, and every same-page hash link on the home route
 // resolves to an actual element.
 

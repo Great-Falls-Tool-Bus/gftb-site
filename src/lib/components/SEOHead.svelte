@@ -1,19 +1,5 @@
 <script lang="ts">
-	// ── HOUSE CANON IDIOM ──────────────────────────────────────────────────────
-	// Typed SEO head component. Demonstrates the three rune idioms that are house
-	// canon for every Tinyland brand site:
-	//   1. a typed `interface Props` (no `any`, explicit optionals),
-	//   2. `$props()` with literal defaults destructured from that interface,
-	//   3. `$derived.by(() => …)` for the multi-statement canonical-URL
-	//      normalization — NOT a `$derived` arrow-thunk (banned; see eslint.config.ts).
-	// Lifted from MassageIthaca's production SEOHead (TIN-2225). Copy this shape
-	// for any site's <svelte:head>; never hand-roll ad-hoc inline meta blocks.
-	//
-	// NOTE vs. MassageIthaca: MI is SSR (adapter-node) and gates `noindex` on the
-	// live request host. site.scaffold is fully prerendered (adapter-static), so a
-	// host check would bake noindex into the static HTML at build time. We honor
-	// the explicit `noindex` prop ONLY and read just `page.url.pathname` (stable
-	// per-route during prerender) for the canonical path.
+	// Typed, prerender-safe SEO metadata for the static apex.
 	import { page } from '$app/state';
 
 	interface Props {
@@ -41,21 +27,17 @@
 		noindex = false,
 		canonical = undefined,
 		ogType = 'website',
-		siteName = 'site.scaffold',
-		origin = 'https://site.scaffold',
+		siteName = 'greatfallstoolbus.org',
+		origin = 'https://greatfallstoolbus.org',
 		jsonLd = null,
 	}: Props = $props();
 
-	// Expression derivation → `$derived(expr)`. Build the full canonical URL from
-	// the current path unless an explicit one was supplied.
+	// Build the full canonical URL from the current path unless supplied.
 	const canonicalUrl = $derived(canonical || `${origin}${page.url.pathname}`);
 
-	// Explicit-only robots gate (see header note on prerender).
+	// Never infer preview status during prerender.
 	const shouldNoindex = $derived(noindex);
 
-	// Multi-statement normalization → MUST use `$derived.by(() => …)`. A bare
-	// `$derived` arrow-thunk would store the *function* as the value, not the
-	// normalized string — that is the banned anti-pattern this file models against.
 	const normalizedCanonical = $derived.by(() => {
 		const url = canonicalUrl;
 		try {

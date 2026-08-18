@@ -1,16 +1,17 @@
 # Security policy
 
-This repository is the source for the static marketing/devtool site at
-<https://site.scaffold>. The site itself is purely static — no server
-runtime, no user accounts, no inbound data, no analytics.
+This repository builds the static site artifact served at
+<https://greatfallstoolbus.org>. It has no application server, user accounts,
+or analytics. The browser may submit the public contact form to the separately
+operated `forms.latoolb.us` API; this repository owns neither that service nor
+its submitted data.
 
 ## Reporting a vulnerability
 
-Until a public security email is published, please report security
-issues against this site via a **private GitHub security advisory** on
-this repository:
-
-<https://github.com/tinyland-inc/site.scaffold/security/advisories/new>
+Report security issues privately to
+[keyholders@latoolb.us](mailto:keyholders@latoolb.us) with a clear subject such
+as `Security report: greatfallstoolbus.org`. Do not use the public discussion
+list for unpatched vulnerabilities.
 
 ## Scope
 
@@ -24,8 +25,8 @@ In scope for this repository:
 Out of scope:
 
 - Cosmetic / SEO / accessibility issues — please open a normal issue
-- DDoS / availability — site is on Cloudflare Pages with no privileged
-  routes; standard Cloudflare Pages edge availability applies
+- DDoS / availability of the separately operated Cloudflare, tunnel, and
+  on-cluster serving plane
 
 ## What we won't do
 

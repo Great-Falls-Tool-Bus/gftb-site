@@ -1,4 +1,4 @@
-# site.scaffold Bazel Configuration
+# greatfallstoolbus.org Bazel Configuration
 #
 # Bazel 8 + Bzlmod. Mirrors elders.tinyland.dev's two-registry chain:
 # tinyland-inc/bazel-registry first, then BCR. Canonical Just recipes execute
@@ -23,7 +23,7 @@ build --workspace_status_command=scripts/bazel/workspace-status.sh
 # Build performance
 build --jobs=auto
 build --worker_sandboxing
-build --disk_cache=~/.cache/bazel-site
+build --disk_cache=~/.cache/bazel-gftb-site
 build --keep_going
 build --show_timestamps
 

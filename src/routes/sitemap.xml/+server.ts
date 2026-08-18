@@ -1,9 +1,8 @@
-// M3.3 sitemap.xml endpoint. Prerendered at build time by adapter-static so the
-// XML lives at build/sitemap.xml. Add additional routes here as M5 lands them.
+// Prerendered sitemap for the one-page public microsite.
 import type { RequestHandler } from './$types';
 
-const SITE = 'https://site.scaffold';
-const PAGES: string[] = ['/', '/agent'];
+const SITE = 'https://greatfallstoolbus.org';
+const PAGES: string[] = ['/'];
 
 export const prerender = true;
 

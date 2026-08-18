@@ -1,186 +1,50 @@
-# site.scaffold
+# Great Falls Tool Bus public site
 
-Canonical Tinyland house scaffold for **static SvelteKit brand sites**.
+The static public front door for the Great Falls Tool Bus in
+Lewiston–Auburn, Maine. The site explains what the project is, what is happening
+next, how to help, and publishes a small reviewed build log.
 
-Every brand / project / sub-business site under `tinyland-inc` should be created
-from this template (`gh repo create --template tinyland-inc/site.scaffold`) so
-DX, AX, CI, theming, static projection, and Bazel integration stay homogenous across
-the enterprise.
+## Boundaries
 
-## Stack
+- Static SvelteKit output (`adapter-static`); no runtime server.
+- No auth, member records, payments, mail operations, private content, or
+  infrastructure authority.
+- The browser posts the public contact form to the separately operated
+  `forms.latoolb.us` API, with an email fallback. This repo owns neither service.
+- Daily logs are checked-in `.svx` documents. Their frontmatter is limited to
+  `date`, `title`, `summary`, `tags`, `published`, and optional `updated`.
+  Every file in `src/content/log/` must set `published: true`; drafts stay out
+  of the public build input directory.
+- Internal tracker IDs, PRs, SHAs, repo pointers, and private locations never
+  appear in public logs.
 
-- **Just** — sole authoritative DX/AX entrypoint (`Justfile`)
-- **Nix flake + direnv** — reproducible dev shell (`flake.nix`, `.envrc`)
-- **Bazel 8 + Bzlmod** — Bazel-first in-house package authority with GloriousFlywheel cache / executor proof
-- **Agent skills** — Codex/agent project skills with Claude-compatible entrypoints
-- **SvelteKit + adapter-static** — static-only, prerendered
-- **Skeleton 4.15.2** — pinned exact, Tailwind v4 with v4-compat shim
-- **Tummycrypt vite plugins** — `vite-plugin-a11y`, `vite-plugin-skeleton-colors`, `tinyvectors`, `tinyland-color-utils`
-- **CI** — gitleaks secrets-scan, build-and-test, bazel-graph (all run inside `nix develop`)
-- **Lane metadata** — validated CI/QA metadata without an application receiver or apply plane
+## Stack and commands
 
-## After creating from template
+This spoke follows the Tinyland repository contract: Just is the only operator
+entrypoint, Nix supplies the shell, and Bazel/GloriousFlywheel provide the
+finite build and test graph. This repo carries an explicit Skeleton 5.0.0
+exception based on the proven `jesssullivan.github.io` Svelte 5 pattern.
 
 ```bash
-cd <new-repo>
 direnv allow
-scripts/rebrand.sh <site.example.com>   # rewrites name strings
 just setup
 just check
 just build
 ```
 
-## Paste-to-agent adoption
+`just build` materializes the deployable static site under `build/`.
 
-Open a new coding-agent session in any Tinyland repo and paste this:
+`just container-image-publish` is a Linux CI-only entrypoint that publishes the
+same static artifact as an immutable
+`ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>` candidate. It
+does not deploy or select the image for production.
 
-> Adopt the Tinyland scaffold contract for this repo: read `AGENTS.md`, `Justfile`, `flake.nix`, `tinyland.repo.json` if present, `.github/workflows/*`, `.github/lanes.json`, `.bazelrc*`, `MODULE.bazel`, and `docs/CI-SCHEMA.md` if present; classify the repo shape and authority boundaries against `tinyland-inc/site.scaffold/docs/spec/tinyland-repo-taxonomy-and-gitops-contract-2026-05-19.md`; map the repo to the enforceable layers in `tinyland-inc/site.scaffold/docs/agent-adoption.md`; flag contract smells; patch only minimal conformance gaps; run through `just <recipe>` entrypoints only; validate with `just check` plus `just conformance` or the closest documented equivalent; do not remove or rewrite dirty worktrees without preserving them and reporting the stash/branch.
+The source repository remains private. After review, the operator release lane
+may make only this public web image package anonymous-readable and must prove a
+digest pull before cutover; this repo carries no registry pull credentials.
 
-The full DRY adoption flow lives in
-[`docs/agent-adoption.md`](docs/agent-adoption.md). Keep the long checklist
-there; link to it from other agent-ingestion surfaces instead of duplicating it.
+## Content and licensing
 
-## Agent surfaces
-
-This scaffold dogfoods its agent-facing contract:
-
-- `tinyland.repo.json`
-- [`docs/agent-adoption.md`](docs/agent-adoption.md)
-- `.agents/skills/tinyland-flywheel-bazel/SKILL.md`
-- `.agents/skills/tinyland-static-spoke/SKILL.md`
-- `.agents/skills/tinyland-repo-contract/SKILL.md`
-- `.claude/skills/*` symlinks for Claude project skills
-- `static/llms.txt`, `static/agent-map.md`, and `/agent`
-
-The public surface is intentionally thin. `AGENTS.md` and
-[`docs/CI-SCHEMA.md`](docs/CI-SCHEMA.md) remain the normative contracts.
-`tinyland.repo.json` is the machine-readable repo-shape manifest.
-For the cross-repo distinction between static spokes, app/stateful spokes, the
-`tinyland.dev` mothership, owner overlays, generic infrastructure, and
-GloriousFlywheel, read
-[`docs/spec/tinyland-repo-taxonomy-and-gitops-contract-2026-05-19.md`](docs/spec/tinyland-repo-taxonomy-and-gitops-contract-2026-05-19.md).
-
-## Projection Modes
-
-Sister sites are read-only consumers of Tinyland authority. The scaffold supports
-two modes:
-
-- **Static projection ingestion**: consume reviewed static snapshots from
-  `tinyland.dev` as checked-in JSON artifacts.
-- **Runtime broker display**: deploy a static Cloudflare Pages shell that
-  fetches reviewed public content from `hub.tinyland.dev` at runtime. This is
-  for blog/Pulse-style sites where Tinyland remains the editor, greymatter,
-  media, and broker authority, and the spoke only renders the stream.
-
-The scaffold includes validation and sync recipes for the checked-in snapshot
-flow:
-
-```bash
-just validate-static-projection path/to/public-snapshot.v1.json
-just sync-static-projection https://tinyland.dev/projections/<spoke>/public-snapshot.v1.json path/to/public-snapshot.v1.json
-just pulse-ingest https://tinyland.dev/projections/<spoke>/pulse/public-snapshot.v1.json static/data/pulse/public-snapshot.v1.json
-```
-
-These recipes validate snapshot hashes, Tinyland source authority for
-`tinyland.static-spoke.snapshot.v1`, public Pulse M1 policy shape, and
-secret-shaped field absence before writing a local JSON file. They do not add
-mutation APIs, checkout sessions, payment custody, ActivityPub workers, or
-public Fediverse delivery claims.
-
-The optional spoke/actor arguments add a Tinyland brand actor public-key
-readiness check before accepting a refreshed snapshot. `.github/workflows/pulse-ingest.yml`
-wraps the same gate on a schedule or `workflow_dispatch` and opens a PR when a
-checked-in snapshot changes. That workflow still treats the site as static. When
-`require_signature` is enabled, it fails closed unless the fetched HTTPS
-snapshot carries a valid Tinyland HTTP Signature from the expected actor key.
-
-Runtime broker-display spokes must fetch from the configured Tinyland public
-broker, not from checked-in post payloads, CI materialization, or the
-`tinyland.dev` public apex. They remain static spokes: no server-side mutation
-API, no local keys, no follower ledger, and no public Fediverse delivery worker.
-
-## Conventions
-
-- Repo name = domain with dots preserved (e.g. `tinyland-inc/phasi.space`)
-- Default branch: `main`
-- Visibility: private until an explicit launch decision
-- Issues / projects: tracked in Linear team `Tinyland`, GH issues mirror
-- Operator/agent contract: `AGENTS.md`
-
-## CI and lane-metadata contract
-
-The normative workflow contract lives in [`docs/CI-SCHEMA.md`](docs/CI-SCHEMA.md).
-It covers `.github/lanes.json`, runner-class rules, and the GloriousFlywheel
-cache-versus-executor distinction. The scaffold ships no application/PR
-receiver, public-preview sender, DNS mutation, or reap workflow; those
-capabilities belong to a product owner overlay when a product requires them.
-
-Default-branch protection (require a PR to merge, block force-push, block
-deletion, no required status checks) is templated at
-[`.github/rulesets/default-branch.json`](.github/rulesets/default-branch.json)
-and documented in [`docs/ci/branch-protection.md`](docs/ci/branch-protection.md);
-every spoke should apply it after creation from this template.
-
-GloriousFlywheel-backed Bazel work goes through
-`scripts/gloriousflywheel-bazel.sh` via `just flywheel-build`,
-`just flywheel-test`, or `just flywheel-fetch`. First run
-`just flywheel-enroll` to inspect the advertised path, `just flywheel-doctor`
-to diagnose the current shell, and `just flywheel-verify` to fail closed before
-cache-backed work. The preferred source is the GloriousFlywheel
-Home Manager/NixOS fleet profile, which exports `GF_FLYWHEEL_PROFILE_STATE`
-plus endpoint metadata. Set `BAZEL_REMOTE_CACHE` and
-`GF_BAZEL_SUBSTRATE_MODE=shared-cache-backed` for cache-backed work; add
-`BAZEL_REMOTE_EXECUTOR` and switch to `GF_BAZEL_SUBSTRATE_MODE=executor-backed`
-only for proved target classes on cluster runners. Pull requests are read-only
-unless a trusted lane explicitly sets `GF_BAZEL_REMOTE_UPLOAD=true`.
-
-Runtime auth material stays out of the repo. CI or operator shells may supply
-`BAZEL_CREDENTIAL_HELPER`, `BAZEL_REMOTE_HEADER`,
-`BAZEL_REMOTE_CACHE_HEADER`, or `BAZEL_REMOTE_EXEC_HEADER`; do not commit their
-values.
-
-The scaffold ships finite Bazel targets for the static build, Svelte check, and
-Vitest unit tests:
-
-```bash
-just flywheel-enroll      # inspect/profile the advertised enrollment path
-just flywheel-doctor      # diagnose the current shell
-just flywheel-verify      # fail-closed profile/env check
-just flywheel-build        # //:build
-just flywheel-test         # //:ci_validation_suite
-just bazel-graph
-```
-
-The MassageIthaca backfeed spec is retired (2026-08-05): its MI↔Blahaj
-coupling model is obsolete (blahaj #1255 evicted the MI substrate), and the
-durable lessons live in the pattern docs —
-[production-convergence](docs/patterns/production-convergence.md),
-[operator-gate-handoff](docs/patterns/operator-gate-handoff.md), and
-[owner-overlay-apply-plane](docs/patterns/owner-overlay-apply-plane.md).
-
-In-house `@tummycrypt/*` and `@tinyland/*` packages are ingested only through
-Bazel. They must not appear as npm specifiers in `package.json`; each
-graph-linked package must be present as both a `bazel_dep` in `MODULE.bazel`
-and an `npm_link_package` in `BUILD.bazel`:
-
-```bash
-just inhouse-package-parity
-```
-
-## Secrets scanning
-
-Gitleaks is part of the baseline toolchain:
-
-```bash
-just secrets-scan-dir      # working tree
-just secrets-scan          # git history
-```
-
-## SBOM
-
-Local SBOM generation uses Syft from the Nix dev shell and writes ignored
-artifacts under `build/sbom/`:
-
-```bash
-just sbom
-```
+Public logs live in `src/content/log/`. Software is licensed under zlib; GFTB
+written content is CC BY-SA 4.0. Third-party visual provenance is recorded in
+`NOTICE` and `docs/attribution.md`.
