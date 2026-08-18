@@ -37,6 +37,18 @@ describe('WCAG colour maths', () => {
 		expect(formatRgb(parseCssColor('color(srgb 1 0.5 0)'))).toBe('#ff8000');
 	});
 
+	it('reads every CSS angle unit the hue component may carry', () => {
+		// 94.09deg is --color-secondary-500, the site's --highlight. Each spelling
+		// below is the same angle: 104.544grad, 1.642199rad, 0.2613611turn.
+		// `grad` is the trap — it ends in `rad`, so an unanchored radian probe
+		// converts it with the wrong factor and lands on #0eddff instead.
+		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 94.09deg)'))).toBe('#efc822');
+		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 104.544grad)'))).toBe('#efc822');
+		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 1.642199rad)'))).toBe('#efc822');
+		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 0.2613611turn)'))).toBe('#efc822');
+		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 94.09)'))).toBe('#efc822');
+	});
+
 	it('refuses to guess when a modern colour function is short a component', () => {
 		expect(() => parseCssColor('oklch(0.38 0.07)')).toThrow(/Unsupported CSS colour/u);
 		expect(() => parseCssColor('oklab(0.38 0.07)')).toThrow(/Unsupported CSS colour/u);

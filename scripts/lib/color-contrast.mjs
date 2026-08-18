@@ -94,8 +94,10 @@ function parseAlpha(token) {
 function parseHue(token) {
 	if (token === undefined || token.toLowerCase() === 'none') return 0;
 	const value = Number.parseFloat(token);
-	if (/rad$/i.test(token)) return (value * 180) / Math.PI;
+	// `grad` is tested first: it ends in `rad`, so a `/rad$/` probe matches it and
+	// would read 104.544grad as radians. 400grad = 360deg; 1rad = 180/PI deg.
 	if (/grad$/i.test(token)) return value * 0.9;
+	if (/rad$/i.test(token)) return (value * 180) / Math.PI;
 	if (/turn$/i.test(token)) return value * 360;
 	return value;
 }
