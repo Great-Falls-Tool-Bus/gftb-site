@@ -83,7 +83,17 @@ test('contact helper and validation text remain readable on the dark panel', asy
 		.locator('.field-error')
 		.first()
 		.evaluate((element) => getComputedStyle(element).color);
+	const eyebrowColor = await page
+		.locator('.contact-card .eyebrow')
+		.evaluate((element) => getComputedStyle(element).color);
+	const buttonColors = await page.getByRole('button', { name: 'Send to keyholders' }).evaluate((element) => {
+		const style = getComputedStyle(element);
+		return { background: style.backgroundColor, label: style.color };
+	});
 
 	expect(contrastRatio(helperColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
 	expect(contrastRatio(errorColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
+	expect(contrastRatio(eyebrowColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
+	expect(contrastRatio(buttonColors.background, contactBackground)).toBeGreaterThanOrEqual(3);
+	expect(contrastRatio(buttonColors.label, buttonColors.background)).toBeGreaterThanOrEqual(4.5);
 });

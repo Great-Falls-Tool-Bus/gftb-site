@@ -476,6 +476,21 @@ figcaption {
 	color: #ffd0cb;
 }
 
+/* The page palette assumes a light surface. On the dark contact panel the
+   shared --purple sits at 1.36:1 against --purple-dark, so the eyebrow fails
+   WCAG 1.4.3 and the primary button loses its boundary under WCAG 1.4.11.
+   Both are inverted here; the yellow focus glow still reads 3.1:1 against the
+   inverted button and 4.8:1 against the panel. */
+.contact-card .eyebrow {
+	color: var(--yellow);
+}
+
+.contact-card .button {
+	border-color: var(--paper);
+	background: var(--paper);
+	color: var(--purple-dark);
+}
+
 .qr {
 	width: min(100%, 11rem);
 	border-radius: 0.6rem;
