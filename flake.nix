@@ -154,6 +154,9 @@
             mkdir -p "$out/srv" "$out/etc/caddy" "$out/tmp"
             chmod 1777 "$out/tmp"
             cp -a ${appBuild}/. "$out/srv/"
+            # cp -a propagates the read-only store mode (0555) of the materialized
+            # build root onto $out/srv; reopen it so the source marker can land.
+            chmod u+w "$out/srv"
             printf '%s' '${commitSha}' > "$out/srv/health.sha"
             cp ${caddyfile} "$out/etc/caddy/Caddyfile"
           '';
