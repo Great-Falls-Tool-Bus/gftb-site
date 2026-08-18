@@ -57,14 +57,20 @@ describe('leak-scan rule set', () => {
 	});
 });
 
+// A sequential, never-issued forge token shaped like a real one. Assembled at
+// run time so no gitleaks release (CI pins 8.21.2, whose github-pat rule fires
+// on the contiguous literal) sees a token in this file; the scanner under test
+// still receives the full string.
+const FAKE_FORGE_TOKEN = ['ghp_', '0123456789abcdefghijklmnopqrstuvwxyz'].join('');
+
 describe('leak-scan detections', () => {
 	it('catches secret material', () => {
 		expect(idsFiring('-----BEGIN RSA PRIVATE KEY-----')).toContain('secret-pem-block');
 		expect(idsFiring('AKIAIOSFODNN7EXAMPLE')).toContain('secret-cloud-access-key');
-		expect(idsFiring('ghp_0123456789abcdefghijklmnopqrstuvwxyz')).toContain('secret-forge-token');
+		expect(idsFiring(FAKE_FORGE_TOKEN)).toContain('secret-forge-token');
 		// Assembled at run time so this fixture is not itself a contiguous JWT:
 		// `just secrets-scan-dir` would otherwise flag the test that proves the
-		// rule works.
+		// rule works. FAKE_FORGE_TOKEN is assembled for the same reason.
 		const jwtFixture = ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'dBjftJeZ4CVPmB92K27uhbUJU1p1r'].join(
 			'.',
 		);
@@ -126,9 +132,9 @@ describe('leak-scan detections', () => {
 	});
 
 	it('redacts the matched material in its own report', () => {
-		const report = formatFindings(scanText('fixture.html', 'token: ghp_0123456789abcdefghijklmnopqrstuvwxyz'));
+		const report = formatFindings(scanText('fixture.html', `token: ${FAKE_FORGE_TOKEN}`));
 		expect(report).toContain('<<redacted>>');
-		expect(report).not.toContain('ghp_0123456789abcdefghijklmnopqrstuvwxyz');
+		expect(report).not.toContain(FAKE_FORGE_TOKEN);
 	});
 
 	it('reports the file and line of each finding', () => {
