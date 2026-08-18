@@ -8,8 +8,20 @@
 @import '@fontsource/inter/latin-700.css';
 
 /* Role layer (TIN-3854). Every rule below paints through a role, never a raw
- * hex, so the dark block at the end of this file is the only place a second
- * colour scheme is described. Roles resolve to CityLink Skeleton families. */
+ * hex or a raw palette token, so a colour decision is made once and here.
+ * Two groups live in this block:
+ *
+ *   - scheme roles, which the `@media (prefers-color-scheme: dark)` block at
+ *     the end of this file redefines in full. That block is the only place a
+ *     second colour scheme is described;
+ *   - `--inverse-*` roles for the contact card, the site's one deliberately
+ *     inverted block. It stays dark-on-purple in BOTH schemes, so the dark
+ *     block leaves this group alone on purpose rather than by omission.
+ *
+ * Roles resolve to CityLink Skeleton families (src/lib/styles/theme-gftb.css).
+ * src/lib/design-token-contrast.test.ts resolves this file's `var()` graph and
+ * sweeps every pair below in both schemes, so a role that stops clearing its
+ * WCAG floor fails in milliseconds. */
 :root {
 	color-scheme: light dark;
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -32,33 +44,35 @@
 	--highlight-contrast: var(--color-secondary-contrast-300);
 	/* secondary fills sit at 1.43:1 on paper — every yellow control needs this */
 	--highlight-edge: var(--color-secondary-700);
+	/* headings and links on a --highlight fill, which never flips */
+	--highlight-heading: var(--color-primary-800);
 	--danger: var(--color-error-700);
 	--positive: var(--color-success-600);
 	--wash: color-mix(in oklab, var(--color-secondary-300) 16%, transparent);
 	--shadow: color-mix(in oklab, var(--color-primary-900) 12%, transparent);
 
-	/* The contact card is a deliberately inverted block: it stays dark-on-purple
-	 * in both schemes, so its roles do not flip. */
-	--inverse-panel: var(--color-primary-800);
+	/* The contact card, the site's one deliberately inverted block. primary-900
+	 * is the ramp member closest to the shipped #351b43 panel depth; the panel
+	 * is not lightened, and none of these roles flip in the dark block. */
+	--inverse-panel: var(--color-primary-900);
 	--inverse-edge: var(--color-primary-500);
 	--inverse-fg: var(--color-surface-50);
 	--inverse-fg-muted: var(--color-primary-100);
 	--inverse-link: var(--color-primary-200);
 	--inverse-danger: var(--color-error-100);
 
-	/* Legacy aliases, kept for one release (TIN-3854) so anything still reaching
-	 * for the pre-theme names resolves to the ratified token. No rule in this
-	 * file consumes them; delete the block once the release lands.
-	 * --ink stays a literal because palette.test.ts re-reads it to prove
-	 * surface-950 and the shipped ink never drifted apart. */
+	/* Controls on that panel carry an --inverse-fg (paper) fill, so their ink
+	 * keeps the light-scheme rung of its family in both schemes: the page roles
+	 * are tuned for the page ground, not for a paper chip on a purple panel. */
+	--inverse-control-fg: var(--color-primary-900);
+	--inverse-control-accent: var(--color-primary-700);
+	--inverse-control-danger: var(--color-error-700);
+	--inverse-control-positive: var(--color-success-600);
+
+	/* --ink is the one literal left in this file. src/lib/theme/palette.test.ts
+	 * re-reads it as a hex to prove the shipped ink and surface-950 never
+	 * drifted apart; resolving it through var() would delete that proof. */
 	--ink: #28222b;
-	--paper: var(--color-surface-50);
-	--cream: var(--color-surface-100);
-	--line: var(--color-surface-300);
-	--muted: var(--color-surface-700);
-	--purple: var(--color-primary-700);
-	--purple-dark: var(--color-primary-800);
-	--yellow: var(--color-secondary-300);
 }
 
 * {
@@ -252,9 +266,13 @@ li {
 	color: var(--heading);
 }
 
+/* The glow is measured twice on the contact panel — against the paper button it
+ * rings and against the panel behind it — and those two move in opposite
+ * directions with opacity. 56% is where the weaker of the pair peaks (3.54:1
+ * and 3.50:1); 65% put the paper side at 2.95:1. */
 .button:hover,
 .button:focus-visible {
-	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 65%, transparent);
+	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
 }
 
 .status-card,
@@ -294,14 +312,18 @@ li {
 	font-weight: 700;
 }
 
+/* ContactForm.svelte renders only inside .contact-card, so these controls are
+ * always on the inverted panel and paint with --inverse-* roles. Painting them
+ * with the page roles instead would put a surface-900 field on a primary-900
+ * panel in dark mode — a 1.02:1 boundary. */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
 	width: 100%;
-	border: 1px solid var(--control-edge);
+	border: 1px solid var(--inverse-edge);
 	border-radius: 0.45rem;
-	background: var(--panel);
-	color: var(--fg);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-fg);
 	font: inherit;
 }
 
@@ -316,8 +338,12 @@ li {
 	padding: 0.75rem;
 }
 
+/* outline-offset pushes the ring off the field and onto the panel, so the ring
+ * is measured against --inverse-panel, not against the field fill. --highlight
+ * reaches 7.77:1 there; --highlight-edge, which exists to rescue a yellow fill
+ * on paper, would only reach 3.02:1. */
 .contact-form :is(input, textarea):focus-visible {
-	outline: 3px solid var(--highlight-edge);
+	outline: 3px solid var(--highlight);
 	outline-offset: 2px;
 }
 
@@ -341,20 +367,25 @@ li {
 	color: var(--fg-muted);
 }
 
-.field-error,
-.form-notice--error {
+.field-error {
 	color: var(--danger);
 }
 
+/* Notices render inside the contact panel too, as a paper card on it. */
 .form-notice {
-	border-left: 0.4rem solid var(--accent);
+	border-left: 0.4rem solid var(--inverse-control-accent);
 	padding: 1rem;
-	background: var(--panel);
-	color: var(--fg);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-fg);
 }
 
 .form-notice--success {
-	border-left-color: var(--positive);
+	border-left-color: var(--inverse-control-positive);
+}
+
+/* after .form-notice, which sets the notice's own colour at equal specificity */
+.form-notice--error {
+	color: var(--inverse-control-danger);
 }
 
 .text-button {
@@ -431,8 +462,8 @@ li {
 .next-session h2,
 .next-session .eyebrow,
 .next-session a,
-.date-chip {
-	color: var(--color-primary-800);
+.next-session .date-chip {
+	color: var(--highlight-heading);
 }
 
 .date-chip {
@@ -527,8 +558,6 @@ figcaption {
 	color: var(--inverse-link);
 }
 
-/* the page-level accent is invisible on this card's own fill (1.36:1) */
-.contact-card .eyebrow,
 .contact-card .form-help {
 	color: var(--inverse-fg-muted);
 }
@@ -537,19 +566,19 @@ figcaption {
 	color: var(--inverse-danger);
 }
 
-/* The page palette assumes a light surface. On the dark contact panel the
-   shared --purple sits at 1.36:1 against --purple-dark, so the eyebrow fails
-   WCAG 1.4.3 and the primary button loses its boundary under WCAG 1.4.11.
-   Both are inverted here; the yellow focus glow still reads 3.1:1 against the
-   inverted button and 4.8:1 against the panel. */
+/* The page accent measures 1.36:1 on this panel, so the eyebrow takes the
+ * highlight yellow (7.77:1) and the primary button inverts to a paper fill
+ * (12.38:1 fill against the panel, 12.38:1 label against the fill) instead of
+ * inheriting a purple-on-purple control (TIN-3855). --highlight is deliberately
+ * scheme-stable, which is what lets the never-flipping panel rely on it. */
 .contact-card .eyebrow {
-	color: var(--yellow);
+	color: var(--highlight);
 }
 
 .contact-card .button {
-	border-color: var(--paper);
-	background: var(--paper);
-	color: var(--purple-dark);
+	border-color: var(--inverse-fg);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-fg);
 }
 
 .qr {
@@ -622,21 +651,31 @@ figcaption {
 	}
 }
 
-/* Dark scheme. Light is the default; only the roles move. The always-yellow
- * block and the inverted contact card keep their light-scheme roles on
- * purpose, so they are absent here. */
+/* Dark scheme. Light is the default; every scheme role is restated here, including
+ * the ones whose value does not change, so this block is a complete description
+ * of the second scheme rather than a diff a reader has to reconstruct. The
+ * `--inverse-*` group is the single documented exception: the contact card is
+ * inverted in both schemes and is declared once, in :root. */
 @media (prefers-color-scheme: dark) {
 	:root {
 		--bg: var(--color-surface-950);
 		--panel: var(--color-surface-900);
 		--fg: var(--color-surface-50);
 		--fg-muted: var(--color-surface-400);
-		--heading: var(--color-primary-200);
+		--heading: var(--color-primary-300);
 		--accent: var(--color-primary-300);
 		--accent-contrast: var(--color-primary-contrast-300);
 		--link: var(--typo-anchor--color-dark);
 		--rule: var(--color-surface-700);
 		--control-edge: var(--color-surface-500);
+		/* The yellow block is brand livery, not a surface: it reads at 9.57:1 on
+		 * the dark page and must not shift, so highlight and its ink hold. */
+		--highlight: var(--color-secondary-300);
+		--highlight-contrast: var(--color-secondary-contrast-300);
+		/* On a dark ground the fill already carries the 1.4.11 boundary, so the
+		 * edge is only a rim; secondary-700 reads as a smudge there. */
+		--highlight-edge: var(--color-secondary-500);
+		--highlight-heading: var(--color-primary-800);
 		--danger: var(--color-error-300);
 		--positive: var(--color-success-300);
 		--wash: color-mix(in oklab, var(--color-primary-300) 12%, transparent);
