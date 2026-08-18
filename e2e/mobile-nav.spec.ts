@@ -1,27 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { contrastRatio, formatRgb, roundRatio } from '../scripts/lib/color-contrast.mjs';
+
+// The colour maths comes from the shared module rather than a local copy. The
+// local copy read `getComputedStyle` output with /[\d.]+/ and assumed rgb();
+// once the panel moved onto CityLink tokens Chromium started returning
+// `oklch(0.3832 0.0755 294.64)`, which that regex read as a red channel of
+// 0.3832 — turning a 12.4:1 pair into a reported 1.0:1 failure.
 
 test.use({ viewport: { width: 375, height: 667 } });
-
-function relativeLuminance(color: string): number {
-	const channels = color
-		.match(/[\d.]+/g)
-		?.slice(0, 3)
-		.map(Number);
-	if (!channels || channels.length !== 3) throw new Error(`Expected an RGB color, received ${color}`);
-	const [red, green, blue] = channels.map((channel) => {
-		const normalized = channel / 255;
-		return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-	});
-	return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-}
-
-function contrastRatio(foreground: string, background: string): number {
-	const foregroundLuminance = relativeLuminance(foreground);
-	const backgroundLuminance = relativeLuminance(background);
-	const lighter = Math.max(foregroundLuminance, backgroundLuminance);
-	const darker = Math.min(foregroundLuminance, backgroundLuminance);
-	return (lighter + 0.05) / (darker + 0.05);
-}
 
 test('mobile public front door exposes current status and working anchors', async ({ page }) => {
 	await page.goto('/');
@@ -84,6 +70,15 @@ test('contact helper and validation text remain readable on the dark panel', asy
 		.first()
 		.evaluate((element) => getComputedStyle(element).color);
 
-	expect(contrastRatio(helperColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
-	expect(contrastRatio(errorColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
+	const helperRatio = roundRatio(contrastRatio(helperColor, contactBackground));
+	const errorRatio = roundRatio(contrastRatio(errorColor, contactBackground));
+	const panel = formatRgb(contactBackground);
+	expect(
+		helperRatio,
+		`helper text ${formatRgb(helperColor)} on ${panel} measured ${helperRatio}:1`,
+	).toBeGreaterThanOrEqual(4.5);
+	expect(
+		errorRatio,
+		`field error ${formatRgb(errorColor)} on ${panel} measured ${errorRatio}:1`,
+	).toBeGreaterThanOrEqual(4.5);
 });

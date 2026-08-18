@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	compositeOver,
 	contrastRatio,
+	formatRgb,
 	meetsLargeTextAA,
 	meetsNonTextContrast,
 	meetsTextAA,
@@ -19,6 +20,32 @@ describe('WCAG colour maths', () => {
 		expect(parseCssColor('rgba(0, 0, 0, 0.5)')).toEqual({ red: 0, green: 0, blue: 0, alpha: 0.5 });
 		expect(parseCssColor('rgb(81, 44, 100)')).toEqual({ red: 81, green: 44, blue: 100, alpha: 1 });
 		expect(() => parseCssColor('color(display-p3 1 0 0)')).toThrow(/Unsupported CSS colour/u);
+	});
+
+	it('reads the OKLab spellings the palette authors and the browser returns', () => {
+		// Authored form, straight out of src/lib/styles/theme-gftb.css.
+		expect(formatRgb(parseCssColor('oklch(38.32% 0.0755 294.64deg)'))).toBe('#463a67');
+		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 94.09deg)'))).toBe('#efc822');
+		expect(formatRgb(parseCssColor('oklch(26.25% 0.0186 314.48deg)'))).toBe('#28222b');
+		// Computed form: Chromium serialises the same declaration with a 0..1
+		// lightness and a unitless hue, and does not down-convert it to rgb().
+		expect(formatRgb(parseCssColor('oklch(0.3832 0.0755 294.64)'))).toBe('#463a67');
+		// color-mix(in oklab, …, transparent) comes back as oklab() with alpha.
+		expect(parseCssColor('oklab(0.842 -0.0118611 0.165876 / 0.16)').alpha).toBeCloseTo(0.16, 10);
+		expect(formatRgb({ ...parseCssColor('oklab(0.842 -0.0118611 0.165876 / 0.16)'), alpha: 1 })).toBe('#efc822');
+		// The exact sRGB spelling is accepted; other color() spaces still are not.
+		expect(formatRgb(parseCssColor('color(srgb 1 0.5 0)'))).toBe('#ff8000');
+	});
+
+	it('refuses to guess when a modern colour function is short a component', () => {
+		expect(() => parseCssColor('oklch(0.38 0.07)')).toThrow(/Unsupported CSS colour/u);
+		expect(() => parseCssColor('oklab(0.38 0.07)')).toThrow(/Unsupported CSS colour/u);
+	});
+
+	it('measures an oklch pair the same as the hexes it paints', () => {
+		expect(roundRatio(contrastRatio('oklch(0.8906 0.0593 294.64)', 'oklch(0.3832 0.0755 294.64)'))).toBe(
+			roundRatio(contrastRatio('#ddd4ff', '#463a67')),
+		);
 	});
 
 	it('reproduces the reference luminance endpoints', () => {
