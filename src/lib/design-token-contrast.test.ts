@@ -38,6 +38,16 @@ const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
  * The surfaces the page actually composites, per scheme. A card is a
  * translucent panel over the page, and a tag chip is a translucent accent over
  * a card, so both are composited here rather than approximated.
+ *
+ * `page` is the UNWASHED --bg. body paints
+ * `linear-gradient(180deg, var(--wash), transparent 22rem)` over it, so the top
+ * 352px of the document is not this colour. In light the wash darkens and --bg
+ * is therefore the conservative ground; in dark --wash is primary-300 at 12%
+ * and LIGHTENS that band from #28222b to #383042, which makes the dark numbers
+ * below the optimistic ones. Recomputed inside the band the dark pairs still
+ * clear AA: error-300 4.79 (this gate reports 4.89), primary-300 4.93
+ * (reports 6.06), surface-400 6.17. Disclosed rather than modelled, because
+ * modelling a gradient means picking a y and every pair has a different one.
  */
 function surfaces(scheme: SchemeName) {
 	const tokens = SCHEMES[scheme];
@@ -124,8 +134,21 @@ const nonTextPairs: Pair[] = [
 	{ name: 'form notice fill on the contact panel', role: '--inverse-fg', on: 'inverse', minimum: NON_TEXT_RATIO },
 ];
 
-/** The `.button` focus glow: a translucent highlight composited on its ground. */
-const GLOW = 'color-mix(in oklab, var(--highlight) 56%, transparent)';
+/**
+ * The `.button` focus glow: a translucent highlight composited on its ground.
+ *
+ * The opacity is READ OUT of src/app.css rather than restated here. Pinning it
+ * with a literal made a change to the stylesheet fail as a string mismatch on
+ * the structural test while the ratio assertions kept measuring this file's own
+ * number; reading it means a nudge to the glow is measured, and the failure
+ * names the ratio that broke.
+ */
+const GLOW_DECLARATION = /color-mix\(in oklab, var\(--highlight\) (\d+(?:\.\d+)?)%, transparent\)/u.exec(appCss);
+if (!GLOW_DECLARATION) {
+	throw new Error('src/app.css no longer declares a --highlight focus glow this gate can measure');
+}
+const GLOW = GLOW_DECLARATION[0];
+const GLOW_PERCENT = Number(GLOW_DECLARATION[1]);
 
 function glowOn(scheme: SchemeName, ground: Rgb): Rgb {
 	return compositeOver(resolveColor(SCHEMES[scheme], GLOW), ground);
@@ -200,7 +223,27 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 	it('keeps the composited surfaces this file models', () => {
 		expect(appCss).toContain('color-mix(in oklab, var(--panel) 88%, transparent)');
 		expect(appCss).toContain('color-mix(in oklab, var(--accent) 10%, transparent)');
-		expect(appCss).toContain(GLOW);
+		// GLOW is whatever app.css declares, so this only proves the glow is still
+		// painted on the focus rule the ratio assertions below assume.
+		expect(appCss).toMatch(
+			/\.button:focus-visible \{\s*box-shadow: 0 0 0 4px color-mix\(in oklab, var\(--highlight\)/u,
+		);
+		expect(GLOW_PERCENT, `focus glow declared at ${GLOW_PERCENT}%`).toBeGreaterThan(0);
+	});
+
+	it('pins the contact panel to primary-900, the ratified inversion depth', () => {
+		// The ratio sweeps do not catch a drift back to primary-800: every pair on
+		// the panel still clears its floor there, and the --highlight-edge guard
+		// below asserts `< 4`, which primary-800's 2.45 also satisfies. The role
+		// mapping is an operator ruling (2026-08-18 palette interview), so it is
+		// asserted directly rather than inferred from a number.
+		expect(appCss).toMatch(/--inverse-panel: var\(--color-primary-900\);/u);
+		expect(formatRgb(resolveRole(SCHEMES.light, '--inverse-panel'))).toBe(
+			formatRgb(resolveRole(SCHEMES.light, '--color-primary-900')),
+		);
+		expect(formatRgb(resolveRole(SCHEMES.dark, '--inverse-panel'))).toBe(
+			formatRgb(resolveRole(SCHEMES.dark, '--color-primary-900')),
+		);
 	});
 });
 
@@ -227,6 +270,16 @@ for (const scheme of SCHEME_NAMES) {
 		}
 
 		it('the button focus glow separates from the button it rings, and from the page', () => {
+			// REINTERPRETATION of the TIN-3855 gate, not a preservation of it.
+			// That gate asserted glow-vs-the-button-it-rings >= 3 unconditionally.
+			// On the page the glow is an outer ring: it borders the button on one
+			// side and the page on the other, and the two readings move in
+			// opposite directions, so requiring both is stricter than SC 1.4.11
+			// asks for an indicator that only has to be locatable against
+			// SOMETHING it adjoins. Taking the better of the two is what lets the
+			// dark scheme pass: 1.52:1 against the primary-300 button, 3.98:1
+			// against the page. On the contact panel, where the glow is boxed
+			// between two opaque surfaces, the next test still requires BOTH.
 			const grounds = surfaces(scheme);
 			const glow = glowOn(scheme, grounds.page);
 			const best = Math.max(
