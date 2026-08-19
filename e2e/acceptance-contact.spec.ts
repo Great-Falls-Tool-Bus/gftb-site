@@ -253,6 +253,11 @@ test.describe('retry and endpoint-down fallback', () => {
 		await submit(page);
 		await expect(page.getByRole('alert')).toBeVisible();
 		await page.getByRole('button', { name: 'Try again' }).click();
+		// `retry()` resets and re-solves the ALTCHA widget; wait for the fresh
+		// proof rather than racing it under CPU pressure.
+		await expect
+			.poll(async () => page.locator('altcha-widget').evaluate((element) => (element as { state?: string }).state))
+			.toBe('verified');
 		await submit(page);
 		await expect(page.getByRole('status')).toContainText('your note is on its way');
 		expect(attempt).toBe(2);

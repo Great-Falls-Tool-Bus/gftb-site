@@ -4,6 +4,9 @@
 # own leak scanner detects forge tokens. The literal is assembled at run time
 # from 1809327's successor onward; these fingerprints cover the commit that
 # first introduced it contiguously. Format: <commit>:<path>:<rule>:<line>.
+# These fingerprints are bound to that commit SHA. Land the branch with a merge
+# commit or a squash; a rebase-merge replays the commit under a new SHA, the
+# fingerprints go stale, and secrets-scan (full-history) fails on every later push.
 a4fe95ec7d4b56908a37a0914d723c577347dc76:src/lib/leak-scan.test.ts:github-pat:58
 a4fe95ec7d4b56908a37a0914d723c577347dc76:src/lib/leak-scan.test.ts:github-pat:123
 a4fe95ec7d4b56908a37a0914d723c577347dc76:src/lib/leak-scan.test.ts:github-pat:125

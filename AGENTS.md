@@ -60,6 +60,14 @@ is not public.
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from
   importing it and `src/lib/leak-scan.test.ts` asserts the same from the other
   side.
+- Skeleton and Skeleton Svelte are exact-pinned at `5.0.0`, following the
+  proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
+  Skeleton 4 compatibility shim.
+- GloriousFlywheel is cache-first. Endpoints and credentials come only from
+  the runtime environment. Do not create runners or hard-code cache/executor
+  endpoints.
+- Org ARC jobs use `tinyland-nix`; both reusable-workflow heavy and KVM inputs
+  are explicitly mapped to that available class.
 
 ### Which CI job runs which gate
 
@@ -78,14 +86,6 @@ again be described as enforced when nothing runs it:
 
 `just ci` is a local convenience aggregate. **No template job invokes it**, so
 nothing may be enforced only from there.
-- Skeleton and Skeleton Svelte are exact-pinned at `5.0.0`, following the
-  proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
-  Skeleton 4 compatibility shim.
-- GloriousFlywheel is cache-first. Endpoints and credentials come only from
-  the runtime environment. Do not create runners or hard-code cache/executor
-  endpoints.
-- Org ARC jobs use `tinyland-nix`; both reusable-workflow heavy and KVM inputs
-  are explicitly mapped to that available class.
 
 ## Deployment and package safety
 

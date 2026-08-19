@@ -15,7 +15,7 @@
  * credential-detection regexes (ghp_, AKIA/ASIA, glpat-, JWT, kubeconfig
  * fragments) that must never be reachable from the SvelteKit library root and
  * therefore never reachable from a client bundle. An eslint
- * `no-restricted-imports` guard on `src/routes/**` plus a unit test enforce
+ * `no-restricted-imports` guard on `src/**` plus a unit test enforce
  * that; the file location is the primary defence.
  *
  * Two positive checks complement the pattern rules, because a denylist alone
