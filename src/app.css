@@ -536,10 +536,16 @@ li {
 	flex-direction: column;
 }
 
-.history-card img {
+/* <picture> only selects a source; it carries the flex sizing so the <img>
+ * inside it still fills whatever the credit line leaves. */
+.history-card picture {
+	display: flex;
 	flex: 1;
-	width: 100%;
 	min-height: 16rem;
+}
+
+.history-card img {
+	width: 100%;
 	object-fit: cover;
 }
 

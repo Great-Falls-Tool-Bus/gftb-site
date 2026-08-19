@@ -28,6 +28,23 @@
 		'Security Torx drivers and a broader set of imperial square bits',
 	];
 
+	// The 3070x1851 master was served to every visitor at 2.35 MB. The published
+	// renditions are downscales of it, recorded in NOTICE and
+	// docs/attribution.md; a phone now pulls the 640 or 1280 candidate instead.
+	//
+	// `sizes` describes the figure column, not the viewport. Below 48rem the card
+	// is one column of `.page-shell`; above it the card splits 1.1fr / 1fr, so the
+	// photo takes 1.1/2.1 of a shell that is `min(100vw - 4rem, 72rem)` wide —
+	// 52vw until the shell caps at 72rem, and a flat 604px after that.
+	const photoBase = '/photos/great-falls-lewiston-1930s';
+	const photoWidths = [640, 1280, 1920];
+	const historyPhoto = {
+		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
+		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
+		fallback: `${photoBase}-1280.jpg`,
+		sizes: '(min-width: 76rem) 604px, (min-width: 48rem) 52vw, 100vw',
+	};
+
 	const formatDate = (value: string) =>
 		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
@@ -162,13 +179,19 @@
 	<section class="section" aria-labelledby="history-title">
 		<div class="history-card">
 			<figure>
-				<img
-					src="/photos/great-falls-lewiston-1930s.jpg"
-					alt="Historic postcard view of Great Falls between Auburn and Lewiston"
-					width="3070"
-					height="1851"
-					loading="lazy"
-				/>
+				<picture>
+					<source type="image/webp" srcset={historyPhoto.webp} sizes={historyPhoto.sizes} />
+					<img
+						src={historyPhoto.fallback}
+						srcset={historyPhoto.jpeg}
+						sizes={historyPhoto.sizes}
+						alt="Historic postcard view of Great Falls between Auburn and Lewiston"
+						width="1280"
+						height="771"
+						loading="lazy"
+						decoding="async"
+					/>
+				</picture>
 				<figcaption>
 					Tichnor Brothers, Inc., Boston Public Library collection no. 69902. Public domain; no known restrictions.
 				</figcaption>
