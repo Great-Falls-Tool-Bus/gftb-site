@@ -133,6 +133,18 @@
             respond /health "ok" 200
             respond /healthz "ok" 200
             file_server
+
+            # TIN-3932: a bare `file_server` answers an unknown path with the
+            # status line and nothing else, which is why the promoted site
+            # returned 404 with a zero-byte body. adapter-static already emits
+            # build/404.html; this serves it and keeps the original status
+            # instead of the 200 a plain `file_server` would write.
+            handle_errors {
+              rewrite * /404.html
+              file_server {
+                status {err.status_code}
+              }
+            }
           }
         '';
         imageRoot = pkgs.buildEnv {
