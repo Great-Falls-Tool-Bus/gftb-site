@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import '../app.css';
 
@@ -15,9 +16,32 @@
 		description,
 		areaServed: 'Lewiston–Auburn, Maine',
 	};
+
+	// Both error surfaces pass through this layout: the prerendered /404 route,
+	// whose bytes Caddy serves for any missing path, and +error.svelte for a
+	// client-router failure. SEOHead is rendered here for every route, so this is
+	// the only place the head can be decided once — setting <title> or robots in
+	// the error components as well produced two conflicting elements per
+	// document, and the layout's copy, not the error page's, is the one that won.
+	//
+	// The prerendered route renders with status 200 (it is a successful
+	// prerender of /404), so the path is what identifies it, not the status.
+	const isErrorSurface = $derived(page.url.pathname === '/404' || page.status >= 400);
+	const headTitle = $derived(isErrorSurface ? 'Page not found — Great Falls Tool Bus' : title);
+	const headDescription = $derived(
+		isErrorSurface ? 'This address is not part of the Great Falls Tool Bus site.' : description,
+	);
 </script>
 
-<SEOHead {title} {description} siteName="Great Falls Tool Bus" origin={siteUrl} {jsonLd} />
+<SEOHead
+	title={headTitle}
+	description={headDescription}
+	siteName="Great Falls Tool Bus"
+	origin={siteUrl}
+	noindex={isErrorSurface}
+	canonical={isErrorSurface ? null : undefined}
+	jsonLd={isErrorSurface ? null : jsonLd}
+/>
 
 <a class="skip-link" href="#main-content">Skip to content</a>
 

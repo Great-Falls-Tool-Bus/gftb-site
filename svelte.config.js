@@ -26,10 +26,17 @@ const config = {
 		runes: true,
 	},
 	kit: {
+		// No `fallback`. `src/routes/404` is a prerendered route, so adapter-static
+		// writes the real, server-rendered error body to `build/404.html` — which
+		// is the file the Caddyfile's `handle_errors` block serves. A fallback
+		// would target the same filename and win, because adapter-static writes it
+		// after the prerendered pages, and a fallback is rendered with `ssr: false`
+		// and an empty branch: no title, no heading, no link home. That is what a
+		// scriptless visitor used to get, and it is indistinguishable from the
+		// zero-byte body it was supposed to replace.
 		adapter: adapter({
 			pages: process.env.BUILD_OUTPUT_DIR ?? 'build',
 			assets: process.env.BUILD_OUTPUT_DIR ?? 'build',
-			fallback: '404.html',
 			precompress: true,
 			strict: false,
 		}),

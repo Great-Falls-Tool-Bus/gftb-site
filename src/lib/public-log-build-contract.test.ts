@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -102,7 +102,23 @@ describe('static build wiring for the logs', () => {
 		);
 		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
 		expect(svelteConfig).toContain('@sveltejs/adapter-static');
-		expect(svelteConfig).toContain("fallback: '404.html'");
+	});
+
+	// The 404 body must be a PRERENDERED route, never an SPA fallback. A
+	// fallback renders with `ssr: false` and an empty branch, so the served
+	// bytes carried no title, no heading and no link home: a scriptless visitor
+	// saw the same blank page the zero-byte 404 gave them. Both halves are
+	// asserted because adapter-static writes the fallback AFTER the prerendered
+	// pages, so re-adding one silently takes 404.html back.
+	it('builds the 404 body from a prerendered route, not an SPA fallback', () => {
+		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
+		expect(svelteConfig).not.toMatch(/^\s*fallback:/mu);
+		expect(existsSync(path.join(repoRoot, 'src/routes/404/+page.svelte'))).toBe(true);
+		const notFoundRoute = readFileSync(path.join(repoRoot, 'src/routes/404/+page.ts'), 'utf8');
+		expect(notFoundRoute).toContain('export const prerender = true');
+		// No hydration: the served HTML is the whole page, so the scriptless and
+		// scripted renderings are the same bytes.
+		expect(notFoundRoute).toContain('export const csr = false');
 	});
 
 	it('picks up every checked-in log through the eager glob', () => {
