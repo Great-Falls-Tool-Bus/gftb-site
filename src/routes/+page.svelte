@@ -45,12 +45,46 @@
 		sizes: '(min-width: 76rem) 604px, (min-width: 48rem) 52vw, 100vw',
 	};
 
+	// ── HERO SOURCE SWAP POINT ────────────────────────────────────────────
+	// The hero backdrop reuses the licensed Great Falls postcard renditions
+	// the history figure already ships (the 640/1280/1920 jpeg+webp ladder
+	// above; credits recorded in NOTICE and docs/attribution.md — the visible
+	// credit stays with the history figure below, where the photo is content
+	// rather than a blurred backdrop). The bus-photo corpus is pending its
+	// colorspace/EXIF audit; when an audited photo lands, swap ONLY this
+	// constant. The layer is decorative: empty alt, aria-hidden wrapper.
+	//
+	// `sizes`: the backdrop layer spans the hero band — the full `.page-shell`
+	// column, `min(100vw - 2rem, 72rem)` — so 100vw until the 72rem cap.
+	const heroPhoto = {
+		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
+		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
+		fallback: `${photoBase}-1280.jpg`,
+		sizes: '(min-width: 76rem) 1152px, 100vw',
+	};
+
 	const formatDate = (value: string) =>
 		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
 
 <div class="page-shell">
 	<section class="hero" aria-labelledby="page-title">
+		<div class="hero__media" aria-hidden="true">
+			<picture class="hero__drift">
+				<source type="image/webp" srcset={heroPhoto.webp} sizes={heroPhoto.sizes} />
+				<img
+					src={heroPhoto.fallback}
+					srcset={heroPhoto.jpeg}
+					sizes={heroPhoto.sizes}
+					alt=""
+					width="1280"
+					height="771"
+					loading="eager"
+					decoding="async"
+				/>
+			</picture>
+			<div class="hero__scrim"></div>
+		</div>
 		<div>
 			<!-- TODO(jess): any kicker survivors? The nine uppercase eyebrow kickers
 			     were stripped as decoration (de-slop ruling 2026-08-19); if any of
