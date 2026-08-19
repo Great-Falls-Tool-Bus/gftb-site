@@ -73,11 +73,30 @@
 	--ink: #28222b;
 }
 
+/* ===== Semantic z-index scale =====
+ * One ladder for every stacked surface: dropdown < sticky < modal-backdrop <
+ * modal < toast < tooltip. Never an arbitrary 999/9999. Rules consume the
+ * tokens through var() directly. Declared in its own :root block on purpose:
+ * the role block above is scheme-swept by design-token-contrast.test.ts, and
+ * these are not colours. (Ported from the previous apex, fix #139 era.) */
+:root {
+	--z-dropdown: 30;
+	--z-sticky: 40;
+	--z-modal-backdrop: 50;
+	--z-modal: 60;
+	--z-toast: 70;
+	--z-tooltip: 80;
+}
+
 * {
 	box-sizing: border-box;
 }
 
 html {
+	/* Document-level guard: nothing may widen the page. `clip` rather than
+	 * `hidden` so no scroll container is created and position: sticky keeps
+	 * working. (Previous apex guard, present there since its first commit.) */
+	overflow-x: clip;
 	scroll-behavior: smooth;
 }
 
@@ -144,7 +163,8 @@ li {
 	position: fixed;
 	top: 0.75rem;
 	left: 0.75rem;
-	z-index: 10;
+	/* Transient, keyboard-summoned, and must clear the sticky header. */
+	z-index: var(--z-toast);
 	transform: translateY(-180%);
 	border: 1px solid var(--highlight-edge);
 	border-radius: 999px;
@@ -158,10 +178,18 @@ li {
 	transform: translateY(0);
 }
 
+/* The translucent blur is an existing design call — leave it. But know the
+ * lore it carries (previous apex, fix #142): `backdrop-filter` makes this
+ * element the containing block for any `fixed`-position descendants (CSS
+ * Filter Effects 2). A drawer, dialog, or toast rendered inside the header
+ * would have its `fixed inset-*` resolve against this ~4.3rem box, not the
+ * viewport — it must portal to <body> instead. And do NOT add a competing
+ * `position` from another rule: a stray `position: relative` at higher
+ * precedence once silently defeated `sticky` (the header never stuck). */
 .site-header {
 	position: sticky;
 	top: 0;
-	z-index: 5;
+	z-index: var(--z-sticky);
 	border-bottom: 1px solid color-mix(in oklab, var(--accent) 18%, transparent);
 	background: color-mix(in oklab, var(--bg) 92%, transparent);
 	backdrop-filter: blur(12px);
@@ -484,6 +512,26 @@ li {
 
 .log-entry__body > :last-child {
 	margin-bottom: 0;
+}
+
+/* Wrap-not-scroll, ahead of the log content pipeline: log bodies render
+ * operator-authored markdown, where a long unbroken token (URL, sha, path)
+ * must wrap rather than widen the document. Prose tables are the one
+ * sanctioned horizontal scroller. (Previous apex guard kit.) */
+.log-entry__body :is(a, li, blockquote, td),
+.prior-logs details :is(a, li, blockquote, td) {
+	overflow-wrap: anywhere;
+}
+
+.log-entry__body pre,
+.prior-logs details pre {
+	white-space: pre-wrap;
+}
+
+.log-entry__body table,
+.prior-logs details table {
+	display: block;
+	overflow-x: auto;
 }
 
 .tag-list {
