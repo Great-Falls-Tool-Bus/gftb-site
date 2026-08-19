@@ -52,9 +52,9 @@
 			<span>Great Falls Tool Bus</span>
 		</a>
 		<nav class="site-nav" aria-label="Main navigation">
-			<a href="#status">Status</a>
-			<a href="#log">Log</a>
-			<a href="#contact">Contact</a>
+			<a href="/#status">Status</a>
+			<a href="/#log">Log</a>
+			<a href="/#contact">Contact</a>
 		</nav>
 	</div>
 </header>
