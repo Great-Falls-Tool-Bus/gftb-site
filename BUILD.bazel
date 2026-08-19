@@ -64,12 +64,20 @@ filegroup(
             "src/**",
             "static/**",
             "scripts/bazel/**/*.mjs",
+            # Acceptance-test-only modules the unit suite imports (leak scanner,
+            # QR decoder, WCAG colour maths). They live outside src/lib so
+            # shipped code cannot reach them, but //:unit_tests must.
+            "scripts/lib/**/*.mjs",
+            "scripts/lib/**/*.json",
         ],
         allow_empty = True,
     ) + [
         ".npmrc",
         "package.json",
         "playwright.config.ts",
+        # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
+        # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
+        "scripts/check-build-output.mjs",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -90,6 +98,7 @@ filegroup(
             "docs/**/*.json",
             "e2e/**/*.ts",
             "scripts/**/*.js",
+            "scripts/**/*.json",
             "scripts/**/*.mjs",
             "src/**/*.css",
             "src/**/*.html",
