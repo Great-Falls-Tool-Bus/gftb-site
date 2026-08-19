@@ -34,7 +34,10 @@ jobs:
     name: merge-gate
     if: always()
     needs: [ci]
-    runs-on: ubuntu-latest
+    # TIN-3914: no GitHub-hosted runners in this org. `tinyland-nix` is served
+    # here by the `great-falls-tool-bus-nix` ARC scale set; this repository is
+    # on the `great-falls-tool-bus-infra` runner-group roster (TIN-3902).
+    runs-on: tinyland-nix
     timeout-minutes: 5
     steps:
       - name: Require complete reusable CI

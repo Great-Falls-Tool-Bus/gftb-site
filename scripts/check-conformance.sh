@@ -39,6 +39,10 @@ check "grep -q 'container-image-publish: build container-image-context' Justfile
 check "test -f .gitleaks.toml && grep -q 'gitleaks dir' Justfile && grep -q 'gitleaks git' Justfile && grep -q 'gitleaks' flake.nix" "secret scanning is reproducible"
 check "test -f .bazelrc.flywheel && ! grep -qE '(remote_cache|remote_executor)=((grpc|https?)://)' .bazelrc .bazelrc.flywheel" "Bazel configuration contains no endpoint"
 
+# TIN-3914: this org's CI runs only on the GF cache-fronted ARC fleet. No job
+# this repository owns may name a GitHub-hosted label at any runs-on nesting.
+check "! grep -RqiE '(^|[^a-z0-9_-])(ubuntu|macos|windows)-[a-z0-9.]+' .github/workflows" "no GitHub-hosted runner label in .github/workflows"
+
 for dead in \
   .claude-plugin plugins modules tofu \
   docs/release docs/research docs/spec docs/deploy docs/patterns docs/decisions \
