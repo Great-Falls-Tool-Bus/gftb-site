@@ -30,6 +30,53 @@ test('keyboard users can leave the repeated header and reach main content', asyn
 	await expect(page.locator('main')).toBeFocused();
 });
 
+// B3 (previous apex drawer hit-test, adapted to the anchor nav): every header
+// nav link is fully inside the viewport AND actually receives a tap at its
+// centre — content stacked over the nav and off-canvas overflow both fail
+// here. This is the #139 bug class: a wide brand once pushed the nav control
+// past the right edge at this exact viewport.
+test('header nav links are on-screen and receive the tap at 375px', async ({ page }) => {
+	await page.goto('/');
+	const links = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
+	const count = await links.count();
+	expect(count).toBeGreaterThan(0);
+	for (let index = 0; index < count; index += 1) {
+		const geometry = await links.nth(index).evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+			return {
+				fullyInside: rect.left >= 0 && rect.right <= window.innerWidth,
+				hittable: hit !== null && (element === hit || element.contains(hit)),
+			};
+		});
+		expect(geometry.fullyInside, `nav link ${index} sits fully inside the viewport`).toBe(true);
+		expect(geometry.hittable, `nav link ${index} receives the tap at its centre`).toBe(true);
+	}
+});
+
+// B1 at the 320px reflow floor against a hostile brand: the wordmark column
+// must shrink (grid minmax(0,auto) + min-width: 0) rather than push the nav
+// off the right edge or widen the document.
+test('a long brand string cannot push the nav off-edge at 320px', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 667 });
+	await page.goto('/');
+	await page.evaluate(() => {
+		const wordmark = document.querySelector('.brand span');
+		if (wordmark) wordmark.textContent = 'GreatFallsToolBusWordmarkOverflowFixture Extended Edition';
+	});
+	const state = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		innerWidth: window.innerWidth,
+		navLinks: Array.from(document.querySelectorAll('.site-nav a')).map((element) => {
+			const rect = element.getBoundingClientRect();
+			return rect.left >= 0 && rect.right <= window.innerWidth;
+		}),
+	}));
+	expect(state.navLinks.length).toBeGreaterThan(0);
+	expect(state.navLinks.every(Boolean), 'nav links all fully on-screen with the fixture brand').toBe(true);
+	expect(state.scrollWidth, 'document overflow with the fixture brand').toBeLessThanOrEqual(state.innerWidth + 1);
+});
+
 test('mobile navigation links keep a usable minimum target height', async ({ page }) => {
 	await page.goto('/');
 	const links = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');

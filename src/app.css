@@ -202,10 +202,14 @@ li {
 	margin-inline: auto;
 }
 
+/* Fix #139 class (previous apex): the brand column may shrink
+ * (minmax(0,auto)), the 1fr gutter absorbs the slack, and the nav column
+ * keeps its intrinsic size. A plain space-between flex let a long brand
+ * expand past the viewport and push the nav off the right edge. */
 .site-header__inner {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, auto) 1fr auto;
 	align-items: center;
-	justify-content: space-between;
 	gap: 1rem;
 	min-height: 4.3rem;
 }
@@ -214,9 +218,23 @@ li {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.65rem;
+	/* Let the grid column actually shrink this flex item (#139). */
+	min-width: 0;
 	color: var(--fg);
 	font-weight: 800;
 	text-decoration: none;
+}
+
+/* Last-resort guards (#139 adapted): the wordmark wraps at phone widths —
+ * the shipped look; a nowrap-ellipsis truncate would clip the real brand on
+ * every phone (153px wordmark vs a 117px column at 375). So the guards are:
+ * an unbreakable token wraps mid-word rather than widening the column, and
+ * anything past the column edge clips. The grid geometry above is what
+ * keeps the nav on-edge; the anchor's aria-label carries the full name. */
+.brand span {
+	min-width: 0;
+	overflow: hidden;
+	overflow-wrap: anywhere;
 }
 
 .brand img {
@@ -226,6 +244,8 @@ li {
 }
 
 .site-nav {
+	/* Third header column: the 1fr gutter in between keeps it right-aligned. */
+	grid-column: 3;
 	display: flex;
 	gap: 0.9rem;
 	font-size: 0.82rem;
