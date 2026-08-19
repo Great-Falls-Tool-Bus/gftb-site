@@ -133,6 +133,23 @@
             respond /health "ok" 200
             respond /healthz "ok" 200
             file_server
+
+            # TIN-3932: a bare `file_server` answers an unknown path with the
+            # status line and nothing else, which is why the promoted site
+            # returned 404 with a zero-byte body. build/404.html is the
+            # PRERENDERED src/routes/404 page (not an SPA fallback, which would
+            # have an empty body), so serving it gives a scriptless visitor the
+            # same branded page a scripted one gets. `status` keeps the original
+            # code instead of the 200 a plain `file_server` would write.
+            #
+            # scripts/bazel_output.py mirrors this for the preview, and
+            # scripts/test-bazel-cutover-contracts.py pins the two together.
+            handle_errors {
+              rewrite * /404.html
+              file_server {
+                status {err.status_code}
+              }
+            }
           }
         '';
         imageRoot = pkgs.buildEnv {

@@ -14,6 +14,7 @@ import stat
 import sys
 import tempfile
 from dataclasses import dataclass
+from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
@@ -161,6 +162,37 @@ class _StaticPreviewHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args: object, base_path: str, **kwargs: object) -> None:
         self.base_path = base_path
         super().__init__(*args, **kwargs)
+
+    def _fallback_document(self) -> bytes | None:
+        """The adapter-static SPA fallback, if this build carries one."""
+        fallback = Path(self.directory) / "404.html"
+        try:
+            return fallback.read_bytes()
+        except OSError:
+            return None
+
+    def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        """Answer a miss with build/404.html, the way the served plane does.
+
+        TIN-3932: the promoted site answered every unknown path with a zero-byte
+        body because nothing was wired to serve the fallback adapter-static
+        already produces. The Caddyfile in flake.nix now serves it; this handler
+        does the same so the preview -- which is what Playwright and a local
+        `curl` measure -- models the serving plane rather than Python's stock
+        error page. The status is preserved: only the body changes.
+        """
+        document = self._fallback_document() if code == HTTPStatus.NOT_FOUND else None
+        if document is None:
+            super().send_error(code, message, explain)
+            return
+        self.log_error("code %d, message %s", code, message or "Not Found")
+        self.send_response(code, message)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(document)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(document)
 
     def _serve(self, method: str) -> None:
         rewritten = _strip_static_base_path(self.path, self.base_path)

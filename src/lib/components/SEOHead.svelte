@@ -9,7 +9,13 @@
 		image?: string;
 		imageAlt?: string;
 		noindex?: boolean;
-		canonical?: string | undefined;
+		/**
+		 * `undefined` derives the canonical URL from the current path. `null`
+		 * emits no canonical link and no `og:url` at all, which is what an error
+		 * surface needs: a canonical on a 404 is a soft-404 signal, and pointing
+		 * one at the home page tells a crawler the missing URL *is* the home page.
+		 */
+		canonical?: string | null | undefined;
 		ogType?: string;
 		siteName?: string;
 		/** Production origin used to build the canonical URL when no explicit `canonical` is given. */
@@ -32,14 +38,16 @@
 		jsonLd = null,
 	}: Props = $props();
 
-	// Build the full canonical URL from the current path unless supplied.
-	const canonicalUrl = $derived(canonical || `${origin}${page.url.pathname}`);
+	// Build the full canonical URL from the current path unless supplied, or
+	// suppress it entirely when the caller passes null.
+	const canonicalUrl = $derived(canonical === null ? null : canonical || `${origin}${page.url.pathname}`);
 
 	// Never infer preview status during prerender.
 	const shouldNoindex = $derived(noindex);
 
 	const normalizedCanonical = $derived.by(() => {
 		const url = canonicalUrl;
+		if (url === null) return null;
 		try {
 			const parsed = new URL(url);
 			let pathname = parsed.pathname;
@@ -70,10 +78,14 @@
 		<meta name="keywords" content={keywords} />
 	{/if}
 
-	<link rel="canonical" href={normalizedCanonical} />
+	{#if normalizedCanonical}
+		<link rel="canonical" href={normalizedCanonical} />
+	{/if}
 
 	<meta property="og:type" content={ogType} />
-	<meta property="og:url" content={normalizedCanonical} />
+	{#if normalizedCanonical}
+		<meta property="og:url" content={normalizedCanonical} />
+	{/if}
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
 	{#if image}

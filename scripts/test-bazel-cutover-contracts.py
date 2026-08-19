@@ -161,6 +161,31 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("persist_config off", self.flake)
         self.assertIn('respond /health "ok" 200', self.flake)
         self.assertIn("file_server", self.flake)
+
+    def test_missing_paths_are_answered_with_the_prerendered_404_body(self) -> None:
+        """Pin the two hand-written implementations of the same behaviour together.
+
+        A bare `file_server` answers a miss with the status line and no body,
+        which is how the promoted site served 404 with zero bytes. The fix lives
+        in two places that nothing otherwise forces to agree: the `handle_errors`
+        block in the Caddyfile, which is what the image runs, and
+        `_StaticPreviewHandler.send_error` in this module's sibling, which is
+        what Playwright and a local curl measure. If either is edited away the
+        other keeps the gate green, so both are asserted here.
+        """
+        self.assertIn("handle_errors {", self.flake)
+        self.assertIn("rewrite * /404.html", self.flake)
+        # Without this the fallback is served with `file_server`'s own 200, and
+        # every missing path becomes a soft 404.
+        self.assertIn("status {err.status_code}", self.flake)
+        # The health probes are plain `respond` directives and must keep
+        # answering ahead of the error handler.
+        self.assertLess(self.flake.index('respond /healthz "ok" 200'), self.flake.index("handle_errors {"))
+
+        preview = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
+        self.assertIn("def send_error(", preview)
+        self.assertIn("HTTPStatus.NOT_FOUND", preview)
+        self.assertIn('"404.html"', preview)
         self.assertIn("BUILD_COMMIT_SHA must be 40 lowercase hex characters", self.justfile)
         self.assertFalse((ROOT / "static/health.sha").exists())
 

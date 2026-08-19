@@ -155,6 +155,43 @@ test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ pag
 	expect(offenders, 'targets failing SC 2.5.8 with both exceptions applied').toEqual([]);
 });
 
+/**
+ * TIN-3932. `.history-card img` carried `height: 100%`, so the photo consumed
+ * the whole grid row and the <figcaption> spilled out of its <figure> into the
+ * next row. Above 48rem that row is empty and the card looked correct; below it
+ * the row holds `.history-card__copy`, so the credit line printed across the
+ * "Why Great Falls?" eyebrow — 41 CSS px of overlap at 320, 17 at 600.
+ *
+ * The assertion is geometric rather than visual, and both rectangles are read in
+ * one evaluate so no scroll can happen between them: the caption's border box
+ * and the copy block's border box may not intersect at any tested width. The
+ * two-column widths are included so a future fix cannot trade the phone bug for
+ * a desktop one.
+ */
+test('the photo credit never overlaps the history copy', async ({ page, baseURL }) => {
+	const collisions: Array<{ width: number; overlapX: number; overlapY: number }> = [];
+	for (const width of [320, 375, 414, 480, 600, 768, 1280]) {
+		await openPage(page, baseURL, width);
+		await page.locator('.history-card').scrollIntoViewIfNeeded();
+		const overlap = await page.evaluate(() => {
+			const caption = document.querySelector('.history-card figcaption');
+			const copy = document.querySelector('.history-card__copy');
+			if (!caption || !copy) return null;
+			const a = caption.getBoundingClientRect();
+			const b = copy.getBoundingClientRect();
+			return {
+				overlapX: Math.min(a.right, b.right) - Math.max(a.left, b.left),
+				overlapY: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top),
+			};
+		});
+		expect(overlap, `.history-card figcaption and __copy must both exist at ${width}`).not.toBeNull();
+		if (overlap!.overlapX > 0 && overlap!.overlapY > 0) {
+			collisions.push({ width, overlapX: Math.round(overlap!.overlapX), overlapY: Math.round(overlap!.overlapY) });
+		}
+	}
+	expect(collisions, 'widths where the photo credit intersects the history copy').toEqual([]);
+});
+
 test('the image that dominates the page cannot force a horizontal scrollbar', async ({ page, baseURL }) => {
 	await openPage(page, baseURL, 320);
 	const overflowing = await page.evaluate(() =>
