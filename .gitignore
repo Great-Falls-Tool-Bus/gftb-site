@@ -25,6 +25,8 @@ __pycache__/
 # Test artifacts
 test-results/
 playwright-report/
+# QA evidence packets (`just qa-packet`) — regenerable from a SHA, never committed.
+qa-packet/
 coverage/
 .lighthouseci/
 bundle-report.json

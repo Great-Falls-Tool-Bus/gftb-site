@@ -7,3 +7,4 @@ static
 *.md
 pnpm-lock.yaml
 flake.lock
+qa-packet
