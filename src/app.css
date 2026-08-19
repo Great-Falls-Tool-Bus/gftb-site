@@ -612,13 +612,27 @@ figcaption {
 	background: var(--panel);
 }
 
+/* Footer grid, carrying the old apex footer lesson (fix #103, f8b599e):
+ * exactly one direct child per template track — multi-line columns nest
+ * their lines inside their one cell (see .site-footer__intro), so an added
+ * line can never become a phantom track that breaks the template.
+ * Colours stay on the existing roles (--panel ground, --fg-muted ink,
+ * --link anchors) — pairs already swept by design-token-contrast.test.ts. */
 .site-footer__inner {
-	display: flex;
-	flex-direction: column;
+	display: grid;
 	gap: 0.6rem;
 	padding-block: 1.5rem;
 	color: var(--fg-muted);
 	font-size: 0.78rem;
+}
+
+.site-footer__inner p {
+	margin: 0;
+}
+
+.site-footer__intro {
+	display: grid;
+	gap: 0.35rem;
 }
 
 @media (min-width: 48rem) {
@@ -657,9 +671,13 @@ figcaption {
 		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
 
+	/* Two explicit tracks, echoing the old apex's intro-weighted footer
+	 * template (2fr lead column). e2e/footer.spec.ts asserts the computed
+	 * track count matches this template at 768/1440 and collapses to a
+	 * single column below (the B4 breakpoint row). */
 	.site-footer__inner {
-		flex-direction: row;
-		justify-content: space-between;
+		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+		align-items: start;
 	}
 }
 

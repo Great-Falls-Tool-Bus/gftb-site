@@ -27,6 +27,13 @@ const childEnvironment = {
 	BUILD_COMMIT_SHA: metadata.commitSha,
 	BUILD_OUTPUT_DIR: resolve(actionRoot, options.outputDir),
 };
+// Footer build provenance (src/lib/build-info.ts): PUBLIC_BUILD_SHA is set
+// only when the stamp carried an explicitly supplied identity — absent, the
+// footer renders no provenance line. Kept out of the object literal above so
+// an absent stamp stays truly unset rather than becoming the string ''.
+if (metadata.publicBuildSha) {
+	childEnvironment.PUBLIC_BUILD_SHA = metadata.publicBuildSha;
+}
 if (options.analyze) {
 	childEnvironment.ANALYZE = '1';
 	childEnvironment.ANALYZE_OUTPUT_PATH = resolve(actionRoot, options.analyzeOutput);
@@ -164,8 +171,12 @@ function readBuildMetadata() {
 	if (encodedBasePath === undefined || !commitSha) {
 		throw new Error(`build metadata keys are missing from ${declaredStatusPath}`);
 	}
+	// Optional on purpose (unlike the two required keys above): the public
+	// provenance stamp exists only on explicitly identified builds.
+	const publicBuildSha = values.get('STABLE_PUBLIC_BUILD_SHA');
 	return {
 		basePath: encodedBasePath === '__EMPTY__' ? '' : encodedBasePath,
 		commitSha,
+		publicBuildSha: !publicBuildSha || publicBuildSha === '__ABSENT__' ? '' : publicBuildSha,
 	};
 }

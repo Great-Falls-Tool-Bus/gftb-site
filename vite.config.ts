@@ -37,6 +37,12 @@ if (analyzeRequested) {
 }
 
 export default defineConfig({
+	// `import.meta.env.PUBLIC_*` reaches client code the same way the old apex
+	// wired it (its #140 provenance line): Vite statically inlines env vars
+	// matching envPrefix. `PUBLIC_` matches SvelteKit's own public-env
+	// convention, so nothing secret is widened — only already-public values.
+	// Consumer: src/lib/build-info.ts (PUBLIC_BUILD_SHA, footer provenance).
+	envPrefix: ['VITE_', 'PUBLIC_'],
 	plugins: [
 		tailwindcss(),
 		accessibilityPlugin({
