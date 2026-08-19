@@ -38,7 +38,7 @@ describe('WCAG colour maths', () => {
 	});
 
 	it('reads every CSS angle unit the hue component may carry', () => {
-		// 94.09deg is --color-secondary-500, the site's --highlight. Each spelling
+		// 94.09deg is --color-secondary-300, the site's --highlight. Each spelling
 		// below is the same angle: 104.544grad, 1.642199rad, 0.2613611turn.
 		// `grad` is the trap — it ends in `rad`, so an unanchored radian probe
 		// converts it with the wrong factor and lands on #0eddff instead.

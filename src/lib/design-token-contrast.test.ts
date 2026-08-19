@@ -261,6 +261,23 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 			formatRgb(resolveRole(SCHEMES.dark, '--color-primary-900')),
 		);
 	});
+
+	it('pins the heading and accent roles to their ratified primary rungs', () => {
+		// Same reasoning as the panel pin: headings clear every floor at
+		// primary-700 too, so a drift off primary-800 (light) or primary-300
+		// (dark) would pass the sweeps. The rungs are the ruling, so assert them.
+		const ratified = {
+			light: { '--heading': '--color-primary-800', '--accent': '--color-primary-700' },
+			dark: { '--heading': '--color-primary-300', '--accent': '--color-primary-300' },
+		} as const;
+		for (const scheme of SCHEME_NAMES) {
+			for (const [role, rung] of Object.entries(ratified[scheme])) {
+				expect(formatRgb(resolveRole(SCHEMES[scheme], role)), `${scheme} ${role}`).toBe(
+					formatRgb(resolveRole(SCHEMES[scheme], rung)),
+				);
+			}
+		}
+	});
 });
 
 for (const scheme of SCHEME_NAMES) {
