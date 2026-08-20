@@ -14,31 +14,39 @@ test.describe('JavaScript disabled', () => {
 	test('the whole public narrative is present in the served HTML', async ({ page }) => {
 		await page.goto('/');
 
-		await expect(page.getByRole('heading', { name: 'Tools belong in motion.', level: 1 })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Building, not lending yet.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Waterproofing + measurements' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'A useful thing, built in understandable steps.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'What changed, in plain language.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'A name shaped by this place.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Bring a question, a skill, or a tool story.' })).toBeVisible();
+		// Heading strings are interim placeholders pending Jess's final copy
+		// (restoration PR-5); update in lockstep with src/routes/+page.svelte.
+		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Current status' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Next public work session' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Near-term goals' })).toBeVisible();
+		// exact: the log entry's own title ("First public log entry") would
+		// otherwise substring-match this heading query.
+		await expect(page.getByRole('heading', { name: 'Public log', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Contact and discussion' })).toBeVisible();
 	});
 
-	test('the latest public log renders from the static build', async ({ page }) => {
+	test('the public log row and archive render their real state from the static build', async ({ page }) => {
+		// Addendum B1.2: every checked-in entry is a published:false TODO(jess)
+		// draft, and the loader excludes drafts from production output
+		// (spec §3). The row and the archive both show the honest empty state
+		// — and the draft's text must NOT leak into either surface.
 		await page.goto('/');
-		const log = page.locator('.log-entry');
-		await expect(log).toBeVisible();
-		await expect(log.locator('.log-entry__header h3')).not.toBeEmpty();
-		await expect(log.locator('.log-entry__body')).not.toBeEmpty();
-		// Tags are frontmatter-only since the de-slop strip (restoration PR-4):
-		// the schema still requires them, but the page no longer renders chips.
-		await expect(log.getByLabel('Log tags')).toHaveCount(0);
+		await expect(page.locator('.log-entry')).toHaveCount(0);
+		await expect(page.getByText('No log entries have been published yet.')).toBeVisible();
+
+		await page.goto('/log');
+		await expect(page.locator('.log-list li')).toHaveCount(0);
+		await expect(page.getByText('No log entries have been published yet.')).toBeVisible();
+		const html = await page.content();
+		expect(html).not.toContain('First public log entry');
 	});
 
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link')).toHaveCount(3);
-		await expect(page.locator('img.qr')).toHaveAttribute('src', '/qr/greatfallstoolbus-apex.svg');
-		await expect(page.getByText('greatfallstoolbus.org')).toBeVisible();
+		// The nav SSOT renders two primary items (Log, Contact) — B1.3.
+		await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link')).toHaveCount(2);
 
 		const broken = await page.evaluate(() =>
 			Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="#"], a[href^="/#"]'))
@@ -47,10 +55,15 @@ test.describe('JavaScript disabled', () => {
 				.filter((hash) => hash.length > 1 && !document.querySelector(hash)),
 		);
 		expect(broken).toEqual([]);
+
+		// The printed QR rides the contact page (B1.4).
+		await page.goto('/contact');
+		await expect(page.locator('img.qr')).toHaveAttribute('src', '/qr/greatfallstoolbus-apex.svg');
+		await expect(page.getByText('greatfallstoolbus.org')).toBeVisible();
 	});
 
 	test('the contact form degrades to a plain POST plus an email fallback', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/contact');
 		const form = page.locator('form.contact-form');
 		await expect(form).toHaveAttribute('method', 'post');
 		await expect(form).toHaveAttribute('action', CONTACT_URL);
@@ -107,11 +120,21 @@ test.describe('JavaScript enabled', () => {
 		page.on('request', (request) => requested.push(request.url()));
 		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 		await stubChallenge(page);
+
+		// The root page talks to nobody: the form (and its ALTCHA challenge
+		// fetch) moved to /contact (B1.4).
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
+		const rootOrigins = new Set(requested.map((url) => new URL(url).origin));
+		rootOrigins.delete(new URL(baseURL ?? 'http://localhost:3000').origin);
+		expect([...rootOrigins]).toEqual([]);
 
-		const origins = new Set(requested.map((url) => new URL(url).origin));
-		origins.delete(new URL(baseURL ?? 'http://localhost:3000').origin);
-		expect([...origins]).toEqual([FORM_ORIGIN]);
+		// The contact page may talk to exactly the form origin.
+		requested.length = 0;
+		await page.goto('/contact');
+		await page.waitForLoadState('networkidle');
+		const contactOrigins = new Set(requested.map((url) => new URL(url).origin));
+		contactOrigins.delete(new URL(baseURL ?? 'http://localhost:3000').origin);
+		expect([...contactOrigins]).toEqual([FORM_ORIGIN]);
 	});
 });

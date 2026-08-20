@@ -5,10 +5,10 @@ import { installExternalGuard, stubChallenge, stubContactEndpoint } from './supp
 // animation), and the page is fully keyboard operable with a visible, ordered
 // focus path.
 
-async function openPage(page: Page, baseURL: string | undefined) {
+async function openPage(page: Page, baseURL: string | undefined, path = '/') {
 	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 	await stubChallenge(page);
-	await page.goto('/');
+	await page.goto(path);
 	await page.waitForLoadState('domcontentloaded');
 }
 
@@ -58,11 +58,13 @@ test.describe('prefers-reduced-motion', () => {
 	});
 
 	test('anchor navigation still lands on its target with motion reduced', async ({ page, baseURL }) => {
+		// The contact CTA is a page link now (B1.4); the footer's History link
+		// is the surviving same-page anchor this row exercises.
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await openPage(page, baseURL);
-		await page.getByRole('link', { name: 'Help build the bus' }).click();
-		await expect(page).toHaveURL(/#contact$/u);
-		const settled = await page.locator('#contact').evaluate((element) => element.getBoundingClientRect().top);
+		await page.getByRole('link', { name: 'History', exact: true }).click();
+		await expect(page).toHaveURL(/#history$/u);
+		const settled = await page.locator('#history').evaluate((element) => element.getBoundingClientRect().top);
 		// scroll-margin-top is 5rem; the section must be at the top of the
 		// viewport immediately, not easing toward it.
 		expect(Math.abs(settled)).toBeLessThan(120);
@@ -112,7 +114,7 @@ test.describe('keyboard operability', () => {
 	});
 
 	test('the honeypot is unreachable by keyboard', async ({ page, baseURL }) => {
-		await openPage(page, baseURL);
+		await openPage(page, baseURL, '/contact');
 		const honeypot = page.locator('#contact-website');
 		await expect(honeypot).toHaveAttribute('tabindex', '-1');
 		await expect(page.locator('.honeypot')).toHaveAttribute('aria-hidden', 'true');
@@ -166,7 +168,7 @@ test.describe('keyboard operability', () => {
 		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 		await stubChallenge(page);
 		const capture = await stubContactEndpoint(page);
-		await page.goto('/');
+		await page.goto('/contact');
 		await page.waitForLoadState('domcontentloaded');
 
 		const message = 'I would like to help with the waterproofing session.';
@@ -195,7 +197,7 @@ test.describe('keyboard operability', () => {
 		await expect(submitButton).toBeFocused();
 
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 		expect(capture.payloads).toHaveLength(1);
 		expect(capture.payloads[0]).toMatchObject({
 			name: 'Keyboard Tester',
@@ -205,7 +207,7 @@ test.describe('keyboard operability', () => {
 	});
 
 	test('validation errors move focus to the first field that needs attention', async ({ page, baseURL }) => {
-		await openPage(page, baseURL);
+		await openPage(page, baseURL, '/contact');
 		await page.getByRole('button', { name: 'Send to keyholders' }).click();
 		await expect(page.locator('#contact-name')).toBeFocused();
 		await expect(page.locator('#contact-name')).toHaveAttribute('aria-invalid', 'true');
