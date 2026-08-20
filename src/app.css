@@ -257,9 +257,101 @@ li {
 }
 
 .hero {
+	position: relative;
+	isolation: isolate;
 	display: grid;
 	gap: 2rem;
 	padding-block: clamp(2rem, 10vw, 7rem);
+}
+
+/* ===== Hero backdrop (restoration: the old apex falls hero) =====
+ * The old apex drove this layer with a JS action (rAF + scroll listeners +
+ * a runtime px clamp). Ruled out: the drift is re-expressed below as a CSS
+ * scroll-driven animation — no JS, no listeners — and the clamp becomes
+ * geometric. The mechanics kept: block-axis over-scan gives the drift its
+ * slack, blur softens the image, and the scrim carries text legibility.
+ * Every colour composes the role layer (CityLink authority: ADR 0015 /
+ * palette spec Appendix A via theme-gftb.css + palette.ts) — the scrim
+ * mixes var(--bg), so it flips with the scheme without a dark-block
+ * restatement. */
+.hero__media {
+	position: absolute;
+	inset: 0;
+	/* Deliberately OUTSIDE the semantic --z-* ladder (which starts at the
+	 * above-content tiers, 30+): this is a below-content layer inside .hero's
+	 * own `isolation: isolate` stacking context, not a UI tier. */
+	z-index: -1;
+	overflow: clip;
+}
+
+/* Backdrop layer. Over-scans the band on the BLOCK axis only: 20% top and
+ * bottom is the drift slack. The inline size stays exactly the band's, so
+ * the layer can never widen the document (overflow row B1, and
+ * acceptance-responsive's image-width gate); the blur's soft inline fringe
+ * disappears under the scrim instead of under an inline over-scan.
+ * Geometry the clamp rests on: layer height = 140% of the band, so ±8% of
+ * the layer's own height (the keyframes below) is at most 11.2% of the band
+ * — always inside the 20% over-scan. No gap can open at any scroll
+ * position; e2e/hero-parallax.spec.ts asserts the covered rect. */
+.hero__drift {
+	position: absolute;
+	inset: -20% 0;
+	display: flex;
+	filter: blur(16px);
+}
+
+.hero__drift img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center;
+}
+
+/* Legibility scrim — the one AA-required surface here (the old hero's
+ * decorative glass chrome is not ported). Uniform on purpose:
+ * src/lib/design-token-contrast.test.ts reads this mix out of this file and
+ * proves every hero ink clears its floor against the scrim composited over
+ * BOTH image-luminance extremes, in both schemes; a gradient would make
+ * that unprovable. 92% is the ratified mix; the measured floor is 91%
+ * (every AA pair passes there; 90% fails at 4.45:1). 92% is kept for
+ * headroom — the tightest dark pair reads 4.76:1 against the 4.5 floor —
+ * ahead of the provisional palette re-anchor. */
+.hero__scrim {
+	position: absolute;
+	inset: 0;
+	background: color-mix(in oklab, var(--bg) 92%, transparent);
+}
+
+/* Drift, double-gated: only when the browser has scroll-driven animations
+ * AND the visitor has not asked for reduced motion. Outside either gate
+ * nothing here declares an animation — computed animation-name stays
+ * 'none' (breakpoint row B5) and the layer is a static centered cover
+ * image, the same safe default the old hero's no-JS/SSR path shipped. */
+@supports (animation-timeline: view()) {
+	@media (prefers-reduced-motion: no-preference) {
+		.hero {
+			view-timeline: --hero-view block;
+		}
+
+		.hero__drift {
+			animation-name: hero-drift;
+			animation-duration: auto;
+			animation-timing-function: linear;
+			animation-fill-mode: both;
+			animation-timeline: --hero-view;
+			will-change: transform;
+		}
+
+		@keyframes hero-drift {
+			from {
+				transform: translateY(-8%);
+			}
+
+			to {
+				transform: translateY(8%);
+			}
+		}
+	}
 }
 
 .lede {

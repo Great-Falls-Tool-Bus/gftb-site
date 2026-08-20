@@ -313,6 +313,129 @@ for (const scheme of SCHEME_NAMES) {
 	});
 }
 
+/**
+ * ── Hero backdrop scrim (restoration: parallax hero) ────────────────────
+ *
+ * `.hero__scrim` paints `color-mix(in oklab, var(--bg) N%, transparent)` over
+ * a photograph, and a photograph pixel can be anything, so no single
+ * composite is "the" ground. Alpha compositing is channel-linear in the
+ * underlying pixel, so every possible composite lies inside the
+ * [over-black, over-white] envelope. The sweep proves each hero ink sits
+ * OUTSIDE that luminance envelope — so the worst measurable pixel is one of
+ * the two extremes — and then clears its floor against both extremes, in
+ * both schemes. The in-browser contrast e2e walks ancestor backgrounds and
+ * cannot see the sibling scrim/photo layers behind the hero text (the same
+ * disclosed blindness class as the --wash band), so THIS gate is the hero's
+ * measured contract.
+ *
+ * The mix percent is READ OUT of src/app.css (the .button glow idiom above):
+ * a nudge surfaces as the ratio that broke, and a nudge that stays inside
+ * the floors still fails the ratified-percent pin. Re-anchor caveat: the
+ * palette's lightness/chroma are provisional pending the corrected HEIC
+ * corpus, so these pairs are re-verified after the re-anchor train.
+ */
+const HERO_SCRIM_RATIFIED_PERCENT = 92;
+const HERO_SCRIM_RULE =
+	/\.hero__scrim\s*\{[^}]*background:\s*(color-mix\(in oklab, var\(--bg\) (\d+(?:\.\d+)?)%, transparent\))/u.exec(
+		appCss,
+	);
+if (!HERO_SCRIM_RULE) {
+	throw new Error('src/app.css no longer paints a .hero__scrim mix this gate can measure');
+}
+const HERO_SCRIM = HERO_SCRIM_RULE[1];
+const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
+
+const IMAGE_EXTREMES = { black: parseCssColor('#000000'), white: parseCssColor('#ffffff') } as const;
+type ExtremeName = keyof typeof IMAGE_EXTREMES;
+
+function heroGrounds(scheme: SchemeName) {
+	const tokens = SCHEMES[scheme];
+	const scrim = resolveColor(tokens, HERO_SCRIM);
+	const cardFill = resolveColor(tokens, 'color-mix(in oklab, var(--panel) 88%, transparent)');
+	const scrimOver = (extreme: ExtremeName) => compositeOver(scrim, IMAGE_EXTREMES[extreme]);
+	return {
+		/** the band itself: lede, h1, eyebrow, buttons sit straight on it */
+		scrim: scrimOver,
+		/** the status card, a translucent panel over the scrim over the photo */
+		card: (extreme: ExtremeName) => compositeOver(cardFill, scrimOver(extreme)),
+	};
+}
+
+interface HeroPair {
+	name: string;
+	role: string;
+	on: 'scrim' | 'card';
+	minimum: number;
+}
+
+// The eyebrow kickers the revision-1 sweep also gated were stripped sitewide
+// by the decoration-strip slice (de-slop ruling), so no --accent TEXT sits on
+// the hero anymore; --accent stays swept below as the button fill/border
+// (non-text), and the --link pair stays because the copy slice will demote
+// the hero CTAs to plain links.
+const heroTextPairs: HeroPair[] = [
+	{ name: 'hero lede on the scrim', role: '--fg', on: 'scrim', minimum: AA },
+	{ name: 'hero h1 on the scrim', role: '--heading', on: 'scrim', minimum: LARGE },
+	{ name: 'secondary button label on the scrim', role: '--heading', on: 'scrim', minimum: AA },
+	{ name: 'a plain link on the scrim', role: '--link', on: 'scrim', minimum: AA },
+	{ name: 'status-card copy over the hero', role: '--fg', on: 'card', minimum: AA },
+	{ name: 'status-card muted copy over the hero', role: '--fg-muted', on: 'card', minimum: AA },
+	{ name: 'status-card heading over the hero', role: '--heading', on: 'card', minimum: LARGE },
+	{ name: 'status-card strong over the hero', role: '--heading', on: 'card', minimum: AA },
+];
+
+const heroNonTextPairs: HeroPair[] = [
+	{ name: 'primary button fill on the scrim', role: '--accent', on: 'scrim', minimum: NON_TEXT_RATIO },
+	{ name: 'secondary button border on the scrim', role: '--accent', on: 'scrim', minimum: NON_TEXT_RATIO },
+];
+
+/** contrastRatio(x, black) is strictly monotone in relative luminance, so it
+ * serves as the luminance proxy the envelope assertion orders colours by. */
+function luminanceProxy(color: Rgb): number {
+	return contrastRatio(color, IMAGE_EXTREMES.black);
+}
+
+describe('hero backdrop scrim', () => {
+	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% mix`, () => {
+		// 92% is the ratified operating point; the measured floor is 91% (every
+		// AA pair passes there; 90% fails at 4.45:1 on the dark heading/link
+		// inks over a white image region). 92% is kept for headroom — the
+		// tightest dark pair reads 4.76:1 against the 4.5 floor — because the
+		// palette is provisional pending the HEIC-corpus re-anchor (§1.1).
+		expect(HERO_SCRIM_PERCENT, `hero scrim declared at ${HERO_SCRIM_PERCENT}%`).toBe(HERO_SCRIM_RATIFIED_PERCENT);
+	});
+
+	for (const scheme of SCHEME_NAMES) {
+		it(`keeps every hero ink outside the scrim's luminance envelope in the ${scheme} scheme`, () => {
+			// The precondition that makes the two extremes the worst case: were an
+			// ink INSIDE the envelope, some photograph pixel could pull the
+			// composite to the ink's own luminance and the ratio toward 1:1.
+			const grounds = heroGrounds(scheme);
+			for (const pair of [...heroTextPairs, ...heroNonTextPairs]) {
+				const ink = luminanceProxy(resolveRole(SCHEMES[scheme], pair.role));
+				const ground = grounds[pair.on];
+				const low = Math.min(luminanceProxy(ground('black')), luminanceProxy(ground('white')));
+				const high = Math.max(luminanceProxy(ground('black')), luminanceProxy(ground('white')));
+				expect(
+					ink < low || ink > high,
+					`${pair.name} (${scheme}): ink luminance proxy ${ink} must sit outside [${low}, ${high}]`,
+				).toBe(true);
+			}
+		});
+
+		for (const pair of [...heroTextPairs, ...heroNonTextPairs]) {
+			it(`${pair.name} reaches ${pair.minimum}:1 over both image extremes (${scheme})`, () => {
+				const grounds = heroGrounds(scheme);
+				const ink = resolveRole(SCHEMES[scheme], pair.role);
+				for (const extreme of ['black', 'white'] as const) {
+					const ratio = roundRatio(contrastRatio(ink, grounds[pair.on](extreme)));
+					expect(ratio, `${pair.name} over ${extreme}: measured ${ratio}:1`).toBeGreaterThanOrEqual(pair.minimum);
+				}
+			});
+		}
+	}
+});
+
 describe('regression guards', () => {
 	it('records the pair that keeps the field focus outline off --highlight', () => {
 		// On the flat card the pre-flatten outline role fails 1.4.11 in the
