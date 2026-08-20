@@ -192,6 +192,61 @@ test('the photo credit never overlaps the history copy', async ({ page, baseURL 
 	expect(collisions, 'widths where the photo credit intersects the history copy').toEqual([]);
 });
 
+/**
+ * Restoration PR-3 (inventory acceptance row): the BPL credit line must be
+ * fully visible at the two-column widths, in both colour schemes. #18 fixed
+ * the root cause (the figure is a flex column; the caption is normal-flow),
+ * and the overlap test above guards the caption-vs-copy collision — but a
+ * caption pushed past the card's own `overflow: hidden` bottom edge
+ * intersects nothing and would pass it.
+ *
+ * Measurement discipline (review finding on this row's first cut): an
+ * `overflow: hidden` box is still programmatically scrollable, so a
+ * scrollIntoView aimed at the caption can scroll the CLIP BOX itself and
+ * manufacture a pass over a clipped caption. Only the document scrolls here
+ * — with `behavior: 'instant'` so `html { scroll-behavior: smooth }` cannot
+ * animate under the measurement — and the card must prove both of its own
+ * scroll offsets are still zero. Every geometry read happens inside one
+ * evaluate so nothing can move between reads.
+ */
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the photo credit stays visible and hittable at desktop widths (${scheme})`, async ({ page, baseURL }) => {
+		await page.emulateMedia({ colorScheme: scheme });
+		for (const width of [768, 1024, 1440]) {
+			await openPage(page, baseURL, width);
+			const state = await page.evaluate(() => {
+				const caption = document.querySelector('.history-card figcaption');
+				const card = document.querySelector('.history-card');
+				if (!caption || !card) return null;
+				// Document-level scroll only: centre the caption's layout slot in
+				// the viewport without touching any inner scroll container.
+				const target = caption.getBoundingClientRect();
+				window.scrollBy({ top: target.top + target.height / 2 - window.innerHeight / 2, behavior: 'instant' });
+				const rect = caption.getBoundingClientRect();
+				const cardRect = card.getBoundingClientRect();
+				const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+				return {
+					cardScrollTop: card.scrollTop,
+					cardScrollLeft: card.scrollLeft,
+					captionHeight: rect.height,
+					insideClipBox:
+						rect.top >= cardRect.top - 1 &&
+						rect.bottom <= cardRect.bottom + 1 &&
+						rect.left >= cardRect.left - 1 &&
+						rect.right <= cardRect.right + 1,
+					centreHitsCaption: hit !== null && (hit === caption || caption.contains(hit)),
+				};
+			});
+			expect(state, `.history-card and its figcaption must both exist at ${width}`).not.toBeNull();
+			expect(state!.cardScrollTop, `card clip box unscrolled vertically at ${width} (${scheme})`).toBe(0);
+			expect(state!.cardScrollLeft, `card clip box unscrolled horizontally at ${width} (${scheme})`).toBe(0);
+			expect(state!.captionHeight, `caption has real height at ${width} (${scheme})`).toBeGreaterThan(0);
+			expect(state!.insideClipBox, `caption inside the card's unscrolled clip box at ${width} (${scheme})`).toBe(true);
+			expect(state!.centreHitsCaption, `caption centre receives the hit at ${width} (${scheme})`).toBe(true);
+		}
+	});
+}
+
 test('the image that dominates the page cannot force a horizontal scrollbar', async ({ page, baseURL }) => {
 	await openPage(page, baseURL, 320);
 	const overflowing = await page.evaluate(() =>
