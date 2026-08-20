@@ -12,9 +12,12 @@
 	// never as a direct child of the footer grid, so no phantom track can
 	// break the template. e2e/footer.spec.ts asserts the computed track count.
 	//
-	// TODO(jess): footer intro/location line — final phrasing is yours to
-	// author (rides the PR-5 copy review). The interim text below is the exact
-	// line the site already shipped; nothing new was worded here.
+	// TODO(jess): footer wording — BOTH rendered strings below are yours to
+	// final-word (rides the PR-5 copy review): the intro/location line, whose
+	// interim text is the exact line the site already shipped, AND the
+	// provenance string ("built from <sha>"), whose interim wording is the
+	// old apex's own #140 line minus the link claim. Nothing new was worded
+	// here.
 
 	const siteUrl = 'https://greatfallstoolbus.org';
 	const title = 'Great Falls Tool Bus — tools, skills, and shared work';

@@ -36,18 +36,27 @@ test('footer stacks to a single column below 48rem', async ({ page }) => {
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	const stacked = await page.locator('.site-footer__inner').evaluate((inner) => {
+		const style = getComputedStyle(inner);
 		const cells = Array.from(inner.children).map((cell) => cell.getBoundingClientRect());
 		return {
+			display: style.display,
 			// The used value: Chrome resolves the single IMPLICIT column to its
-			// pixel size (e.g. "343px"), so one track in the list IS the
-			// single-column assertion — 'none' would mean the element stopped
-			// being a grid.
-			template: getComputedStyle(inner).gridTemplateColumns,
+			// pixel size (e.g. "343px"). A NON-grid element also reports the
+			// literal 'none' here, which splits to length 1 — so the display
+			// pin below is what makes this row able to fail on a flex/block
+			// regression, and 'none' is explicitly rejected.
+			template: style.gridTemplateColumns,
+			directChildren: inner.children.length,
 			sameColumn: cells.every((cell) => Math.abs(cell.left - cells[0].left) < 1),
 			flows: cells.every((cell, index) => index === 0 || cell.top >= cells[index - 1].bottom),
 		};
 	});
+	expect(stacked.display, 'the footer is still a grid below 48rem').toBe('grid');
+	expect(stacked.template, 'a resolved implicit track, not a non-grid none').not.toBe('none');
 	expect(stacked.template.split(' ').length, `one resolved column below 48rem: ${stacked.template}`).toBe(1);
+	// The #103 structural pin at mobile too: intro lines stay nested inside
+	// their cell, never as direct grid children.
+	expect(stacked.directChildren, 'one direct grid child per cell at 375').toBe(2);
 	expect(stacked.sameColumn, 'every footer cell shares the single column').toBe(true);
 	expect(stacked.flows, 'footer cells stack in document order').toBe(true);
 });
