@@ -1,9 +1,23 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import SEOHead from '$lib/components/SEOHead.svelte';
+	import { buildShaShort } from '$lib/build-info';
 	import '../app.css';
 
 	let { children } = $props();
+
+	// Footer structure carries the old apex's #103 cell-nesting lesson
+	// (f8b599e): every line of the intro column — the location line and, on
+	// stamped builds, the provenance line — lives INSIDE the one intro cell,
+	// never as a direct child of the footer grid, so no phantom track can
+	// break the template. e2e/footer.spec.ts asserts the computed track count.
+	//
+	// TODO(jess): footer wording — BOTH rendered strings below are yours to
+	// final-word (rides the PR-5 copy review): the intro/location line, whose
+	// interim text is the exact line the site already shipped, AND the
+	// provenance string ("built from <sha>"), whose interim wording is the
+	// old apex's own #140 line minus the link claim. Nothing new was worded
+	// here.
 
 	const siteUrl = 'https://greatfallstoolbus.org';
 	const title = 'Great Falls Tool Bus — tools, skills, and shared work';
@@ -65,10 +79,15 @@
 
 <footer class="site-footer">
 	<div class="site-footer__inner">
-		<span>Great Falls Tool Bus · Lewiston–Auburn, Maine</span>
-		<span>
+		<div class="site-footer__intro">
+			<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
+			{#if buildShaShort}
+				<p class="site-footer__provenance">built from <code>{buildShaShort}</code></p>
+			{/if}
+		</div>
+		<p class="site-footer__licensing">
 			Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · visual credits are listed with
 			each image.
-		</span>
+		</p>
 	</div>
 </footer>

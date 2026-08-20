@@ -6,6 +6,11 @@ import pkg from './package.json';
 
 // Stamped Bazel build actions set BUILD_COMMIT_SHA from their stable-status
 // input. Dev runs may supply it explicitly; otherwise they report unknown.
+// The stamp (scripts/bazel/workspace-status.sh) carries an EXPLICITLY
+// supplied identity only and is already truncated to 7 chars at that source,
+// so no 40-hex value can ever be inlined below. The footer provenance line
+// (src/lib/build-info.ts) consumes __COMMIT_SHORT__ and renders nothing for
+// 'unknown', which keeps local builds provenance-free.
 const commitHash = process.env.BUILD_COMMIT_SHA || 'unknown';
 const buildInfo = {
 	version: pkg.version,
