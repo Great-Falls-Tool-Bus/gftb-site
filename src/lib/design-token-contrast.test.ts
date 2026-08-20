@@ -397,8 +397,11 @@ function luminanceProxy(color: Rgb): number {
 
 describe('hero backdrop scrim', () => {
 	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% mix`, () => {
-		// 92% is the lowest round mix where the dark scheme's heading/link inks
-		// clear 4.5:1 over a white image region (4.76:1); 90% measures 4.45.
+		// 92% is the ratified operating point; the measured floor is 91% (every
+		// AA pair passes there; 90% fails at 4.45:1 on the dark heading/link
+		// inks over a white image region). 92% is kept for headroom — the
+		// tightest dark pair reads 4.76:1 against the 4.5 floor — because the
+		// palette is provisional pending the HEIC-corpus re-anchor (§1.1).
 		expect(HERO_SCRIM_PERCENT, `hero scrim declared at ${HERO_SCRIM_PERCENT}%`).toBe(HERO_SCRIM_RATIFIED_PERCENT);
 	});
 

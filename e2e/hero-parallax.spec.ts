@@ -13,9 +13,10 @@ import { expect, test, type Page } from '@playwright/test';
 // the layer must cover the band rect at EVERY scroll position. Asserted at
 // top and max scroll, at the inventory's widths. The assertions are
 // support-agnostic on purpose: in a browser without scroll-driven animations
-// (the Firefox/WebKit projects behind PLAYWRIGHT_ALL_BROWSERS) the layer is
-// the static centered cover image and covers the band trivially — that IS
-// the specified fallback, so the same rows prove it.
+// (Firefox, behind PLAYWRIGHT_ALL_BROWSERS — WebKit supports
+// animation-timeline and animates) the layer is the static centered cover
+// image and covers the band trivially — that IS the specified fallback, so
+// the same rows prove it.
 
 const WIDTHS = [375, 768, 1440];
 

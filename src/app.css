@@ -312,8 +312,10 @@ li {
  * src/lib/design-token-contrast.test.ts reads this mix out of this file and
  * proves every hero ink clears its floor against the scrim composited over
  * BOTH image-luminance extremes, in both schemes; a gradient would make
- * that unprovable. 92% is the lowest round mix where the dark scheme's
- * heading/link inks clear 4.5:1 over a white image region (4.76:1). */
+ * that unprovable. 92% is the ratified mix; the measured floor is 91%
+ * (every AA pair passes there; 90% fails at 4.45:1). 92% is kept for
+ * headroom — the tightest dark pair reads 4.76:1 against the 4.5 floor —
+ * ahead of the provisional palette re-anchor. */
 .hero__scrim {
 	position: absolute;
 	inset: 0;

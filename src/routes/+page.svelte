@@ -54,13 +54,17 @@
 	// colorspace/EXIF audit; when an audited photo lands, swap ONLY this
 	// constant. The layer is decorative: empty alt, aria-hidden wrapper.
 	//
-	// `sizes`: the backdrop layer spans the hero band — the full `.page-shell`
-	// column, `min(100vw - 2rem, 72rem)` — so 100vw until the 72rem cap.
+	// `sizes` deliberately mirrors the history figure's so every viewport
+	// resolves the SAME rendition the page already fetches for that figure —
+	// the backdrop then adds zero image transfer at any width or DPR. The
+	// band is wider than the slot `sizes` declares, and that is the point:
+	// the layer is 16px-blurred behind a 92% scrim, so the smaller candidate
+	// is perceptually identical to a dedicated full-width rendition.
 	const heroPhoto = {
 		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
 		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
 		fallback: `${photoBase}-1280.jpg`,
-		sizes: '(min-width: 76rem) 1152px, 100vw',
+		sizes: historyPhoto.sizes,
 	};
 
 	const formatDate = (value: string) =>
@@ -80,6 +84,7 @@
 					width="1280"
 					height="771"
 					loading="eager"
+					fetchpriority="low"
 					decoding="async"
 				/>
 			</picture>
