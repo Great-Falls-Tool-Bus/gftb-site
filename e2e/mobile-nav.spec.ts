@@ -67,6 +67,7 @@ test('a long brand string cannot push the nav off-edge at 320px', async ({ page 
 	const state = await page.evaluate(() => ({
 		scrollWidth: document.documentElement.scrollWidth,
 		innerWidth: window.innerWidth,
+		headerHeight: document.querySelector('.site-header')?.getBoundingClientRect().height ?? Number.NaN,
 		navLinks: Array.from(document.querySelectorAll('.site-nav a')).map((element) => {
 			const rect = element.getBoundingClientRect();
 			return rect.left >= 0 && rect.right <= window.innerWidth;
@@ -75,6 +76,10 @@ test('a long brand string cannot push the nav off-edge at 320px', async ({ page 
 	expect(state.navLinks.length).toBeGreaterThan(0);
 	expect(state.navLinks.every(Boolean), 'nav links all fully on-screen with the fixture brand').toBe(true);
 	expect(state.scrollWidth, 'document overflow with the fixture brand').toBeLessThanOrEqual(state.innerWidth + 1);
+	// The wordmark clamps at three lines, so a hostile brand cannot grow the
+	// sticky header without bound (unclamped, this fixture reached ~192px —
+	// more than half of a 320x568 viewport gone to chrome).
+	expect(state.headerHeight, 'sticky header height with the fixture brand').toBeLessThanOrEqual(80);
 });
 
 test('mobile navigation links keep a usable minimum target height', async ({ page }) => {

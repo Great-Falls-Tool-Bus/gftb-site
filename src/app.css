@@ -203,14 +203,17 @@ li {
 }
 
 /* Fix #139 class (previous apex): the brand column may shrink
- * (minmax(0,auto)), the 1fr gutter absorbs the slack, and the nav column
+ * (minmax(0,auto)), the gutter column absorbs the slack, and the nav column
  * keeps its intrinsic size. A plain space-between flex let a long brand
- * expand past the viewport and push the nav off the right edge. */
+ * expand past the viewport and push the nav off the right edge. The gutter
+ * is minmax(1rem, 1fr) with NO outer gap so narrow widths pay for exactly
+ * one 1rem separation — the flex original's width math; an outer `gap`
+ * would charge the brand column a second 16px at 320 and wrap the wordmark
+ * onto an extra line. */
 .site-header__inner {
 	display: grid;
-	grid-template-columns: minmax(0, auto) 1fr auto;
+	grid-template-columns: minmax(0, auto) minmax(1rem, 1fr) auto;
 	align-items: center;
-	gap: 1rem;
 	min-height: 4.3rem;
 }
 
@@ -227,11 +230,18 @@ li {
 
 /* Last-resort guards (#139 adapted): the wordmark wraps at phone widths —
  * the shipped look; a nowrap-ellipsis truncate would clip the real brand on
- * every phone (153px wordmark vs a 117px column at 375). So the guards are:
- * an unbreakable token wraps mid-word rather than widening the column, and
- * anything past the column edge clips. The grid geometry above is what
- * keeps the nav on-edge; the anchor's aria-label carries the full name. */
+ * every phone (the wordmark needs ~153px at its shipped size and the brand
+ * column offers less than that below 48rem). So the guards are: an
+ * unbreakable token wraps mid-word rather than widening the column, and the
+ * block clamps at three lines with an ellipsis — one more than the full
+ * wordmark needs at the 320 floor — so hostile content cannot grow the
+ * sticky header without bound (e2e pins the header ceiling under a long
+ * fixture). The grid geometry above is what keeps the nav on-edge; the
+ * anchor's aria-label carries the full name. */
 .brand span {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
 	min-width: 0;
 	overflow: hidden;
 	overflow-wrap: anywhere;
