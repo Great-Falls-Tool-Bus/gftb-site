@@ -665,7 +665,11 @@ li {
 	position: absolute;
 	inset: -20% 0;
 	display: flex;
-	filter: blur(16px);
+	/* 10px, not 16px (apex-gaps diagnosis 2026-08-20 item 1; demo
+	 * fa5552c src/routes/+page.svelte:304-308 .hero-band__parallax). The
+	 * scrim carries legibility (below), so the extra 6px bought nothing but
+	 * softness on top of an already-blurred backdrop. */
+	filter: blur(10px);
 }
 
 .hero__drift img {
@@ -675,19 +679,46 @@ li {
 	object-position: center;
 }
 
-/* Legibility scrim — the one AA-required surface here (the old hero's
- * decorative glass chrome is not ported). Uniform on purpose:
- * src/lib/design-token-contrast.test.ts reads this mix out of this file and
- * proves every hero ink clears its floor against the scrim composited over
- * BOTH image-luminance extremes, in both schemes; a gradient would make
- * that unprovable. 92% is the ratified mix; the measured floor is 91%
- * (every AA pair passes there; 90% fails at 4.45:1). 92% is kept for
- * headroom — the tightest dark pair reads 4.76:1 against the 4.5 floor —
- * ahead of the provisional palette re-anchor. */
+/* Legibility scrim — graduated, not the flat 92% mix (apex-gaps diagnosis
+ * 2026-08-20 item 1: at a uniform 92% the postcard read as "a flat cream
+ * field", the diagnosis's own words, even though the asset and pipeline are
+ * fine — src/routes/+page.svelte's History card renders the identical
+ * source crisp a few hundred px lower). Demo shape ported (fa5552c
+ * src/routes/+page.svelte:315-330 .hero-band__scrim): two stacked
+ * gradients, lighter at the band's top/bottom edges, heavier through the
+ * vertical band the glass content occupies.
+ *
+ * Every hero ink (h1, lede, button-row, and the status-card's own copy) is
+ * nested inside `.hero-glass` / `.status-card.hero-glass`
+ * (src/routes/+page.svelte:74-124 — the button-row and the status-card
+ * aside are BOTH children of a `.hero-glass` element, never bare on the
+ * scrim), and `.hero-glass`'s `background: color-mix(in oklab, var(--panel)
+ * 88%, transparent)` (below) is unconditional — present with or without
+ * `@supports (backdrop-filter)`. So the ground every hero ink actually
+ * composites against is glass-over-scrim-over-photo, not scrim-over-photo
+ * alone; src/lib/design-token-contrast.test.ts's hero sweep now measures
+ * that composite (the same 'card' math its `surfaces()` helper already
+ * uses for every other card family) instead of a bare-scrim ground no
+ * rendered pixel sits on — see that file for the ratified content-zone
+ * percent and the computed floor.
+ *
+ * `--hero-scrim-content` gates the vertical band `.hero-glass` /
+ * `.status-card` occupy (18%-82% of the band) and is what the contrast
+ * sweep reads. `--hero-scrim-edge` paints only the top/bottom 18% strips
+ * outside that content band, where no ink ever renders — it carries no AA
+ * obligation and is free to run much lighter for the visible-bleed fix. */
 .hero__scrim {
 	position: absolute;
 	inset: 0;
-	background: color-mix(in oklab, var(--bg) 92%, transparent);
+	--hero-scrim-edge: color-mix(in oklab, var(--bg) 55%, transparent);
+	--hero-scrim-content: color-mix(in oklab, var(--bg) 74%, transparent);
+	background: linear-gradient(
+		180deg,
+		var(--hero-scrim-edge) 0%,
+		var(--hero-scrim-content) 18%,
+		var(--hero-scrim-content) 82%,
+		var(--hero-scrim-edge) 100%
+	);
 }
 
 /* Drift, double-gated: only when the browser has scroll-driven animations
@@ -960,9 +991,27 @@ li {
 	color: var(--fg-muted);
 }
 
+/* Demo vertical rhythm (apex-gaps diagnosis 2026-08-20 item 4): the previous
+ * clamp(4rem,8vw,6rem) padding-block on every section claimed to model "demo
+ * section steps 4-6rem", but the demo does not apply a uniform padding block
+ * per section — checked directly (fa5552c src/routes/+page.svelte:184, 218,
+ * 223, 233, 246): sections carry `mt-16` (4rem) margin-top plus a thin
+ * `border-y`/`border-t` divider with `py-6`/`py-8` (1.5-2rem) internal
+ * padding. The old rule ran ~50% heavier than the demo on both edges and
+ * dropped the divider treatment entirely. The first section keeps no extra
+ * margin/rule: `.page-shell`'s own top padding-block already separates it
+ * from the hero, and the demo has no equivalent of that wrapper to double up
+ * against. */
 .section {
-	/* Demo vertical rhythm, applied uniformly (demo section steps 4-6rem). */
-	padding-block: clamp(4rem, 8vw, 6rem);
+	margin-top: 4rem;
+	border-top: 1px solid var(--rule);
+	padding-top: 2rem;
+}
+
+.section:first-child {
+	margin-top: 0;
+	border-top: none;
+	padding-top: 0;
 }
 
 /* ===== Scroll-reveal (D04, apex app.css:568-580) =====

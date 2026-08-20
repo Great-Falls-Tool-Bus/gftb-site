@@ -449,31 +449,51 @@ for (const scheme of SCHEME_NAMES) {
 /**
  * ── Hero backdrop scrim (restoration: parallax hero) ────────────────────
  *
- * `.hero__scrim` paints `color-mix(in oklab, var(--bg) N%, transparent)` over
- * a photograph, and a photograph pixel can be anything, so no single
+ * `.hero__scrim` paints a graduated gradient (apex-gaps diagnosis
+ * 2026-08-20 item 1 — a flat 92% mix read as "a flat cream field"; demo
+ * shape ported from fa5552c src/routes/+page.svelte:315-330) over a
+ * photograph, and a photograph pixel can be anything, so no single
  * composite is "the" ground. Alpha compositing is channel-linear in the
  * underlying pixel, so every possible composite lies inside the
  * [over-black, over-white] envelope. The sweep proves each hero ink sits
  * OUTSIDE that luminance envelope — so the worst measurable pixel is one of
  * the two extremes — and then clears its floor against both extremes, in
- * both schemes. The in-browser contrast e2e walks ancestor backgrounds and
+ * both schemes.
+ *
+ * GROUND CORRECTION (2026-08-20, same slice): every hero ink is nested
+ * inside `.hero-glass` / `.status-card.hero-glass`
+ * (src/routes/+page.svelte:74-124 — h1, lede, button-row, and the
+ * status-card copy are all children of a `.hero-glass` element; nothing
+ * renders bare on the scrim). `.hero-glass`'s own
+ * `background: color-mix(in oklab, var(--panel) 88%, transparent)` is
+ * unconditional, not an `@supports` enhancement, so the ground every hero
+ * ink actually composites against is glass-over-scrim-over-photo. The prior
+ * revision of this file tested most hero-text pairs directly against the
+ * bare scrim — a ground no rendered pixel sits on, and one so conservative
+ * it left ~0 percentage points of room to lighten the scrim at all (90%
+ * already failed at 4.45:1; see the removed comment this replaces). Every
+ * pair below now uses the SAME 'card' ground the status-card pairs and
+ * `surfaces()`'s card family already use — still the full [over-black,
+ * over-white] envelope, still both schemes, just measuring what actually
+ * renders. The in-browser contrast e2e walks ancestor backgrounds and
  * cannot see the sibling scrim/photo layers behind the hero text (the same
  * disclosed blindness class as the --wash band), so THIS gate is the hero's
  * measured contract.
  *
- * The mix percent is READ OUT of src/app.css (the .button glow idiom above):
- * a nudge surfaces as the ratio that broke, and a nudge that stays inside
- * the floors still fails the ratified-percent pin. Re-anchor caveat: the
- * palette's lightness/chroma are provisional pending the corrected HEIC
- * corpus, so these pairs are re-verified after the re-anchor train.
+ * `--hero-scrim-content` (the vertical band `.hero-glass`/`.status-card`
+ * occupy) is READ OUT of src/app.css: a nudge surfaces as the ratio that
+ * broke, and a nudge that stays inside the floors still fails the
+ * ratified-percent pin. `--hero-scrim-edge` paints only the top/bottom 18%
+ * strips outside that band, where no ink ever renders, so it carries no
+ * pair here. Re-anchor caveat: the palette's lightness/chroma are
+ * provisional pending the corrected HEIC corpus, so these pairs are
+ * re-verified after the re-anchor train.
  */
-const HERO_SCRIM_RATIFIED_PERCENT = 92;
+const HERO_SCRIM_RATIFIED_PERCENT = 74;
 const HERO_SCRIM_RULE =
-	/\.hero__scrim\s*\{[^}]*background:\s*(color-mix\(in oklab, var\(--bg\) (\d+(?:\.\d+)?)%, transparent\))/u.exec(
-		appCss,
-	);
+	/--hero-scrim-content:\s*(color-mix\(in oklab, var\(--bg\) (\d+(?:\.\d+)?)%, transparent\))/u.exec(appCss);
 if (!HERO_SCRIM_RULE) {
-	throw new Error('src/app.css no longer paints a .hero__scrim mix this gate can measure');
+	throw new Error('src/app.css no longer declares a --hero-scrim-content mix this gate can measure');
 }
 const HERO_SCRIM = HERO_SCRIM_RULE[1];
 const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
@@ -487,9 +507,9 @@ function heroGrounds(scheme: SchemeName) {
 	const cardFill = resolveColor(tokens, 'color-mix(in oklab, var(--panel) 88%, transparent)');
 	const scrimOver = (extreme: ExtremeName) => compositeOver(scrim, IMAGE_EXTREMES[extreme]);
 	return {
-		/** the band itself: lede, h1, eyebrow, buttons sit straight on it */
-		scrim: scrimOver,
-		/** the status card, a translucent panel over the scrim over the photo */
+		/** the glass panel over the content-zone scrim over the photo — the
+		 * ground every hero ink (lede, h1, buttons, status-card copy) actually
+		 * composites against; see the GROUND CORRECTION note above. */
 		card: (extreme: ExtremeName) => compositeOver(cardFill, scrimOver(extreme)),
 	};
 }
@@ -497,7 +517,7 @@ function heroGrounds(scheme: SchemeName) {
 interface HeroPair {
 	name: string;
 	role: string;
-	on: 'scrim' | 'card';
+	on: 'card';
 	minimum: number;
 }
 
@@ -507,10 +527,10 @@ interface HeroPair {
 // (non-text), and the --link pair stays because the copy slice will demote
 // the hero CTAs to plain links.
 const heroTextPairs: HeroPair[] = [
-	{ name: 'hero lede on the scrim', role: '--fg', on: 'scrim', minimum: AA },
-	{ name: 'hero h1 on the scrim', role: '--heading', on: 'scrim', minimum: LARGE },
-	{ name: 'secondary button label on the scrim', role: '--heading', on: 'scrim', minimum: AA },
-	{ name: 'a plain link on the scrim', role: '--link', on: 'scrim', minimum: AA },
+	{ name: 'hero lede over the hero', role: '--fg', on: 'card', minimum: AA },
+	{ name: 'hero h1 over the hero', role: '--heading', on: 'card', minimum: LARGE },
+	{ name: 'secondary button label over the hero', role: '--heading', on: 'card', minimum: AA },
+	{ name: 'a plain link over the hero', role: '--link', on: 'card', minimum: AA },
 	{ name: 'status-card copy over the hero', role: '--fg', on: 'card', minimum: AA },
 	{ name: 'status-card muted copy over the hero', role: '--fg-muted', on: 'card', minimum: AA },
 	{ name: 'status-card heading over the hero', role: '--heading', on: 'card', minimum: LARGE },
@@ -518,8 +538,8 @@ const heroTextPairs: HeroPair[] = [
 ];
 
 const heroNonTextPairs: HeroPair[] = [
-	{ name: 'primary button fill on the scrim', role: '--accent', on: 'scrim', minimum: NON_TEXT_RATIO },
-	{ name: 'secondary button border on the scrim', role: '--accent', on: 'scrim', minimum: NON_TEXT_RATIO },
+	{ name: 'primary button fill over the hero', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
+	{ name: 'secondary button border over the hero', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
 ];
 
 /** contrastRatio(x, black) is strictly monotone in relative luminance, so it
@@ -529,13 +549,22 @@ function luminanceProxy(color: Rgb): number {
 }
 
 describe('hero backdrop scrim', () => {
-	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% mix`, () => {
-		// 92% is the ratified operating point; the measured floor is 91% (every
-		// AA pair passes there; 90% fails at 4.45:1 on the dark heading/link
-		// inks over a white image region). 92% is kept for headroom — the
-		// tightest dark pair reads 4.76:1 against the 4.5 floor — because the
-		// palette is provisional pending the HEIC-corpus re-anchor (§1.1).
-		expect(HERO_SCRIM_PERCENT, `hero scrim declared at ${HERO_SCRIM_PERCENT}%`).toBe(HERO_SCRIM_RATIFIED_PERCENT);
+	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% content-zone mix`, () => {
+		// 74% is the ratified content-zone operating point (apex-gaps diagnosis
+		// 2026-08-20 item 1, re-measured against the corrected 'card' ground —
+		// see the GROUND CORRECTION note above); the measured floor is 66%
+		// (every AA pair passes there; 65% fails at 4.496:1 — just under the
+		// 4.5 floor — on the dark secondary-button-label/link/status-card-strong
+		// pairs, which all resolve through --heading/--link and are tied at the
+		// palette's current values). 74% is kept for ~8 points of headroom —
+		// the tightest dark pair reads 4.660:1 against the 4.5 floor — both
+		// because the palette is provisional pending the HEIC-corpus re-anchor
+		// (§1.1) and because this is now a gradient stop rather than a single
+		// declared value, so there is no separate "declared vs measured" pair
+		// of numbers the way the flat-mix version had.
+		expect(HERO_SCRIM_PERCENT, `hero scrim content-zone declared at ${HERO_SCRIM_PERCENT}%`).toBe(
+			HERO_SCRIM_RATIFIED_PERCENT,
+		);
 	});
 
 	for (const scheme of SCHEME_NAMES) {
