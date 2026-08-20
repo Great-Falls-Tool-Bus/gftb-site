@@ -56,12 +56,16 @@ function surfaces(scheme: SchemeName) {
 	return {
 		/** body, hero, section grounds */
 		page,
-		/** .status-card, .card, .log-entry, .history-card, .contact-card */
+		/** .status-card, .card, .log-entry, .history-card, .hero-glass */
 		card,
 		/** .site-footer */
 		panel: resolveRole(tokens, '--panel'),
-		/** the .skip-link chip, the one yellow control left after the flatten */
+		/** the .skip-link chip and the restored .next-session livery band */
 		yellow: resolveRole(tokens, '--highlight'),
+		/** the restored inverted contact panel (gen_board.py:170) */
+		inversePanel: resolveRole(tokens, '--inverse-panel'),
+		/** paper-filled controls sitting on that panel (gen_board.py:176) */
+		paper: resolveRole(tokens, '--inverse-fg'),
 	};
 }
 
@@ -95,12 +99,22 @@ const textPairs: Pair[] = [
 	{ name: 'link on a card', role: '--link', on: 'card', minimum: AA },
 	{ name: 'link in the footer', role: '--link', on: 'panel', minimum: AA },
 	{ name: 'skip-link label on its chip', role: '--highlight-contrast', on: 'yellow', minimum: AA },
-	// The contact card is flat (operator ruling 2026-08-19), so its fields,
-	// helper text, and notices paint the page roles on the card ground.
-	{ name: 'contact form field text on the card', role: '--fg', on: 'card', minimum: AA },
-	{ name: 'field error on the card', role: '--danger', on: 'card', minimum: AA },
-	{ name: 'form notice error text on the card', role: '--danger', on: 'card', minimum: AA },
-	{ name: 'field error on the panel', role: '--danger', on: 'panel', minimum: AA },
+	// The restored yellow livery band (.next-session; gen_board.py:166-168):
+	// copy on the ratified contrast token, headings and anchors on
+	// --highlight-heading.
+	{ name: 'copy on the yellow livery band', role: '--highlight-contrast', on: 'yellow', minimum: AA },
+	{ name: 'headings and anchors on the yellow livery band', role: '--highlight-heading', on: 'yellow', minimum: AA },
+	// The restored inverted contact panel (gen_board.py:170-179): panel copy,
+	// helper text, links, field errors, the yellow eyebrow, and the
+	// paper-filled controls' own inks.
+	{ name: 'contact panel copy', role: '--inverse-fg', on: 'inversePanel', minimum: AA },
+	{ name: 'contact panel helper text', role: '--inverse-fg-muted', on: 'inversePanel', minimum: AA },
+	{ name: 'contact panel link', role: '--inverse-link', on: 'inversePanel', minimum: AA },
+	{ name: 'contact panel field error', role: '--inverse-danger', on: 'inversePanel', minimum: AA },
+	{ name: 'contact panel eyebrow (--highlight)', role: '--highlight', on: 'inversePanel', minimum: AA },
+	{ name: 'field text on a paper-filled control', role: '--inverse-control-fg', on: 'paper', minimum: AA },
+	{ name: 'accent label on a paper-filled control', role: '--inverse-control-accent', on: 'paper', minimum: AA },
+	{ name: 'error ink on a paper-filled control', role: '--inverse-control-danger', on: 'paper', minimum: AA },
 ] as Pair[];
 
 const nonTextPairs: Pair[] = [
@@ -108,13 +122,24 @@ const nonTextPairs: Pair[] = [
 	{ name: 'primary button fill on a card', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
 	{ name: 'secondary button border on the page', role: '--accent', on: 'page', minimum: NON_TEXT_RATIO },
 	{ name: 'skip-link edge on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	// The flat contact card's controls: the 1px --accent boundary IS the
-	// field's 1.4.11 indicator (the fill is transparent by de-slop ruling),
-	// the focus outline moved to the yellow-on-paper rescue edge, and the
-	// notice edge bar carries the page-side positive role.
-	{ name: 'form field boundary on the card', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
-	{ name: 'field focus outline on the card', role: '--highlight-edge', on: 'card', minimum: NON_TEXT_RATIO },
-	{ name: 'form notice success edge on the card', role: '--positive', on: 'card', minimum: NON_TEXT_RATIO },
+	// The restored livery band's 1.4.11 boundary is its rescue edge (the
+	// fill alone fails on the light page — the regression guard below
+	// records that pair).
+	{ name: 'yellow livery band edge on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
+	// The restored contact panel (gen_board.py:170-179): the panel's border
+	// against the page, the paper control fill against the panel, the
+	// success rung on paper, and the yellow focus outline drawn on the panel
+	// (gen_board.py:221: 7.77:1 in both schemes).
+	{ name: 'contact panel border on the page', role: '--inverse-edge', on: 'page', minimum: NON_TEXT_RATIO },
+	{ name: 'paper control fill on the panel', role: '--inverse-fg', on: 'inversePanel', minimum: NON_TEXT_RATIO },
+	{
+		name: 'success rung on a paper-filled control',
+		role: '--inverse-control-positive',
+		on: 'paper',
+		minimum: NON_TEXT_RATIO,
+	},
+	{ name: 'field focus outline on the panel', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
+	{ name: 'form notice edge on the panel', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
 ];
 
 /**
@@ -201,24 +226,35 @@ describe('the role layer resolves', () => {
 });
 
 describe('the surfaces these pairs assume are the ones the stylesheet paints', () => {
-	it('keeps the contact card flat and its fields bordered, not filled', () => {
-		// Operator ruling 2026-08-19: both livery moments are flattened and the
-		// --inverse-* group is gone. The 1px --accent boundary is the field's
-		// 1.4.11 indicator, so it is pinned structurally: the ratio sweeps only
-		// measure roles and cannot notice the border itself being deleted.
-		// Declarations and consumers only: the role-block comment may still
-		// narrate the group's removal.
-		expect(appCss).not.toMatch(/--inverse-[a-z-]+:|var\(--inverse-/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?border: 1px solid var\(--accent\);/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: transparent;/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?color: var\(--fg\);/u);
+	it('restores the inverted contact panel and its paper-filled controls', () => {
+		// The ratified role table (gen_board.py:157-180; decisions/0015)
+		// carries the --inverse-* group; PR #25 deleted it on an invalid
+		// interview and addendum B1 restored it. Pinned structurally: the
+		// ratio sweeps only measure roles and cannot notice a consumer being
+		// deleted.
+		expect(appCss).toMatch(/--inverse-panel:\s*var\(--color-primary-900\)/u);
+		expect(appCss).toMatch(/\.contact-card \{[\s\S]*?background: var\(--inverse-panel\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?border: 1px solid var\(--inverse-control-accent\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: var\(--inverse-fg\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?color: var\(--inverse-control-fg\);/u);
 	});
 
-	it('keeps the field focus indicator on --highlight-edge, the yellow-on-paper rescue', () => {
-		// Bare --highlight reads 1.57:1 on the light card (the regression guard
-		// below records that pair); the edge role exists to rescue yellow on
-		// paper-side grounds, so the outline must stay on it.
-		expect(appCss).toMatch(/:focus-visible \{\s*outline: 3px solid var\(--highlight-edge\);/u);
+	it('restores the yellow livery band with its rescue edge and pinned heading ink', () => {
+		// gen_board.py:166-168: the band is --highlight with the 1.4.11
+		// rescue edge and primary-800 headings, in both schemes.
+		expect(appCss).toMatch(
+			/\.next-session \{[\s\S]*?border: 1px solid var\(--highlight-edge\);[\s\S]*?background: var\(--highlight\);/u,
+		);
+		expect(appCss).toMatch(/\.next-session h2 \{[\s\S]*?color: var\(--highlight-heading\);/u);
+	});
+
+	it('keeps the field focus indicator on the panel yellow, and the skip-link on the rescue edge', () => {
+		// On the restored panel the bare yellow IS the ratified indicator
+		// (secondary-300 on primary-900, 7.77:1 — gen_board.py:221). On
+		// paper-side grounds it fails (the regression guard below records the
+		// pair), which is why the skip-link keeps --highlight-edge.
+		expect(appCss).toMatch(/:focus-visible \{\s*outline: 3px solid var\(--highlight\);/u);
+		expect(appCss).toMatch(/\.skip-link \{[\s\S]*?border: 1px solid var\(--highlight-edge\);/u);
 	});
 
 	it('keeps the composited surfaces this file models', () => {
@@ -237,22 +273,103 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		expect(GLOW_PERCENT, `focus glow declared at ${GLOW_PERCENT}%`).toBe(RATIFIED_GLOW_PERCENT);
 	});
 
-	it('pins the heading and accent roles to their ratified primary rungs', () => {
-		// Same reasoning as the panel pin: headings clear every floor at
-		// primary-700 too, so a drift off primary-800 (light) or primary-300
-		// (dark) would pass the sweeps. The rungs are the ruling, so assert them.
-		const ratified = {
-			light: { '--heading': '--color-primary-800', '--accent': '--color-primary-700' },
-			dark: { '--heading': '--color-primary-300', '--accent': '--color-primary-300' },
-		} as const;
-		for (const scheme of SCHEME_NAMES) {
-			for (const [role, rung] of Object.entries(ratified[scheme])) {
-				expect(formatRgb(resolveRole(SCHEMES[scheme], role)), `${scheme} ${role}`).toBe(
-					formatRgb(resolveRole(SCHEMES[scheme], rung)),
-				);
-			}
+	it('carries the RATIFIED role table verbatim (gen_board.py:157-180)', () => {
+		// The whole table of record, role -> (light rung, dark rung), so a
+		// drift onto any other rung fails even where every ratio floor would
+		// still pass. The rungs are the ruling, so assert them.
+		const ROLES: Array<[string, string, string]> = [
+			['--bg', '--color-surface-100', '--color-surface-950'],
+			['--panel', '--color-surface-50', '--color-surface-900'],
+			['--fg', '--color-surface-950', '--color-surface-50'],
+			['--fg-muted', '--color-surface-700', '--color-surface-400'],
+			['--heading', '--color-primary-800', '--color-primary-300'],
+			['--accent', '--color-primary-700', '--color-primary-300'],
+			['--link', '--color-primary-700', '--color-primary-300'],
+			['--rule', '--color-surface-300', '--color-surface-700'],
+			['--highlight', '--color-secondary-300', '--color-secondary-300'],
+			['--highlight-edge', '--color-secondary-700', '--color-secondary-500'],
+			['--highlight-heading', '--color-primary-800', '--color-primary-800'],
+			['--danger', '--color-error-700', '--color-error-300'],
+			['--inverse-panel', '--color-primary-900', '--color-primary-900'],
+			['--inverse-edge', '--color-primary-500', '--color-primary-500'],
+			['--inverse-fg', '--color-surface-50', '--color-surface-50'],
+			['--inverse-fg-muted', '--color-primary-100', '--color-primary-100'],
+			['--inverse-link', '--color-primary-200', '--color-primary-200'],
+			['--inverse-danger', '--color-error-100', '--color-error-100'],
+			['--inverse-control-fg', '--color-primary-900', '--color-primary-900'],
+			['--inverse-control-accent', '--color-primary-700', '--color-primary-700'],
+			['--inverse-control-danger', '--color-error-700', '--color-error-700'],
+			['--inverse-control-positive', '--color-success-600', '--color-success-600'],
+		];
+		for (const [role, lightRung, darkRung] of ROLES) {
+			expect(formatRgb(resolveRole(SCHEMES.light, role)), `light ${role}`).toBe(
+				formatRgb(resolveRole(SCHEMES.light, lightRung)),
+			);
+			expect(formatRgb(resolveRole(SCHEMES.dark, role)), `dark ${role}`).toBe(
+				formatRgb(resolveRole(SCHEMES.dark, darkRung)),
+			);
 		}
 	});
+});
+
+/**
+ * ── The 28 named ratified pairs (gen_board.py:200-230) ────────────────────
+ *
+ * The palette board publishes a named-pair table; this sweep transcribes it
+ * so the shipped tokens keep clearing exactly the floors the ratification
+ * names, scheme-scoped the way the board scopes them ("both" runs in each
+ * scheme against the scheme-invariant rungs). Where the board publishes a
+ * spec ratio it is a floor disclosure, not a re-pin — the WCAG floor is what
+ * is asserted, the way the board's own JS recomputes every number.
+ */
+describe('the ratified named pairs hold (gen_board.py:200-230)', () => {
+	type PairKind = 'AA' | 'LARGE' | 'NONTEXT';
+	const KIND_FLOOR: Record<PairKind, number> = { AA, LARGE, NONTEXT: NON_TEXT_RATIO };
+	const RATIFIED_PAIRS: Array<[string, string, string, string, PairKind]> = [
+		['light', 'body: ink on the page', '--color-surface-950', '--color-surface-100', 'AA'],
+		['light', 'body: ink on a card', '--color-surface-950', '--color-surface-50', 'AA'],
+		['light', 'muted helper text on a card', '--color-surface-700', '--color-surface-50', 'AA'],
+		['light', 'headings on a card', '--color-primary-800', '--color-surface-50', 'AA'],
+		['light', 'headings on the page', '--color-primary-800', '--color-surface-100', 'AA'],
+		['light', 'eyebrow / --accent on a card', '--color-primary-700', '--color-surface-50', 'AA'],
+		['light', 'link on the page', '--color-primary-700', '--color-surface-100', 'AA'],
+		['light', 'field error on the panel', '--color-error-700', '--color-surface-50', 'AA'],
+		['dark', 'body copy on the page', '--color-surface-50', '--color-surface-950', 'AA'],
+		['dark', 'muted helper text on the page', '--color-surface-400', '--color-surface-950', 'AA'],
+		['dark', 'headings / --accent on the page', '--color-primary-300', '--color-surface-950', 'AA'],
+		['dark', 'link on the page', '--color-primary-300', '--color-surface-950', 'AA'],
+		['dark', 'field error on the page', '--color-error-300', '--color-surface-950', 'AA'],
+		['dark', 'yellow livery block on the dark page', '--color-secondary-300', '--color-surface-950', 'NONTEXT'],
+		['both', 'contact panel copy', '--color-surface-50', '--color-primary-900', 'AA'],
+		['both', 'contact panel helper text', '--color-primary-100', '--color-primary-900', 'AA'],
+		['both', 'contact panel link', '--color-primary-200', '--color-primary-900', 'AA'],
+		['both', 'contact panel field error', '--color-error-100', '--color-primary-900', 'AA'],
+		['both', 'contact panel eyebrow (--highlight)', '--color-secondary-300', '--color-primary-900', 'AA'],
+		['both', 'focus outline on the contact panel', '--color-secondary-300', '--color-primary-900', 'NONTEXT'],
+		['both', 'headings on the yellow fill', '--color-primary-800', '--color-secondary-300', 'AA'],
+		['both', 'copy on the yellow fill (contrast token)', '--color-secondary-950', '--color-secondary-300', 'AA'],
+		['light', 'contact panel border on the page', '--color-primary-500', '--color-surface-100', 'NONTEXT'],
+		['dark', 'contact panel border on the page', '--color-primary-500', '--color-surface-950', 'NONTEXT'],
+		['light', 'skip-link edge on the page', '--color-secondary-700', '--color-surface-100', 'NONTEXT'],
+		['light', 'primary button fill on the page', '--color-primary-700', '--color-surface-100', 'NONTEXT'],
+		['light', 'livery slot primary-400 on paper', '--color-primary-400', '--color-surface-50', 'NONTEXT'],
+		['dark', 'livery slot primary-400 on ink', '--color-primary-400', '--color-surface-950', 'NONTEXT'],
+	];
+
+	it('transcribes all 28 board rows', () => {
+		expect(RATIFIED_PAIRS).toHaveLength(28);
+	});
+
+	for (const [schemeScope, name, fgRung, bgRung, kind] of RATIFIED_PAIRS) {
+		const sweptSchemes = schemeScope === 'both' ? SCHEME_NAMES : [schemeScope as SchemeName];
+		for (const scheme of sweptSchemes) {
+			it(`${name} (${scheme}) reaches ${KIND_FLOOR[kind]}:1`, () => {
+				const tokens = SCHEMES[scheme];
+				const ratio = roundRatio(contrastRatio(resolveRole(tokens, fgRung), resolveRole(tokens, bgRung)));
+				expect(ratio, `${name}: ${fgRung} on ${bgRung} measured ${ratio}:1`).toBeGreaterThanOrEqual(KIND_FLOOR[kind]);
+			});
+		}
+	}
 });
 
 for (const scheme of SCHEME_NAMES) {
@@ -297,18 +414,21 @@ for (const scheme of SCHEME_NAMES) {
 			expect(best, `page focus glow measured ${best}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
 		});
 
-		it('the button focus glow separates from an edge it borders on a card', () => {
-			// The submit button sits on the flat contact card. Same SC 1.4.11
-			// reading as the page test above: an outer ring is perceivable when
-			// it separates from EITHER adjacent colour — the accent button fill
-			// or the card behind it.
+		it('the button focus glow separates from BOTH edges on the contact panel', () => {
+			// The submit button is the PAPER button on the restored inverted
+			// panel (gen_board.py:176-177). Here the glow is boxed between two
+			// opaque surfaces, so both readings are required — this is the very
+			// pair the ratified 56% operating point was chosen on (the glow
+			// rationale above: 3.54:1 against the paper button, 3.50:1 against
+			// the panel; 65% drops the paper side to 2.95:1).
 			const grounds = surfaces(scheme);
-			const glow = glowOn(scheme, grounds.card);
-			const best = Math.max(
-				roundRatio(contrastRatio(glow, resolveRole(SCHEMES[scheme], '--accent'))),
-				roundRatio(contrastRatio(glow, grounds.card)),
+			const glow = glowOn(scheme, grounds.inversePanel);
+			const againstButton = roundRatio(contrastRatio(glow, grounds.paper));
+			const againstPanel = roundRatio(contrastRatio(glow, grounds.inversePanel));
+			expect(againstButton, `panel glow vs the paper button: ${againstButton}:1`).toBeGreaterThanOrEqual(
+				NON_TEXT_RATIO,
 			);
-			expect(best, `card focus glow measured ${best}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
+			expect(againstPanel, `panel glow vs the panel: ${againstPanel}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
 		});
 	});
 }
@@ -437,12 +557,12 @@ describe('hero backdrop scrim', () => {
 });
 
 describe('regression guards', () => {
-	it('records the pair that keeps the field focus outline off --highlight', () => {
-		// On the flat card the pre-flatten outline role fails 1.4.11 in the
-		// light scheme: --highlight is a 56%L yellow that reads about 1.57:1 on
-		// the near-paper card. That failure is why the outline moved to
-		// --highlight-edge when the contact panel was flattened (operator
-		// ruling 2026-08-19); recorded so a drift back fails loudly.
+	it('records the pair that keeps bare yellow off paper-side grounds', () => {
+		// --highlight fails 1.4.11 on the light card (about 1.57:1): that is
+		// WHY the rescue edge exists (gen_board.py:167, ratified item 4) —
+		// the skip-link chip and the livery band carry --highlight-edge on
+		// paper-side grounds, while ON the primary-900 panel the bare yellow
+		// is the ratified 7.77:1 indicator. Recorded so a swap fails loudly.
 		const ratio = roundRatio(contrastRatio(resolveRole(SCHEMES.light, '--highlight'), surfaces('light').card));
 		expect(ratio, `light: --highlight on the card measured ${ratio}:1`).toBeLessThan(NON_TEXT_RATIO);
 	});
