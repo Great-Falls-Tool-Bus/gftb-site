@@ -47,6 +47,11 @@ const config = {
 		prerender: {
 			handleHttpError: 'warn',
 			handleMissingId: 'warn',
+			// /log/[slug] and /log/page/[n] generate their entries from the
+			// PUBLISHED log set (B1.2). While every checked-in post is still a
+			// published:false TODO(jess) draft the set is empty, which is a
+			// legitimate state, not a crawl failure — warn, never fail.
+			handleUnseenRoutes: 'warn',
 		},
 	},
 };

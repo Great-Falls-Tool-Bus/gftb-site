@@ -64,10 +64,12 @@ describe('public log frontmatter', () => {
 	});
 
 	for (const file of logFiles) {
-		it(`${file} parses and satisfies the published schema`, () => {
+		it(`${file} parses and satisfies the public schema`, () => {
 			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
 			const metadata = assertPublicLogMetadata(parseFrontmatter(raw, file), file);
-			expect(metadata.published).toBe(true);
+			// Boolean gate (B1.2): true renders, false is an operator-pending
+			// draft that src/lib/public-logs.ts excludes from production output.
+			expect(typeof metadata.published).toBe('boolean');
 			// The filename date prefix is the sort key readers see; it must agree
 			// with the frontmatter date the page actually renders.
 			expect(file.startsWith(metadata.date), `${file} filename date prefix`).toBe(true);
@@ -76,7 +78,7 @@ describe('public log frontmatter', () => {
 	}
 
 	it('rejects the frontmatter shapes the public boundary forbids', () => {
-		expect(() => assertPublicLogMetadata({ ...validMetadata(), published: false }, 'fixture')).toThrow(/published/u);
+		expect(() => assertPublicLogMetadata({ ...validMetadata(), published: 'yes' }, 'fixture')).toThrow(/published/u);
 		expect(() => assertPublicLogMetadata({ ...validMetadata(), author: 'A Person' }, 'fixture')).toThrow(
 			/unsupported public frontmatter keys/u,
 		);

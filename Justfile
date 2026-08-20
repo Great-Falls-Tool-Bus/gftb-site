@@ -137,9 +137,17 @@ endpoint-check:
       echo "endpoint-check: forbidden endpoint literal found" >&2; exit 1; \
     else echo "endpoint-check: no cache, executor, or private-network endpoint literals"; fi
 
-source-map-check:
-    @cd {{ root }} && test ! -e src/lib/generated/source-map.json && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
-    @echo "source-map-check: no public developer/source-map artifacts"
+# Derive the page/post source map (demo #94 pattern; addendum B1.2 wires the
+# "Edit this page" affordance per log post). The former "no source-map
+# artifacts" posture was the stub's; the agent-surface bans it also carried
+# (no /agent route, no llms.txt, no agent-map.md) remain below.
+source-map-build:
+    cd {{ root }} && node scripts/build-source-map.mjs
+
+source-map-check: source-map-build
+    @cd {{ root }} && git diff --exit-code -- src/lib/generated/source-map.json || { echo "source-map-check: src/lib/generated/source-map.json drifted; commit the regenerated map" >&2; exit 1; }
+    @cd {{ root }} && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
+    @echo "source-map-check: map is current; no agent surfaces"
 
 entrypoint-contract:
     cd {{ root }} && python3 scripts/test-bazel-cutover-contracts.py
