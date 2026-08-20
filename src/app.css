@@ -231,6 +231,29 @@ body {
 		'liga' 1;
 }
 
+/* App shell — v5 Skeleton layout pattern (operator diagnosis 2026-08-20: the
+ * /log footer was not sticking to the viewport base on short pages because
+ * there was no shell at all — html/body were plain block flow and
+ * +layout.svelte rendered header/main/footer as flat siblings). Ported from
+ * the demo (fa5552c src/routes/+layout.svelte:77 `min-h-screen flex
+ * flex-col`, :206 `flex-1` on the content wrapper): a min-height:100vh flex
+ * column with `.site-main` taking the remaining space pushes the footer to
+ * the viewport base on any page shorter than the viewport, on every route
+ * (verified against /, /log, /contact, /404 — all share this one
+ * +layout.svelte, so there is no per-page footer hack to keep in sync). A
+ * dedicated wrapper class, not html/body directly, so body's own
+ * `--wash` gradient background keeps painting behind the whole page exactly
+ * as before. */
+.app-shell {
+	display: flex;
+	min-height: 100vh;
+	flex-direction: column;
+}
+
+.site-main {
+	flex: 1 1 auto;
+}
+
 a {
 	color: var(--link);
 }
