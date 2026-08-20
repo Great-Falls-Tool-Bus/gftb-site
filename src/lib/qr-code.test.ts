@@ -44,7 +44,10 @@ describe('printed apex QR code', () => {
 	});
 
 	it('matches the apex URL the page prints beside it', () => {
-		const page = readFileSync(path.join(repoRoot, 'src/routes/+page.svelte'), 'utf8');
+		// The printed QR rides the contact page (B1.4: the demo /contact
+		// architecture, restored — the form and the printed address live on
+		// their own page, never the root).
+		const page = readFileSync(path.join(repoRoot, 'src/routes/contact/+page.svelte'), 'utf8');
 		expect(page).toContain('/qr/greatfallstoolbus-apex.svg');
 		expect(page).toContain('greatfallstoolbus.org');
 		const packageJson = JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {

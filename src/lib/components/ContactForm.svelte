@@ -111,7 +111,11 @@
 
 {#if status === 'success'}
 	<div class="form-notice form-notice--success" role="status" aria-live="polite">
-		<h3>Thanks — your note is on its way.</h3>
+		<!-- TODO(jess): success wording. "Thanks — your note is on its way." was
+		     stripped (em-dash AI-tell + motion phrase; salvaged from
+		     restoration PR-5); the interim states the fact the UI actually
+		     knows: the request was accepted. -->
+		<h3>Thanks. Your note has been sent.</h3>
 		<p>A keyholder will reply to the email address you provided.</p>
 	</div>
 {:else}

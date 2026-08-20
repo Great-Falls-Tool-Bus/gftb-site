@@ -28,7 +28,7 @@ async function openContact(page: Page, baseURL: string | undefined, options: Con
 	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 	await stubChallenge(page);
 	const capture = await stubContactEndpoint(page, options);
-	await page.goto('/#contact');
+	await page.goto('/contact');
 	await page.waitForLoadState('domcontentloaded');
 	return capture;
 }
@@ -53,7 +53,7 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 
 		await fillValidForm(page);
 		await submit(page);
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 
 		expect(capture.headers).toHaveLength(1);
 		expect(capture.headers[0].origin).toBe(new URL(baseURL ?? 'http://localhost:3000').origin);
@@ -100,7 +100,7 @@ test.describe('challenge and honeypot enforcement', () => {
 			.toBe('verified');
 
 		await submit(page);
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 
 		const payload = capture.payloads[0];
 		expect(typeof payload.altcha).toBe('string');
@@ -114,12 +114,12 @@ test.describe('challenge and honeypot enforcement', () => {
 		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 		await stubChallenge(page, { error: 'unavailable' }, 503);
 		const capture = await stubContactEndpoint(page);
-		await page.goto('/#contact');
+		await page.goto('/contact');
 
 		await expect(page.locator('.form-help')).toContainText('If it is unavailable, you can still send.');
 		await fillValidForm(page);
 		await submit(page);
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 		// No forged proof is invented client side; the endpoint decides.
 		expect(capture.payloads[0].altcha).toBeUndefined();
 	});
@@ -130,7 +130,7 @@ test.describe('challenge and honeypot enforcement', () => {
 		await page.locator('#contact-website').fill('https://spam.example', { force: true });
 		await submit(page);
 
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 		expect(capture.payloads, 'honeypot submissions must not be forwarded').toEqual([]);
 	});
 
@@ -247,7 +247,7 @@ test.describe('retry and endpoint-down fallback', () => {
 				body: JSON.stringify({ ok: attempt > 1 }),
 			});
 		});
-		await page.goto('/#contact');
+		await page.goto('/contact');
 
 		await fillValidForm(page);
 		await submit(page);
@@ -259,7 +259,7 @@ test.describe('retry and endpoint-down fallback', () => {
 			.poll(async () => page.locator('altcha-widget').evaluate((element) => (element as { state?: string }).state))
 			.toBe('verified');
 		await submit(page);
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 		expect(attempt).toBe(2);
 	});
 });
