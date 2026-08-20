@@ -109,6 +109,13 @@
 	}
 </script>
 
+<!-- NON-ADOPTION RECORD (FR-9, Skeleton audit §a) — do not "fix": these
+     inline role="status" / role="alert" notices STAY inline; the v5 Toast
+     tier was considered and rejected for this surface. An ephemeral toast is
+     a worse fit than an in-place notice for the one async interaction this
+     site has (spec §3:118-128 asks for a persistent, readable outcome), and
+     the Toast tier is a deferred slice gated behind the forms-relay ruling —
+     do not build it early. -->
 {#if status === 'success'}
 	<div class="form-notice form-notice--success" role="status" aria-live="polite">
 		<!-- TODO(jess): success wording. "Thanks — your note is on its way." was

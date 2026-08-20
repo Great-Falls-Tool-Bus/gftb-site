@@ -47,19 +47,21 @@ export function paletteTokens(themeCss) {
 }
 
 /**
- * The role layer, per scheme. `dark` is `light` with the
- * `prefers-color-scheme: dark` overrides applied, which is exactly how the
- * cascade resolves it in a browser.
+ * The role layer, per scheme. `dark` is `light` with the `[data-mode='dark']`
+ * overrides applied, which is exactly how the cascade resolves it in a
+ * browser (D01 re-key: the dark role block is keyed on the data-mode
+ * attribute the FOUC script / theme store set on <html>, not on the OS media
+ * query — the v5 light-switch strategy). The dark regex is anchored at line
+ * start with `{` directly after the selector, so the compound
+ * `[data-mode='dark'] pre.shiki` code-surface rules can never be mistaken
+ * for the role block.
  *
  * @param {string} appCss
  * @returns {{ light: Record<string, string>, dark: Record<string, string> }}
  */
 export function roleTokens(appCss) {
 	const light = declarationsIn(appCss, /^:root\s*\{([\s\S]*?)\n\}/mu);
-	const darkOverrides = declarationsIn(
-		appCss,
-		/@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([\s\S]*?)\n\t\}/u,
-	);
+	const darkOverrides = declarationsIn(appCss, /^\[data-mode='dark'\]\s*\{([\s\S]*?)\n\}/mu);
 	return { light, dark: { ...light, ...darkOverrides } };
 }
 

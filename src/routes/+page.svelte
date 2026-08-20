@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { publicLogs } from '$lib/public-logs';
 	import SourceLink from '$lib/components/SourceLink.svelte';
+	import { reveal } from '$lib/motion.svelte';
+
+	// Scroll-reveal (D04): each below-hero section arms with a per-item
+	// 70ms stagger. The hidden start state only exists under
+	// html.motion-safe-ready (app.html sync script), with a 3s fail-open
+	// failsafe, so no-JS / reduced-motion / dead-bundle visitors always see
+	// content at rest — see src/lib/motion.svelte.ts.
 
 	// The front page is the ratified spec §3 page order (:83-93), eight rows,
 	// nothing else. Rows render from files/data (the log pipeline, the photo
@@ -120,7 +127,7 @@
 	<!-- Row 2 (spec §3 :86): next confirmed public work session, or the honest
 	     not-scheduled state. This band is the restored yellow livery block
 	     (gen_board.py:166-168; addendum B1.1). -->
-	<section class="section" aria-labelledby="next-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 0 }} aria-labelledby="next-title">
 		<div class="next-session">
 			<div>
 				<!-- TODO(jess): next-session block (salvaged from restoration
@@ -148,7 +155,7 @@
 	<!-- Row 4 (spec §3 :88): near-term goals and specific ways to help.
 	     Empty until the operator authors them (see the TODO slots in the
 	     script block). -->
-	<section class="section" aria-labelledby="goals-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 70 }} aria-labelledby="goals-title">
 		<div class="section-heading">
 			<h2 id="goals-title">Near-term goals</h2>
 			<p>Near-term goals and specific ways to help will be posted here.</p>
@@ -158,7 +165,7 @@
 	<!-- Rows 5 and 6 (spec §3 :89-91): the latest log entry, then older
 	     entries through the paginated /log archive (its pagination is plain
 	     prerendered links — the no-JavaScript path). -->
-	<section class="section" id="log" aria-labelledby="log-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 140 }} id="log" aria-labelledby="log-title">
 		<div class="section-heading">
 			<h2 id="log-title">Public log</h2>
 		</div>
@@ -184,7 +191,7 @@
 	</section>
 
 	<!-- Row 7 (spec §3 :92): short history. -->
-	<section class="section" id="history" aria-labelledby="history-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 210 }} id="history" aria-labelledby="history-title">
 		<div class="history-card">
 			<figure>
 				<picture>
@@ -219,7 +226,7 @@
 	<!-- Row 8 (spec §3 :93): contact and discussion information — a LINK to
 	     the contact page (B1.4: the form lives on its own page, never the
 	     root). -->
-	<section class="section" id="contact" aria-labelledby="contact-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="contact" aria-labelledby="contact-title">
 		<div class="section-heading">
 			<h2 id="contact-title">Contact and discussion</h2>
 			<p>

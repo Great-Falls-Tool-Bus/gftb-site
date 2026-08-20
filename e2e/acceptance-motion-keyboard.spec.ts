@@ -124,7 +124,15 @@ test.describe('keyboard operability', () => {
 	test('every focused control shows a visible indicator', async ({ page, baseURL }) => {
 		await openPage(page, baseURL);
 
-		const invisible = await page.evaluate(() => {
+		const invisible = await page.evaluate(async () => {
+			// Declare keyboard modality before the sweep: the switch's ring is
+			// deliberately keyboard-only (Zag's focus-visible modality
+			// tracking — a mouse click paints no ring, by design), and this
+			// sweep drives focus programmatically. One Tab keydown is exactly
+			// what a keyboard user emits before every focus simulated below;
+			// Zag's document-level tracker accepts it and flips the modality
+			// to keyboard, so the real indicator becomes observable.
+			document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
 			const readable = (element: HTMLElement) => {
 				const style = getComputedStyle(element);
 				return {
@@ -143,11 +151,29 @@ test.describe('keyboard operability', () => {
 				),
 			).filter((element) => !element.closest('.honeypot'));
 
+			// Reactive components apply their focus state on the next render
+			// (Zag transitions the machine, Svelte writes data-focus-visible),
+			// so the post-focus read settles a frame before measuring; plain
+			// controls are unaffected.
+			const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
 			for (const control of controls) {
-				const before = readable(control);
+				// The mode switch's hidden input is Zag's clipped 1px a11y
+				// channel: its indicator paints on the switch ROOT (Zag flags
+				// data-focus-visible there and app.css draws the rescue-edge
+				// outline), so that is the element measured — the indicator a
+				// person can actually perceive, not a clipped box's computed
+				// style (review E7).
+				const indicatorHost =
+					control.tagName === 'INPUT' && control.closest('.mode-switch')
+						? (control.closest('.mode-switch') as HTMLElement)
+						: control;
+				const before = readable(indicatorHost);
 				control.focus();
-				const after = readable(control);
+				await settle();
+				const after = readable(indicatorHost);
 				control.blur();
+				await settle();
 				const changed = (Object.keys(before) as Array<keyof typeof before>).some((key) => before[key] !== after[key]);
 				const hasOutline = after.outlineStyle !== 'none' && Number.parseFloat(after.outlineWidth) > 0;
 				if (!changed && !hasOutline) {

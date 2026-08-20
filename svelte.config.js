@@ -1,8 +1,27 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { mdsvex } from 'mdsvex';
+import { escapeSvelte, mdsvex } from 'mdsvex';
+import { codeToHtml } from 'shiki';
 
-const mdsvexPreprocessor = mdsvex({ extensions: ['.svx'] });
+// Code-surface contract (D07): svx code fences are highlighted AT BUILD TIME
+// by shiki with a light+dark theme pair and `defaultColor: false`, so the
+// emitted `pre.shiki` markup carries only `--shiki-light`/`--shiki-dark`
+// custom properties per token — src/app.css walks those variables into
+// painted colour, keyed on the same data-mode attribute as the role layer.
+// No shiki byte ever reaches the client bundle: this runs inside the mdsvex
+// preprocessor, and the output is static HTML.
+const SHIKI_THEMES = { light: 'github-light', dark: 'github-dark' };
+
+async function highlighter(code, lang) {
+	const html = await codeToHtml(code, {
+		lang: lang || 'text',
+		themes: SHIKI_THEMES,
+		defaultColor: false,
+	});
+	return `{@html \`${escapeSvelte(html)}\`}`;
+}
+
+const mdsvexPreprocessor = mdsvex({ extensions: ['.svx'], highlight: { highlighter } });
 // mdsvex 0.12.7 still emits the legacy Svelte module-script spelling for
 // frontmatter. Skeleton 5's proven Svelte 5 carrier rewrites it at preprocess
 // time so the public log remains build-time content, not a runtime CMS.
