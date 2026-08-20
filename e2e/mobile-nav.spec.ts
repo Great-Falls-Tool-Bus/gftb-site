@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { contrastRatio, formatRgb, roundRatio } from '../scripts/lib/color-contrast.mjs';
+import {
+	compositeOver,
+	contrastRatio,
+	formatRgb,
+	parseCssColor,
+	roundRatio,
+	type Rgb,
+} from '../scripts/lib/color-contrast.mjs';
 
 // The colour maths comes from the shared module rather than a local copy. The
 // local copy read `getComputedStyle` output with /[\d.]+/ and assumed rgb();
@@ -109,22 +116,36 @@ test('contact surface keeps public discussion and private access distinct', asyn
 	await expect(page.getByText('Its archive is not public.')).toBeAttached();
 });
 
-test('contact helper and validation text remain readable on the dark panel', async ({ page }) => {
+test('contact helper and validation text remain readable on the contact card', async ({ page }) => {
 	await page.goto('/#contact');
 	await page.getByRole('button', { name: 'Send to keyholders' }).click();
 
-	const contactBackground = await page
-		.locator('.contact-card')
-		.evaluate((element) => getComputedStyle(element).backgroundColor);
+	// The flat card's fill is translucent (color-mix … 88%, transparent), so
+	// the computed backgrounds are composited down to the opaque colour a
+	// person actually sees before measuring, the way acceptance-contrast does.
+	const layers = await page.locator('.form-help').evaluate((element) => {
+		const stack: string[] = [];
+		let node: Element | null = element;
+		while (node) {
+			stack.push(getComputedStyle(node).backgroundColor);
+			node = node.parentElement;
+		}
+		return stack;
+	});
+	const painted = layers.map((layer) => parseCssColor(layer)).filter((layer) => layer.alpha > 0);
+	let ground: Rgb = { red: 255, green: 255, blue: 255, alpha: 1 };
+	for (let index = painted.length - 1; index >= 0; index -= 1) {
+		ground = compositeOver(painted[index], ground);
+	}
 	const helperColor = await page.locator('.form-help').evaluate((element) => getComputedStyle(element).color);
 	const errorColor = await page
 		.locator('.field-error')
 		.first()
 		.evaluate((element) => getComputedStyle(element).color);
 
-	const helperRatio = roundRatio(contrastRatio(helperColor, contactBackground));
-	const errorRatio = roundRatio(contrastRatio(errorColor, contactBackground));
-	const panel = formatRgb(contactBackground);
+	const helperRatio = roundRatio(contrastRatio(helperColor, ground));
+	const errorRatio = roundRatio(contrastRatio(errorColor, ground));
+	const panel = formatRgb(ground);
 	expect(
 		helperRatio,
 		`helper text ${formatRgb(helperColor)} on ${panel} measured ${helperRatio}:1`,

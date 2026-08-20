@@ -27,8 +27,11 @@ test.describe('JavaScript disabled', () => {
 		await page.goto('/');
 		const log = page.locator('.log-entry');
 		await expect(log).toBeVisible();
+		await expect(log.locator('.log-entry__header h3')).not.toBeEmpty();
 		await expect(log.locator('.log-entry__body')).not.toBeEmpty();
-		await expect(log.getByLabel('Log tags').getByRole('listitem').first()).toBeVisible();
+		// Tags are frontmatter-only since the de-slop strip (restoration PR-4):
+		// the schema still requires them, but the page no longer renders chips.
+		await expect(log.getByLabel('Log tags')).toHaveCount(0);
 	});
 
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {

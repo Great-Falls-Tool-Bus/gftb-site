@@ -39,9 +39,8 @@ import { installExternalGuard, stubChallenge } from './support/network';
 // washed band the dark pairs still clear AA, by less than the gate reports:
 // error-300 4.79 (reported 5.89), primary-300 4.93 (reported 6.06),
 // surface-400 6.17, and the status card at y=237 gives 4.88 / 5.02 / 6.29.
-// --inverse-edge would read 2.52 in the wash, but the contact card sits at
-// y=3641, far below the band. A disclosure about which number is quoted, not
-// a failing pair.
+// The contact card sits far below the 352px band, outside the wash entirely.
+// A disclosure about which number is quoted, not a failing pair.
 
 interface TextSample {
 	label: string;
@@ -281,22 +280,20 @@ for (const scheme of ['light', 'dark'] as const) {
 					'the focused submit button paints no indicator at all',
 				).toBe(false);
 
-				// What THIS test measures: the submit button lives inside the inverted
-				// contact card, so the ring is boxed between the paper button fill
-				// (--inverse-fg) and the panel behind it (--inverse-panel). Neither
-				// role flips between schemes, so both readings hold in both: about
-				// 3.54:1 against the button and 3.50:1 against the panel.
+				// What THIS test measures: the submit button sits on the flat contact
+				// card (the purple inversion was flattened by operator ruling
+				// 2026-08-19), so the ring adjoins the button's accent fill on one
+				// side and the card on the other.
 				//
-				// The ring is drawn on the panel, so composite it there first, then
+				// The ring is drawn on the card, so composite it there first, then
 				// take the better of the two edges. max() rather than both is a
 				// REINTERPRETATION of the TIN-3855 gate, which required 3:1 against
 				// the control unconditionally: SC 1.4.11 (technique G195) asks a focus
 				// indicator to be distinguishable from an ADJACENT colour, and an
 				// outer ring adjoins two, so separating from either edge makes it
-				// perceivable. The same rule has to hold for a button out on the page,
-				// where exactly one edge clears 3:1 in a given scheme; here on the
-				// panel both do, and src/lib/design-token-contrast.test.ts re-measures
-				// this pair and requires BOTH.
+				// perceivable — exactly one edge clears 3:1 in a given scheme here.
+				// src/lib/design-token-contrast.test.ts re-measures the same best-of
+				// pair on the modelled card and page grounds.
 				const surface = resolveBackground(measured.surfaceLayers);
 				const ringOnPanel = compositeOver(parseCssColor(measured.ring), surface);
 				const againstControl = roundRatio(contrastRatio(ringOnPanel, measured.fill));
