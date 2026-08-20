@@ -17,11 +17,13 @@ test.describe('JavaScript disabled', () => {
 		// Heading strings are interim placeholders pending Jess's final copy
 		// (restoration PR-5); update in lockstep with src/routes/+page.svelte.
 		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Building, not lending yet.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Waterproofing + measurements' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Current status' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Next public work session' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Near-term goals' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Public log' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'A name shaped by this place.' })).toBeVisible();
+		// exact: the log entry's own title ("First public log entry") would
+		// otherwise substring-match this heading query.
+		await expect(page.getByRole('heading', { name: 'Public log', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Contact and discussion' })).toBeVisible();
 	});
 

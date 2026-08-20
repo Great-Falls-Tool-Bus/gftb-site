@@ -5,33 +5,23 @@
 	const latest = publicLogs[0];
 	const prior = publicLogs.slice(1);
 
-	// TODO(jess): goals content + format. Q4 (plain list vs run-in prose) is
-	// still an open operator question, so the three-item structure stands
-	// unchanged; the wording below is carried over as interim text and the
-	// final words are yours. ("legible inventory" was trimmed to "inventory"
-	// as a copy-deslop strip; restore or reword as you see fit.)
-	const goals = [
-		{
-			title: 'Make the bus ready',
-			body: 'Keep water out, clear and prepare the interior, and establish a simple interim lock and safe working setup.',
-		},
-		{
-			title: 'Design membership together',
-			body: 'Storyboard a welcoming sliding-scale membership path before collecting online payments or issuing accounts.',
-		},
-		{
-			title: 'Start with useful tools',
-			body: 'Build a small inventory and checkout process that works well from a phone and still respects privacy.',
-		},
-	];
+	// TODO(jess): goals content (Q4 format ruling also pending: plain list vs
+	// run-in prose). The three goal cards were swept as unverified AI-authored
+	// copy (operator re-review 2026-08-19); nothing renders until you write
+	// the real goals. The swept items, restore whatever is real:
+	//   Make the bus ready — Keep water out, clear and prepare the interior,
+	//     and establish a simple interim lock and safe working setup.
+	//   Design membership together — Storyboard a welcoming sliding-scale
+	//     membership path before collecting online payments or issuing
+	//     accounts.
+	//   Start with useful tools — Build a small inventory and checkout
+	//     process that works well from a phone and still respects privacy.
 
-	const help = [
-		'Hands for removing and preparing bus seats',
-		'Sheet metal or sheet plastic for odd openings and inserts',
-		'A 9/16-inch impact or large breaker bar for stubborn bolts',
-		'Cleaning supplies, rags, a broom, and industrial cleaner',
-		'Security Torx drivers and a broader set of imperial square bits',
-	];
+	// TODO(jess): needs list. The five specific asks (bus-seat removal help,
+	// sheet metal/plastic, a 9/16-inch impact or breaker bar, cleaning
+	// supplies, Security Torx + imperial square bits) were swept as
+	// unverified specifics; restore the ones that are real. Until then the
+	// page points people at the contact form instead of asserting needs.
 
 	// The 3070x1851 master was served to every visitor at 2.35 MB. The published
 	// renditions are downscales of it, recorded in NOTICE and
@@ -126,11 +116,14 @@
 		</div>
 
 		<aside class="status-card" id="status" aria-labelledby="status-title">
-			<h2 id="status-title">Building, not lending yet.</h2>
-			<p>
-				The bus and its public processes are being prepared. Tool checkout, digital membership payments, and member
-				accounts are not live yet.
-			</p>
+			<!-- TODO(jess): status heading + first sentence. "Building, not
+			     lending yet." and "The bus and its public processes are being
+			     prepared." were swept as AI-authored copy (operator re-review
+			     2026-08-19); the interim heading is the spec's own term
+			     (spec §3 item 1: "current status") and the body keeps only the
+			     verifiable not-live-yet statement. -->
+			<h2 id="status-title">Current status</h2>
+			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
 			<!-- TODO(jess): "and the next concrete invitation" was trimmed as an
 			     AI-tell; if the status card should also name what future
 			     updates announce, that clause is yours to write. -->
@@ -141,17 +134,24 @@
 	<section class="section" aria-labelledby="next-title">
 		<div class="next-session">
 			<div>
-				<h2 id="next-title">Waterproofing + measurements</h2>
-				<p class="date-chip">Schedule being confirmed</p>
+				<!-- TODO(jess): next-session block. The session name and the
+				     hands-on description were swept as unverified specifics
+				     (operator re-review 2026-08-19); restore whatever is real:
+				       heading: "Waterproofing + measurements"
+				       chip: "Schedule being confirmed"
+				       body: "Our current hands-on focus is sealing the body and
+				       openings, then measuring wonky shapes that may need
+				       fabricated inserts."
+				     The interim copy below is the spec's honest not-scheduled
+				     state (spec §3 item 2). -->
+				<h2 id="next-title">Next public work session</h2>
+				<p class="date-chip">Not scheduled yet</p>
 			</div>
 			<div>
+				<p>The next open work time will be posted here once confirmed.</p>
 				<p>
-					Our current hands-on focus is sealing the body and openings, then measuring wonky shapes that may need
-					fabricated inserts. The next open work time will be posted here once confirmed.
-				</p>
-				<p>
-					Use the <a class="text-link" href="#contact">contact form before coming</a>; timing and exact location details
-					are shared directly.
+					Use the <a class="text-link" href="#contact">contact form</a>; timing and exact location details are shared
+					directly.
 				</p>
 			</div>
 		</div>
@@ -164,36 +164,32 @@
 			     the ratified page-order wording (spec §3 item 4: "near-term
 			     goals and specific ways to help"). -->
 			<h2 id="goals-title">Near-term goals</h2>
-			<p class="lede">
-				The public page stays simple while the real member, tool, and stewardship flows are designed with the people who
-				will use them.
-			</p>
-		</div>
-		<div class="grid grid--3">
-			{#each goals as goal (goal.title)}
-				<article class="card">
-					<h3>{goal.title}</h3>
-					<p>{goal.body}</p>
-				</article>
-			{/each}
+			<!-- TODO(jess): the section lede ("The public page stays simple
+			     while the real member, tool, and stewardship flows are
+			     designed with the people who will use them.") was swept as
+			     AI-authored prose; the goal cards moved to the comment slot in
+			     the script block above. Both are yours to re-author. -->
+			<p>Near-term goals will be posted here.</p>
 		</div>
 	</section>
 
 	<section class="section" aria-labelledby="help-title">
 		<div class="grid grid--2">
 			<div class="section-heading">
-				<h2 id="help-title">A few specific ways to help.</h2>
+				<!-- TODO(jess): section heading. "A few specific ways to help."
+				     was swept; the interim is the ratified page-order wording
+				     (spec §3 item 4: "specific ways to help"). -->
+				<h2 id="help-title">Ways to help</h2>
 				<p>
 					Please contact us before dropping anything off. We can confirm what is still needed and arrange a safe
 					handoff.
 				</p>
 			</div>
 			<div class="card">
-				<ul class="check-list">
-					{#each help as item (item)}
-						<li>{item}</li>
-					{/each}
-				</ul>
+				<!-- TODO(jess): the specific needs list was swept as unverified
+				     (see the comment slot in the script block above); restore
+				     the real items. -->
+				<p>Current needs are confirmed through the contact form.</p>
 			</div>
 		</div>
 	</section>
@@ -259,7 +255,10 @@
 				</figcaption>
 			</figure>
 			<div class="history-card__copy">
-				<h2 id="history-title">A name shaped by this place.</h2>
+				<!-- TODO(jess): section heading. "A name shaped by this place."
+				     was swept; the interim is the ratified page-order wording
+				     (spec §3 item 7: "short history"). -->
+				<h2 id="history-title">History</h2>
 				<!-- TODO(jess): "useful things moving between neighbors instead of
 				     sitting alone" was stripped as motion language (the bus is
 				     parked); the factual first sentence and the name-borrowing

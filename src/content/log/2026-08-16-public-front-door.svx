@@ -1,21 +1,16 @@
 ---
 date: '2026-08-16'
-title: 'A small public front door for the bus'
-summary: 'The first public page keeps the project status, next work session, needs, and contact path in one place.'
+title: 'First public log entry'
+summary: 'Placeholder entry until the operator writes the first full post.'
 tags:
   - website
-  - build
 published: true
 ---
 
-Today we put the public story in one small place: what the Great Falls Tool Bus
-is, what is happening next, and how neighbors can help.
+<!-- TODO(jess): first log post. The original body was AI-authored prose
+     presented as a reviewed post and was removed under the
+     posts-are-human-written ruling (meta doc §1.5(iv), operator re-review
+     2026-08-19). This stub only keeps the ratified page order honest
+     (spec §3 row 5: a latest log entry exists). The write-up is yours. -->
 
-The bus itself is still in preparation. Current hands-on work centers on keeping
-water out, measuring unusual openings, clearing and preparing the interior, and
-planning an interim lock. We are not lending tools or taking online membership
-payments yet.
-
-This page will change through short, reviewed updates. The useful test is
-simple: a neighbor should be able to tell what is real today and what they can
-do next without learning our internal planning system.
+First public entry. The operator's write-up will replace this placeholder.

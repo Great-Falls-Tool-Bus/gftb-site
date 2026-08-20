@@ -34,6 +34,32 @@ const readSource = (relative: string) => readFileSync(path.join(repoRoot, relati
 const BANNED_MOTION = /\b(?:mobile|motion|moving|circulating|rolling)\b|on its way/iu;
 const EM_DASH = '—';
 
+// Swept copy that must never return to a rendered surface (operator
+// re-review 2026-08-19: AI-authored or unverified strings removed pending
+// Jess's wording). The strings live on in SOURCE comment slots as the
+// operator handoff; this list gates the rendered output only.
+const BANNED_SWEPT_COPY = [
+	'Tools belong in motion',
+	'mobile tool library',
+	'Building, not lending yet',
+	'A useful thing, built in understandable steps',
+	'A few specific ways to help',
+	'What changed, in plain language',
+	'A name shaped by this place',
+	'Bring a question, a skill, or a tool story',
+	'Waterproofing + measurements',
+	'Schedule being confirmed',
+	'Make the bus ready',
+	'Design membership together',
+	'Start with useful tools',
+	'A small public front door',
+	'tools, skills, and shared work',
+	'keeps all three circulating',
+	'useful things moving between neighbors',
+	'the next concrete invitation',
+	'your note is on its way',
+];
+
 interface UserFacingSurfaces {
 	text: string;
 	attributes: string[];
@@ -93,6 +119,11 @@ function expectCleanCopy(surfaces: UserFacingSurfaces, label: string) {
 		const motion = BANNED_MOTION.exec(value);
 		expect(motion, `${label}: motion language "${motion?.[0] ?? ''}" in ${surface}`).toBeNull();
 		expect(value.includes(EM_DASH), `${label}: em-dash in ${surface}: ${value.slice(0, 120)}`).toBe(false);
+		for (const phrase of BANNED_SWEPT_COPY) {
+			expect(value.toLowerCase().includes(phrase.toLowerCase()), `${label}: swept copy "${phrase}" in ${surface}`).toBe(
+				false,
+			);
+		}
 	}
 }
 
@@ -142,6 +173,7 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 			'src/routes/+layout.svelte',
 			'src/app.html',
 			'src/lib/components/ContactForm.svelte',
+			'src/content/log/2026-08-16-public-front-door.svx',
 		]) {
 			expect(readSource(relative).includes('TODO(jess)'), `${relative} lost its TODO(jess) marker`).toBe(true);
 		}
