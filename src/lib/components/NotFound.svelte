@@ -23,7 +23,7 @@
 
 <div class="page-shell">
 	<section class="section" aria-labelledby="error-title">
-		<p class="eyebrow">Error {status}</p>
+		<p>Error {status}</p>
 		<h1 id="error-title">{heading}</h1>
 		<p class="lede">{detail}</p>
 		<div class="button-row">

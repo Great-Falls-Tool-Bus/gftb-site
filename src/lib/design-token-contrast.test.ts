@@ -36,8 +36,8 @@ const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
 
 /**
  * The surfaces the page actually composites, per scheme. A card is a
- * translucent panel over the page, and a tag chip is a translucent accent over
- * a card, so both are composited here rather than approximated.
+ * translucent panel over the page, so it is composited here rather than
+ * approximated.
  *
  * `page` is the UNWASHED --bg. body paints
  * `linear-gradient(180deg, var(--wash), transparent 22rem)` over it, so the top
@@ -56,18 +56,12 @@ function surfaces(scheme: SchemeName) {
 	return {
 		/** body, hero, section grounds */
 		page,
-		/** .status-card, .card, .log-entry, .history-card */
+		/** .status-card, .card, .log-entry, .history-card, .contact-card */
 		card,
-		/** .site-footer, and the field ground away from the contact panel */
+		/** .site-footer */
 		panel: resolveRole(tokens, '--panel'),
-		/** .next-session and the .skip-link chip */
+		/** the .skip-link chip, the one yellow control left after the flatten */
 		yellow: resolveRole(tokens, '--highlight'),
-		/** .contact-card — inverted in both schemes */
-		inverse: resolveRole(tokens, '--inverse-panel'),
-		/** control fills and notices sitting on the contact panel */
-		inversePaper: resolveRole(tokens, '--inverse-fg'),
-		/** .tag-list li */
-		tag: compositeOver(resolveColor(tokens, 'color-mix(in oklab, var(--accent) 10%, transparent)'), card),
 	};
 }
 
@@ -92,7 +86,6 @@ const textPairs: Pair[] = [
 	{ name: 'muted helper text on a card', role: '--fg-muted', on: 'card', minimum: AA },
 	{ name: 'figcaption on a card', role: '--fg-muted', on: 'card', minimum: AA },
 	{ name: 'footer text on the panel', role: '--fg-muted', on: 'panel', minimum: AA },
-	{ name: 'eyebrow on the page', role: '--accent', on: 'page', minimum: AA },
 	{ name: 'headings on the page', role: '--heading', on: 'page', minimum: LARGE },
 	{ name: 'headings on a card', role: '--heading', on: 'card', minimum: LARGE },
 	{ name: 'status-card strong on a card', role: '--heading', on: 'card', minimum: AA },
@@ -101,23 +94,12 @@ const textPairs: Pair[] = [
 	{ name: 'link on the page', role: '--link', on: 'page', minimum: AA },
 	{ name: 'link on a card', role: '--link', on: 'card', minimum: AA },
 	{ name: 'link in the footer', role: '--link', on: 'panel', minimum: AA },
-	{ name: 'tag label on a tag chip', role: '--fg', on: 'tag', minimum: AA },
-	{ name: 'next-session heading on the yellow panel', role: '--highlight-heading', on: 'yellow', minimum: LARGE },
-	{ name: 'next-session eyebrow on the yellow panel', role: '--highlight-heading', on: 'yellow', minimum: AA },
-	{ name: 'next-session copy on the yellow panel', role: '--highlight-contrast', on: 'yellow', minimum: AA },
 	{ name: 'skip-link label on its chip', role: '--highlight-contrast', on: 'yellow', minimum: AA },
-	{ name: 'contact panel copy', role: '--inverse-fg', on: 'inverse', minimum: AA },
-	{ name: 'contact panel heading', role: '--inverse-fg', on: 'inverse', minimum: LARGE },
-	{ name: 'contact panel helper text', role: '--inverse-fg-muted', on: 'inverse', minimum: AA },
-	{ name: 'contact panel link', role: '--inverse-link', on: 'inverse', minimum: AA },
-	{ name: 'contact panel field error', role: '--inverse-danger', on: 'inverse', minimum: AA },
-	{ name: 'contact panel eyebrow', role: '--highlight', on: 'inverse', minimum: AA },
-	{ name: 'contact panel button label', role: '--inverse-control-fg', on: 'inversePaper', minimum: AA },
-	{ name: 'contact form field text', role: '--inverse-control-fg', on: 'inversePaper', minimum: AA },
-	{ name: 'form notice copy', role: '--inverse-control-fg', on: 'inversePaper', minimum: AA },
-	{ name: 'form notice error text', role: '--inverse-control-danger', on: 'inversePaper', minimum: AA },
-	// The one text pair away from the contact panel that uses --danger: a field
-	// error rendered outside the inverted card would fall back to this.
+	// The contact card is flat (operator ruling 2026-08-19), so its fields,
+	// helper text, and notices paint the page roles on the card ground.
+	{ name: 'contact form field text on the card', role: '--fg', on: 'card', minimum: AA },
+	{ name: 'field error on the card', role: '--danger', on: 'card', minimum: AA },
+	{ name: 'form notice error text on the card', role: '--danger', on: 'card', minimum: AA },
 	{ name: 'field error on the panel', role: '--danger', on: 'panel', minimum: AA },
 ] as Pair[];
 
@@ -126,12 +108,13 @@ const nonTextPairs: Pair[] = [
 	{ name: 'primary button fill on a card', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
 	{ name: 'secondary button border on the page', role: '--accent', on: 'page', minimum: NON_TEXT_RATIO },
 	{ name: 'skip-link edge on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	{ name: 'contact card border on the page', role: '--inverse-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	{ name: 'contact panel button fill', role: '--inverse-fg', on: 'inverse', minimum: NON_TEXT_RATIO },
-	{ name: 'form field fill on the contact panel', role: '--inverse-fg', on: 'inverse', minimum: NON_TEXT_RATIO },
-	{ name: 'ALTCHA widget fill on the contact panel', role: '--inverse-fg', on: 'inverse', minimum: NON_TEXT_RATIO },
-	{ name: 'field focus outline on the contact panel', role: '--highlight', on: 'inverse', minimum: NON_TEXT_RATIO },
-	{ name: 'form notice fill on the contact panel', role: '--inverse-fg', on: 'inverse', minimum: NON_TEXT_RATIO },
+	// The flat contact card's controls: the 1px --accent boundary IS the
+	// field's 1.4.11 indicator (the fill is transparent by de-slop ruling),
+	// the focus outline moved to the yellow-on-paper rescue edge, and the
+	// notice edge bar carries the page-side positive role.
+	{ name: 'form field boundary on the card', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
+	{ name: 'field focus outline on the card', role: '--highlight-edge', on: 'card', minimum: NON_TEXT_RATIO },
+	{ name: 'form notice success edge on the card', role: '--positive', on: 'card', minimum: NON_TEXT_RATIO },
 ];
 
 /**
@@ -218,21 +201,28 @@ describe('the role layer resolves', () => {
 });
 
 describe('the surfaces these pairs assume are the ones the stylesheet paints', () => {
-	it('keeps the contact panel inverted and its controls on paper', () => {
-		expect(appCss).toMatch(/\.contact-card \{[^}]*background: var\(--inverse-panel\);/u);
-		expect(appCss).toMatch(/\.contact-card \.button \{[^}]*background: var\(--inverse-fg\);/u);
-		expect(appCss).toMatch(/\.contact-card \.button \{[^}]*color: var\(--inverse-control-fg\);/u);
-		expect(appCss).toMatch(/\.contact-card \.eyebrow \{[^}]*color: var\(--highlight\);/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: var\(--inverse-fg\);/u);
+	it('keeps the contact card flat and its fields bordered, not filled', () => {
+		// Operator ruling 2026-08-19: both livery moments are flattened and the
+		// --inverse-* group is gone. The 1px --accent boundary is the field's
+		// 1.4.11 indicator, so it is pinned structurally: the ratio sweeps only
+		// measure roles and cannot notice the border itself being deleted.
+		// Declarations and consumers only: the role-block comment may still
+		// narrate the group's removal.
+		expect(appCss).not.toMatch(/--inverse-[a-z-]+:|var\(--inverse-/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?border: 1px solid var\(--accent\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: transparent;/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?color: var\(--fg\);/u);
 	});
 
-	it('keeps the focus indicator on --highlight, not on the paper-rescue edge', () => {
-		expect(appCss).toMatch(/:focus-visible \{\s*outline: 3px solid var\(--highlight\);/u);
+	it('keeps the field focus indicator on --highlight-edge, the yellow-on-paper rescue', () => {
+		// Bare --highlight reads 1.57:1 on the light card (the regression guard
+		// below records that pair); the edge role exists to rescue yellow on
+		// paper-side grounds, so the outline must stay on it.
+		expect(appCss).toMatch(/:focus-visible \{\s*outline: 3px solid var\(--highlight-edge\);/u);
 	});
 
 	it('keeps the composited surfaces this file models', () => {
 		expect(appCss).toContain('color-mix(in oklab, var(--panel) 88%, transparent)');
-		expect(appCss).toContain('color-mix(in oklab, var(--accent) 10%, transparent)');
 		// GLOW is whatever app.css declares, so this only proves the glow is still
 		// painted on the focus rule the ratio assertions below assume.
 		expect(appCss).toMatch(
@@ -245,21 +235,6 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		// declared, so a nudge moves those ratios too; this line is what fails when
 		// a nudge stays inside them.
 		expect(GLOW_PERCENT, `focus glow declared at ${GLOW_PERCENT}%`).toBe(RATIFIED_GLOW_PERCENT);
-	});
-
-	it('pins the contact panel to primary-900, the ratified inversion depth', () => {
-		// The ratio sweeps do not catch a drift back to primary-800: every pair on
-		// the panel still clears its floor there, and the --highlight-edge guard
-		// below asserts `< 4`, which primary-800's 2.45 also satisfies. The role
-		// mapping is an operator ruling (2026-08-17 palette interview), so it is
-		// asserted directly rather than inferred from a number.
-		expect(appCss).toMatch(/--inverse-panel: var\(--color-primary-900\);/u);
-		expect(formatRgb(resolveRole(SCHEMES.light, '--inverse-panel'))).toBe(
-			formatRgb(resolveRole(SCHEMES.light, '--color-primary-900')),
-		);
-		expect(formatRgb(resolveRole(SCHEMES.dark, '--inverse-panel'))).toBe(
-			formatRgb(resolveRole(SCHEMES.dark, '--color-primary-900')),
-		);
 	});
 
 	it('pins the heading and accent roles to their ratified primary rungs', () => {
@@ -322,38 +297,31 @@ for (const scheme of SCHEME_NAMES) {
 			expect(best, `page focus glow measured ${best}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
 		});
 
-		it('the button focus glow separates from BOTH edges it borders on the contact panel', () => {
-			// On the inverted panel the glow is boxed between a paper button and a
-			// purple panel, so neither side may be the weak one.
+		it('the button focus glow separates from an edge it borders on a card', () => {
+			// The submit button sits on the flat contact card. Same SC 1.4.11
+			// reading as the page test above: an outer ring is perceivable when
+			// it separates from EITHER adjacent colour — the accent button fill
+			// or the card behind it.
 			const grounds = surfaces(scheme);
-			const glow = glowOn(scheme, grounds.inverse);
-			const againstButton = roundRatio(contrastRatio(glow, grounds.inversePaper));
-			const againstPanel = roundRatio(contrastRatio(glow, grounds.inverse));
-			expect(againstButton, `glow vs the paper button measured ${againstButton}:1`).toBeGreaterThanOrEqual(
-				NON_TEXT_RATIO,
+			const glow = glowOn(scheme, grounds.card);
+			const best = Math.max(
+				roundRatio(contrastRatio(glow, resolveRole(SCHEMES[scheme], '--accent'))),
+				roundRatio(contrastRatio(glow, grounds.card)),
 			);
-			expect(againstPanel, `glow vs the panel measured ${againstPanel}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
+			expect(best, `card focus glow measured ${best}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
 		});
 	});
 }
 
 describe('regression guards', () => {
-	it('records the pair that motivated the contact-panel inversion', () => {
-		// --accent on the contact panel is the failure the inversion exists for.
-		// It is a light-scheme failure: the dark scheme's accent is primary-300,
-		// which clears the panel comfortably. The panel does not flip, so one
-		// rule has to serve both schemes, and it has to serve the failing one.
-		const ratio = roundRatio(
-			contrastRatio(resolveRole(SCHEMES.light, '--accent'), resolveRole(SCHEMES.light, '--inverse-panel')),
-		);
-		expect(ratio, `light: --accent on --inverse-panel measured ${ratio}:1`).toBeLessThan(NON_TEXT_RATIO);
-	});
-
-	it('records the pair that moved the focus ring off --highlight-edge', () => {
-		const ratio = roundRatio(
-			contrastRatio(resolveRole(SCHEMES.light, '--color-secondary-700'), resolveRole(SCHEMES.light, '--inverse-panel')),
-		);
-		expect(ratio, `secondary-700 on the contact panel measured ${ratio}:1`).toBeLessThan(4);
+	it('records the pair that keeps the field focus outline off --highlight', () => {
+		// On the flat card the pre-flatten outline role fails 1.4.11 in the
+		// light scheme: --highlight is a 56%L yellow that reads about 1.57:1 on
+		// the near-paper card. That failure is why the outline moved to
+		// --highlight-edge when the contact panel was flattened (operator
+		// ruling 2026-08-19); recorded so a drift back fails loudly.
+		const ratio = roundRatio(contrastRatio(resolveRole(SCHEMES.light, '--highlight'), surfaces('light').card));
+		expect(ratio, `light: --highlight on the card measured ${ratio}:1`).toBeLessThan(NON_TEXT_RATIO);
 	});
 });
 

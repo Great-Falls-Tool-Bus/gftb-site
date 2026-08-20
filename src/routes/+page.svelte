@@ -52,7 +52,9 @@
 <div class="page-shell">
 	<section class="hero" aria-labelledby="page-title">
 		<div>
-			<p class="eyebrow">Lewiston–Auburn, Maine</p>
+			<!-- TODO(jess): any kicker survivors? The nine uppercase eyebrow kickers
+			     were stripped as decoration (de-slop ruling 2026-08-19); if any of
+			     their words were load-bearing, they are yours to re-author. -->
 			<h1 id="page-title">Tools belong in motion.</h1>
 			<p class="lede">
 				The Great Falls Tool Bus is becoming a community-run mobile tool library: a place to share tools, practical
@@ -65,7 +67,6 @@
 		</div>
 
 		<aside class="status-card" id="status" aria-labelledby="status-title">
-			<p class="eyebrow">Right now</p>
 			<h2 id="status-title">Building, not lending yet.</h2>
 			<p>
 				The bus and its public processes are being prepared. Tool checkout, digital membership payments, and member
@@ -78,7 +79,6 @@
 	<section class="section" aria-labelledby="next-title">
 		<div class="next-session">
 			<div>
-				<p class="eyebrow">Next work session</p>
 				<h2 id="next-title">Waterproofing + measurements</h2>
 				<p class="date-chip">Schedule being confirmed</p>
 			</div>
@@ -97,7 +97,6 @@
 
 	<section class="section" aria-labelledby="goals-title">
 		<div class="section-heading">
-			<p class="eyebrow">Near-term goals</p>
 			<h2 id="goals-title">A useful thing, built in understandable steps.</h2>
 			<p class="lede">
 				The public page stays simple while the real member, tool, and stewardship flows are designed with the people who
@@ -117,7 +116,6 @@
 	<section class="section" aria-labelledby="help-title">
 		<div class="grid grid--2">
 			<div class="section-heading">
-				<p class="eyebrow">Useful right now</p>
 				<h2 id="help-title">A few specific ways to help.</h2>
 				<p>
 					Please contact us before dropping anything off. We can confirm what is still needed and arrange a safe
@@ -136,7 +134,6 @@
 
 	<section class="section" id="log" aria-labelledby="log-title">
 		<div class="section-heading">
-			<p class="eyebrow">Public build log</p>
 			<h2 id="log-title">What changed, in plain language.</h2>
 			<p>
 				These short entries are reviewed before publication. They report public project progress without exposing
@@ -148,12 +145,8 @@
 			{@const LatestLog = latest.component}
 			<article class="log-entry">
 				<header class="log-entry__header">
-					<p class="eyebrow">Latest · {formatDate(latest.metadata.date)}</p>
 					<h3>{latest.metadata.title}</h3>
 					<p>{latest.metadata.summary}</p>
-					<ul class="tag-list" aria-label="Log tags">
-						{#each latest.metadata.tags as tag (tag)}<li>{tag}</li>{/each}
-					</ul>
 				</header>
 				<div class="log-entry__body"><LatestLog /></div>
 			</article>
@@ -197,7 +190,6 @@
 				</figcaption>
 			</figure>
 			<div class="history-card__copy">
-				<p class="eyebrow">Why Great Falls?</p>
 				<h2 id="history-title">A name shaped by this place.</h2>
 				<p>
 					The falls and working river connect Lewiston and Auburn. The bus borrows that local name for another kind of
@@ -210,7 +202,6 @@
 	<section class="section" id="contact" aria-labelledby="contact-title">
 		<div class="contact-card contact-card--form">
 			<div class="contact-copy">
-				<p class="eyebrow">Contact</p>
 				<h2 id="contact-title">Bring a question, a skill, or a tool story.</h2>
 				<p>
 					The form reaches <a class="text-link" href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>, the

@@ -9,14 +9,11 @@
 
 /* Role layer (TIN-3854). Every rule below paints through a role, never a raw
  * hex or a raw palette token, so a colour decision is made once and here.
- * Two groups live in this block:
- *
- *   - scheme roles, which the `@media (prefers-color-scheme: dark)` block at
- *     the end of this file redefines in full. That block is the only place a
- *     second colour scheme is described;
- *   - `--inverse-*` roles for the contact card, the site's one deliberately
- *     inverted block. It stays dark-on-purple in BOTH schemes, so the dark
- *     block leaves this group alone on purpose rather than by omission.
+ * The `@media (prefers-color-scheme: dark)` block at the end of this file
+ * redefines every scheme role in full; that block is the only place a second
+ * colour scheme is described. (The one deliberately inverted block this file
+ * used to carry — the purple contact panel — was flattened to page roles by
+ * operator ruling 2026-08-19, and its --inverse-* group went with it.)
  *
  * Roles resolve to CityLink Skeleton families (src/lib/styles/theme-gftb.css).
  * src/lib/design-token-contrast.test.ts resolves this file's `var()` graph and
@@ -43,29 +40,11 @@
 	--highlight-contrast: var(--color-secondary-contrast-300);
 	/* secondary fills sit at 1.43:1 on paper — every yellow control needs this */
 	--highlight-edge: var(--color-secondary-700);
-	/* headings and links on a --highlight fill, which never flips */
-	--highlight-heading: var(--color-primary-800);
 	--danger: var(--color-error-700);
+	/* success notices: the page-side positive accent (keeps the success-600
+	 * rung TIN-3855 ratified for the notice edge) */
+	--positive: var(--color-success-600);
 	--wash: color-mix(in oklab, var(--color-secondary-300) 16%, transparent);
-	--shadow: color-mix(in oklab, var(--color-primary-900) 12%, transparent);
-
-	/* The contact card, the site's one deliberately inverted block. primary-900
-	 * is the ramp member closest to the shipped #351b43 panel depth; the panel
-	 * is not lightened, and none of these roles flip in the dark block. */
-	--inverse-panel: var(--color-primary-900);
-	--inverse-edge: var(--color-primary-500);
-	--inverse-fg: var(--color-surface-50);
-	--inverse-fg-muted: var(--color-primary-100);
-	--inverse-link: var(--color-primary-200);
-	--inverse-danger: var(--color-error-100);
-
-	/* Controls on that panel carry an --inverse-fg (paper) fill, so their ink
-	 * keeps the light-scheme rung of its family in both schemes: the page roles
-	 * are tuned for the page ground, not for a paper chip on a purple panel. */
-	--inverse-control-fg: var(--color-primary-900);
-	--inverse-control-accent: var(--color-primary-700);
-	--inverse-control-danger: var(--color-error-700);
-	--inverse-control-positive: var(--color-success-600);
 
 	/* --ink is the one literal left in this file. src/lib/theme/palette.test.ts
 	 * re-reads it as a hex to prove the shipped ink and surface-950 never
@@ -166,8 +145,9 @@ li {
 	/* Transient, keyboard-summoned, and must clear the sticky header. */
 	z-index: var(--z-toast);
 	transform: translateY(-180%);
+	/* The edge stays: a secondary fill reads 1.43:1 on paper, so every yellow
+	 * control carries --highlight-edge (palette spec, ratified item 4). */
 	border: 1px solid var(--highlight-edge);
-	border-radius: 999px;
 	background: var(--highlight);
 	padding: 0.65rem 1rem;
 	color: var(--highlight-contrast);
@@ -282,15 +262,6 @@ li {
 	padding-block: clamp(2rem, 10vw, 7rem);
 }
 
-.eyebrow {
-	margin-bottom: 1rem;
-	color: var(--accent);
-	font-size: 0.78rem;
-	font-weight: 800;
-	letter-spacing: 0.13em;
-	text-transform: uppercase;
-}
-
 .lede {
 	max-width: 43rem;
 	font-size: clamp(1.15rem, 3vw, 1.45rem);
@@ -308,8 +279,8 @@ li {
 	align-items: center;
 	justify-content: center;
 	min-height: 3rem;
+	/* The border stays: it is what makes .button--secondary a control (3:1). */
 	border: 2px solid var(--accent);
-	border-radius: 999px;
 	padding: 0.7rem 1.15rem;
 	background: var(--accent);
 	color: var(--accent-contrast);
@@ -322,24 +293,36 @@ li {
 	color: var(--heading);
 }
 
-/* The glow is measured twice on the contact panel — against the paper button it
- * rings and against the panel behind it — and those two move in opposite
- * directions with opacity. 56% is where the weaker of the pair peaks (3.54:1
- * and 3.50:1); 65% put the paper side at 2.95:1. */
-.button:hover,
+/* The sole button focus indicator (the decorative hover glow was stripped,
+ * de-slop ruling 2026-08-19). The ring adjoins two colours — the button's
+ * accent fill and the ground behind it — and SC 1.4.11 asks it to separate
+ * from either adjacent edge; design-token-contrast.test.ts measures both
+ * grounds in both schemes and pins 56% as the ratified operating point. */
 .button:focus-visible {
 	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
 }
 
+/* TODO(jess): the --rule border (and the faint panel fill) is a grouping
+ * call — keep or flatten is yours to rule; it stays until ruled. Honest
+ * status per the de-slop directive's own test: these containers are NOT
+ * needed for AA — every text role clears its floor on the bare page ground
+ * in both schemes, and in dark the card ground actually LOWERS body-copy
+ * contrast (15.25:1 → 12.96:1) — so they are removable; removal is an open
+ * S0 row deferred to a later slice. Radius and shadow elevation are gone
+ * (sharp-edges ruling). */
 .status-card,
 .card,
 .log-entry,
 .history-card,
 .contact-card {
+	/* Explicit 0, not an omission: Skeleton 5 ships a `card` @utility whose
+	 * border-radius: var(--radius-container) reaches the four class="card"
+	 * elements through the BUILT stylesheet, where a source grep cannot see
+	 * it (review finding). e2e/acceptance-sharp-edges.spec.ts sweeps the
+	 * computed style so this class of collision fails loudly. */
+	border-radius: 0;
 	border: 1px solid var(--rule);
-	border-radius: 1.25rem;
 	background: color-mix(in oklab, var(--panel) 88%, transparent);
-	box-shadow: 0 0.8rem 2.5rem var(--shadow);
 }
 
 .status-card,
@@ -368,18 +351,18 @@ li {
 	font-weight: 700;
 }
 
-/* ContactForm.svelte renders only inside .contact-card, so these controls are
- * always on the inverted panel and paint with --inverse-* roles. Painting them
- * with the page roles instead would put a surface-900 field on a primary-900
- * panel in dark mode — a 1.02:1 boundary. */
+/* The contact card is flat (operator ruling 2026-08-19), so the fields sit
+ * on the neutral card and the 1px --accent boundary is the control's WCAG
+ * 1.4.11 indicator: 7.86:1 on the light card, 5.15:1 on the dark one. The
+ * fill stays the ground itself — a field does not need an elevated bg for
+ * AA, so it must not have one (de-slop ruling). */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
 	width: 100%;
-	border: 1px solid var(--inverse-edge);
-	border-radius: 0.45rem;
-	background: var(--inverse-fg);
-	color: var(--inverse-control-fg);
+	border: 1px solid var(--accent);
+	background: transparent;
+	color: var(--fg);
 	font: inherit;
 }
 
@@ -394,12 +377,13 @@ li {
 	padding: 0.75rem;
 }
 
-/* outline-offset pushes the ring off the field and onto the panel, so the ring
- * is measured against --inverse-panel, not against the field fill. --highlight
- * reaches 7.77:1 there; --highlight-edge, which exists to rescue a yellow fill
- * on paper, would only reach 3.02:1. */
+/* outline-offset pushes the ring off the field and onto the card, so the
+ * ring is measured against the card ground. On paper-side grounds the bare
+ * yellow fails (--highlight reads 1.57:1 on the light card) and the rescue
+ * edge is the role built for exactly this: --highlight-edge reaches 4.04:1
+ * light / 5.93:1 dark there (palette spec, ratified item 4). */
 .contact-form :is(input, textarea):focus-visible {
-	outline: 3px solid var(--highlight);
+	outline: 3px solid var(--highlight-edge);
 	outline-offset: 2px;
 }
 
@@ -427,21 +411,19 @@ li {
 	color: var(--danger);
 }
 
-/* Notices render inside the contact panel too, as a paper card on it. */
+/* Notices are flat: an accent edge bar marks them, the text keeps the page
+ * roles it inherits (no elevated fill — de-slop ruling 2026-08-19). */
 .form-notice {
-	border-left: 0.4rem solid var(--inverse-control-accent);
+	border-left: 0.4rem solid var(--accent);
 	padding: 1rem;
-	background: var(--inverse-fg);
-	color: var(--inverse-control-fg);
 }
 
 .form-notice--success {
-	border-left-color: var(--inverse-control-positive);
+	border-left-color: var(--positive);
 }
 
-/* after .form-notice, which sets the notice's own colour at equal specificity */
 .form-notice--error {
-	color: var(--inverse-control-danger);
+	color: var(--danger);
 }
 
 .text-button {
@@ -465,7 +447,6 @@ li {
 
 .status-card {
 	align-self: center;
-	border-top: 0.55rem solid var(--highlight);
 }
 
 .status-card strong {
@@ -499,27 +480,16 @@ li {
 	color: var(--accent);
 }
 
-/* Always-yellow block: its foreground is pinned rather than inherited so the
- * dark scheme cannot drop light text onto the unchanged yellow fill. */
+/* Flattened to page roles (operator ruling 2026-08-19: livery survives only
+ * as palette accents, never as a coloured container). The pinned-ink
+ * machinery went with the yellow fill. */
 .next-session {
 	display: grid;
 	gap: 1.25rem;
-	border-radius: 1.5rem;
-	background: var(--highlight);
-	padding: clamp(1.5rem, 6vw, 3rem);
-	color: var(--highlight-contrast);
 }
 
 .next-session h2 {
 	margin-bottom: 0.75rem;
-}
-
-/* the dark-scheme link role is 1.58:1 on this fill, so anchors pin too */
-.next-session h2,
-.next-session .eyebrow,
-.next-session a,
-.next-session .date-chip {
-	color: var(--highlight-heading);
 }
 
 .date-chip {
@@ -562,23 +532,6 @@ li {
 .prior-logs details table {
 	display: block;
 	overflow-x: auto;
-}
-
-.tag-list {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.45rem;
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.tag-list li {
-	border-radius: 999px;
-	background: color-mix(in oklab, var(--accent) 10%, transparent);
-	padding: 0.2rem 0.6rem;
-	font-size: 0.76rem;
-	font-weight: 700;
 }
 
 .prior-logs {
@@ -638,48 +591,15 @@ figcaption {
 	line-height: 1.45;
 }
 
+/* Flat member of the neutral card family (operator ruling 2026-08-19: the
+ * purple inversion is gone; the card-family rule above paints it). */
 .contact-card {
 	display: grid;
 	gap: 1.5rem;
-	border-color: var(--inverse-edge);
-	background: var(--inverse-panel);
-	color: var(--inverse-fg);
-}
-
-.contact-card h2 {
-	color: var(--inverse-fg);
-}
-
-.contact-card a {
-	color: var(--inverse-link);
-}
-
-.contact-card .form-help {
-	color: var(--inverse-fg-muted);
-}
-
-.contact-card .field-error {
-	color: var(--inverse-danger);
-}
-
-/* The page accent measures 1.36:1 on this panel, so the eyebrow takes the
- * highlight yellow (7.77:1) and the primary button inverts to a paper fill
- * (12.38:1 fill against the panel, 12.38:1 label against the fill) instead of
- * inheriting a purple-on-purple control (TIN-3855). --highlight is deliberately
- * scheme-stable, which is what lets the never-flipping panel rely on it. */
-.contact-card .eyebrow {
-	color: var(--highlight);
-}
-
-.contact-card .button {
-	border-color: var(--inverse-fg);
-	background: var(--inverse-fg);
-	color: var(--inverse-control-fg);
 }
 
 .qr {
 	width: min(100%, 11rem);
-	border-radius: 0.6rem;
 	/* literal white: a QR quiet zone must stay white to stay scannable */
 	background: #fff;
 	padding: 0.45rem;
@@ -726,11 +646,6 @@ figcaption {
 		align-items: center;
 	}
 
-	.qr-card {
-		position: sticky;
-		top: 6rem;
-	}
-
 	.history-card {
 		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
@@ -749,9 +664,7 @@ figcaption {
 
 /* Dark scheme. Light is the default; every scheme role is restated here, including
  * the ones whose value does not change, so this block is a complete description
- * of the second scheme rather than a diff a reader has to reconstruct. The
- * `--inverse-*` group is the single documented exception: the contact card is
- * inverted in both schemes and is declared once, in :root. */
+ * of the second scheme rather than a diff a reader has to reconstruct. */
 @media (prefers-color-scheme: dark) {
 	:root {
 		--bg: var(--color-surface-950);
@@ -763,16 +676,15 @@ figcaption {
 		--accent-contrast: var(--color-primary-contrast-300);
 		--link: var(--typo-anchor--color-dark);
 		--rule: var(--color-surface-700);
-		/* The yellow block is brand livery, not a surface: it reads at 9.57:1 on
-		 * the dark page and must not shift, so highlight and its ink hold. */
+		/* The skip-link chip is brand livery, not a surface: it reads at 9.57:1
+		 * on the dark page and must not shift, so highlight and its ink hold. */
 		--highlight: var(--color-secondary-300);
 		--highlight-contrast: var(--color-secondary-contrast-300);
 		/* On a dark ground the fill already carries the 1.4.11 boundary, so the
 		 * edge is only a rim; secondary-700 reads as a smudge there. */
 		--highlight-edge: var(--color-secondary-500);
-		--highlight-heading: var(--color-primary-800);
 		--danger: var(--color-error-300);
+		--positive: var(--color-success-300);
 		--wash: color-mix(in oklab, var(--color-primary-300) 12%, transparent);
-		--shadow: color-mix(in oklab, var(--color-surface-950) 55%, transparent);
 	}
 }
