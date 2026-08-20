@@ -18,14 +18,15 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 test('mobile public front door exposes current status and working anchors', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.getByRole('heading', { name: 'Tools belong in motion.' })).toBeAttached();
-	await expect(page.getByText('Building, not lending yet.')).toBeAttached();
-	await expect(page.getByText('Schedule being confirmed')).toBeAttached();
+	await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeAttached();
+	await expect(page.getByText('Current status')).toBeAttached();
+	await expect(page.getByText('Not scheduled yet')).toBeAttached();
 	await expect(page.getByText('Sunday, August 16, 2026 · afternoon')).toHaveCount(0);
 
+	// The primary CTA is a page link now (B1.4): the form lives on /contact.
 	await page.getByRole('link', { name: 'Help build the bus' }).click();
-	await expect(page).toHaveURL(/#contact$/);
-	await expect(page.getByRole('heading', { name: 'Bring a question, a skill, or a tool story.' })).toBeAttached();
+	await expect(page).toHaveURL(/\/contact\/?$/);
+	await expect(page.getByRole('heading', { name: 'Contact', exact: true })).toBeAttached();
 });
 
 test('keyboard users can leave the repeated header and reach main content', async ({ page }) => {
@@ -85,8 +86,10 @@ test('a long brand string cannot push the nav off-edge at 320px', async ({ page 
 	expect(state.scrollWidth, 'document overflow with the fixture brand').toBeLessThanOrEqual(state.innerWidth + 1);
 	// The wordmark clamps at three lines, so a hostile brand cannot grow the
 	// sticky header without bound (unclamped, this fixture reached ~192px —
-	// more than half of a 320x568 viewport gone to chrome).
-	expect(state.headerHeight, 'sticky header height with the fixture brand').toBeLessThanOrEqual(80);
+	// more than half of a 320x568 viewport gone to chrome). Ceiling re-tuned
+	// for the ported demo type scale (18px base, B1.3): three clamped lines
+	// measure ~87px; 92 keeps the bound tight.
+	expect(state.headerHeight, 'sticky header height with the fixture brand').toBeLessThanOrEqual(92);
 });
 
 test('mobile navigation links keep a usable minimum target height', async ({ page }) => {
@@ -106,7 +109,7 @@ test('reduced-motion preference disables smooth anchor scrolling', async ({ page
 });
 
 test('contact surface keeps public discussion and private access distinct', async ({ page }) => {
-	await page.goto('/#contact');
+	await page.goto('/contact');
 	await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeAttached();
 	await expect(page.getByRole('textbox', { name: 'Email', exact: true })).toBeAttached();
 	await expect(page.getByRole('button', { name: 'Send to keyholders' })).toBeAttached();
@@ -117,7 +120,7 @@ test('contact surface keeps public discussion and private access distinct', asyn
 });
 
 test('contact helper and validation text remain readable on the contact card', async ({ page }) => {
-	await page.goto('/#contact');
+	await page.goto('/contact');
 	await page.getByRole('button', { name: 'Send to keyholders' }).click();
 
 	// The flat card's fill is translucent (color-mix … 88%, transparent), so

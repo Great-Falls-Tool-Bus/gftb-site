@@ -196,8 +196,13 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "node_modules/@tummycrypt/vite-plugin-a11y"', self.build)
 
     def test_public_agent_artifacts_are_absent(self) -> None:
-        for path in ("static/llms.txt", "static/agent-map.md", "src/routes/agent", "src/lib/generated/source-map.json"):
+        # src/lib/generated/source-map.json is no longer on this list: it is
+        # the generated route->source map behind the SourceLink edit-this-page
+        # affordance (demo #94, addendum B1.2), drift-gated by
+        # `just source-map-check`. The agent surfaces stay banned.
+        for path in ("static/llms.txt", "static/agent-map.md", "src/routes/agent"):
             self.assertFalse((ROOT / path).exists(), path)
+        self.assertTrue((ROOT / "src/lib/generated/source-map.json").exists(), "source map (B1.2) must be committed")
 
 
 if __name__ == "__main__":

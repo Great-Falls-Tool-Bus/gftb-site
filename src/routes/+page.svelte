@@ -1,41 +1,38 @@
 <script lang="ts">
 	import { publicLogs } from '$lib/public-logs';
-	import ContactForm from '$lib/components/ContactForm.svelte';
+	import SourceLink from '$lib/components/SourceLink.svelte';
+
+	// The front page is the ratified spec §3 page order (:83-93), eight rows,
+	// nothing else. Rows render from files/data (the log pipeline, the photo
+	// record, the nav SSOT); every string an operator has not authored is a
+	// TODO(jess) slot (addendum B1.3: the baked prose sections are killed,
+	// their swept text preserved in the comment slots restoration PR-5
+	// recorded).
 
 	const latest = publicLogs[0];
-	const prior = publicLogs.slice(1);
 
-	const goals = [
-		{
-			title: 'Make the bus ready',
-			body: 'Keep water out, clear and prepare the interior, and establish a simple interim lock and safe working setup.',
-		},
-		{
-			title: 'Design membership together',
-			body: 'Storyboard a welcoming sliding-scale membership path before collecting online payments or issuing accounts.',
-		},
-		{
-			title: 'Start with useful tools',
-			body: 'Build a small, legible inventory and checkout process that works well from a phone and still respects privacy.',
-		},
-	];
+	// TODO(jess): goals content. The three goal cards were swept as
+	// unverified AI-authored copy (operator re-review 2026-08-19, salvaged
+	// from restoration PR-5); nothing renders until you write the real
+	// goals. The swept items, restore whatever is real:
+	//   Make the bus ready — Keep water out, clear and prepare the interior,
+	//     and establish a simple interim lock and safe working setup.
+	//   Design membership together — Storyboard a welcoming sliding-scale
+	//     membership path before collecting online payments or issuing
+	//     accounts.
+	//   Start with useful tools — Build a small inventory and checkout
+	//     process that works well from a phone and still respects privacy.
 
-	const help = [
-		'Hands for removing and preparing bus seats',
-		'Sheet metal or sheet plastic for odd openings and inserts',
-		'A 9/16-inch impact or large breaker bar for stubborn bolts',
-		'Cleaning supplies, rags, a broom, and industrial cleaner',
-		'Security Torx drivers and a broader set of imperial square bits',
-	];
+	// TODO(jess): needs list. The five specific asks (bus-seat removal help,
+	// sheet metal/plastic, a 9/16-inch impact or breaker bar, cleaning
+	// supplies, Security Torx + imperial square bits) were swept as
+	// unverified specifics (restoration PR-5); restore the ones that are
+	// real. Until then the page points people at the contact page instead of
+	// asserting needs.
 
 	// The 3070x1851 master was served to every visitor at 2.35 MB. The published
 	// renditions are downscales of it, recorded in NOTICE and
 	// docs/attribution.md; a phone now pulls the 640 or 1280 candidate instead.
-	//
-	// `sizes` describes the figure column, not the viewport. Below 48rem the card
-	// is one column of `.page-shell`; above it the card splits 1.1fr / 1fr, so the
-	// photo takes 1.1/2.1 of a shell that is `min(100vw - 4rem, 72rem)` wide —
-	// 52vw until the shell caps at 72rem, and a flat 604px after that.
 	const photoBase = '/photos/great-falls-lewiston-1930s';
 	const photoWidths = [640, 1280, 1920];
 	const historyPhoto = {
@@ -47,19 +44,10 @@
 
 	// ── HERO SOURCE SWAP POINT ────────────────────────────────────────────
 	// The hero backdrop reuses the licensed Great Falls postcard renditions
-	// the history figure already ships (the 640/1280/1920 jpeg+webp ladder
-	// above; credits recorded in NOTICE and docs/attribution.md — the visible
-	// credit stays with the history figure below, where the photo is content
-	// rather than a blurred backdrop). The bus-photo corpus is pending its
+	// the history figure already ships (credits recorded in NOTICE and
+	// docs/attribution.md). The bus-photo corpus is pending its
 	// colorspace/EXIF audit; when an audited photo lands, swap ONLY this
 	// constant. The layer is decorative: empty alt, aria-hidden wrapper.
-	//
-	// `sizes` deliberately mirrors the history figure's so every viewport
-	// resolves the SAME rendition the page already fetches for that figure —
-	// the backdrop then adds zero image transfer at any width or DPR. The
-	// band is wider than the slot `sizes` declares, and that is the point:
-	// the layer is 16px-blurred behind a 92% scrim, so the smaller candidate
-	// is perceptually identical to a dedicated full-width rendition.
 	const heroPhoto = {
 		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
 		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
@@ -71,144 +59,132 @@
 		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
 
-<div class="page-shell">
-	<section class="hero" aria-labelledby="page-title">
-		<div class="hero__media" aria-hidden="true">
-			<picture class="hero__drift">
-				<source type="image/webp" srcset={heroPhoto.webp} sizes={heroPhoto.sizes} />
-				<img
-					src={heroPhoto.fallback}
-					srcset={heroPhoto.jpeg}
-					sizes={heroPhoto.sizes}
-					alt=""
-					width="1280"
-					height="771"
-					loading="eager"
-					fetchpriority="low"
-					decoding="async"
-				/>
-			</picture>
-			<div class="hero__scrim"></div>
-		</div>
-		<div>
-			<!-- TODO(jess): any kicker survivors? The nine uppercase eyebrow kickers
-			     were stripped as decoration (de-slop ruling 2026-08-19); if any of
-			     their words were load-bearing, they are yours to re-author. -->
-			<h1 id="page-title">Tools belong in motion.</h1>
-			<p class="lede">
-				The Great Falls Tool Bus is becoming a community-run mobile tool library: a place to share tools, practical
-				knowledge, repair work, and the responsibility that keeps all three circulating.
-			</p>
+<!-- Row 1 (spec §3 :85): project name, one-sentence purpose, current status.
+     Full-bleed band, demo #90 geometry; the drift is CSS-only scroll-driven
+     animation (restoration PR-7, ratified Q&A-12 ruling: no JS, static under
+     reduced motion and without support). The headline block sits on the
+     demo's featured-glass panel, on the role layer. -->
+<section class="hero" aria-labelledby="page-title">
+	<div class="hero__media" aria-hidden="true">
+		<picture class="hero__drift">
+			<source type="image/webp" srcset={heroPhoto.webp} sizes={heroPhoto.sizes} />
+			<img
+				src={heroPhoto.fallback}
+				srcset={heroPhoto.jpeg}
+				sizes={heroPhoto.sizes}
+				alt=""
+				width="1280"
+				height="771"
+				loading="eager"
+				fetchpriority="low"
+				decoding="async"
+			/>
+		</picture>
+		<div class="hero__scrim"></div>
+	</div>
+	<div class="hero__inner">
+		<div class="hero-glass">
+			<!-- TODO(jess): headline. "Tools belong in motion." was stripped — the
+			     bus is permanently parked and never moves (operator fact,
+			     2026-08-19; salvaged from restoration PR-5). The interim text is
+			     the project name (spec §3 row 1); the real headline is yours. -->
+			<h1 id="page-title">Great Falls Tool Bus</h1>
+			<!-- TODO(jess): lede. Salvaged from restoration PR-5: "mobile" was
+			     stripped (the bus is parked; this phrase changes atomically with
+			     the meta description carriers, pinned by
+			     e2e/acceptance-copy-deslop.spec.ts) and the triad tail was
+			     removed as motion slop. -->
+			<p class="lede">The Great Falls Tool Bus is becoming a community-run tool library.</p>
+			<!-- Row 3 (spec §3 :87): the one primary interest/help CTA, pointing
+			     at the contact page (B1.4: the form lives on its own page).
+			     TODO(jess): CTA wording (interim label salvaged from PR-5). -->
 			<div class="button-row">
-				<a class="button" href="#contact">Help build the bus</a>
-				<a class="button button--secondary" href="#log">Read the latest log</a>
+				<a class="button" href="/contact">Help build the bus</a>
+				<a class="button button--secondary" href="/log">Read the log</a>
 			</div>
 		</div>
 
-		<aside class="status-card" id="status" aria-labelledby="status-title">
-			<h2 id="status-title">Building, not lending yet.</h2>
-			<p>
-				The bus and its public processes are being prepared. Tool checkout, digital membership payments, and member
-				accounts are not live yet.
-			</p>
-			<p class="muted">Updates here describe completed work and the next concrete invitation.</p>
+		<aside class="status-card hero-glass" id="status" aria-labelledby="status-title">
+			<!-- TODO(jess): status wording (salvaged from restoration PR-5): the
+			     interim heading is the spec's own term (spec §3 row 1: "current
+			     status") and the body keeps only the verifiable not-live-yet
+			     statement. -->
+			<h2 id="status-title">Current status</h2>
+			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
+			<p class="muted">Updates here describe completed work.</p>
 		</aside>
-	</section>
+	</div>
+</section>
 
+<div class="page-shell">
+	<!-- Row 2 (spec §3 :86): next confirmed public work session, or the honest
+	     not-scheduled state. This band is the restored yellow livery block
+	     (gen_board.py:166-168; addendum B1.1). -->
 	<section class="section" aria-labelledby="next-title">
 		<div class="next-session">
 			<div>
-				<h2 id="next-title">Waterproofing + measurements</h2>
-				<p class="date-chip">Schedule being confirmed</p>
+				<!-- TODO(jess): next-session block (salvaged from restoration
+				     PR-5). The session name and hands-on description were swept
+				     as unverified specifics; restore whatever is real:
+				       heading: "Waterproofing + measurements"
+				       chip: "Schedule being confirmed"
+				       body: "Our current hands-on focus is sealing the body and
+				       openings, then measuring wonky shapes that may need
+				       fabricated inserts."
+				     The interim copy is the spec's honest not-scheduled state
+				     (spec §3 row 2). -->
+				<h2 id="next-title">Next public work session</h2>
+				<p class="date-chip">Not scheduled yet</p>
 			</div>
 			<div>
+				<p>The next open work time will be posted here once confirmed.</p>
 				<p>
-					Our current hands-on focus is sealing the body and openings, then measuring wonky shapes that may need
-					fabricated inserts. The next open work time will be posted here once confirmed.
-				</p>
-				<p>
-					Use the <a class="text-link" href="#contact">contact form before coming</a>; timing and exact location details
-					are shared directly.
+					Use the <a href="/contact">contact page</a>; timing and exact location details are shared directly.
 				</p>
 			</div>
 		</div>
 	</section>
 
+	<!-- Row 4 (spec §3 :88): near-term goals and specific ways to help.
+	     Empty until the operator authors them (see the TODO slots in the
+	     script block). -->
 	<section class="section" aria-labelledby="goals-title">
 		<div class="section-heading">
-			<h2 id="goals-title">A useful thing, built in understandable steps.</h2>
-			<p class="lede">
-				The public page stays simple while the real member, tool, and stewardship flows are designed with the people who
-				will use them.
-			</p>
-		</div>
-		<div class="grid grid--3">
-			{#each goals as goal (goal.title)}
-				<article class="card">
-					<h3>{goal.title}</h3>
-					<p>{goal.body}</p>
-				</article>
-			{/each}
+			<h2 id="goals-title">Near-term goals</h2>
+			<p>Near-term goals and specific ways to help will be posted here.</p>
 		</div>
 	</section>
 
-	<section class="section" aria-labelledby="help-title">
-		<div class="grid grid--2">
-			<div class="section-heading">
-				<h2 id="help-title">A few specific ways to help.</h2>
-				<p>
-					Please contact us before dropping anything off. We can confirm what is still needed and arrange a safe
-					handoff.
-				</p>
-			</div>
-			<div class="card">
-				<ul class="check-list">
-					{#each help as item (item)}
-						<li>{item}</li>
-					{/each}
-				</ul>
-			</div>
-		</div>
-	</section>
-
+	<!-- Rows 5 and 6 (spec §3 :89-91): the latest log entry, then older
+	     entries through the paginated /log archive (its pagination is plain
+	     prerendered links — the no-JavaScript path). -->
 	<section class="section" id="log" aria-labelledby="log-title">
 		<div class="section-heading">
-			<h2 id="log-title">What changed, in plain language.</h2>
-			<p>
-				These short entries are reviewed before publication. They report public project progress without exposing
-				internal development or member information.
-			</p>
+			<h2 id="log-title">Public log</h2>
 		</div>
 
 		{#if latest}
 			{@const LatestLog = latest.component}
 			<article class="log-entry">
 				<header class="log-entry__header">
-					<h3>{latest.metadata.title}</h3>
+					<h3><a href={`/log/${latest.slug}`}>{latest.metadata.title}</a></h3>
+					<p class="log-meta">{formatDate(latest.metadata.date)}</p>
 					<p>{latest.metadata.summary}</p>
 				</header>
 				<div class="log-entry__body"><LatestLog /></div>
 			</article>
+		{:else}
+			<!-- TODO(jess): the first entry is a published:false draft awaiting
+			     your write-up (addendum B1.2: agent-drafted posts never
+			     publish). This honest empty state renders until then. -->
+			<p class="muted">No log entries have been published yet.</p>
 		{/if}
 
-		<div class="prior-logs" aria-labelledby="prior-title">
-			<h3 id="prior-title">Prior logs</h3>
-			{#if prior.length === 0}
-				<p class="muted">This is the first public entry. Earlier internal notes were not backfilled.</p>
-			{:else}
-				{#each prior as log (log.slug)}
-					{@const PriorLog = log.component}
-					<details>
-						<summary>{formatDate(log.metadata.date)} · {log.metadata.title}</summary>
-						<p>{log.metadata.summary}</p>
-						<PriorLog />
-					</details>
-				{/each}
-			{/if}
-		</div>
+		<p><a href="/log">Older log entries</a></p>
 	</section>
 
-	<section class="section" aria-labelledby="history-title">
+	<!-- Row 7 (spec §3 :92): short history. -->
+	<section class="section" id="history" aria-labelledby="history-title">
 		<div class="history-card">
 			<figure>
 				<picture>
@@ -229,44 +205,31 @@
 				</figcaption>
 			</figure>
 			<div class="history-card__copy">
-				<h2 id="history-title">A name shaped by this place.</h2>
-				<p>
-					The falls and working river connect Lewiston and Auburn. The bus borrows that local name for another kind of
-					shared infrastructure: useful things moving between neighbors instead of sitting alone.
-				</p>
+				<!-- TODO(jess): history copy. "A name shaped by this place." and
+				     its body were swept (the body's "useful things moving between
+				     neighbors" is motion copy — the bus is parked; salvage of the
+				     PR-5 sweep). The interim heading is the spec row's own term;
+				     the short history is yours to write. -->
+				<h2 id="history-title">History</h2>
+				<p>The falls and working river connect Lewiston and Auburn; the bus borrows that local name.</p>
 			</div>
 		</div>
 	</section>
 
+	<!-- Row 8 (spec §3 :93): contact and discussion information — a LINK to
+	     the contact page (B1.4: the form lives on its own page, never the
+	     root). -->
 	<section class="section" id="contact" aria-labelledby="contact-title">
-		<div class="contact-card contact-card--form">
-			<div class="contact-copy">
-				<h2 id="contact-title">Bring a question, a skill, or a tool story.</h2>
-				<p>
-					The form reaches <a class="text-link" href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>, the
-					private role list for access requests. Its archive is not public.
-				</p>
-				<p>
-					For open project conversation, email <a class="text-link" href="mailto:discuss@latoolb.us"
-						>discuss@latoolb.us</a
-					>
-					or read the
-					<a class="text-link" href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
-						>public discussion archive</a
-					>.
-				</p>
-				<ContactForm />
-			</div>
-			<div class="qr-card">
-				<img
-					class="qr"
-					src="/qr/greatfallstoolbus-apex.svg"
-					alt="QR code for greatfallstoolbus.org"
-					width="196"
-					height="196"
-				/>
-				<p>Permanent public address: <strong>greatfallstoolbus.org</strong></p>
-			</div>
+		<div class="section-heading">
+			<h2 id="contact-title">Contact and discussion</h2>
+			<p>
+				Reach a keyholder through the <a href="/contact">contact page</a>. For open project conversation, email
+				<a href="mailto:discuss@latoolb.us">discuss@latoolb.us</a>
+				or read the
+				<a href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/">public discussion archive</a>.
+			</p>
 		</div>
 	</section>
+
+	<SourceLink routeId="/" />
 </div>

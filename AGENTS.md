@@ -23,13 +23,21 @@ Public daily-log frontmatter is exactly:
 - required: `date`, `title`, `summary`, `tags`, `published`
 - optional: `updated`
 
-Every file in `src/content/log/` is public build input and must set
-`published: true`; drafts do not belong in that directory.
+Every file in `src/content/log/` is public build input. Entries render only
+with `published: true`; a `published: false` file is an operator-pending
+TODO(jess) draft (restoration addendum B1.2) that the loader excludes from
+every rendered surface — a draft is still leak-scanned and is never a place
+to park private text.
 
-Never publish Linear IDs, PR numbers, commit SHAs, repository pointers,
+Never publish Linear IDs, PR numbers, commit SHAs, tracker pointers,
 credentials, member information, private locations, or internal operational
-notes. The public site must not expose agent indexes, source maps, developer
-docs, or private list archives. `discuss@latoolb.us` is the public discussion
+notes. The public site must not expose agent indexes, JavaScript source maps,
+developer docs, or private list archives. One repository pointer is
+sanctioned (B1.2, demo #94): the SourceLink "Edit this page" affordance links
+this repo's own page sources (`/edit/`, `/blob/`, the advisory form) through
+the generated `src/lib/generated/source-map.json`, drift-gated by
+`just source-map-check`; the repo's PR/issue/commit surfaces stay banned
+(`scripts/lib/leak-scan-rules.json`). `discuss@latoolb.us` is the public discussion
 list and archive; `keyholders@latoolb.us` is a private role list whose archive
 is not public.
 

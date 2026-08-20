@@ -98,6 +98,27 @@ describe('leak-scan detections', () => {
 		expect(idsFiring('deployed 0123456789abcdef0123456789abcdef01234567')).toContain('internal-tracker-reference');
 	});
 
+	it('sanctions only the SourceLink surfaces of the site repo, never its tracker pages', () => {
+		// The edit-this-page affordance (demo #94, addendum B1.2) publishes the
+		// repo root plus /edit/ and /blob/ source links and the advisory form.
+		// Every OTHER repo, and this repo's PR/issue/commit surfaces, stay
+		// banned repository pointers.
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site')).not.toContain('internal-tracker-reference');
+		expect(
+			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/edit/main/src/content/log/x.svx'),
+		).not.toContain('internal-tracker-reference');
+		expect(
+			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/blob/main/src/routes/+page.svelte'),
+		).not.toContain('internal-tracker-reference');
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/pull/25')).toContain(
+			'internal-tracker-reference',
+		);
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/issues/1')).toContain(
+			'internal-tracker-reference',
+		);
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-platform')).toContain('internal-tracker-reference');
+	});
+
 	it('permits only the initial the bus host consented to publish', () => {
 		expect(PERMITTED_HOST_INITIAL).toBe('J.');
 		expect(idsFiring('Ask J. when you arrive.')).not.toContain('private-personal-name');

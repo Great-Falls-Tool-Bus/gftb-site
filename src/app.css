@@ -11,9 +11,16 @@
  * hex or a raw palette token, so a colour decision is made once and here.
  * The `@media (prefers-color-scheme: dark)` block at the end of this file
  * redefines every scheme role in full; that block is the only place a second
- * colour scheme is described. (The one deliberately inverted block this file
- * used to carry — the purple contact panel — was flattened to page roles by
- * operator ruling 2026-08-19, and its --inverse-* group went with it.)
+ * colour scheme is described.
+ *
+ * This block is the RATIFIED role table of the CityLink palette spec, carried
+ * verbatim: spec/gftb-citylink-palette (meta), gen_board.py:157-180 is the
+ * table of record and decisions/0015 ratified the numbers (Appendix A via
+ * src/lib/styles/theme-gftb.css + src/lib/theme/palette.ts, both byte-stable).
+ * The one deliberately inverted surface — the purple contact panel and its
+ * --inverse-* group — and the yellow livery block are PART of that table
+ * (rows :166-179). PR #25 deleted them on an invalid interview; restoration
+ * addendum B1 (2026-08-20) is the correction that put them back.
  *
  * Roles resolve to CityLink Skeleton families (src/lib/styles/theme-gftb.css).
  * src/lib/design-token-contrast.test.ts resolves this file's `var()` graph and
@@ -33,18 +40,38 @@
 	--heading: var(--color-primary-800);
 	--accent: var(--color-primary-700);
 	--accent-contrast: var(--color-primary-contrast-700);
-	--link: var(--typo-anchor--color-light);
+	/* anchors, pinned off Skeleton's 400 default (gen_board.py:164) */
+	--link: var(--color-primary-700);
 	/* decorative container edges */
 	--rule: var(--color-surface-300);
 	--highlight: var(--color-secondary-300);
 	--highlight-contrast: var(--color-secondary-contrast-300);
-	/* secondary fills sit at 1.43:1 on paper — every yellow control needs this */
+	/* secondary fills sit at 1.43:1 on paper — every yellow control needs this
+	 * (the ratified 1.4.11 rescue edge, gen_board.py:167 / palette spec item 4) */
 	--highlight-edge: var(--color-secondary-700);
+	/* headings on the yellow livery fill (gen_board.py:168) */
+	--highlight-heading: var(--color-primary-800);
 	--danger: var(--color-error-700);
-	/* success notices: the page-side positive accent (keeps the success-600
-	 * rung TIN-3855 ratified for the notice edge) */
-	--positive: var(--color-success-600);
 	--wash: color-mix(in oklab, var(--color-secondary-300) 16%, transparent);
+
+	/* ── The inverted contact panel (restored) ────────────────────────────
+	 * The ratified role table's inverse group, gen_board.py:170-179: the
+	 * contact panel inverts in BOTH schemes, so every rung here is
+	 * scheme-invariant and is deliberately declared once, outside the dark
+	 * block (design-token-contrast.test.ts's scheme-parity sweep exempts
+	 * --inverse-* for exactly this reason). Deleted by PR #25 on an invalid
+	 * interview; restored by addendum B1. */
+	--inverse-panel: var(--color-primary-900);
+	--inverse-edge: var(--color-primary-500);
+	--inverse-fg: var(--color-surface-50);
+	--inverse-fg-muted: var(--color-primary-100);
+	--inverse-link: var(--color-primary-200);
+	--inverse-danger: var(--color-error-100);
+	/* paper-filled controls sitting on the panel (gen_board.py:176-179) */
+	--inverse-control-fg: var(--color-primary-900);
+	--inverse-control-accent: var(--color-primary-700);
+	--inverse-control-danger: var(--color-error-700);
+	--inverse-control-positive: var(--color-success-600);
 
 	/* --ink is the one literal left in this file. src/lib/theme/palette.test.ts
 	 * re-reads it as a hex to prove the shipped ink and surface-950 never
@@ -84,6 +111,10 @@ body {
 	min-width: 320px;
 	background: linear-gradient(180deg, var(--wash), transparent 22rem), var(--bg);
 	color: var(--fg);
+	/* Demo base body rhythm (demo src/app.css:104-113): 18px with generous
+	 * leading. */
+	font-size: 1.125rem;
+	line-height: 1.6;
 }
 
 a {
@@ -112,21 +143,29 @@ h3 {
 	text-wrap: balance;
 }
 
+/* Type scale ported from the demo site (greatfallstoolbus.org@origin/main
+ * src/app.css:119-148, operator design pass): the same clamps, leading and
+ * tracking, on the faces this repo already ships. The previous oversized
+ * scale (2.9-6rem h1) was the stub's, not the operator's. */
 h1 {
-	max-width: 12ch;
-	font-size: clamp(2.9rem, 13vw, 6rem);
-	line-height: 0.94;
-	letter-spacing: -0.045em;
+	max-width: 16ch;
+	font-size: clamp(2.5rem, 5vw + 1rem, 5rem);
+	line-height: 1.05;
+	letter-spacing: -0.025em;
+	font-weight: 700;
 }
 
 h2 {
-	font-size: clamp(2rem, 8vw, 3.5rem);
-	line-height: 1;
-	letter-spacing: -0.03em;
+	font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem);
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+	font-weight: 700;
 }
 
 h3 {
-	font-size: 1.35rem;
+	font-size: 1.5rem;
+	line-height: 1.25;
+	letter-spacing: -0.015em;
 }
 
 p,
@@ -256,12 +295,49 @@ li {
 	padding-block: 2rem 5rem;
 }
 
+/* Full-bleed band (demo #90, .hero-band): the section breaks out of the
+ * centered content column to the full viewport. `html` carries
+ * `overflow-x: clip`, so a 100vw child never adds a horizontal scrollbar
+ * (the overflow e2e guard stays green). The inner shell re-centers the
+ * content on the same width the rest of the page uses. */
 .hero {
 	position: relative;
 	isolation: isolate;
+	width: 100vw;
+	margin-left: calc(50% - 50vw);
+}
+
+.hero__inner {
 	display: grid;
 	gap: 2rem;
-	padding-block: clamp(2rem, 10vw, 7rem);
+	width: min(100% - 2rem, 72rem);
+	margin-inline: auto;
+	/* Demo hero rhythm: py-16 / md:py-24 / lg:py-28 (4 / 6 / 7rem). */
+	padding-block: clamp(4rem, 10vw, 7rem);
+}
+
+/* The featured-glass idiom (demo #90, .hero-glass), on the role layer: the
+ * fill is the same `--panel at 88%` mix the card family composites, so
+ * src/lib/design-token-contrast.test.ts's hero card ground models this
+ * panel too; the frost is progressive enhancement on top. */
+.hero-glass {
+	border: 1px solid var(--rule);
+	background: color-mix(in oklab, var(--panel) 88%, transparent);
+	padding: clamp(1.35rem, 4vw, 2rem);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+	.hero-glass {
+		backdrop-filter: blur(10px) saturate(118%);
+		-webkit-backdrop-filter: blur(10px) saturate(118%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hero-glass {
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
 }
 
 /* ===== Hero backdrop (restoration: the old apex falls hero) =====
@@ -405,16 +481,41 @@ li {
 .status-card,
 .card,
 .log-entry,
-.history-card,
-.contact-card {
+.history-card {
 	/* Explicit 0, not an omission: Skeleton 5 ships a `card` @utility whose
-	 * border-radius: var(--radius-container) reaches the four class="card"
+	 * border-radius: var(--radius-container) reaches the class="card"
 	 * elements through the BUILT stylesheet, where a source grep cannot see
 	 * it (review finding). e2e/acceptance-sharp-edges.spec.ts sweeps the
 	 * computed style so this class of collision fails loudly. */
 	border-radius: 0;
 	border: 1px solid var(--rule);
 	background: color-mix(in oklab, var(--panel) 88%, transparent);
+}
+
+/* The purple contact panel, restored (gen_board.py:170-179; addendum B1):
+ * the panel inverts in BOTH schemes — primary-900 ground, primary-500 edge —
+ * and every ink on it comes from the --inverse-* group. Radius stays an
+ * explicit 0 (sharp-edges ruling; the Skeleton `card` @utility collision
+ * class documented on the neutral family above applies here too). */
+.contact-card {
+	border-radius: 0;
+	border: 1px solid var(--inverse-edge);
+	background: var(--inverse-panel);
+	color: var(--inverse-fg);
+}
+
+.contact-card h1,
+.contact-card h2,
+.contact-card h3 {
+	color: var(--inverse-fg);
+}
+
+.contact-card a {
+	color: var(--inverse-link);
+}
+
+.contact-card .muted {
+	color: var(--inverse-fg-muted);
 }
 
 .status-card,
@@ -443,18 +544,19 @@ li {
 	font-weight: 700;
 }
 
-/* The contact card is flat (operator ruling 2026-08-19), so the fields sit
- * on the neutral card and the 1px --accent boundary is the control's WCAG
- * 1.4.11 indicator: 7.86:1 on the light card, 5.15:1 on the dark one. The
- * fill stays the ground itself — a field does not need an elevated bg for
- * AA, so it must not have one (de-slop ruling). */
+/* Paper-filled controls on the inverted panel (gen_board.py:176-179): the
+ * fields fill with paper (--inverse-fg, surface-50) so the fill itself is
+ * the WCAG 1.4.11 boundary against primary-900, and the control's own inks
+ * come from the --inverse-control-* rungs — primary-900 text, primary-700
+ * accent boundary, error-700 errors. Restored by addendum B1 (PR #25 had
+ * flattened the fields to transparent page-role boxes). */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
 	width: 100%;
-	border: 1px solid var(--accent);
-	background: transparent;
-	color: var(--fg);
+	border: 1px solid var(--inverse-control-accent);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-fg);
 	font: inherit;
 }
 
@@ -469,19 +571,36 @@ li {
 	padding: 0.75rem;
 }
 
-/* outline-offset pushes the ring off the field and onto the card, so the
- * ring is measured against the card ground. On paper-side grounds the bare
- * yellow fails (--highlight reads 1.57:1 on the light card) and the rescue
- * edge is the role built for exactly this: --highlight-edge reaches 4.04:1
- * light / 5.93:1 dark there (palette spec, ratified item 4). */
+/* outline-offset pushes the ring off the field and onto the panel, so the
+ * ring is measured against the panel ground — and there the bare yellow is
+ * the ratified indicator: "focus outline on the contact panel" is
+ * secondary-300 on primary-900 at 7.77:1 (gen_board.py:221), in both
+ * schemes. (On paper-side grounds the yellow fails and --highlight-edge is
+ * the rescue — the skip-link keeps that pairing.) */
 .contact-form :is(input, textarea):focus-visible {
-	outline: 3px solid var(--highlight-edge);
+	outline: 3px solid var(--highlight);
 	outline-offset: 2px;
 }
 
 .contact-form .button {
 	width: fit-content;
 	margin-top: 0.5rem;
+}
+
+/* The paper submit button on the panel (gen_board.py:176-177 and the 56%
+ * glow rationale's own wording, "the paper button"): paper fill, primary-700
+ * label — 7.96:1 text on paper, and the fill itself is the 1.4.11 boundary
+ * against primary-900. */
+.contact-card .button {
+	border-color: var(--inverse-fg);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-accent);
+}
+
+/* Errors on the paper-filled controls carry the ratified error-700 rung
+ * (gen_board.py:178). */
+.contact-form :is(input, textarea)[aria-invalid='true'] {
+	border-color: var(--inverse-control-danger);
 }
 
 .contact-form .button:disabled {
@@ -495,27 +614,27 @@ li {
 	font-size: 0.86rem;
 }
 
+/* Helper text and field errors sit on the panel ground: the ratified
+ * "contact panel helper text" (primary-100) and "contact panel field error"
+ * (error-100) pairs, gen_board.py:217-219. */
 .form-help {
-	color: var(--fg-muted);
+	color: var(--inverse-fg-muted);
 }
 
 .field-error {
-	color: var(--danger);
+	color: var(--inverse-danger);
 }
 
-/* Notices are flat: an accent edge bar marks them, the text keeps the page
- * roles it inherits (no elevated fill — de-slop ruling 2026-08-19). */
+/* Notices on the panel: the edge bar is the ratified panel eyebrow/outline
+ * yellow (secondary-300 on primary-900, 7.77:1 non-text); error text keeps
+ * the panel's error-100 ink. */
 .form-notice {
-	border-left: 0.4rem solid var(--accent);
+	border-left: 0.4rem solid var(--highlight);
 	padding: 1rem;
 }
 
-.form-notice--success {
-	border-left-color: var(--positive);
-}
-
 .form-notice--error {
-	color: var(--danger);
+	color: var(--inverse-danger);
 }
 
 .text-button {
@@ -550,7 +669,8 @@ li {
 }
 
 .section {
-	padding-block: clamp(2.5rem, 8vw, 5rem);
+	/* Demo vertical rhythm, applied uniformly (demo section steps 4-6rem). */
+	padding-block: clamp(4rem, 8vw, 6rem);
 }
 
 .section-heading {
@@ -572,16 +692,33 @@ li {
 	color: var(--accent);
 }
 
-/* Flattened to page roles (operator ruling 2026-08-19: livery survives only
- * as palette accents, never as a coloured container). The pinned-ink
- * machinery went with the yellow fill. */
+/* The yellow livery block, restored (gen_board.py:166-168; addendum B1): the
+ * next-session/status band is THE one coloured container the ratified table
+ * names. --highlight is scheme-invariant (secondary-300, 9.57:1 non-text on
+ * the dark page), the 1.4.11 rescue edge carries the paper-side boundary
+ * (secondary-700 light / secondary-500 dark), headings pin to
+ * --highlight-heading (primary-800, both schemes) and copy to the ratified
+ * contrast token (--highlight-contrast = secondary-950, 7.26:1). PR #25
+ * flattened this to page roles on an invalid interview; this is the
+ * correction. */
 .next-session {
 	display: grid;
 	gap: 1.25rem;
+	border: 1px solid var(--highlight-edge);
+	background: var(--highlight);
+	padding: clamp(1.35rem, 4vw, 2rem);
+	color: var(--highlight-contrast);
 }
 
 .next-session h2 {
 	margin-bottom: 0.75rem;
+	color: var(--highlight-heading);
+}
+
+/* Anchors on the yellow fill keep the ratified "headings on the yellow
+ * fill" pair (primary-800, AA at every size there). */
+.next-session a {
+	color: var(--highlight-heading);
 }
 
 .date-chip {
@@ -640,6 +777,79 @@ li {
 	font-weight: 800;
 }
 
+/* ===== Public log surfaces (spec §3 rows 5-6; B1.2) =====
+ * The archive is a plain hairline LIST, never cards, with plain-text badges
+ * — the jesssullivan.github.io blog-list structure the addendum names. */
+.log-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.log-list li {
+	border-bottom: 1px solid var(--rule);
+	padding-block: 1.5rem;
+}
+
+.log-list h3 {
+	margin-bottom: 0.35rem;
+}
+
+.log-meta {
+	margin: 0 0 0.35rem;
+	color: var(--fg-muted);
+	font-size: 0.86rem;
+}
+
+/* Plain-text tag badges: text, separated by middots, no chip chrome. */
+.log-tags {
+	color: var(--fg-muted);
+	font-size: 0.86rem;
+}
+
+.breadcrumbs {
+	margin-bottom: 1.5rem;
+	color: var(--fg-muted);
+	font-size: 0.86rem;
+}
+
+.breadcrumbs ol {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.breadcrumbs li + li::before {
+	content: '/';
+	margin-right: 0.45rem;
+	color: var(--fg-muted);
+}
+
+/* No-JS pagination (spec :90-91): plain prev/older links, prerendered. */
+.pagination {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-top: 2rem;
+	font-weight: 700;
+}
+
+/* Edit-this-page affordance, ported from the demo SourceLink (#94). */
+.source-link {
+	margin-top: 2.5rem;
+	border-top: 1px solid var(--rule);
+	padding-top: 1rem;
+	color: var(--fg-muted);
+	font-size: 0.82rem;
+}
+
+.source-link a {
+	margin-left: 0.75rem;
+}
+
 .history-card {
 	display: grid;
 	overflow: hidden;
@@ -683,11 +893,12 @@ figcaption {
 	line-height: 1.45;
 }
 
-/* Flat member of the neutral card family (operator ruling 2026-08-19: the
- * purple inversion is gone; the card-family rule above paints it). */
+/* Layout only — the panel's restored inverse paint lives with the card
+ * family rules above (gen_board.py:170-179). */
 .contact-card {
 	display: grid;
 	gap: 1.5rem;
+	padding: clamp(1.35rem, 4vw, 2rem);
 }
 
 .qr {
@@ -710,10 +921,35 @@ figcaption {
  * --link anchors) — pairs already swept by design-token-contrast.test.ts. */
 .site-footer__inner {
 	display: grid;
-	gap: 0.6rem;
-	padding-block: 1.5rem;
+	gap: 2rem;
+	/* Demo footer rhythm: py-10 (2.5rem). */
+	padding-block: 2.5rem;
 	color: var(--fg-muted);
 	font-size: 0.78rem;
+}
+
+.site-footer__group {
+	display: grid;
+	gap: 0.35rem;
+	align-content: start;
+}
+
+.site-footer__group h2 {
+	margin: 0;
+	color: var(--fg-muted);
+	font-family: inherit;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.site-footer__group ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.35rem;
 }
 
 .site-footer__inner p {
@@ -728,7 +964,8 @@ figcaption {
 @media (min-width: 48rem) {
 	.site-header__inner,
 	.page-shell,
-	.site-footer__inner {
+	.site-footer__inner,
+	.hero__inner {
 		width: min(100% - 4rem, 72rem);
 	}
 
@@ -737,7 +974,7 @@ figcaption {
 		font-size: 0.9rem;
 	}
 
-	.hero {
+	.hero__inner {
 		grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
 	}
 
@@ -756,12 +993,14 @@ figcaption {
 		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
 
-	/* Two explicit tracks, echoing the old apex's intro-weighted footer
-	 * template (2fr lead column). e2e/footer.spec.ts asserts the computed
-	 * track count matches this template at 768/1440 and collapses to a
-	 * single column below (the B4 breakpoint row). */
+	/* Four explicit tracks, the demo's intro-weighted footer template
+	 * (demo +layout.svelte footer: md:grid-cols-[2fr_1fr_1fr_1fr] — the
+	 * intro column plus three nav groups). e2e/footer.spec.ts asserts the
+	 * computed track count matches this template at 768/1440 and collapses
+	 * to a single column below (the B4 breakpoint row); the #103 one-child-
+	 * per-track lesson still holds. */
 	.site-footer__inner {
-		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
 		align-items: start;
 	}
 }
@@ -784,17 +1023,21 @@ figcaption {
 		--heading: var(--color-primary-300);
 		--accent: var(--color-primary-300);
 		--accent-contrast: var(--color-primary-contrast-300);
-		--link: var(--typo-anchor--color-dark);
+		/* pinned off Skeleton's 400 default (gen_board.py:164) */
+		--link: var(--color-primary-300);
 		--rule: var(--color-surface-700);
-		/* The skip-link chip is brand livery, not a surface: it reads at 9.57:1
-		 * on the dark page and must not shift, so highlight and its ink hold. */
+		/* The yellow livery block and skip-link chip are brand livery, not a
+		 * surface: they read at 9.57:1 on the dark page and must not shift, so
+		 * highlight and its ink hold (gen_board.py:166). */
 		--highlight: var(--color-secondary-300);
 		--highlight-contrast: var(--color-secondary-contrast-300);
 		/* On a dark ground the fill already carries the 1.4.11 boundary, so the
-		 * edge is only a rim; secondary-700 reads as a smudge there. */
+		 * edge is only a rim; secondary-700 reads as a smudge there
+		 * (gen_board.py:167). */
 		--highlight-edge: var(--color-secondary-500);
+		/* held in both schemes: the yellow fill does not flip (gen_board.py:168) */
+		--highlight-heading: var(--color-primary-800);
 		--danger: var(--color-error-300);
-		--positive: var(--color-success-300);
 		--wash: color-mix(in oklab, var(--color-primary-300) 12%, transparent);
 	}
 }

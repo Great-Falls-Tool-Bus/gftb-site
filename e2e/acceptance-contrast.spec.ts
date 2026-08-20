@@ -80,10 +80,10 @@ function resolveBackground(layers: string[]): Rgb {
 	return result;
 }
 
-async function openPage(page: Page, baseURL: string | undefined, hash = '') {
+async function openPage(page: Page, baseURL: string | undefined, path = '/') {
 	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 	await stubChallenge(page);
-	await page.goto(`/${hash}`);
+	await page.goto(path);
 	await page.waitForLoadState('domcontentloaded');
 }
 
@@ -176,12 +176,13 @@ for (const scheme of ['light', 'dark'] as const) {
 		test.use({ colorScheme: scheme });
 
 		test.describe('WCAG 1.4.3 — every painted string reaches AA', () => {
-			for (const [name, hash] of [
-				['the landing view', ''],
-				['the contact panel', '#contact'],
+			for (const [name, path] of [
+				['the landing view', '/'],
+				['the log archive', '/log'],
+				['the contact page (restored inverted panel)', '/contact'],
 			] as const) {
 				test(`text contrast holds across ${name}`, async ({ page, baseURL }) => {
-					await openPage(page, baseURL, hash);
+					await openPage(page, baseURL, path);
 					const samples = await collectTextSamples(page);
 					expect(samples.length, 'text-bearing elements sampled').toBeGreaterThan(20);
 
@@ -206,7 +207,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			}
 
 			test('validation and error text stays readable once it appears', async ({ page, baseURL }) => {
-				await openPage(page, baseURL, '#contact');
+				await openPage(page, baseURL, '/contact');
 				await page.getByRole('button', { name: 'Send to keyholders' }).click();
 				await expect(page.locator('.field-error').first()).toBeVisible();
 
@@ -226,7 +227,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 		test.describe('WCAG 1.4.11 — filled controls stand out from their surface', () => {
 			test('every filled control reaches 3:1 against the surface it sits on', async ({ page, baseURL }) => {
-				await openPage(page, baseURL, '#contact');
+				await openPage(page, baseURL, '/contact');
 				const samples = await collectControlSamples(page);
 				expect(samples.length, 'controls sampled').toBeGreaterThan(3);
 
@@ -246,7 +247,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			});
 
 			test('the focus indicator is distinguishable from the control it rings', async ({ page, baseURL }) => {
-				await openPage(page, baseURL, '#contact');
+				await openPage(page, baseURL, '/contact');
 				// Reach the button by keyboard: :focus-visible is what paints the ring,
 				// and a scripted focus() does not reliably match it.
 				await page.locator('#contact-message').focus();

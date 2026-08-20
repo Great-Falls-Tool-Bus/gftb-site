@@ -20,7 +20,7 @@ const CORNERS = [
 	'border-bottom-left-radius',
 ];
 
-for (const path of ['/', '/404']) {
+for (const path of ['/', '/404', '/log', '/contact']) {
 	test(`no element computes a rounded corner at ${path}`, async ({ page }) => {
 		await page.goto(path);
 		await page.waitForLoadState('networkidle');
