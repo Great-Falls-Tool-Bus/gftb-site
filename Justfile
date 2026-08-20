@@ -235,6 +235,23 @@ qr-verify:
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
 # any finding is a failure (exit 1). Set GFTB_LEAK_SCAN_DENY to add operator-held
 # literals; never commit them.
+# Stamped-artifact leak-scan (review B1 regression row). A local `just build`
+# stamps the literal 'unknown', so the footer provenance branch never renders
+# and the ordinary artifact scan cannot see what a PUBLISH-lane build emits:
+# .github/workflows/container-ghcr.yml sets BUILD_COMMIT_SHA, and its `build`
+# dependency ends in leak-scan — so a stamped-only finding red-lines the OCI
+# lane on the next push to main while every PR gate stays green. This recipe
+# closes that blind spot: build with a FIXED fake sha (constant on purpose —
+# the stamped stable-status is identical across runs, so caches still hit
+# when sources are unchanged), prove the stamp actually rendered, and scan
+# that artifact. Wired into `check`/`check-ci` so it runs per PR.
+leak-scan-stamped:
+    cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
+    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build-stamped
+    cd {{ root }} && grep -q "deadbee" build-stamped/index.html
+    cd {{ root }} && {{ just_executable() }} leak-scan build-stamped
+    cd {{ root }} && rm -rf build-stamped
+
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
@@ -330,11 +347,11 @@ qa-packet-diff baseline candidate *options:
 # //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
 # (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
 # every pull request through this recipe.
-check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance
+check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test //:local_validation_suite
     @echo "All checks passed."
 
-check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance
+check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test --config=ci //:local_validation_suite
     @echo "All CI artifact checks passed."
 

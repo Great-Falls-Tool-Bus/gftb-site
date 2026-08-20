@@ -120,22 +120,24 @@
 	<div class="site-footer__inner">
 		<div class="site-footer__intro">
 			<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
-			<!-- Build provenance (D10, demo #140 fe32de1): the short sha links to
-			     the exact source commit, whose GitHub "Verified" badge
-			     substantiates the label — main is merged through GitHub, so its
+			<!-- Build provenance (D10, demo #140 fe32de1): the short sha plus the
+			     "GitHub-verified" label — main is merged through GitHub, so its
 			     commits are signed by GitHub's web-flow key (committer =
 			     GitHub), not the author's own key. Degrade-to-nothing on
-			     local/unstamped builds is already the build-info contract. The
-			     link deliberately carries the 7-char form: the stamp truncates
-			     at the source and the leak-scan gate rejects 40-hex in the
-			     artifact, and GitHub resolves the short form to the same
-			     commit. -->
+			     local/unstamped builds is already the build-info contract.
+			     DELIBERATELY NO ANCHOR (review B1): the demo could link its
+			     /commit page because that repo is public; this carrier is
+			     private and the leak-scan internal-tracker-reference rule bans
+			     the repo's pull/issues/commit path segments in the artifact by
+			     name (AGENTS.md sanctions exactly one repository pointer, the
+			     SourceLink affordance) — no sha length escapes a path-segment
+			     ban, and a stamped `just build` fails on the href. The
+			     leak-scan-stamped gate and src/lib/leak-scan.test.ts pin this;
+			     the link half of D10 is a recorded residual behind an operator
+			     ruling that would widen the sanctioned exception. -->
 			{#if buildShaShort}
 				<p class="site-footer__provenance">
-					built from <ExternalLink
-						href={`${repoUrl}/commit/${buildShaShort}`}
-						label={`source commit ${buildShaShort} on GitHub`}><code>{buildShaShort}</code></ExternalLink
-					>, GitHub-verified
+					built from <code>{buildShaShort}</code>, GitHub-verified
 				</p>
 			{/if}
 			<p class="site-footer__licensing">
@@ -159,14 +161,12 @@
 				<!-- D11: the AX/agent row restored to the meta group (apex
 				     +layout.svelte:256-267, operator-merged and unruled-against).
 				     This carrier ships no public /agent route (the operator docs
-				     surface was retired), so the row points at the repo's agent
-				     contract in git — the same posture as the Source row beside
-				     it. D06: outbound meta links ride ExternalLink. -->
-				<li>
-					<ExternalLink href={`${repoUrl}/blob/${sourceMap.branch}/AGENTS.md`} label="Agent experience contract"
-						>AX</ExternalLink
-					>
-				</li>
+				     surface was retired), and the source repo is private, so a
+				     blob link would be a guaranteed 404 for every public visitor
+				     (review E4) — the row is plain text until an operator names
+				     a public target. D06: outbound meta links ride
+				     ExternalLink. -->
+				<li>AX: AGENTS.md in the source repo</li>
 				<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
 				<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
 			</ul>

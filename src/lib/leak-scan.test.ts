@@ -8,6 +8,7 @@ import {
 	ALLOWED_MAILBOXES,
 	LEAK_RULES,
 	PERMITTED_HOST_INITIAL,
+	REPO_ROOT,
 	SKIP_EXTENSIONS,
 	TEXT_EXTENSIONS,
 	UnclassifiedOutputError,
@@ -122,13 +123,48 @@ describe('leak-scan detections', () => {
 	it('permits only the initial the bus host consented to publish', () => {
 		expect(PERMITTED_HOST_INITIAL).toBe('J.');
 		expect(idsFiring('Ask J. when you arrive.')).not.toContain('private-personal-name');
+		// The review's hostile table (E1), row by row: every real-name shape
+		// fires — WITH and WITHOUT the space after the initial — while
+		// minified member access stays silent. The discriminator is the
+		// preceding context (start / whitespace / tag-close / quote / paren:
+		// where prose happens), not the name shape: `H.Started` in a shipped
+		// bundle sits behind an operator character, `J.Doe` in prerendered
+		// HTML never does.
 		expect(idsFiring('Ask J. Doe when you arrive.')).toContain('private-personal-name');
 		expect(idsFiring('Ask Jane Q. Doe when you arrive.')).toContain('private-personal-name');
-		// Minified member access is code, not a name: the rule requires real
-		// whitespace after the initial, so `H.Started`-shaped enum property
-		// reads in a shipped bundle (the false-positive class the first
-		// Skeleton component's Zag machine introduced) never fire.
+		expect(idsFiring('Ask J.Doe when you arrive.')).toContain('private-personal-name');
+		expect(idsFiring('Ask Jane Q.Doe when you arrive.')).toContain('private-personal-name');
+		expect(idsFiring('<p>J.Doe</p>')).toContain('private-personal-name');
+		expect(idsFiring('(J.Doe) signed the sheet')).toContain('private-personal-name');
+		// The Zag machine false-positive class (first mounted Skeleton
+		// component): enum member reads behind = / ! / ; never fire.
 		expect(idsFiring('if(S===H.Started)return;u.current=d.current')).not.toContain('private-personal-name');
+		expect(idsFiring('let e=S===H.Started;S=H.Stopped')).not.toContain('private-personal-name');
+	});
+
+	it('bans the repo commit path a stamped footer link would emit, at any sha length', () => {
+		// Review B1: the D10 footer sha must stay a bare <code> — the
+		// internal-tracker-reference rule bans this repo's pull/issues/commit
+		// path segments in published output (AGENTS.md sanctions exactly one
+		// repository pointer, the SourceLink affordance), and no sha length
+		// escapes a path-segment ban. Local builds stamp 'unknown' and render
+		// no provenance line at all, so these rows plus the `just
+		// leak-scan-stamped` gate are what keep the stamped artifact honest.
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/commit/deadbee')).toContain(
+			'internal-tracker-reference',
+		);
+		expect(
+			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/commit/deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'),
+		).toContain('internal-tracker-reference');
+		// The shape the fixed footer actually renders when stamped is clean.
+		expect([...idsFiring('built from <code>deadbee</code>, GitHub-verified')]).toEqual([]);
+	});
+
+	it('keeps the layout from rebuilding a commit URL at the provenance site', () => {
+		// Structural half of the same guard: the one place the stamped sha
+		// reaches markup must never interpolate it into a /commit/ path.
+		const layout = readFileSync(path.join(REPO_ROOT, 'src/routes/+layout.svelte'), 'utf8');
+		expect(layout).not.toMatch(/\/commit\//u);
 	});
 
 	it('flags a private list archive but not the public one', () => {

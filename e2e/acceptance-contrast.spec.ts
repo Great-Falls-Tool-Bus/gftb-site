@@ -153,12 +153,13 @@ async function collectControlSamples(page: Page): Promise<ControlSample[]> {
 		const samples = [];
 		for (const element of Array.from(document.querySelectorAll(selector))) {
 			if (element.closest('.honeypot')) continue;
-			// The mode switch's <input> is Zag's clipped 1px a11y channel, not a
-			// painted control; the switch's perceivable 1.4.11 boundary is the
-			// accent thumb, swept as a token pair by
-			// src/lib/design-token-contrast.test.ts ('mode switch thumb on its
-			// track') in both schemes.
-			if (element.closest('.mode-switch')) continue;
+			// Exactly the mode switch's <input> — Zag's clipped 1px a11y
+			// channel, not a painted control — is exempt; the switch's
+			// perceivable 1.4.11 boundary is the accent thumb, swept as a
+			// token pair by src/lib/design-token-contrast.test.ts ('mode
+			// switch thumb on its track') in both schemes. Nothing else in
+			// the switch subtree gets a pass.
+			if (element.tagName === 'INPUT' && element.closest('.mode-switch')) continue;
 			if (element.disabled) continue;
 			if (!visible(element)) continue;
 			const style = getComputedStyle(element);

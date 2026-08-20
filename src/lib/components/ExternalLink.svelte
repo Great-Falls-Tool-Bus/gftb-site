@@ -24,9 +24,13 @@
 	let { href, external = true, mark = true, class: klass = '', label, children }: Props = $props();
 
 	const rel = $derived(external ? 'external noopener noreferrer' : 'noopener noreferrer');
+	// An aria-label REPLACES the whole accessible name, which silently
+	// discarded the sr-only "(opens in a new tab)" exactly on labelled links
+	// (review E5) — so the affordance is folded into the override.
+	const ariaLabel = $derived(label ? `${label} (opens in a new tab)` : undefined);
 </script>
 
-<a {href} target="_blank" {rel} class="external-link {klass}" aria-label={label}
+<a {href} target="_blank" {rel} class="external-link {klass}" aria-label={ariaLabel}
 	>{@render children()}{#if mark}<span class="external-link__mark" aria-hidden="true">[↗]</span><span class="sr-only">
 			(opens in a new tab)</span
 		>{/if}</a

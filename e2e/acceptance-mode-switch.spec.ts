@@ -85,9 +85,12 @@ test.describe('mode model', () => {
 
 test.describe('the switch as a control', () => {
 	test('the visible control meets the 24px target floor and receives the tap at 375px', async ({ page }) => {
-		// The responsive sweeps exempt Zag's clipped 1px hidden input; this is
-		// the counterpart row those exemptions cite — the visitor-facing
-		// target is the control box.
+		// The responsive sweeps exempt exactly Zag's clipped 1px hidden input;
+		// this is the counterpart row those exemptions cite — the
+		// visitor-facing target is the control box. Crowding (the ~14px gap to
+		// the last nav anchor) is covered by the same assertions: SC 2.5.8's
+		// spacing exception only exists for targets UNDER 24px, so proving
+		// both dimensions >= 24 is proving the criterion as written.
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -107,19 +110,32 @@ test.describe('the switch as a control', () => {
 		expect(geometry.hittable, 'control receives the tap at its centre').toBe(true);
 	});
 
-	test('the switch is keyboard-operable and shows the rescue-edge focus ring', async ({ page }) => {
+	test('the switch is keyboard-operable and paints the rescue-edge ring on the root', async ({ page }) => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		const input = page.locator('.mode-switch input');
-		await input.focus();
+
+		// Reach the switch BY KEYBOARD: Zag's focus-visible tracking is
+		// modality-aware, and the REAL indicator (review E7) is the root's
+		// data-focus-visible + the app.css rescue-edge outline — there is
+		// deliberately no decorative outline on the clipped input.
+		await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Contact' }).focus();
+		await page.keyboard.press('Tab');
+		await expect(input).toBeFocused();
+
+		const root = page.locator('.mode-switch');
+		await expect(root).toHaveAttribute('data-focus-visible', '');
+		const outline = await root.evaluate((element) => {
+			const style = getComputedStyle(element);
+			return { style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
+		});
+		expect(outline.style, 'root outline paints while focus is visible').toBe('solid');
+		expect(outline.width, 'root outline width').toBeGreaterThanOrEqual(2);
+
 		await page.keyboard.press('Space');
 		await expect(input).toBeChecked();
 		expect(await page.evaluate(() => document.documentElement.getAttribute('data-mode'))).toBe('dark');
 		await page.keyboard.press('Space');
 		await expect(input).not.toBeChecked();
-		// The focusable element carries a computed indicator of its own (the
-		// acceptance-motion-keyboard sweep's contract).
-		const outline = await input.evaluate((element) => getComputedStyle(element).outlineStyle);
-		expect(outline).not.toBe('none');
 	});
 });
