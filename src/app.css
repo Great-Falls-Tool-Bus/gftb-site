@@ -303,13 +303,24 @@ li {
 }
 
 /* TODO(jess): the --rule border (and the faint panel fill) is a grouping
- * call — keep or flatten is yours to rule; it stays until ruled. Radius and
- * shadow elevation are gone (de-slop ruling: sharp edges, no elevation). */
+ * call — keep or flatten is yours to rule; it stays until ruled. Honest
+ * status per the de-slop directive's own test: these containers are NOT
+ * needed for AA — every text role clears its floor on the bare page ground
+ * in both schemes, and in dark the card ground actually LOWERS body-copy
+ * contrast (15.25:1 → 12.96:1) — so they are removable; removal is an open
+ * S0 row deferred to a later slice. Radius and shadow elevation are gone
+ * (sharp-edges ruling). */
 .status-card,
 .card,
 .log-entry,
 .history-card,
 .contact-card {
+	/* Explicit 0, not an omission: Skeleton 5 ships a `card` @utility whose
+	 * border-radius: var(--radius-container) reaches the four class="card"
+	 * elements through the BUILT stylesheet, where a source grep cannot see
+	 * it (review finding). e2e/acceptance-sharp-edges.spec.ts sweeps the
+	 * computed style so this class of collision fails loudly. */
+	border-radius: 0;
 	border: 1px solid var(--rule);
 	background: color-mix(in oklab, var(--panel) 88%, transparent);
 }
