@@ -139,67 +139,31 @@ or script while any live entrypoint still references it.
 Software is zlib-licensed; written GFTB content is CC BY-SA 4.0. Visual and
 vendored-code provenance lives in `NOTICE` and `docs/attribution.md`.
 
-## GFTB SSOT grounding (binding; added 2026-08-20 after a 4-day drift incident)
+## GFTB SSOT grounding (binding; pointers only — content lives at each SSOT)
 
-Every agent lane touching this repo MUST ground in these authorities and cite
-the specific section/ticket/file for every substantive change (PR bodies carry
-an Authority citations table; reviews check citation-conformance FIRST —
-uncited changes are a review BLOCK). Nothing here is an open question:
-**decisions are decided-by-default** — search these sources before ever
-writing "open question" or "needs ratification".
+Ground every change in these authorities and cite the specific section/ticket
+in the PR's Authority table. Reviews check citation-conformance first.
+Decisions are decided-by-default: search these before writing "open question".
 
-### The SSOT, in authority order
-
-1. **meta repo** (`Great-Falls-Tool-Bus/meta` @ origin/main — ALWAYS fetch;
-   stale local checkouts have caused false not-found results):
-   - `spec/launch-member-v0-system-2026-08-16.md` — THE implementation and
-     acceptance contract. §3 public-site contract (8-row page order, log
-     schema, contact relay), §8 tool custody, §10 forms/contact matrix.
-   - `decisions/0014-launch-member-v0-ratification-2026-08-16.md` (ratified;
-     §1 repo split, §7 inventory pilot) and
-     `decisions/0015-citylink-palette-ratification-2026-08-17.md` (ratified).
-   - `spec/gftb-citylink-palette-2026-08-17.md` + `spec/gftb-citylink-palette/`
-     — **Appendix A is the number authority**; `gen_board.py:149-180` is the
-     **ratified role-application table** (cream `surface-100` page ground,
-     paper panel, `primary-800` headings, `primary-700` links [dark `300`,
-     pinned], yellow livery block `--highlight` + `--highlight-edge` 1.4.11
-     rescue, contact panel inverted `primary-900` both schemes). A
-     disagreement between Appendix A and `src/lib/theme/palette.ts` is a
-     **stop condition** — report, never hand-edit.
-   - `diagrams/launch-member-v0/*.mmd` — the five-diagram design ontology
-     (inventory-custody-flow, member-lifecycle, member-projection-flow,
-     launch-authority-flow, release-proof-flow). Diagram colors are the brand
-     identity: yellow `#f5d547` action / creme `#eee7dd` state / purple
-     `#4b2354` authority / ink `#23152a`.
-2. **The operator-built demo site** = design decisions in code:
-   `greatfallstoolbus.org` repo @ main (fa5552c era) — commits #87 (design
-   pass: de-card, zero radius, intentional full-bleed bg), #90 (`.hero-band`
-   full-bleed parallax + hero-glass; `src/lib/motion.svelte.ts`), #94
-   (SourceLink / generated source-map edit-this-page), `src/lib/nav-items.ts`
-   (nav SSOT), `src/app.css` (spacing rhythm, glass idiom), `src/lib/data/
-   cells.ts` (svx pipeline pattern), `src/routes/contact/` (forms
-   architecture: own page + ALTCHA PoW + relay — never a form on the root).
-   Port from it; never reinvent.
-3. **Linear** (execution tracker; read descriptions AND comment threads):
-   initiative "Great Falls Tool Bus — Launch"; document "GFTB launch
-   operating map". Milestone spine: 08-16 apex (TIN-2366/2401/3437/3816) ·
-   08-30 Member v0 (TIN-3815/3817/3440/3818) · 09-10 hardening
-   (TIN-3481/3813) · 09-15 rehearsal (TIN-3814) · 09-20 custody pilot
-   (TIN-3847) · 09-27 reliability (TIN-3848). Custody-adjacent:
-   TIN-3498/3502. Live QA: TIN-3932. SLA labels `sla:same-day` /
-   `sla:1-business-day` / `sla:weekly`; WIP=1 within the launch project.
-4. `site.scaffold` is inherited machinery ONLY — never GFTB design authority.
-
-### Standing rules (operator-ruled; violations are defects)
-
-- The bus is **permanently parked** — motion copy is a defect (banned-phrase
-  gate stays).
-- Vocabulary: **application** (not enrollment); **operator mapping at pilot
-  intake** (not ingest/catalog); `steward` is deliberately absent — never
-  reintroduce it.
-- Maine solicitation / TIN-3905 is **operator-only**: zero agent reads,
-  reviews, or resources, ever.
-- No form is ever exposed without the PoW/security stack, and never on the
-  root page.
-- Final public copy and frontmatter are **operator-authored**; agent-drafted
-  text ships only as `published: false` TODO drafts.
+- meta `Great-Falls-Tool-Bus/meta` @ origin/main (ALWAYS fetch; stale local
+  checkouts have produced false not-founds):
+  - `spec/launch-member-v0-system-2026-08-16.md` — the contract (public site
+    §3, forms §10).
+  - `decisions/0014`, `decisions/0015` — ratified ADRs.
+  - `spec/gftb-citylink-palette-2026-08-17.md` + `spec/gftb-citylink-palette/`
+    — palette: Appendix A = numbers; `gen_board.py` role table = application;
+    parity disagreement with `src/lib/theme/palette.ts` = stop condition.
+  - `diagrams/launch-member-v0/*.mmd` — the design ontology.
+- Demo site = design decisions in code: `greatfallstoolbus.org` repo @ main —
+  commits #87, #90, #94; `src/lib/motion.svelte.ts`, `src/lib/nav-items.ts`,
+  `src/app.css`, `src/lib/data/cells.ts`, `src/routes/contact/`. Port, never
+  reinvent.
+- Linear: initiative "Great Falls Tool Bus — Launch" + document "GFTB launch
+  operating map" (milestone spine, SLAs, WIP rule live THERE). Read issue
+  descriptions AND comment threads.
+- `site.scaffold` = machinery only, never GFTB design authority.
+- Standing operator rulings (each recorded in meta/Linear; one line here as a
+  tripwire): bus permanently parked; vocabulary application/intake (never
+  enrollment/ingest/catalog/steward); Maine/TIN-3905 operator-only; forms
+  always PoW-gated on their own page; agent-drafted copy ships only as
+  `published: false` TODO drafts.
