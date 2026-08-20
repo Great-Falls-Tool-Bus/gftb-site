@@ -17,6 +17,9 @@ npm_link_package(
 )
 
 APP_NPM_PACKAGES = [
+    ":node_modules/@fontsource-variable/fira-code",
+    ":node_modules/@fontsource-variable/fraunces",
+    ":node_modules/@fontsource/crimson-pro",
     ":node_modules/@fontsource/inter",
     ":node_modules/@skeletonlabs/skeleton",
     ":node_modules/@skeletonlabs/skeleton-svelte",
@@ -27,6 +30,7 @@ APP_NPM_PACKAGES = [
     ":node_modules/@types/node",
     ":node_modules/mdsvex",
     ":node_modules/rollup-plugin-visualizer",
+    ":node_modules/shiki",
     ":node_modules/svelte",
     ":node_modules/tailwindcss",
     ":node_modules/typescript",

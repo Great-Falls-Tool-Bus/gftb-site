@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="gftb">
+<html lang="en" data-theme="gftb" data-mode="light">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,10 +10,54 @@
 		     with `description` in src/routes/+layout.svelte;
 		     e2e/acceptance-copy-deslop.spec.ts enforces the parity. -->
 		<meta name="description" content="A community-run tool library taking shape in Lewiston–Auburn, Maine." />
-		<!-- browser chrome cannot read CSS vars: literals tracking primary-700 / surface-950 -->
+		<!-- browser chrome cannot read CSS vars: literals tracking primary-700 / surface-950.
+		     ACCEPTED LIMITATION (D01 port note): these stay media-keyed while the
+		     page itself keys on data-mode — a visitor who overrides the OS scheme
+		     gets the OS-scheme browser chrome tint. Browser chrome cannot follow a
+		     DOM attribute, and re-writing these from script would put paint-time
+		     colour logic in two places for a tint-only surface. -->
 		<meta name="theme-color" content="#564682" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#28222b" media="(prefers-color-scheme: dark)" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<script>
+			// FOUC prevention (D02, ported from the demo app.html:8-33): read
+			// color-mode and theme from localStorage and apply data-mode +
+			// data-theme synchronously before Svelte mounts. An explicit stored
+			// value wins; otherwise matchMedia resolves `system`. No-JS visitors
+			// keep the static data-mode="light" above — the accepted v5
+			// light-switch trade (attribute keying replaces the media-query dark
+			// block, so dark requires the attribute to be set).
+			(function () {
+				try {
+					var stored = localStorage.getItem('color-mode');
+					var prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+					var mode = stored === 'light' || stored === 'dark' ? stored : prefers ? 'dark' : 'light';
+					document.documentElement.setAttribute('data-mode', mode);
+					document.documentElement.style.colorScheme = mode;
+					var theme = localStorage.getItem('skeleton-theme');
+					if (theme) {
+						document.documentElement.setAttribute('data-theme', theme);
+					}
+					// The motion-safe arm belongs to the reveal system (D04): the
+					// hidden reveal start state only ever applies under this class,
+					// which is set before first paint and ONLY when motion is
+					// allowed — reduced-motion and no-JS visitors always render at
+					// rest.
+					var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+					if (!reduceMotion) {
+						document.documentElement.classList.add('motion-safe-ready');
+						// Fail-open: if the app never hydrates (bundle load fails),
+						// un-hide reveal content so a broken enhancement layer cannot
+						// strand it. +layout.svelte cancels this on mount.
+						window.__gftbRevealFailsafe = setTimeout(function () {
+							document.documentElement.classList.remove('motion-safe-ready');
+						}, 3000);
+					}
+				} catch (e) {
+					// localStorage unavailable (privacy mode, etc.): keep defaults.
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

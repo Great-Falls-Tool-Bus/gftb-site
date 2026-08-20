@@ -30,6 +30,9 @@
 		"analyze": "just analyze"
 	},
 	"dependencies": {
+		"@fontsource-variable/fira-code": "^5.2.7",
+		"@fontsource-variable/fraunces": "^5.2.9",
+		"@fontsource/crimson-pro": "^5.2.8",
 		"@fontsource/inter": "^5.3.0"
 	},
 	"devDependencies": {
@@ -51,6 +54,7 @@
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
 		"rollup-plugin-visualizer": "^7.0.1",
+		"shiki": "^4.3.1",
 		"svelte": "^5.56.8",
 		"svelte-check": "^4.7.4",
 		"tailwindcss": "^4.3.3",

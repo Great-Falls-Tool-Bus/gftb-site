@@ -20,6 +20,35 @@ const CORNERS = [
 	'border-bottom-left-radius',
 ];
 
+// D01 extension: the mode switch is the first mounted Skeleton component,
+// and v5 ships it with pill radii (`border-radius: calc(infinity * 1px)` on
+// control and thumb — exactly the built-stylesheet class of collision this
+// spec exists for). The sitewide sweep below already covers its resting
+// state; this row flips it and sweeps the checked state too, because
+// Skeleton styles the parts per data-state.
+test('the mode switch computes sharp corners in both states', async ({ page }) => {
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	const sweep = () =>
+		page.evaluate((corners) => {
+			const offenders: string[] = [];
+			for (const element of Array.from(
+				document.querySelectorAll<HTMLElement>('.mode-switch, .mode-switch__control, .mode-switch__thumb'),
+			)) {
+				const style = getComputedStyle(element);
+				const values = corners.map((corner) => style.getPropertyValue(corner));
+				if (values.some((value) => value !== '0px')) {
+					offenders.push(`${element.className.split(/\s+/u)[0]}: ${values.join(' ')}`);
+				}
+			}
+			return offenders;
+		}, CORNERS);
+	expect(await sweep(), 'switch corners at rest').toEqual([]);
+	await page.locator('.mode-switch').click();
+	await expect(page.locator('.mode-switch input')).toBeChecked();
+	expect(await sweep(), 'switch corners checked').toEqual([]);
+});
+
 for (const path of ['/', '/404', '/log', '/contact']) {
 	test(`no element computes a rounded corner at ${path}`, async ({ page }) => {
 		await page.goto(path);

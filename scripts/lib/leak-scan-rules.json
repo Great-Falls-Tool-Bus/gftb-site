@@ -94,7 +94,7 @@
 		{
 			"id": "private-personal-name",
 			"description": "personal name beyond the single initial the bus host consented to",
-			"pattern": "\\b(?:[A-Z]\\.\\s*[A-Z][a-z]{2,}|[A-Z][a-z]{2,}\\s+[A-Z]\\.\\s*[A-Z][a-z]{2,})\\b",
+			"pattern": "\\b(?:[A-Z]\\.\\s+[A-Z][a-z]{2,}|[A-Z][a-z]{2,}\\s+[A-Z]\\.\\s+[A-Z][a-z]{2,})\\b",
 			"flags": "u"
 		},
 		{

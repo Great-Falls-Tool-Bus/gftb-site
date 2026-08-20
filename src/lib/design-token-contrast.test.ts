@@ -66,6 +66,8 @@ function surfaces(scheme: SchemeName) {
 		inversePanel: resolveRole(tokens, '--inverse-panel'),
 		/** paper-filled controls sitting on that panel (gen_board.py:176) */
 		paper: resolveRole(tokens, '--inverse-fg'),
+		/** the mode switch's track (D01) — the accent thumb rides on it */
+		controlTrack: resolveRole(tokens, '--control-track'),
 	};
 }
 
@@ -140,6 +142,12 @@ const nonTextPairs: Pair[] = [
 	},
 	{ name: 'field focus outline on the panel', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
 	{ name: 'form notice edge on the panel', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
+	// The mode switch (D01): the accent thumb is the control's 1.4.11
+	// boundary, both against its own track and against the page the switch
+	// sits on (the page pair is the primary-fill row above; this one is the
+	// track). Dark pins --control-track to surface-800 because surface-700
+	// leaves this pair at 2.53:1.
+	{ name: 'mode switch thumb on its track', role: '--accent', on: 'controlTrack', minimum: NON_TEXT_RATIO },
 ];
 
 /**
@@ -213,8 +221,13 @@ describe('the role layer resolves', () => {
 
 	it('describes the whole second scheme in the dark block', () => {
 		// The file's header comment promises this. A role that is only declared
-		// in :root silently keeps its light value on a dark page.
-		const darkBlock = /@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([\s\S]*?)\n\t\}/u.exec(appCss)?.[1];
+		// in :root silently keeps its light value on a dark page. D01 re-key:
+		// the dark block is `[data-mode='dark']` (v5 light-switch strategy);
+		// the regex is anchored at line start with `{` directly after the
+		// selector so the compound `[data-mode='dark'] pre.shiki` code-surface
+		// rules cannot satisfy it — the same anchor scripts/lib/css-tokens.mjs
+		// extracts the scheme with.
+		const darkBlock = /^\[data-mode='dark'\]\s*\{([\s\S]*?)\n\}/mu.exec(appCss)?.[1];
 		expect(darkBlock).toBeDefined();
 		const lightRoot = /^:root\s*\{([\s\S]*?)\n\}/mu.exec(appCss)?.[1] ?? '';
 		const declared = (block: string) => [...block.matchAll(/(--[a-z0-9-]+):/gu)].map((match) => match[1]);

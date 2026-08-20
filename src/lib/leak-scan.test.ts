@@ -124,6 +124,11 @@ describe('leak-scan detections', () => {
 		expect(idsFiring('Ask J. when you arrive.')).not.toContain('private-personal-name');
 		expect(idsFiring('Ask J. Doe when you arrive.')).toContain('private-personal-name');
 		expect(idsFiring('Ask Jane Q. Doe when you arrive.')).toContain('private-personal-name');
+		// Minified member access is code, not a name: the rule requires real
+		// whitespace after the initial, so `H.Started`-shaped enum property
+		// reads in a shipped bundle (the false-positive class the first
+		// Skeleton component's Zag machine introduced) never fire.
+		expect(idsFiring('if(S===H.Started)return;u.current=d.current')).not.toContain('private-personal-name');
 	});
 
 	it('flags a private list archive but not the public one', () => {

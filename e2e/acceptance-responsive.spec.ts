@@ -60,6 +60,10 @@ async function clippedControls(page: Page, selector: string) {
 		const results: Array<{ label: string; left: number; right: number; width: number; height: number }> = [];
 		for (const element of Array.from(document.querySelectorAll<HTMLElement>(interactive))) {
 			if (element.closest('.honeypot')) continue;
+			// The mode switch's <input> is Zag's deliberately clipped 1px a11y
+			// channel; the visitor-facing target is the 52x28 control box,
+			// asserted by e2e/acceptance-mode-switch.spec.ts.
+			if (element.closest('.mode-switch')) continue;
 			if (element.offsetParent === null && getComputedStyle(element).position !== 'fixed') continue;
 			const box = element.getBoundingClientRect();
 			const label = `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24) || element.id}`;
@@ -110,7 +114,10 @@ test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ pag
 	await openPage(page, baseURL, 375);
 	const offenders = await page.evaluate((interactive) => {
 		const targets = Array.from(document.querySelectorAll<HTMLElement>(interactive))
-			.filter((element) => !element.closest('.honeypot'))
+			// The mode-switch input is the clipped 1px a11y channel; its real
+			// target box (the 52x28 control) is asserted by
+			// e2e/acceptance-mode-switch.spec.ts.
+			.filter((element) => !element.closest('.honeypot') && !element.closest('.mode-switch'))
 			.map((element) => ({ element, box: element.getBoundingClientRect() }))
 			.filter((target) => target.box.width > 0 && target.box.height > 0);
 

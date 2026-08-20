@@ -85,6 +85,12 @@ async function openPage(page: Page, baseURL: string | undefined, path = '/') {
 	await stubChallenge(page);
 	await page.goto(path);
 	await page.waitForLoadState('domcontentloaded');
+	// Disarm the scroll-reveal start state (D04): below-fold sections start
+	// at opacity 0 until they intersect, and this spec's visibility filter
+	// would silently drop them from the sweep. Contrast is about paint, not
+	// motion; removing the arm class renders everything at rest — the same
+	// resting state no-JS and reduced-motion visitors get.
+	await page.evaluate(() => document.documentElement.classList.remove('motion-safe-ready'));
 }
 
 const COLLECTORS = `
@@ -147,6 +153,12 @@ async function collectControlSamples(page: Page): Promise<ControlSample[]> {
 		const samples = [];
 		for (const element of Array.from(document.querySelectorAll(selector))) {
 			if (element.closest('.honeypot')) continue;
+			// The mode switch's <input> is Zag's clipped 1px a11y channel, not a
+			// painted control; the switch's perceivable 1.4.11 boundary is the
+			// accent thumb, swept as a token pair by
+			// src/lib/design-token-contrast.test.ts ('mode switch thumb on its
+			// track') in both schemes.
+			if (element.closest('.mode-switch')) continue;
 			if (element.disabled) continue;
 			if (!visible(element)) continue;
 			const style = getComputedStyle(element);

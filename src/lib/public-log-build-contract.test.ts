@@ -91,11 +91,27 @@ describe('static build wiring for the logs', () => {
 	it('keeps .svx a build-time content extension', () => {
 		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
 		expect(svelteConfig).toContain("extensions: ['.svelte', '.svx']");
-		expect(svelteConfig).toContain("mdsvex({ extensions: ['.svx'] })");
+		expect(svelteConfig).toContain("mdsvex({ extensions: ['.svx'], highlight: { highlighter } })");
 		// mdsvex 0.12.7 emits the legacy module-script spelling; without this
 		// rewrite the frontmatter never reaches `metadata` under Svelte 5 runes.
 		expect(svelteConfig).toContain('\'<script context="module">\'');
 		expect(svelteConfig).toContain("'<script module>'");
+	});
+
+	it('highlights code fences at build time with the dual-theme shiki contract (D07)', () => {
+		// The code-surface contract: shiki runs inside the mdsvex preprocessor
+		// (never in the client bundle) with a light+dark theme pair and
+		// defaultColor: false, so the emitted markup carries only the
+		// --shiki-light/--shiki-dark variables that src/app.css walks, keyed
+		// on the same data-mode attribute as the role layer.
+		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
+		expect(svelteConfig).toContain("import { codeToHtml } from 'shiki'");
+		expect(svelteConfig).toMatch(/themes:\s*SHIKI_THEMES/u);
+		expect(svelteConfig).toMatch(/\{ light: 'github-light', dark: 'github-dark' \}/u);
+		expect(svelteConfig).toContain('defaultColor: false');
+		const appCss = readFileSync(path.join(repoRoot, 'src/app.css'), 'utf8');
+		expect(appCss).toContain('var(--shiki-light)');
+		expect(appCss).toMatch(/\[data-mode='dark'\] pre\.shiki/u);
 	});
 
 	it('keeps the whole site prerendered by adapter-static', () => {
