@@ -371,12 +371,14 @@ interface HeroPair {
 // The eyebrow kickers the revision-1 sweep also gated were stripped sitewide
 // by the decoration-strip slice (de-slop ruling), so no --accent TEXT sits on
 // the hero anymore; --accent stays swept below as the button fill/border
-// (non-text), and the --link pair stays because the copy slice will demote
-// the hero CTAs to plain links.
+// (non-text), and the --link pair is now the live pair for the hero links —
+// the copy slice (restoration PR-5) demoted the hero CTAs to plain links.
+// The former "secondary button label" row is kept as the stricter AA bound
+// on --heading over the scrim (the h1 row alone only demands LARGE).
 const heroTextPairs: HeroPair[] = [
 	{ name: 'hero lede on the scrim', role: '--fg', on: 'scrim', minimum: AA },
 	{ name: 'hero h1 on the scrim', role: '--heading', on: 'scrim', minimum: LARGE },
-	{ name: 'secondary button label on the scrim', role: '--heading', on: 'scrim', minimum: AA },
+	{ name: 'hero heading held to body-text AA on the scrim', role: '--heading', on: 'scrim', minimum: AA },
 	{ name: 'a plain link on the scrim', role: '--link', on: 'scrim', minimum: AA },
 	{ name: 'status-card copy over the hero', role: '--fg', on: 'card', minimum: AA },
 	{ name: 'status-card muted copy over the hero', role: '--fg-muted', on: 'card', minimum: AA },

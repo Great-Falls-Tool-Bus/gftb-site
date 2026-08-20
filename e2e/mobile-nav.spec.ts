@@ -18,14 +18,14 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 test('mobile public front door exposes current status and working anchors', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.getByRole('heading', { name: 'Tools belong in motion.' })).toBeAttached();
+	await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeAttached();
 	await expect(page.getByText('Building, not lending yet.')).toBeAttached();
 	await expect(page.getByText('Schedule being confirmed')).toBeAttached();
 	await expect(page.getByText('Sunday, August 16, 2026 · afternoon')).toHaveCount(0);
 
 	await page.getByRole('link', { name: 'Help build the bus' }).click();
 	await expect(page).toHaveURL(/#contact$/);
-	await expect(page.getByRole('heading', { name: 'Bring a question, a skill, or a tool story.' })).toBeAttached();
+	await expect(page.getByRole('heading', { name: 'Contact and discussion' })).toBeAttached();
 });
 
 test('keyboard users can leave the repeated header and reach main content', async ({ page }) => {

@@ -3,7 +3,13 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="description" content="A community-run mobile tool library taking shape in Lewiston–Auburn, Maine." />
+		<!-- TODO(jess): description wording. The vehicle adjective was stripped
+		     because the bus is parked (full context in +layout.svelte); this
+		     comment ships in the served head, so the stripped word is not quoted
+		     here. Must stay byte-identical with `description` in
+		     src/routes/+layout.svelte; e2e/acceptance-copy-deslop.spec.ts
+		     enforces the parity. -->
+		<meta name="description" content="A community-run tool library taking shape in Lewiston–Auburn, Maine." />
 		<!-- browser chrome cannot read CSS vars: literals tracking primary-700 / surface-950 -->
 		<meta name="theme-color" content="#564682" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#28222b" media="(prefers-color-scheme: dark)" />

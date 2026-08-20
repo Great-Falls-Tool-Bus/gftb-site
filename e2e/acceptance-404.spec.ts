@@ -37,7 +37,7 @@ test.describe('a missing path', () => {
 			// and fails every one of these.
 			await expect(page.getByRole('heading', { name: 'That page is not here.', level: 1 })).toBeVisible();
 			await expect(page.getByRole('link', { name: 'Back to the front page' })).toHaveAttribute('href', '/');
-			expect(await page.title(), `title for ${missing}`).toBe('Page not found — Great Falls Tool Bus');
+			expect(await page.title(), `title for ${missing}`).toBe('Page not found · Great Falls Tool Bus');
 
 			const bodyText = ((await page.locator('body').innerText()) ?? '').trim();
 			expect(bodyText.length, `rendered body text for ${missing}`).toBeGreaterThan(100);
@@ -52,7 +52,7 @@ test.describe('a missing path', () => {
 		expect(response?.status()).toBe(404);
 		await expect(page.getByRole('heading', { name: 'That page is not here.', level: 1 })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Back to the front page' })).toHaveAttribute('href', '/');
-		expect(await page.title()).toBe('Page not found — Great Falls Tool Bus');
+		expect(await page.title()).toBe('Page not found · Great Falls Tool Bus');
 	});
 
 	test('is kept out of the index and claims no canonical URL', async ({ page, baseURL }) => {

@@ -20,8 +20,18 @@
 	// here.
 
 	const siteUrl = 'https://greatfallstoolbus.org';
-	const title = 'Great Falls Tool Bus — tools, skills, and shared work';
-	const description = 'A community-run mobile tool library taking shape in Lewiston–Auburn, Maine.';
+	// TODO(jess): document title. The tagline "— tools, skills, and shared
+	// work" was stripped (em-dash AI-tell + triad); the interim title is the
+	// bare project name. If the tab title should carry more, the words are
+	// yours.
+	const title = 'Great Falls Tool Bus';
+	// TODO(jess): site description. "mobile" was stripped (the bus is
+	// permanently parked); the final naming of what the project IS is yours.
+	// This string must stay byte-identical with the <meta name="description">
+	// in src/app.html (the JSON-LD below reuses this constant), and the
+	// "community-run tool library" phrase changes atomically with the hero
+	// lede in +page.svelte — e2e/acceptance-copy-deslop.spec.ts pins all of it.
+	const description = 'A community-run tool library taking shape in Lewiston–Auburn, Maine.';
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@type': 'Organization',
@@ -41,7 +51,9 @@
 	// The prerendered route renders with status 200 (it is a successful
 	// prerender of /404), so the path is what identifies it, not the status.
 	const isErrorSurface = $derived(page.url.pathname === '/404' || page.status >= 400);
-	const headTitle = $derived(isErrorSurface ? 'Page not found — Great Falls Tool Bus' : title);
+	// The "·" separator replaces an em-dash (mechanical AI-tell strip; "·" is
+	// the separator the site already uses in the footer and prior-log rows).
+	const headTitle = $derived(isErrorSurface ? 'Page not found · Great Falls Tool Bus' : title);
 	const headDescription = $derived(
 		isErrorSurface ? 'This address is not part of the Great Falls Tool Bus site.' : description,
 	);

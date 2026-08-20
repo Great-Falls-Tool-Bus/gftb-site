@@ -5,6 +5,11 @@
 	const latest = publicLogs[0];
 	const prior = publicLogs.slice(1);
 
+	// TODO(jess): goals content + format. Q4 (plain list vs run-in prose) is
+	// still an open operator question, so the three-item structure stands
+	// unchanged; the wording below is carried over as interim text and the
+	// final words are yours. ("legible inventory" was trimmed to "inventory"
+	// as a copy-deslop strip; restore or reword as you see fit.)
 	const goals = [
 		{
 			title: 'Make the bus ready',
@@ -16,7 +21,7 @@
 		},
 		{
 			title: 'Start with useful tools',
-			body: 'Build a small, legible inventory and checkout process that works well from a phone and still respects privacy.',
+			body: 'Build a small inventory and checkout process that works well from a phone and still respects privacy.',
 		},
 	];
 
@@ -94,15 +99,30 @@
 			<!-- TODO(jess): any kicker survivors? The nine uppercase eyebrow kickers
 			     were stripped as decoration (de-slop ruling 2026-08-19); if any of
 			     their words were load-bearing, they are yours to re-author. -->
-			<h1 id="page-title">Tools belong in motion.</h1>
-			<p class="lede">
-				The Great Falls Tool Bus is becoming a community-run mobile tool library: a place to share tools, practical
-				knowledge, repair work, and the responsibility that keeps all three circulating.
+			<!-- TODO(jess): headline. "Tools belong in motion." was stripped — the
+			     bus is permanently parked and never moves (operator fact,
+			     2026-08-19). The interim text below is the project name, the
+			     first element of the ratified page order (spec §3 item 1:
+			     "project name, one-sentence purpose, and current status");
+			     the real headline is yours to author. -->
+			<h1 id="page-title">Great Falls Tool Bus</h1>
+			<!-- TODO(jess): lede. Two strips landed here: (1) "mobile tool
+			     library" needs your wording (the bus is parked — this phrase
+			     changes atomically with the meta description in
+			     +layout.svelte and app.html, kept identical by
+			     e2e/acceptance-copy-deslop.spec.ts); the interim is the same
+			     phrase minus "mobile". (2) The triad tail ("a place to share
+			     tools, practical knowledge, repair work, and the
+			     responsibility that keeps all three circulating") was removed
+			     as motion/triad slop; nothing replaces it until you write it. -->
+			<p class="lede">The Great Falls Tool Bus is becoming a community-run tool library.</p>
+			<!-- TODO(jess): link wording. The button pair was demoted to plain
+			     links (CTA-demotion ruling); the link text carried over as
+			     interim wording. -->
+			<p>
+				<a class="text-link" href="#contact">Help build the bus</a> ·
+				<a class="text-link" href="#log">Read the latest log</a>
 			</p>
-			<div class="button-row">
-				<a class="button" href="#contact">Help build the bus</a>
-				<a class="button button--secondary" href="#log">Read the latest log</a>
-			</div>
 		</div>
 
 		<aside class="status-card" id="status" aria-labelledby="status-title">
@@ -111,7 +131,10 @@
 				The bus and its public processes are being prepared. Tool checkout, digital membership payments, and member
 				accounts are not live yet.
 			</p>
-			<p class="muted">Updates here describe completed work and the next concrete invitation.</p>
+			<!-- TODO(jess): "and the next concrete invitation" was trimmed as an
+			     AI-tell; if the status card should also name what future
+			     updates announce, that clause is yours to write. -->
+			<p class="muted">Updates here describe completed work.</p>
 		</aside>
 	</section>
 
@@ -136,7 +159,11 @@
 
 	<section class="section" aria-labelledby="goals-title">
 		<div class="section-heading">
-			<h2 id="goals-title">A useful thing, built in understandable steps.</h2>
+			<!-- TODO(jess): section heading. "A useful thing, built in
+			     understandable steps." was stripped as slop; the interim is
+			     the ratified page-order wording (spec §3 item 4: "near-term
+			     goals and specific ways to help"). -->
+			<h2 id="goals-title">Near-term goals</h2>
 			<p class="lede">
 				The public page stays simple while the real member, tool, and stewardship flows are designed with the people who
 				will use them.
@@ -173,7 +200,10 @@
 
 	<section class="section" id="log" aria-labelledby="log-title">
 		<div class="section-heading">
-			<h2 id="log-title">What changed, in plain language.</h2>
+			<!-- TODO(jess): section heading. "What changed, in plain language."
+			     was stripped as slop; the interim is the spec's own name for
+			     this surface (spec §3: "Public log"). -->
+			<h2 id="log-title">Public log</h2>
 			<p>
 				These short entries are reviewed before publication. They report public project progress without exposing
 				internal development or member information.
@@ -230,9 +260,13 @@
 			</figure>
 			<div class="history-card__copy">
 				<h2 id="history-title">A name shaped by this place.</h2>
+				<!-- TODO(jess): "useful things moving between neighbors instead of
+				     sitting alone" was stripped as motion language (the bus is
+				     parked); the factual first sentence and the name-borrowing
+				     statement stay. The closing thought is yours to write. -->
 				<p>
 					The falls and working river connect Lewiston and Auburn. The bus borrows that local name for another kind of
-					shared infrastructure: useful things moving between neighbors instead of sitting alone.
+					shared infrastructure.
 				</p>
 			</div>
 		</div>
@@ -241,7 +275,11 @@
 	<section class="section" id="contact" aria-labelledby="contact-title">
 		<div class="contact-card contact-card--form">
 			<div class="contact-copy">
-				<h2 id="contact-title">Bring a question, a skill, or a tool story.</h2>
+				<!-- TODO(jess): section heading. "Bring a question, a skill, or a
+			     tool story." was stripped as a triad; the interim is the
+			     ratified page-order wording (spec §3 item 8: "contact and
+			     discussion information"). -->
+				<h2 id="contact-title">Contact and discussion</h2>
 				<p>
 					The form reaches <a class="text-link" href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>, the
 					private role list for access requests. Its archive is not public.

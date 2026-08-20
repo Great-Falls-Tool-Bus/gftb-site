@@ -195,7 +195,7 @@ test.describe('keyboard operability', () => {
 		await expect(submitButton).toBeFocused();
 
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('status')).toContainText('your note is on its way');
+		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 		expect(capture.payloads).toHaveLength(1);
 		expect(capture.payloads[0]).toMatchObject({
 			name: 'Keyboard Tester',

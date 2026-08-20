@@ -14,13 +14,15 @@ test.describe('JavaScript disabled', () => {
 	test('the whole public narrative is present in the served HTML', async ({ page }) => {
 		await page.goto('/');
 
-		await expect(page.getByRole('heading', { name: 'Tools belong in motion.', level: 1 })).toBeVisible();
+		// Heading strings are interim placeholders pending Jess's final copy
+		// (restoration PR-5); update in lockstep with src/routes/+page.svelte.
+		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Building, not lending yet.' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Waterproofing + measurements' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'A useful thing, built in understandable steps.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'What changed, in plain language.' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Near-term goals' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Public log' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'A name shaped by this place.' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Bring a question, a skill, or a tool story.' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Contact and discussion' })).toBeVisible();
 	});
 
 	test('the latest public log renders from the static build', async ({ page }) => {
