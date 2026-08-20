@@ -631,10 +631,19 @@ li {
 	padding-block: clamp(4rem, 10vw, 7rem);
 }
 
-/* The featured-glass idiom (demo #90, .hero-glass), on the role layer: the
- * fill is the same `--panel at 88%` mix the card family composites, so
- * src/lib/design-token-contrast.test.ts's hero card ground models this
- * panel too; the frost is progressive enhancement on top. */
+/* The featured-glass idiom (demo #90, .hero-glass), on the role layer.
+ * Opaque fallback FIRST — `--panel at 88%`, the same mix the card family
+ * used to composite. This is the measured contract (maturity doc §2d G1/G7:
+ * the in-browser contrast walker reads computed backgroundColor and cannot
+ * see through backdrop-filter, so the opaque value is the only one any gate
+ * can verify — src/lib/design-token-contrast.test.ts's hero sweep is
+ * conservative on purpose and keeps modelling this number). The translucent
+ * variant below is progressive enhancement the gate does not (and, per G7,
+ * cannot) measure, so it is free to match the demo's own operating point
+ * instead of restating the fallback: 68% light / 74% dark (fa5552c
+ * src/routes/+page.svelte:345-350, "a quarter of the falls still reads
+ * through the frost"). Shipping the 88% fallback number as the translucent
+ * value was 2026-08-20 review finding A; this is the correction. */
 .hero-glass {
 	border: 1px solid var(--rule);
 	background: color-mix(in oklab, var(--panel) 88%, transparent);
@@ -643,8 +652,15 @@ li {
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
 	.hero-glass {
+		background: color-mix(in oklab, var(--panel) 68%, transparent);
 		backdrop-filter: blur(10px) saturate(118%);
 		-webkit-backdrop-filter: blur(10px) saturate(118%);
+	}
+
+	/* Dark re-key follows the file's existing [data-mode] convention, not a
+	 * prefers-color-scheme block (see the note at the top of this file). */
+	[data-mode='dark'] .hero-glass {
+		background: color-mix(in oklab, var(--panel) 74%, transparent);
 	}
 }
 
@@ -702,46 +718,66 @@ li {
 	object-position: center;
 }
 
-/* Legibility scrim — graduated, not the flat 92% mix (apex-gaps diagnosis
- * 2026-08-20 item 1: at a uniform 92% the postcard read as "a flat cream
- * field", the diagnosis's own words, even though the asset and pipeline are
- * fine — src/routes/+page.svelte's History card renders the identical
- * source crisp a few hundred px lower). Demo shape ported (fa5552c
- * src/routes/+page.svelte:315-330 .hero-band__scrim): two stacked
- * gradients, lighter at the band's top/bottom edges, heavier through the
- * vertical band the glass content occupies.
+/* Legibility scrim — un-inverted 2026-08-20 (review finding A: the prior
+ * revision shipped heavier through the content band and lighter at the
+ * edges, the INVERSE of the demo shape it cited, so this comment previously
+ * described the code backwards). Demo shape (fa5552c
+ * src/routes/+page.svelte:315-330 .hero-band__scrim): heaviest at the
+ * band's top/bottom edges (32% top / 55% bottom), fully transparent through
+ * the vertical band the glass content occupies, plus a horizontal layer
+ * that weights the tint toward the text side and fades toward the other —
+ * "contrast is guaranteed by the glass fill, not this scrim." gftb-site's
+ * glass is translucent too (above) but, unlike the demo, this scrim IS
+ * load-bearing for AA here (src/lib/design-token-contrast.test.ts composites
+ * the OPAQUE 88% glass fallback over this scrim over both photo extremes —
+ * see that file for why), so the content-zone value is pinned to gftb-site's
+ * own measured floor rather than copying the demo's numbers verbatim.
  *
  * Every hero ink (h1, lede, button-row, and the status-card's own copy) is
  * nested inside `.hero-glass` / `.status-card.hero-glass`
  * (src/routes/+page.svelte:74-124 — the button-row and the status-card
  * aside are BOTH children of a `.hero-glass` element, never bare on the
- * scrim), and `.hero-glass`'s `background: color-mix(in oklab, var(--panel)
- * 88%, transparent)` (below) is unconditional — present with or without
- * `@supports (backdrop-filter)`. So the ground every hero ink actually
- * composites against is glass-over-scrim-over-photo, not scrim-over-photo
- * alone; src/lib/design-token-contrast.test.ts's hero sweep now measures
- * that composite (the same 'card' math its `surfaces()` helper already
- * uses for every other card family) instead of a bare-scrim ground no
- * rendered pixel sits on — see that file for the ratified content-zone
- * percent and the computed floor.
+ * scrim); src/lib/design-token-contrast.test.ts's hero sweep measures that
+ * glass-over-scrim-over-photo composite — see that file for the ratified
+ * content-zone percent and the computed floor.
  *
- * `--hero-scrim-content` gates the vertical band `.hero-glass` /
- * `.status-card` occupy (18%-82% of the band) and is what the contrast
- * sweep reads. `--hero-scrim-edge` paints only the top/bottom 18% strips
- * outside that content band, where no ink ever renders — it carries no AA
- * obligation and is free to run much lighter for the visible-bleed fix. */
+ * `--hero-scrim-content` gates the vertical band and is what the contrast
+ * sweep reads; it is pinned FLAT (not interpolated) across 10%-90% of the
+ * band. Those stops are not the old 18%/82% guess: they are sized to
+ * contain the TRUE measured ink span at every P4 breakpoint, widest at
+ * 320px (11.6%-88.4%, review measurement 2026-08-20) — so "no ink renders
+ * in the edge zone" is now a geometric fact the stops are built to hold,
+ * not an unchecked assumption (review finding B: the old 18%/82% stops did
+ * NOT contain the real ink span below 640px, so ink actually sat on an
+ * interpolated value as low as 67.2% while the gate assumed the declared
+ * 74%). design-token-contrast.test.ts asserts these stops against the same
+ * measured spans. The two `--hero-scrim-edge-*` stops sit outside that band
+ * and carry no AA obligation by construction, not by assumption; they are
+ * free to run heavier for the demo's edge-weighted look. The horizontal
+ * layer below mixes the SAME `--bg` source as the vertical layer, so
+ * stacking it can only ADD coverage (same-colour alpha-over-alpha is
+ * monotonic) — it can visually vary the tint left-to-right without ever
+ * making the content zone lighter than the pinned floor. */
 .hero__scrim {
 	position: absolute;
 	inset: 0;
-	--hero-scrim-edge: color-mix(in oklab, var(--bg) 55%, transparent);
-	--hero-scrim-content: color-mix(in oklab, var(--bg) 74%, transparent);
-	background: linear-gradient(
-		180deg,
-		var(--hero-scrim-edge) 0%,
-		var(--hero-scrim-content) 18%,
-		var(--hero-scrim-content) 82%,
-		var(--hero-scrim-edge) 100%
-	);
+	--hero-scrim-edge-top: color-mix(in oklab, var(--bg) 70%, transparent);
+	--hero-scrim-edge-bottom: color-mix(in oklab, var(--bg) 84%, transparent);
+	--hero-scrim-content: color-mix(in oklab, var(--bg) 65%, transparent);
+	background:
+		linear-gradient(
+			180deg,
+			var(--hero-scrim-edge-top) 0%,
+			var(--hero-scrim-content) 10%,
+			var(--hero-scrim-content) 90%,
+			var(--hero-scrim-edge-bottom) 100%
+		),
+		linear-gradient(
+			100deg,
+			color-mix(in oklab, var(--bg) 30%, transparent) 0%,
+			color-mix(in oklab, var(--bg) 20%, transparent) 55%,
+			color-mix(in oklab, var(--bg) 10%, transparent) 100%
+		);
 }
 
 /* Drift, double-gated: only when the browser has scroll-driven animations
@@ -816,14 +852,21 @@ li {
 	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
 }
 
-/* TODO(jess): the --rule border (and the faint panel fill) is a grouping
- * call — keep or flatten is yours to rule; it stays until ruled. Honest
- * status per the de-slop directive's own test: these containers are NOT
- * needed for AA — every text role clears its floor on the bare page ground
- * in both schemes, and in dark the card ground actually LOWERS body-copy
- * contrast (15.25:1 → 12.96:1) — so they are removable; removal is an open
- * S0 row deferred to a later slice. Radius and shadow elevation are gone
- * (sharp-edges ruling). */
+/* Card-fill reduction, ruled 2026-08-20 (judge review on gftb-site PR #32,
+ * finding D). The TODO this replaces deferred on "keep or flatten is yours
+ * to rule; it stays until ruled" — the operator's 2026-08-20 checklist item
+ * 3 ("further reduction of unneeded bg card fill-ins") IS that ruling, so
+ * the deferral is superseded, not still open. The finding that makes
+ * removal safe, kept verbatim from the test's own honest status note: every
+ * text role clears its floor on the bare page ground in both schemes, and
+ * in dark the card ground actually LOWERS body-copy contrast (15.25:1 →
+ * 12.96:1) — so the border and fill were never AA-load-bearing here. Under
+ * the standing de-slop rule (P24: a decorative container must justify
+ * itself — AA need or it goes), that makes the border+fill decoration, and
+ * it goes; these render as page ground now (surfaces() in
+ * design-token-contrast.test.ts models `card` as `page` for the same
+ * reason). `.next-session` is explicitly excluded — it is the one ratified
+ * coloured container (gen_board.py:166-168) and was never a candidate. */
 .status-card,
 .card,
 .log-entry,
@@ -834,8 +877,6 @@ li {
 	 * it (review finding). e2e/acceptance-sharp-edges.spec.ts sweeps the
 	 * computed style so this class of collision fails loudly. */
 	border-radius: 0;
-	border: 1px solid var(--rule);
-	background: color-mix(in oklab, var(--panel) 88%, transparent);
 }
 
 /* The purple contact panel, restored (gen_board.py:170-179; addendum B1):
@@ -1564,6 +1605,159 @@ figcaption {
 	.qr {
 		print-color-adjust: exact;
 		-webkit-print-color-adjust: exact;
+	}
+}
+
+/* Floating "Contribute" affordance (ContributeMenu.svelte), ported from the
+ * demo per the 2026-08-20 review finding C (maturity doc §5 V2: ADOPT,
+ * scoped — asked-for, not optional). Dropdown-tier fixed affordance,
+ * anchored bottom-left — the site's only other fixed element is
+ * `.skip-link` (top-left, transient, keyboard-summoned only), so there is
+ * no collision to clear. */
+.contribute-fab {
+	position: fixed;
+	bottom: 1rem;
+	left: 1rem;
+	z-index: var(--z-dropdown);
+	display: flex;
+	flex-direction: column-reverse;
+	align-items: flex-start;
+	gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+	.contribute-fab {
+		bottom: 1.5rem;
+		left: 1.5rem;
+	}
+}
+
+@media print {
+	.contribute-fab {
+		display: none !important;
+	}
+}
+
+.contribute-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	border: 2px solid var(--accent);
+	border-radius: 0;
+	background: var(--accent);
+	padding: 0.7rem 1.15rem;
+	color: var(--accent-contrast);
+	font-weight: 800;
+	font-family: var(--font-sans);
+}
+
+/* Featured-glass idiom, same shape as .hero-glass above: opaque fallback
+ * first (the measured, gate-verifiable contract), translucent under
+ * @supports as progressive enhancement. Unlike the hero, this panel never
+ * sits over a photo, so there is no separate scrim floor to carry (maturity
+ * doc §2d G7 applies only to glass-over-imagery). */
+.contribute-panel {
+	position: absolute;
+	bottom: calc(100% + 0.75rem);
+	left: 0;
+	width: min(20rem, calc(100vw - 2rem));
+	border: 1px solid var(--rule);
+	border-radius: 0;
+	background: color-mix(in oklab, var(--panel) 92%, transparent);
+	box-shadow: 0 1px 30px color-mix(in oklab, var(--bg) 40%, transparent);
+	transition-property: opacity, transform;
+	transition-timing-function: ease-out;
+	transform-origin: bottom left;
+}
+
+@starting-style {
+	.contribute-panel {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+	.contribute-panel {
+		background: color-mix(in oklab, var(--panel) 78%, transparent);
+		backdrop-filter: blur(16px) saturate(140%);
+		-webkit-backdrop-filter: blur(16px) saturate(140%);
+	}
+}
+
+.contribute-panel__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	border-bottom: 1px solid var(--rule);
+	padding: 0.6rem 1rem;
+}
+
+.contribute-panel__eyebrow {
+	margin: 0;
+	color: var(--fg-muted);
+	font-family: var(--font-sans);
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.contribute-panel__close {
+	border: 0;
+	background: transparent;
+	padding: 0.25rem 0.5rem;
+	color: var(--fg-muted);
+	font-size: 1.1rem;
+	line-height: 1;
+}
+
+.contribute-panel__close:hover,
+.contribute-panel__close:focus-visible {
+	color: var(--fg);
+}
+
+.contribute-panel__list {
+	margin: 0;
+	padding: 0.35rem 0;
+	list-style: none;
+}
+
+.contribute-panel__list a {
+	display: block;
+	padding: 0.65rem 1rem;
+	color: inherit;
+	text-decoration: none;
+}
+
+.contribute-panel__list a:hover,
+.contribute-panel__list a:focus-visible {
+	background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+.contribute-panel__item-label {
+	display: block;
+	color: var(--heading);
+	font-weight: 700;
+	font-size: 0.9rem;
+}
+
+.contribute-panel__item-desc {
+	display: block;
+	margin-top: 0.15rem;
+	color: var(--fg-muted);
+	font-size: 0.78rem;
+	line-height: 1.35;
+}
+
+/* Reduced-motion collapse: the component also zeroes its own
+ * transition-duration inline (matches the app.html sync-script idiom used
+ * elsewhere), but the sitewide gate sweeps computed style, so the rule
+ * lives here too — belt and suspenders, same as .hero-glass above. */
+@media (prefers-reduced-motion: reduce) {
+	.contribute-panel {
+		transition-duration: 0s !important;
 	}
 }
 

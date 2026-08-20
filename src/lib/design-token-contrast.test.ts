@@ -52,11 +52,17 @@ const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
 function surfaces(scheme: SchemeName) {
 	const tokens = SCHEMES[scheme];
 	const page = resolveRole(tokens, '--bg');
-	const card = compositeOver(resolveColor(tokens, 'color-mix(in oklab, var(--panel) 88%, transparent)'), page);
+	// Card-fill reduction (2026-08-20 review, finding D): .status-card, .card,
+	// .log-entry and .history-card no longer declare a border or background —
+	// src/app.css strips the fill they used to composite (never AA-load-bearing;
+	// see that file's comment for the ruling). They render as page ground now,
+	// so `card` IS `page` here. `.hero-glass` is NOT part of this: its own
+	// opaque-fallback composite is measured separately by heroGrounds() below,
+	// against the hero scrim rather than the bare page.
+	const card = page;
 	return {
-		/** body, hero, section grounds */
+		/** body, hero, section grounds — .status-card/.card/.log-entry/.history-card render here too since the 2026-08-20 fill removal */
 		page,
-		/** .status-card, .card, .log-entry, .history-card, .hero-glass */
 		card,
 		/** .site-footer */
 		panel: resolveRole(tokens, '--panel'),
@@ -68,6 +74,13 @@ function surfaces(scheme: SchemeName) {
 		paper: resolveRole(tokens, '--inverse-fg'),
 		/** the mode switch's track (D01) — the accent thumb rides on it */
 		controlTrack: resolveRole(tokens, '--control-track'),
+		/** .contribute-panel (ContributeMenu.svelte, review finding C): the
+		 * opaque fallback (92%), same reasoning as `card` used to have and
+		 * `.hero-glass` still does — the browser-side gate cannot see through
+		 * the @supports translucent variant, so the fallback is the measured
+		 * contract. This panel never overlays a photo, so unlike the hero
+		 * there is no separate scrim floor to compose. */
+		contributePanel: compositeOver(resolveColor(tokens, 'color-mix(in oklab, var(--panel) 92%, transparent)'), page),
 	};
 }
 
@@ -117,6 +130,13 @@ const textPairs: Pair[] = [
 	{ name: 'field text on a paper-filled control', role: '--inverse-control-fg', on: 'paper', minimum: AA },
 	{ name: 'accent label on a paper-filled control', role: '--inverse-control-accent', on: 'paper', minimum: AA },
 	{ name: 'error ink on a paper-filled control', role: '--inverse-control-danger', on: 'paper', minimum: AA },
+	// ContributeMenu.svelte (review finding C): the trigger's own label, and
+	// the panel's four text roles.
+	{ name: 'contribute trigger label on its own fill', role: '--accent-contrast', on: 'accentFill', minimum: AA },
+	{ name: 'contribute panel eyebrow', role: '--fg-muted', on: 'contributePanel', minimum: AA },
+	{ name: 'contribute panel close button', role: '--fg-muted', on: 'contributePanel', minimum: AA },
+	{ name: 'contribute panel item label', role: '--heading', on: 'contributePanel', minimum: AA },
+	{ name: 'contribute panel item description', role: '--fg-muted', on: 'contributePanel', minimum: AA },
 ] as Pair[];
 
 const nonTextPairs: Pair[] = [
@@ -148,6 +168,16 @@ const nonTextPairs: Pair[] = [
 	// track). Dark pins --control-track to surface-800 because surface-700
 	// leaves this pair at 2.53:1.
 	{ name: 'mode switch thumb on its track', role: '--accent', on: 'controlTrack', minimum: NON_TEXT_RATIO },
+	// ContributeMenu.svelte (review finding C): no border pair here, on the
+	// same precedent the (now fill-less) card family set — measured, not
+	// assumed: --rule reaches only 1.56:1 (light) / 2.02:1 (dark) against
+	// this panel's own fill, and 1.41:1 / 2.39:1 against bare page, neither
+	// of which clears 3:1. --rule is a decorative divider role sitewide (the
+	// card family's border, .section's rule, .next-session's edge all used
+	// it the same way), never a 1.4.11-gated UI-component boundary, and
+	// nothing about this panel changes that. The trigger's own fill-on-page
+	// pair is not repeated here either — it is the same --accent-on-page
+	// combination the primary button pair already proves.
 ];
 
 /**
@@ -483,13 +513,26 @@ for (const scheme of SCHEME_NAMES) {
  * `--hero-scrim-content` (the vertical band `.hero-glass`/`.status-card`
  * occupy) is READ OUT of src/app.css: a nudge surfaces as the ratio that
  * broke, and a nudge that stays inside the floors still fails the
- * ratified-percent pin. `--hero-scrim-edge` paints only the top/bottom 18%
- * strips outside that band, where no ink ever renders, so it carries no
- * pair here. Re-anchor caveat: the palette's lightness/chroma are
- * provisional pending the corrected HEIC corpus, so these pairs are
- * re-verified after the re-anchor train.
+ * ratified-percent pin.
+ *
+ * GEOMETRIC INVARIANT, corrected 2026-08-20 (review finding B): this file
+ * previously asserted `--hero-scrim-edge` "paints only the top/bottom 18%
+ * strips outside that band, where no ink ever renders" without checking it
+ * against anything. That was false below 640px — the operator measured the
+ * real glass/ink span at every P4 breakpoint and found ink sitting well
+ * inside the old 18%/82% edge stops (320px ink span 11.6%-88.4%, review
+ * measurement 2026-08-20), so ink actually rendered on a value interpolated
+ * toward the lighter edge stop, not on the declared content value. Rather
+ * than leave that a disclosed-but-unenforced gap, the CSS content-zone stops
+ * are now sized (10%/90%, src/app.css `.hero__scrim`) to contain the widest
+ * real span with margin, and the assertion below reads those stops back out
+ * of the CSS and checks the containment directly — so a future edit that
+ * narrows the band re-breaks this test instead of silently reopening the gap.
+ * Re-anchor caveat: the palette's lightness/chroma are provisional pending
+ * the corrected HEIC corpus, so these pairs are re-verified after the
+ * re-anchor train.
  */
-const HERO_SCRIM_RATIFIED_PERCENT = 74;
+const HERO_SCRIM_RATIFIED_PERCENT = 65;
 const HERO_SCRIM_RULE =
 	/--hero-scrim-content:\s*(color-mix\(in oklab, var\(--bg\) (\d+(?:\.\d+)?)%, transparent\))/u.exec(appCss);
 if (!HERO_SCRIM_RULE) {
@@ -497,6 +540,28 @@ if (!HERO_SCRIM_RULE) {
 }
 const HERO_SCRIM = HERO_SCRIM_RULE[1];
 const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
+
+// The true measured ink span at every P4 acceptance-responsive breakpoint
+// (operator measurement, 2026-08-20 review of PR #32, finding B) — the
+// fixture the geometric invariant below is checked against. Widest at
+// 320px; narrower at every wider breakpoint, all still inside the same
+// stops, so 320px alone would suffice, but the full table is kept for the
+// next person who has to re-derive this after the HEIC re-anchor moves the
+// layout.
+const HERO_MEASURED_INK_SPAN: Record<number, [number, number]> = {
+	320: [11.6, 88.4],
+	360: [12.6, 87.4],
+	390: [12.6, 87.4],
+	480: [15.8, 84.2],
+	640: [16.9, 83.9],
+};
+const HERO_SCRIM_CONTENT_STOPS_RULE =
+	/--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%,\s*var\(--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%/u.exec(appCss);
+if (!HERO_SCRIM_CONTENT_STOPS_RULE) {
+	throw new Error('src/app.css .hero__scrim no longer declares two --hero-scrim-content gradient stops');
+}
+const HERO_SCRIM_CONTENT_START = Number(HERO_SCRIM_CONTENT_STOPS_RULE[1]);
+const HERO_SCRIM_CONTENT_END = Number(HERO_SCRIM_CONTENT_STOPS_RULE[2]);
 
 const IMAGE_EXTREMES = { black: parseCssColor('#000000'), white: parseCssColor('#ffffff') } as const;
 type ExtremeName = keyof typeof IMAGE_EXTREMES;
@@ -550,21 +615,42 @@ function luminanceProxy(color: Rgb): number {
 
 describe('hero backdrop scrim', () => {
 	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% content-zone mix`, () => {
-		// 74% is the ratified content-zone operating point (apex-gaps diagnosis
-		// 2026-08-20 item 1, re-measured against the corrected 'card' ground —
-		// see the GROUND CORRECTION note above); the measured floor is 66%
-		// (every AA pair passes there; 65% fails at 4.496:1 — just under the
-		// 4.5 floor — on the dark secondary-button-label/link/status-card-strong
-		// pairs, which all resolve through --heading/--link and are tied at the
-		// palette's current values). 74% is kept for ~8 points of headroom —
-		// the tightest dark pair reads 4.660:1 against the 4.5 floor — both
-		// because the palette is provisional pending the HEIC-corpus re-anchor
-		// (§1.1) and because this is now a gradient stop rather than a single
-		// declared value, so there is no separate "declared vs measured" pair
-		// of numbers the way the flat-mix version had.
+		// 65% is the HONEST floor (review finding B, 2026-08-20 — corrects the
+		// prior 66%/74% numbers, which were both wrong): swept by patching
+		// --hero-scrim-content and re-running every hero pair — 65% passes all
+		// of them, 64% fails at 4.48:1 on the tightest dark pairs
+		// (secondary-button-label/link/status-card-strong, tied through
+		// --heading/--link at the palette's current values), just under the 4.5
+		// floor. That leaves real but thin margin, not the previously-claimed
+		// ~8 points: disclosed here rather than papered over, because the
+		// palette is provisional pending the HEIC-corpus re-anchor (§1.1) and a
+		// copy or padding change can erode a thin margin silently. 65% is
+		// pinned anyway, not padded further, because the content-zone stops
+		// (below) now geometrically guarantee this is the flat value every real
+		// ink pixel actually sits on — the margin is thin on the palette axis,
+		// not on the geometry axis.
 		expect(HERO_SCRIM_PERCENT, `hero scrim content-zone declared at ${HERO_SCRIM_PERCENT}%`).toBe(
 			HERO_SCRIM_RATIFIED_PERCENT,
 		);
+	});
+
+	it('content-zone stops geometrically contain the true measured ink span at every P4 breakpoint', () => {
+		// Operationalizes the GEOMETRIC INVARIANT note above: reads the two
+		// --hero-scrim-content gradient stops back out of src/app.css and
+		// checks they contain the real measured ink span at every breakpoint,
+		// not just the widest one — so a future edit that narrows the band (or
+		// a re-measurement after the HEIC re-anchor that widens the ink span)
+		// fails this test instead of silently reopening the review-B gap.
+		for (const [viewport, [start, end]] of Object.entries(HERO_MEASURED_INK_SPAN)) {
+			expect(
+				HERO_SCRIM_CONTENT_START,
+				`content-zone start stop (${HERO_SCRIM_CONTENT_START}%) must sit at or before the measured ink start at ${viewport}px (${start}%)`,
+			).toBeLessThanOrEqual(start);
+			expect(
+				HERO_SCRIM_CONTENT_END,
+				`content-zone end stop (${HERO_SCRIM_CONTENT_END}%) must sit at or after the measured ink end at ${viewport}px (${end}%)`,
+			).toBeGreaterThanOrEqual(end);
+		}
 	});
 
 	for (const scheme of SCHEME_NAMES) {

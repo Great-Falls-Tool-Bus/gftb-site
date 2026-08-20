@@ -4,6 +4,7 @@
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
+	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import { theme } from '$lib/theme.svelte';
@@ -181,4 +182,9 @@
 			</nav>
 		</div>
 	</footer>
+
+	<!-- Mounted ONCE so it rides every route (ContributeMenu.svelte, review
+	     finding C). Fixed-position, so DOM order here does not affect its
+	     rendered placement. -->
+	<ContributeMenu />
 </div>
