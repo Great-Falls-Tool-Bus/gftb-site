@@ -132,6 +132,47 @@
             encode zstd gzip
             respond /health "ok" 200
             respond /healthz "ok" 200
+
+            # TIN-3959: neither directive below touches file_server's own
+            # per-file ETag/Last-Modified/If-None-Match handling — that stays
+            # exactly as-is and keeps serving real conditional-GET 304s (see
+            # the fuller finding in the PR description for why that native
+            # validator is trustworthy even though the build's file mtimes are
+            # frozen by the Nix store: it is verified live below, not assumed).
+            # The ONLY thing missing before this fix was Cache-Control itself,
+            # which file_server never sets on its own — with no Cache-Control
+            # and an epoch-era Last-Modified, browsers fell back to RFC 7234
+            # heuristic freshness (~10% of now-minus-last-modified), which for
+            # an epoch date is decades: returning visitors kept whatever the
+            # browser had cached, essentially forever, without ever
+            # revalidating on plain navigation.
+            #
+            # Vite's content-hashed build output (Cache-Control:
+            # public,max-age=31536000,immutable — the filename itself changes
+            # on any content change, so a long-lived, non-revalidating cache
+            # is correct there, and is the one category the missing-header
+            # bug never touched by accident: a stale cached copy of a
+            # hash-named file is always the SAME content that hash names)
+            # versus everything else (Cache-Control: no-cache — prerendered
+            # HTML, which is nearly the whole site since every route is
+            # prerendered, plus robots.txt, llms.txt, favicon.svg, /qr/**, and
+            # any other static/** passthrough file: revalidate on every use
+            # rather than trust a heuristic) are matched with an explicit
+            # `not`-guarded pair, not directive order: Caddy's Caddyfile
+            # adapter does NOT preserve the written order between a
+            # path-matched `header` and a matcher-less one — both are
+            # non-terminal and the matcher-less one runs for every request
+            # regardless of position, so a plain "generic block first,
+            # specific block second" (relying on "last write wins") silently
+            # lets the generic no-cache rule clobber the immutable rule on
+            # every hashed-asset request. Verified against the compiled
+            # `caddy adapt` JSON route order, not assumed.
+            @hashed_immutable path /_app/immutable/*
+            @not_hashed_immutable not path /_app/immutable/*
+
+            header @hashed_immutable Cache-Control "public, max-age=31536000, immutable"
+            header @not_hashed_immutable Cache-Control "no-cache"
+
             file_server
 
             # TIN-3932: a bare `file_server` answers an unknown path with the
