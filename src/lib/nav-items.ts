@@ -17,6 +17,12 @@ export interface NavItem {
 	primary?: boolean;
 	/** When not `primary`, which footer group this item is demoted into. */
 	footerGroup?: 'About' | 'Get involved';
+	/**
+	 * Destination leaves the site — the footer renders it through
+	 * ExternalLink (rel/target + the [↗] mark) instead of a bare anchor.
+	 * Never combine with `primary`: the header bar has no external items.
+	 */
+	external?: boolean;
 }
 
 export const navItems: NavItem[] = [
@@ -26,6 +32,16 @@ export const navItems: NavItem[] = [
 	{ label: 'History', href: '/#history', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
+	// Public HyperKitty archive UI for discuss@ (operator ask 2026-08-20). The
+	// PRIVATE keyholders@ archive never gets a public link — see
+	// scripts/lib/leak-scan-rules.json's private-list-archive rule.
+	{
+		label: 'Discuss archive',
+		href: 'https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/',
+		match: [],
+		footerGroup: 'Get involved',
+		external: true,
+	},
 ];
 
 /** Header bar items — derived, never hand-duplicated. */

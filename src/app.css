@@ -919,6 +919,22 @@ li {
 	color: var(--inverse-fg-muted);
 }
 
+/* The [↗] ExternalLink mark declares its own color (D06 above), which wins
+ * over the panel's `.contact-card a` link-color rule for that child span —
+ * so the inverted panel needs its own mark override, same pairing as
+ * `.contact-card .muted` and `.contact-card a` right above. Caught by
+ * e2e/acceptance-contrast.spec.ts when the discuss-archive ExternalLink
+ * first landed on this panel (operator ask 2026-08-20/21): --fg-muted (the
+ * light-ground default) measured 1.94:1 on --inverse-panel. */
+.contact-card .external-link__mark {
+	color: var(--inverse-fg-muted);
+}
+
+.contact-card .external-link:hover .external-link__mark,
+.contact-card .external-link:focus-visible .external-link__mark {
+	color: var(--inverse-link);
+}
+
 .status-card,
 .card,
 .contact-card {
