@@ -205,7 +205,7 @@
             #
             # `/_app/immutable/*` is hardcoded rather than read from
             # BASE_PATH (svelte.config.js: `paths.base = process.env.BASE_PATH
-            # ?? ''`). Harmless at the apex, where BASE_PATH is unset — but if
+            # ?? '''`). Harmless at the apex, where BASE_PATH is unset — but if
             # a spoke build ever sets it, every hashed asset would silently
             # fall back to the `no-cache` rule below instead of erroring.
             @hashed_immutable path /_app/immutable/*
