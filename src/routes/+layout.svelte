@@ -159,7 +159,13 @@
 					<h2>{group.heading}</h2>
 					<ul>
 						{#each group.items as item (item.label)}
-							<li><a href={item.href}>{item.label}</a></li>
+							<li>
+								{#if item.external}
+									<ExternalLink href={item.href}>{item.label}</ExternalLink>
+								{:else}
+									<a href={item.href}>{item.label}</a>
+								{/if}
+							</li>
 						{/each}
 					</ul>
 				</nav>
