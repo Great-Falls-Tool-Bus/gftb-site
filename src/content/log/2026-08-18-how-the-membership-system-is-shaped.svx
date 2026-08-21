@@ -1,0 +1,26 @@
+---
+date: '2026-08-18'
+title: 'How the membership system is shaped'
+summary: 'The plain steps from applying to becoming an active member, and what never gates that decision.'
+tags:
+  - membership
+published: false
+---
+
+<!-- TODO(jess): source = spec/launch-member-v0-system-2026-08-16.md §4
+     (identity/application/membership) via the private meta repo. Simplified
+     for a member-facing read, no internal ticket/PR/slice numbers, no
+     sitting dates. Review and set published: true when this is your voice. -->
+
+<!-- TODO(jess): photo — drop into static/photos/log/how-the-membership-system-is-shaped.<ext>, then an image reference with a one-line credit -->
+
+Here's how becoming a member works, start to finish.
+
+- Apply with a short form.
+- A keyholder reviews it and sets up an in-person tour.
+- After the tour, one keyholder decides: yes or no.
+- Say yes, and you agree to the membership terms. Then you're active.
+- Money never enters that decision. Whoever reviews your application doesn't see what you've paid, or whether you've paid anything at all.
+- Your email address and mailing-list status don't gate membership either. Those are always separate.
+- Need a break? Pause, and pick back up later.
+- Leaving is simple, and handled with dignity.

@@ -1,0 +1,26 @@
+---
+date: '2026-08-11'
+title: 'How tools will move'
+summary: 'The plan for checking a tool out, using it, and bringing it back, phone-first and one borrower at a time.'
+tags:
+  - tools
+published: false
+---
+
+<!-- TODO(jess): source = spec/launch-member-v0-system-2026-08-16.md §8
+     (inventory and custody pilot) via the private meta repo. Simplified for
+     a member-facing read; future tense is honest, this is not live yet.
+     Review and set published: true when this is your voice. -->
+
+<!-- TODO(jess): photo — drop into static/photos/log/how-tools-will-move.<ext>, then an image reference with a one-line credit -->
+
+Here's the plan for how tools will move in and out of the bus.
+
+- Every tool gets its own ID and a short story: what it is, where it's been.
+- Check one out by scanning it with your phone. Log the kit and its condition, and it's yours for a week.
+- Only one person borrows a tool at a time. No double-booking.
+- Bring it back and we check it against what went out. Clean, and it's free for the next person.
+- Damaged or missing pieces send it to repair instead of back on the shelf.
+- None of this charges you automatically. A late tool gets a reminder, not a bill.
+- First pilot: about ten sewing tools, before this opens up wider.
+- Not live yet. This is the plan, being built and tested now.
