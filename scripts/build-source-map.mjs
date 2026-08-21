@@ -3,8 +3,14 @@
 // Ported from the demo site (greatfallstoolbus.org@origin/main
 // scripts/build-source-map.mjs, operator commit #94) and extended for the
 // public log (B1.2): in addition to every src/routes/**/+page.svelte, each
-// src/content/log/*.svx post is mapped at its /log/<slug> permalink, so the
-// "Edit this page" affordance is wired PER POST.
+// PUBLISHED src/content/log/*.svx post is mapped at its /log/<slug>
+// permalink, so the "Edit this page" affordance is wired PER POST.
+//
+// Unpublished drafts are excluded (B1 fix, PR #33 review): the review found
+// draft slugs shipping here too (source-map.json is a build output, walked
+// by leak-scan, and read by src/lib/components/SourceLink.svelte), which
+// would advertise a draft's existence — and, at the `/log/<slug>` permalink
+// it names — even though the draft itself never prerenders.
 //
 // Why derived, not per-page hand-links: the map is generated from
 // architectural zero so a new page or post cannot silently lack the
@@ -17,6 +23,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { readLogEntries } from './lib/log-content.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ROUTES_DIR = path.join(ROOT, 'src', 'routes');
@@ -94,10 +102,11 @@ async function main() {
 	}
 
 	// Per-post permalinks: /log/<slug> -> the .svx source itself (B1.2).
-	for (const entry of await fs.readdir(LOG_DIR, { withFileTypes: true })) {
-		if (!entry.isFile() || !entry.name.endsWith('.svx')) continue;
-		const slug = entry.name.replace(/\.svx$/, '');
-		routes[`/log/${slug}`] = `src/content/log/${entry.name}`;
+	// Published entries only (B1 fix) — an unpublished draft has no
+	// permalink to map and its slug must not appear in this build output.
+	for (const entry of readLogEntries(LOG_DIR)) {
+		if (entry.metadata.published !== true) continue;
+		routes[`/log/${entry.slug}`] = entry.sourcePath;
 	}
 
 	const sortedRoutes = {};

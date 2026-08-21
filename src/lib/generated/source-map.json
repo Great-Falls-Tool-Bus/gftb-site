@@ -6,10 +6,6 @@
 		"/": "src/routes/+page.svelte",
 		"/404": "src/routes/404/+page.svelte",
 		"/contact": "src/routes/contact/+page.svelte",
-		"/log": "src/routes/log/+page.svelte",
-		"/log/2026-08-16-public-front-door": "src/content/log/2026-08-16-public-front-door.svx",
-		"/log/2026-08-17-starting-a-real-public-log": "src/content/log/2026-08-17-starting-a-real-public-log.svx",
-		"/log/2026-08-19-site-went-public-with-the-new-palette": "src/content/log/2026-08-19-site-went-public-with-the-new-palette.svx",
-		"/log/2026-08-20-membership-system-taking-shape": "src/content/log/2026-08-20-membership-system-taking-shape.svx"
+		"/log": "src/routes/log/+page.svelte"
 	}
 }

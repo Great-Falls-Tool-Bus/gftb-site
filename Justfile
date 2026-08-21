@@ -149,6 +149,19 @@ source-map-check: source-map-build
     @cd {{ root }} && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
     @echo "source-map-check: map is current; no agent surfaces"
 
+# Derive src/lib/generated/log-manifest.ts from src/content/log/*.svx —
+# PUBLISHED entries only (B1 fix, PR #33 review: an eager glob over every
+# entry, published or not, shipped every draft's prose to every visitor).
+# src/lib/public-logs.ts imports this file and nothing else content-shaped,
+# so an unpublished draft has no path into the client bundle. Mirrors
+# source-map-build/-check exactly.
+log-manifest-build:
+    cd {{ root }} && node scripts/build-log-manifest.mjs
+
+log-manifest-check: log-manifest-build
+    @cd {{ root }} && git diff --exit-code -- src/lib/generated/log-manifest.ts || { echo "log-manifest-check: src/lib/generated/log-manifest.ts drifted; commit the regenerated manifest" >&2; exit 1; }
+    @echo "log-manifest-check: manifest is current"
+
 entrypoint-contract:
     cd {{ root }} && python3 scripts/test-bazel-cutover-contracts.py
 
@@ -347,11 +360,11 @@ qa-packet-diff baseline candidate *options:
 # //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
 # (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
 # every pull request through this recipe.
-check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test //:local_validation_suite
     @echo "All checks passed."
 
-check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test --config=ci //:local_validation_suite
     @echo "All CI artifact checks passed."
 
