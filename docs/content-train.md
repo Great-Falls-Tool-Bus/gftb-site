@@ -23,6 +23,23 @@ Money and contribution copy stays recipient-neutral: describe what happens
 (cash, check, Stripe) without implying tax-deductibility or nonprofit
 status that hasn't been decided.
 
+## Never state the site's public/gated status in a draft
+
+HARD RULE, third recurrence of this pattern (F2 in PR #33, B4 in PR #36):
+NEVER state the site's public/gated status in a draft; phrase progress
+without it — the status changes under the drafts.
+
+A draft can sit in the tree for days before the operator rewrites and
+merges it, and the apex's public/gated state can flip in that window
+(access-gated for a review round, opened, re-gated again). Any sentence
+that asserts "the public website you're reading this on right now" or
+similar is a claim about the world at merge time, made at draft time. It
+will eventually be wrong even if it happens to be right today. Say what
+was built and shipped in the codebase sense ("Built and deployed: the new
+site.") and leave live/gated status out of draft prose entirely; the
+operator adds a status claim only when writing in their own words, at the
+moment they know it's still true.
+
 ## The frontmatter contract
 
 Five required keys, one optional, enforced by
