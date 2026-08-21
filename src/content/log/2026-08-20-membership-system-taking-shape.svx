@@ -14,4 +14,4 @@ Behind the scenes I've been building out the actual membership system: someone a
 
 Every piece of this has been built against a real Postgres database and put through hostile testing on purpose: replayed webhooks, forged tokens, double-claims, race conditions between two keyholders acting at once. It's held up so far, through a couple of rounds of edits.
 
-None of it is live. Most of it is already merged and reviewed — what's left is waiting on one more thing: the actual words. What the application form says, what the keyholder roles are called, what the agreement text is, that's mine to write. Once that's in hand this ships.
+None of it is live. Most of it is already merged and reviewed. What's left is waiting on one more thing: the actual words. What the application form says, what the keyholder roles are called, what the agreement text is, that's mine to write. Once that's in hand this ships.

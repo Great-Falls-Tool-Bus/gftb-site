@@ -45,11 +45,32 @@ No other keys are allowed. The schema throws on anything else.
 ## `published: false`, always, from an agent
 
 Every entry an agent drafts ships as `published: false`. That is not a
-suggestion, it is enforced practice going back to addendum B1.2: the log
-loader (`src/lib/public-logs.ts`) excludes `false` drafts from every
-rendered index, page, and feed, so an unpublished draft never reaches a
-visitor. It can sit in the content tree, reviewed and merged, without ever
-being live.
+suggestion, it is enforced practice going back to addendum B1.2, and the
+exclusion happens at BUILD time, not by filtering at render time.
+
+`scripts/build-log-manifest.mjs` reads every `.svx` file straight off disk
+(`scripts/lib/log-content.mjs`, plain `node:fs`, no Vite involved) and
+writes `src/lib/generated/log-manifest.ts`, a checked-in file that lists
+ONLY the entries with `published: true`, each as a literal
+`import('.../<slug>.svx')`. `src/lib/public-logs.ts` imports that
+generated file and nothing else content-shaped, so an unpublished draft's
+title, summary, or body is never an import statement anywhere the client
+bundle can reach. It can sit in the content tree, reviewed and merged,
+without ever being live.
+
+`just log-manifest-check` (wired into `just check`) regenerates the
+manifest and diffs it against the committed copy, and it is deliberately
+asymmetric: a new draft that never got a manifest entry is safe (there is
+nothing for it to leak), but a manifest that still lists an entry after it
+flips back to `published: false` fails the check loudly, because that is
+the direction that would actually put a draft in front of a visitor.
+
+As a second, independent net over the real built bytes, `scripts/
+check-build-output.mjs` folds every `published: false` entry's title,
+summary, and a distinctive opening body phrase (`distinctiveDraftLiterals`
+in `scripts/lib/log-content.mjs`) into the leak-scan denylist on every
+build, so `just build` and `just leak-scan-stamped` prove — not just
+assume — that no draft's content shipped.
 
 ## The merge is the publish
 

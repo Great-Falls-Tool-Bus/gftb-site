@@ -108,12 +108,44 @@ export function readLogEntries(contentDir) {
 		});
 }
 
+/** Below this length a leading sentence ("Draft.") is too short to be a safe denylist literal. */
+const MIN_BODY_PHRASE_LENGTH = 20;
+
+/**
+ * The body's opening prose, skipping the leading `<!-- TODO(jess): ... -->`
+ * comment every draft opens with, accumulated sentence by sentence until it
+ * clears MIN_BODY_PHRASE_LENGTH — so a short opener like "Draft." can't
+ * stand alone as a literal that might coincidentally appear elsewhere in a
+ * build (e.g. in the word "draft" itself).
+ *
+ * @param {string} body
+ * @returns {string}
+ */
+function firstBodyPhrase(body) {
+	const prose = body.replace(/<!--[\s\S]*?-->/gu, '').trim();
+	if (!prose) return '';
+	const sentences = prose.match(/[^.!?]+[.!?]+/gu) ?? [prose];
+	let phrase = '';
+	for (const sentence of sentences) {
+		phrase += sentence;
+		if (phrase.trim().length >= MIN_BODY_PHRASE_LENGTH) break;
+	}
+	return phrase.trim();
+}
+
 /**
  * Distinctive, unlikely-to-collide strings pulled from every `published:
- * false` entry's frontmatter — long enough that their presence in a build
- * artefact can only mean the draft's content reached the bundle, never a
- * coincidental match. Title and summary are both used because either alone
- * shipping (per the PR #33 review's grep proof, both did) is the defect.
+ * false` entry — long enough that their presence in a build artefact can
+ * only mean the draft's content reached the bundle, never a coincidental
+ * match. Title, summary, AND a leading body phrase are all included,
+ * deliberately, as a STATED invariant rather than an emergent one: mdsvex
+ * bakes a `.svx` file's current frontmatter into its compiled module, so
+ * today any import of a draft's component also drags its title+summary
+ * into the chunk (PR #33 review, LOW-1) — but that coupling is a toolchain
+ * detail this denylist must not depend on. Covering body prose directly
+ * means the leak this module exists to catch stays caught even if that
+ * coupling ever stops holding (e.g. a future Rollup that tree-shakes an
+ * unused `metadata` export from a component-only import).
  *
  * @param {LogEntry[]} entries
  * @returns {string[]}
@@ -129,6 +161,8 @@ export function distinctiveDraftLiterals(entries) {
 		if (typeof entry.metadata.summary === 'string' && entry.metadata.summary.length > 0) {
 			literals.push(entry.metadata.summary);
 		}
+		const bodyPhrase = firstBodyPhrase(entry.body);
+		if (bodyPhrase.length > 0) literals.push(bodyPhrase);
 	}
 	return literals;
 }
