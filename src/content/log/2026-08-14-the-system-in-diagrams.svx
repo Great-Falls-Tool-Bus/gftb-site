@@ -33,7 +33,7 @@ Two other operations diagrams from the same set are internal-only per the public
 
 **What happens after you're active.** Contributions and other extras stay optional, and separate from membership itself.
 
-<img src="/diagrams/launch-member-v0/member-projection-flow.svg" alt="Member projection flow: active membership branches into an optional contribution offer (no contribution, cash or check, or Stripe) and an optional projection queue for mailing list and mailbox, none of which change membership." />
+<img src="/diagrams/launch-member-v0/member-projection-flow.svg" alt="Member projection flow: active membership branches into an optional contribution offer (no contribution, cash or check, or Stripe when live gates pass) and an optional projection queue for mailing list and mailbox, none of which change membership." />
 
 **How a tool moves** from the shelf to your hands and back.
 

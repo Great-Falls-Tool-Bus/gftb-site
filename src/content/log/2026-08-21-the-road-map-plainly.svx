@@ -1,7 +1,7 @@
 ---
 date: '2026-08-21'
 title: 'The road map, plainly'
-summary: 'What is already live, what is built and waiting on words, and what comes next, as a sequence rather than a calendar.'
+summary: 'What is done, what is built and waiting on words, and what comes next, as a sequence rather than a calendar.'
 tags:
   - roadmap
 published: false

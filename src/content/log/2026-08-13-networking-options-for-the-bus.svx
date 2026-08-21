@@ -16,7 +16,7 @@ networking.
 
 <!-- TODO(jess): photo — drop into static/photos/log/networking-options-for-the-bus.<ext>, then an image reference with a one-line credit -->
 
-- Set tentative working hours: Thursday and Friday afternoons.
+- Set tentative regular working sessions at the site.
 - Checking in on where the lease and entity work stand.
 - Want to get networking routed to the bus.
 - Scoping connectivity options for the site, still narrowing down the
