@@ -132,6 +132,97 @@
             encode zstd gzip
             respond /health "ok" 200
             respond /healthz "ok" 200
+
+            # TIN-3959. The ONLY thing missing before this fix was
+            # Cache-Control itself, which file_server never sets on its own —
+            # with no Cache-Control and an epoch-era Last-Modified, browsers
+            # fell back to RFC 7234 heuristic freshness (~10% of
+            # now-minus-last-modified), which for an epoch date is decades:
+            # returning visitors kept whatever the browser had cached,
+            # essentially forever, without ever revalidating on plain
+            # navigation.
+            #
+            # Vite's content-hashed build output (Cache-Control:
+            # public,max-age=31536000,immutable — the filename itself changes
+            # on any content change, so a long-lived, non-revalidating cache
+            # is correct there, and is the one category the missing-header
+            # bug never touched by accident: a stale cached copy of a
+            # hash-named file is always the SAME content that hash names)
+            # versus everything else (Cache-Control: no-cache — prerendered
+            # HTML, which is nearly the whole site since every route is
+            # prerendered, plus robots.txt, favicon.svg, /qr/**, and any
+            # other static/** passthrough file: revalidate on every use
+            # rather than trust a heuristic) are matched with an explicit
+            # `not`-guarded pair, not directive order: Caddy's Caddyfile
+            # adapter does NOT preserve the written order between a
+            # path-matched `header` and a matcher-less one — both are
+            # non-terminal and the matcher-less one runs for every request
+            # regardless of position, so a plain "generic block first,
+            # specific block second" (relying on "last write wins") silently
+            # lets the generic no-cache rule clobber the immutable rule on
+            # every hashed-asset request. Verified against the compiled
+            # `caddy adapt` JSON route order, not assumed.
+            #
+            # `@not_hashed_immutable` ALSO strips Last-Modified and ETag
+            # (adversarial review, PR #34, B1). `appLayer` is a
+            # `pkgs.runCommand`, so `/srv` is a Nix store path, and the Nix
+            # store normalizes every file's mtime to exactly 1
+            # (1970-01-01T00:00:01Z) — not a per-build-varying value, the
+            # SAME constant on every single deploy. file_server derives both
+            # Last-Modified and its own ETag from (mtime, size) alone, and at
+            # this pinned Caddy version, mtime 1 keeps Last-Modified while
+            # dropping ETag. A validator that never changes across
+            # generations is worse than none: `no-cache` forces revalidation
+            # on every navigation, the browser offers back the one frozen
+            # epoch date it was ever given, and file_server correctly answers
+            # 304 by its own logic every single time — pinning every visitor
+            # to whichever generation they first loaded, permanently. Ship no
+            # validator instead, so the forced revalidation is an
+            # unconditional GET. (A real per-content validator, e.g. via
+            # `file_server { etag_file_extensions .sha256 }` against
+            # build-time sidecar hashes, would restore 304s for HTML safely —
+            # tracked as a follow-up, not required here: full 200 responses
+            # on 35 small published files is an acceptable trade against a
+            # permanent-staleness bug.)
+            #
+            # Stripping the RESPONSE validators alone is not sufficient, and
+            # this was verified the hard way: `header -Last-Modified/-Etag`
+            # only edits what file_server already decided to send. Go's
+            # http.ServeContent (what file_server serves through) makes its
+            # 304-or-200 decision from the file's real on-disk mtime against
+            # whatever If-Modified-Since/If-None-Match the REQUEST carries,
+            # entirely before a downstream `header` directive gets a chance
+            # to touch anything — so with only the response side stripped, a
+            # client offered the frozen mtime-1 date once still got a real
+            # 304 back on every later re-navigation (confirmed live: same
+            # frozen date in, `HTTP/1.1 304 Not Modified` out, `Cache-Control:
+            # no-cache` present but with no Last-Modified/Etag to show for
+            # it — the tautology was merely hidden, not fixed). The
+            # `request_header` removals below strip those conditional
+            # headers from the REQUEST before file_server ever evaluates
+            # them, so it can never see a match and must always answer with
+            # a full body.
+            #
+            # `/_app/immutable/*` is hardcoded rather than read from
+            # BASE_PATH (svelte.config.js: `paths.base = process.env.BASE_PATH
+            # ?? '''`). Harmless at the apex, where BASE_PATH is unset — but if
+            # a spoke build ever sets it, every hashed asset would silently
+            # fall back to the `no-cache` rule below instead of erroring.
+            @hashed_immutable path /_app/immutable/*
+            @not_hashed_immutable not path /_app/immutable/*
+
+            header @hashed_immutable Cache-Control "public, max-age=31536000, immutable"
+            header @not_hashed_immutable {
+              Cache-Control "no-cache"
+              -Last-Modified
+              -Etag
+            }
+
+            request_header @not_hashed_immutable -If-Modified-Since
+            request_header @not_hashed_immutable -If-None-Match
+            request_header @not_hashed_immutable -If-Unmodified-Since
+            request_header @not_hashed_immutable -If-Match
+
             file_server
 
             # TIN-3932: a bare `file_server` answers an unknown path with the
@@ -144,7 +235,22 @@
             #
             # scripts/bazel_output.py mirrors this for the preview, and
             # scripts/test-bazel-cutover-contracts.py pins the two together.
+            #
+            # TIN-3959 E1 (adversarial review, PR #34): the `header
+            # @hashed_immutable` rule above runs unconditionally against the
+            # REQUEST path, before file_server decides whether that path
+            # actually resolves — so a miss under /_app/immutable/* (a
+            # deploy race, or an edge/client holding HTML that references a
+            # hash the origin hasn't got yet) inherited the year-long
+            # immutable Cache-Control on its 404 body too, non-revalidating,
+            # at that exact URL: the same poisoning class this PR exists to
+            # kill. handle_errors composes its own response and runs after,
+            # so resetting the three headers here is what actually wins for
+            # every error path, hashed or not.
             handle_errors {
+              header Cache-Control "no-cache"
+              header -Last-Modified
+              header -Etag
               rewrite * /404.html
               file_server {
                 status {err.status_code}
