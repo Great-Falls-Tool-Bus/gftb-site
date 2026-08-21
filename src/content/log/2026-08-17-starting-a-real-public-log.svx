@@ -15,5 +15,3 @@ I built the plumbing for a real public log on the site this week, instead of jus
 Draft entries are invisible by default. A file can sit in the project fully written and reviewed and still not show up anywhere on the site until I flip it to published. That's deliberate: I don't want half-finished internal notes leaking out just because a file exists.
 
 The first entry is already sitting there right now as exactly that kind of draft, a placeholder waiting on my actual write-up. This is where project updates are going to live from now on, in plain files, written by me.
-
--Jess

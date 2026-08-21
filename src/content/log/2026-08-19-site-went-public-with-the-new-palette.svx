@@ -10,10 +10,8 @@ published: false
 
 <!-- TODO(jess): review and set published: true when this is your voice. -->
 
-Two things landed together this week. First, I signed off on the color system: CityLink, built off real transit signage, a yellow livery band and a purple accent, the kind of palette you'd see on a city bus route sign. Every color comes from actual reference photos run through a proper color-correct process, not eyeballed off a screen.
+Two things landed together this week. First, I signed off on the color system: CityLink, built off real transit signage, a yellow livery band and a purple accent, the kind of palette you'd see on a city bus route sign. Colors were measured off the bus itself, from reference photos, not eyeballed off a screen — a corrected pass is still to come once the color-corrected set lands.
 
-Second, the site itself went public for the first time, carrying that palette. Before this it was placeholder styling behind a private wall. I reviewed it, flipped the access open myself, and it was live.
+Second, the site itself went public for the first time, carrying that palette. Before this it was placeholder styling behind a private wall. I reviewed it and flipped the access open myself, and it was live for a few hours.
 
-It's not finished. I've already found a couple of things worth fixing since and pushed another round of work behind the scenes. But the real palette is now the one true source for the site's colors, checked into the code as the single place every page reads from, and the project finally has a public face.
-
--Jess
+It's not finished. I found a couple of things worth fixing and put the gate back up for one more review round before the real opening. The real palette is now the one true source for the site's colors, checked into the code as the single place every page reads from.
