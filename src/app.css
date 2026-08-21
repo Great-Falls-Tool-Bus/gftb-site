@@ -634,7 +634,7 @@ li {
 /* The featured-glass idiom (demo #90, .hero-glass), on the role layer.
  * Opaque fallback FIRST — `--panel at 88%`, the same mix the card family
  * used to composite; this is the no-@supports fallback contract, unrelated
- * to the AA gate below (2026-08-21 correction — see the @supports block's
+ * to the AA gate below (2026-08-20 correction — see the @supports block's
  * comment for why the gate no longer models this number as the translucent
  * ground). The translucent variant is progressive enhancement, free to
  * match the demo's own operating point instead of restating the fallback —
@@ -645,7 +645,7 @@ li {
 	padding: clamp(1.35rem, 4vw, 2rem);
 }
 
-/* 2026-08-21 review round 2, finding B: a hand-written -webkit-backdrop-filter
+/* 2026-08-20 review round 2, finding B: a hand-written -webkit-backdrop-filter
  * line here (removed) made the build pipeline emit ONLY the prefixed
  * property — modern Chromium rejects -webkit-backdrop-filter outright, so
  * the frost never rendered (measured: stripe std-dev 63.5, same as no
@@ -745,7 +745,7 @@ li {
 	object-position: center;
 }
 
-/* Legibility scrim — 2026-08-21 review round 2, finding A: the round-1
+/* Legibility scrim — 2026-08-20 review round 2, finding A: the round-1
  * revision un-inverted the SHAPE but still pinned the content band to a
  * non-zero floor (65%) for AA reasons, which is not the demo's actual
  * design and, once stacked with the horizontal layer, worked out to ~72%
@@ -755,7 +755,7 @@ li {
  * TRANSPARENT through the content band, because "contrast is guaranteed by
  * the glass fill, not this scrim" — the scrim carries zero AA obligation in
  * the demo's own design. That is now true here too: `.hero-glass`'s dark
- * operating point moved from 74% to 84% (see above) specifically so the
+ * operating point moved from 74% to 95% (see above) specifically so the
  * glass alone clears AA against the real blurred backdrop, which is what
  * let the scrim's content band actually go to 0% instead of standing in as
  * a second, redundant AA floor. Values below port the demo's edge/

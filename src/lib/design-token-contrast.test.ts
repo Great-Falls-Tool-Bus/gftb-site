@@ -479,15 +479,16 @@ for (const scheme of SCHEME_NAMES) {
 /**
  * ── Hero backdrop scrim (restoration: parallax hero) ────────────────────
  *
- * REARCHITECTED 2026-08-21 (review round 2, findings A + B). Two defects,
+ * REARCHITECTED 2026-08-20 (review round 2, findings A + B). Two defects,
  * one fix: (1) `.hero-glass` shipped a hand-written `-webkit-backdrop-filter`
  * line that made the build emit ONLY the prefixed property — Chromium
  * rejects that outright, so the frost never rendered even though the
  * translucent fill applied (fixed above: match `.site-header`'s
  * unprefixed-only precedent). (2) With that bug fixed, this file's OLD gate
  * still modelled the 88% opaque fallback as the ground — a MORE opaque,
- * hence falsely SAFER, panel than the 68%/74% that actually ships;
- * "conservative" was backwards. Both together hid a real AA failure: dark
+ * hence falsely SAFER, panel than the 68%/74% that shipped at the time
+ * (since retuned again — see below); "conservative" was backwards. Both
+ * together hid a real AA failure: dark
  * `--heading`/`--link` measured 4.31:1 against the real rendered panel,
  * below the 4.5 floor, while the suite stayed green.
  *
@@ -496,12 +497,14 @@ for (const scheme of SCHEME_NAMES) {
  * glass fill, not this scrim." `.hero__scrim`'s content band is now
  * genuinely 0% (fully transparent) — the scrim carries NO AA obligation,
  * matching the demo exactly — and `.hero-glass` alone carries the contract.
- * Light matches the demo's 68% (verified below). Dark does NOT match the
- * demo's 74%: GFTB's `--heading`/`--link` resolve to a lighter purple than
- * the demo's Skeleton primary-300, against a different photo, so the
- * demo's number does not transfer. Re-measured for THIS site's actual ink
- * and photo and pinned to 84% (see `.hero-glass`'s own comment in
- * src/app.css for the swept 74%-vs-84% numbers).
+ * Neither scheme matches the demo's 68%/74% verbatim: GFTB's `--heading`/
+ * `--link`/`--fg-muted` resolve to different colours than the demo's
+ * Skeleton tokens, against a different photo, so the demo's numbers do not
+ * transfer. Re-measured for THIS site's actual ink and photo, against a
+ * live Playwright pixel backstop (e2e/acceptance-hero-glass-contrast.
+ * spec.ts) rather than a one-off hand check, and pinned to 83% light / 95%
+ * dark (see `.hero-glass`'s own comment in src/app.css for the swept
+ * numbers, including why dark ended up above the 88% opaque fallback).
  *
  * MEASUREMENT METHODOLOGY (mirrors the demo's "verified: light worst X,
  * dark worst Y" comment, and the reviewer's own approach): a photograph
@@ -548,7 +551,7 @@ const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
 // (320/375/768/1280 — e2e/acceptance-responsive.spec.ts:14-19; there is no
 // "P4" list anywhere in this repo, and 360/390 are not real breakpoints —
 // review round 2, finding B.3.3, both corrected here). Re-measured
-// 2026-08-21 (widest at 320px). This is no longer an AA fixture (the scrim
+// 2026-08-20 (widest at 320px). This is no longer an AA fixture (the scrim
 // carries no AA obligation — see above); it stays as a VISUAL invariant so
 // ink does not render on the heavier edge tint. A hand-typed constant goes
 // stale silently (review round 2, finding B.3.1: shrinking the hero padding
@@ -559,7 +562,7 @@ const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
 // CSS alone, so it cannot self-check; it can only assert containment of
 // whatever is currently written here, which the line below does.
 const HERO_MEASURED_INK_SPAN: Record<number, [number, number]> = {
-	320: [11.6, 88.5],
+	320: [11.6, 88.4],
 	375: [12.6, 87.5],
 	768: [18.3, 81.7],
 	1280: [25.2, 74.9],
