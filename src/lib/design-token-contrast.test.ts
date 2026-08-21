@@ -479,103 +479,152 @@ for (const scheme of SCHEME_NAMES) {
 /**
  * ── Hero backdrop scrim (restoration: parallax hero) ────────────────────
  *
- * `.hero__scrim` paints a graduated gradient (apex-gaps diagnosis
- * 2026-08-20 item 1 — a flat 92% mix read as "a flat cream field"; demo
- * shape ported from fa5552c src/routes/+page.svelte:315-330) over a
- * photograph, and a photograph pixel can be anything, so no single
- * composite is "the" ground. Alpha compositing is channel-linear in the
- * underlying pixel, so every possible composite lies inside the
- * [over-black, over-white] envelope. The sweep proves each hero ink sits
- * OUTSIDE that luminance envelope — so the worst measurable pixel is one of
- * the two extremes — and then clears its floor against both extremes, in
- * both schemes.
+ * REARCHITECTED 2026-08-21 (review round 2, findings A + B). Two defects,
+ * one fix: (1) `.hero-glass` shipped a hand-written `-webkit-backdrop-filter`
+ * line that made the build emit ONLY the prefixed property — Chromium
+ * rejects that outright, so the frost never rendered even though the
+ * translucent fill applied (fixed above: match `.site-header`'s
+ * unprefixed-only precedent). (2) With that bug fixed, this file's OLD gate
+ * still modelled the 88% opaque fallback as the ground — a MORE opaque,
+ * hence falsely SAFER, panel than the 68%/74% that actually ships;
+ * "conservative" was backwards. Both together hid a real AA failure: dark
+ * `--heading`/`--link` measured 4.31:1 against the real rendered panel,
+ * below the 4.5 floor, while the suite stayed green.
  *
- * GROUND CORRECTION (2026-08-20, same slice): every hero ink is nested
- * inside `.hero-glass` / `.status-card.hero-glass`
- * (src/routes/+page.svelte:74-124 — h1, lede, button-row, and the
- * status-card copy are all children of a `.hero-glass` element; nothing
- * renders bare on the scrim). `.hero-glass`'s own
- * `background: color-mix(in oklab, var(--panel) 88%, transparent)` is
- * unconditional, not an `@supports` enhancement, so the ground every hero
- * ink actually composites against is glass-over-scrim-over-photo. The prior
- * revision of this file tested most hero-text pairs directly against the
- * bare scrim — a ground no rendered pixel sits on, and one so conservative
- * it left ~0 percentage points of room to lighten the scrim at all (90%
- * already failed at 4.45:1; see the removed comment this replaces). Every
- * pair below now uses the SAME 'card' ground the status-card pairs and
- * `surfaces()`'s card family already use — still the full [over-black,
- * over-white] envelope, still both schemes, just measuring what actually
- * renders. The in-browser contrast e2e walks ancestor backgrounds and
- * cannot see the sibling scrim/photo layers behind the hero text (the same
- * disclosed blindness class as the --wash band), so THIS gate is the hero's
- * measured contract.
+ * The fix follows the demo's own documented methodology (fa5552c
+ * src/routes/+page.svelte:315-330,345-350): "contrast is guaranteed by the
+ * glass fill, not this scrim." `.hero__scrim`'s content band is now
+ * genuinely 0% (fully transparent) — the scrim carries NO AA obligation,
+ * matching the demo exactly — and `.hero-glass` alone carries the contract.
+ * Light matches the demo's 68% (verified below). Dark does NOT match the
+ * demo's 74%: GFTB's `--heading`/`--link` resolve to a lighter purple than
+ * the demo's Skeleton primary-300, against a different photo, so the
+ * demo's number does not transfer. Re-measured for THIS site's actual ink
+ * and photo and pinned to 84% (see `.hero-glass`'s own comment in
+ * src/app.css for the swept 74%-vs-84% numbers).
  *
- * `--hero-scrim-content` (the vertical band `.hero-glass`/`.status-card`
- * occupy) is READ OUT of src/app.css: a nudge surfaces as the ratio that
- * broke, and a nudge that stays inside the floors still fails the
- * ratified-percent pin.
- *
- * GEOMETRIC INVARIANT, corrected 2026-08-20 (review finding B): this file
- * previously asserted `--hero-scrim-edge` "paints only the top/bottom 18%
- * strips outside that band, where no ink ever renders" without checking it
- * against anything. That was false below 640px — the operator measured the
- * real glass/ink span at every P4 breakpoint and found ink sitting well
- * inside the old 18%/82% edge stops (320px ink span 11.6%-88.4%, review
- * measurement 2026-08-20), so ink actually rendered on a value interpolated
- * toward the lighter edge stop, not on the declared content value. Rather
- * than leave that a disclosed-but-unenforced gap, the CSS content-zone stops
- * are now sized (10%/90%, src/app.css `.hero__scrim`) to contain the widest
- * real span with margin, and the assertion below reads those stops back out
- * of the CSS and checks the containment directly — so a future edit that
- * narrows the band re-breaks this test instead of silently reopening the gap.
+ * MEASUREMENT METHODOLOGY (mirrors the demo's "verified: light worst X,
+ * dark worst Y" comment, and the reviewer's own approach): a photograph
+ * pixel can be anything, so no CSS token composite is "the" ground — but
+ * modelling pure #000/#fff extremes through an 88% panel that was never
+ * shipped is not conservative, it is a different, wrong scenario. Instead,
+ * `HERO_MEASURED_BACKDROP` below is the REAL darkest/lightest pixel
+ * actually rendered behind each `.hero-glass` region: 1440x900, `.hero-glass
+ * *`/`.status-card.hero-glass *` set to `visibility:hidden` to isolate the
+ * panel's own composite from ink pixels, screenshotted (real compositor
+ * output — this is not a re-implementation of Gaussian blur, it is the
+ * actual blurred-and-tinted pixels Chromium painted), decoded and scanned
+ * for min/max WCAG relative luminance. This already includes whatever the
+ * scrim's horizontal layer contributes — no separate scrim compositing
+ * step is needed in `heroGrounds()` below, because the measurement is of
+ * the fully-composited real pixel, not a token-math approximation of it.
  * Re-anchor caveat: the palette's lightness/chroma are provisional pending
- * the corrected HEIC corpus, so these pairs are re-verified after the
- * re-anchor train.
+ * the corrected HEIC corpus, and the photo itself may be swapped, so this
+ * measurement is re-verified after the re-anchor train — e2e/
+ * acceptance-hero-glass-contrast.spec.ts re-measures the same claim live in
+ * a real browser on every run, which is the actual backstop against this
+ * going stale (a hardcoded vitest constant cannot re-derive itself).
  */
-const HERO_SCRIM_RATIFIED_PERCENT = 65;
-const HERO_SCRIM_RULE =
-	/--hero-scrim-content:\s*(color-mix\(in oklab, var\(--bg\) (\d+(?:\.\d+)?)%, transparent\))/u.exec(appCss);
-if (!HERO_SCRIM_RULE) {
-	throw new Error('src/app.css no longer declares a --hero-scrim-content mix this gate can measure');
+const HERO_SCRIM_RATIFIED_PERCENT = 0;
+// Both hero regexes are anchored INSIDE `.hero__scrim { ... }` specifically
+// (review round 2, finding B.3.2) — matching the file's own
+// `.button:focus-visible` precedent above. Un-anchored, a decoy rule
+// elsewhere (an `@media print` reset, a comment quoting stop syntax, a
+// later `max-width` override) can satisfy a global match and ship a wrong
+// scrim under a green suite; all three were demonstrated in review.
+const HERO_SCRIM_RULE_BLOCK = /\.hero__scrim\s*\{([^}]*)\}/u.exec(appCss);
+if (!HERO_SCRIM_RULE_BLOCK) {
+	throw new Error('src/app.css no longer declares a .hero__scrim rule this gate can anchor to');
 }
-const HERO_SCRIM = HERO_SCRIM_RULE[1];
+const HERO_SCRIM_BODY = HERO_SCRIM_RULE_BLOCK[1];
+const HERO_SCRIM_RULE =
+	/--hero-scrim-content:\s*(color-mix\(in oklab, var\(--bg\) (\d+(?:\.\d+)?)%, transparent\))/u.exec(HERO_SCRIM_BODY);
+if (!HERO_SCRIM_RULE) {
+	throw new Error('.hero__scrim no longer declares a --hero-scrim-content mix this gate can measure');
+}
 const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
 
-// The true measured ink span at every P4 acceptance-responsive breakpoint
-// (operator measurement, 2026-08-20 review of PR #32, finding B) — the
-// fixture the geometric invariant below is checked against. Widest at
-// 320px; narrower at every wider breakpoint, all still inside the same
-// stops, so 320px alone would suffice, but the full table is kept for the
-// next person who has to re-derive this after the HEIC re-anchor moves the
-// layout.
+// The true measured ink span at every acceptance-responsive breakpoint
+// (320/375/768/1280 — e2e/acceptance-responsive.spec.ts:14-19; there is no
+// "P4" list anywhere in this repo, and 360/390 are not real breakpoints —
+// review round 2, finding B.3.3, both corrected here). Re-measured
+// 2026-08-21 (widest at 320px). This is no longer an AA fixture (the scrim
+// carries no AA obligation — see above); it stays as a VISUAL invariant so
+// ink does not render on the heavier edge tint. A hand-typed constant goes
+// stale silently (review round 2, finding B.3.1: shrinking the hero padding
+// so ink moved outside the band left 158/158 still green) — the real
+// backstop is e2e/acceptance-hero-glass-contrast.spec.ts, which measures
+// live ink position on every run and fails if it has drifted from this
+// fixture past a small tolerance. This file cannot re-derive layout from
+// CSS alone, so it cannot self-check; it can only assert containment of
+// whatever is currently written here, which the line below does.
 const HERO_MEASURED_INK_SPAN: Record<number, [number, number]> = {
-	320: [11.6, 88.4],
-	360: [12.6, 87.4],
-	390: [12.6, 87.4],
-	480: [15.8, 84.2],
-	640: [16.9, 83.9],
+	320: [11.6, 88.5],
+	375: [12.6, 87.5],
+	768: [18.3, 81.7],
+	1280: [25.2, 74.9],
 };
 const HERO_SCRIM_CONTENT_STOPS_RULE =
-	/--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%,\s*var\(--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%/u.exec(appCss);
+	/--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%,\s*var\(--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%/u.exec(HERO_SCRIM_BODY);
 if (!HERO_SCRIM_CONTENT_STOPS_RULE) {
-	throw new Error('src/app.css .hero__scrim no longer declares two --hero-scrim-content gradient stops');
+	throw new Error('.hero__scrim no longer declares two --hero-scrim-content gradient stops');
 }
 const HERO_SCRIM_CONTENT_START = Number(HERO_SCRIM_CONTENT_STOPS_RULE[1]);
 const HERO_SCRIM_CONTENT_END = Number(HERO_SCRIM_CONTENT_STOPS_RULE[2]);
 
-const IMAGE_EXTREMES = { black: parseCssColor('#000000'), white: parseCssColor('#ffffff') } as const;
-type ExtremeName = keyof typeof IMAGE_EXTREMES;
+// Real glass fill percent, read out of src/app.css rather than restated —
+// same reasoning as the scrim extraction above: a nudge should surface as
+// the ratio that broke, not a silent drift between two hardcoded numbers.
+const HERO_GLASS_RULE_BLOCK = /@supports \(backdrop-filter: blur\(1px\)\) \{([\s\S]*?)\n\}\n\n@media/u.exec(appCss);
+if (!HERO_GLASS_RULE_BLOCK) {
+	throw new Error('src/app.css no longer declares the .hero-glass @supports block this gate reads');
+}
+const HERO_GLASS_BODY = HERO_GLASS_RULE_BLOCK[1];
+const HERO_GLASS_LIGHT_RULE = /\.hero-glass\s*\{[^}]*color-mix\(in oklab, var\(--panel\) (\d+(?:\.\d+)?)%/u.exec(
+	HERO_GLASS_BODY,
+);
+const HERO_GLASS_DARK_RULE =
+	/\[data-mode='dark'\] \.hero-glass\s*\{[^}]*color-mix\(in oklab, var\(--panel\) (\d+(?:\.\d+)?)%/u.exec(
+		HERO_GLASS_BODY,
+	);
+if (!HERO_GLASS_LIGHT_RULE || !HERO_GLASS_DARK_RULE) {
+	throw new Error('.hero-glass @supports block no longer declares light/dark translucent fills this gate can read');
+}
+const HERO_GLASS_PERCENT: Record<SchemeName, number> = {
+	light: Number(HERO_GLASS_LIGHT_RULE[1]),
+	dark: Number(HERO_GLASS_DARK_RULE[1]),
+};
+
+// Measured real backdrop extremes behind .hero-glass — see the
+// MEASUREMENT METHODOLOGY note above. Both hero-glass regions measured
+// (the wide hero panel and the narrower status-card aside); the WORSE
+// (less contrasty) of the two per extreme is kept, so this is the
+// conservative pair across both surfaces, not an average.
+const HERO_MEASURED_BACKDROP: Record<SchemeName, { darkest: Rgb; lightest: Rgb }> = {
+	light: {
+		darkest: { red: 234, green: 230, blue: 221, alpha: 1 },
+		lightest: { red: 252, green: 248, blue: 228, alpha: 1 },
+	},
+	dark: {
+		darkest: { red: 50, green: 44, blue: 49, alpha: 1 },
+		lightest: { red: 65, green: 59, blue: 55, alpha: 1 },
+	},
+};
 
 function heroGrounds(scheme: SchemeName) {
 	const tokens = SCHEMES[scheme];
-	const scrim = resolveColor(tokens, HERO_SCRIM);
-	const cardFill = resolveColor(tokens, 'color-mix(in oklab, var(--panel) 88%, transparent)');
-	const scrimOver = (extreme: ExtremeName) => compositeOver(scrim, IMAGE_EXTREMES[extreme]);
+	const cardFill = resolveColor(
+		tokens,
+		`color-mix(in oklab, var(--panel) ${HERO_GLASS_PERCENT[scheme]}%, transparent)`,
+	);
+	const backdrop = HERO_MEASURED_BACKDROP[scheme];
 	return {
-		/** the glass panel over the content-zone scrim over the photo — the
-		 * ground every hero ink (lede, h1, buttons, status-card copy) actually
-		 * composites against; see the GROUND CORRECTION note above. */
-		card: (extreme: ExtremeName) => compositeOver(cardFill, scrimOver(extreme)),
+		/** the REAL translucent glass over the REAL measured backdrop extreme —
+		 * see the MEASUREMENT METHODOLOGY note above for why this replaced the
+		 * old 88%-fallback-over-pure-black/white model (review round 2,
+		 * finding B). */
+		card: (extreme: 'black' | 'white') =>
+			compositeOver(cardFill, extreme === 'black' ? backdrop.darkest : backdrop.lightest),
 	};
 }
 
@@ -607,40 +656,35 @@ const heroNonTextPairs: HeroPair[] = [
 	{ name: 'secondary button border over the hero', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
 ];
 
-/** contrastRatio(x, black) is strictly monotone in relative luminance, so it
- * serves as the luminance proxy the envelope assertion orders colours by. */
+/** contrastRatio(x, pure black) is strictly monotone in relative luminance
+ * (a fixed anchor for ORDERING colours, not a claim about the photo), so it
+ * serves as the luminance proxy the envelope assertion below orders
+ * colours by. */
 function luminanceProxy(color: Rgb): number {
-	return contrastRatio(color, IMAGE_EXTREMES.black);
+	return contrastRatio(color, parseCssColor('#000000'));
 }
 
 describe('hero backdrop scrim', () => {
-	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% content-zone mix`, () => {
-		// 65% is the HONEST floor (review finding B, 2026-08-20 — corrects the
-		// prior 66%/74% numbers, which were both wrong): swept by patching
-		// --hero-scrim-content and re-running every hero pair — 65% passes all
-		// of them, 64% fails at 4.48:1 on the tightest dark pairs
-		// (secondary-button-label/link/status-card-strong, tied through
-		// --heading/--link at the palette's current values), just under the 4.5
-		// floor. That leaves real but thin margin, not the previously-claimed
-		// ~8 points: disclosed here rather than papered over, because the
-		// palette is provisional pending the HEIC-corpus re-anchor (§1.1) and a
-		// copy or padding change can erode a thin margin silently. 65% is
-		// pinned anyway, not padded further, because the content-zone stops
-		// (below) now geometrically guarantee this is the flat value every real
-		// ink pixel actually sits on — the margin is thin on the palette axis,
-		// not on the geometry axis.
+	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% (fully transparent) content-zone mix`, () => {
+		// 0% — genuinely transparent, matching the demo exactly (review round 2,
+		// finding A). Earlier revisions pinned 74%, then 65%, both because the
+		// scrim was treated as load-bearing for AA; it is not, once
+		// `.hero-glass` itself clears AA against the real backdrop (see
+		// heroGrounds() above and .hero-glass's own comment in src/app.css for
+		// the swept numbers). A nudge off 0% now means someone gave the scrim
+		// an AA job again without updating this pin — worth a loud failure,
+		// not a silent one.
 		expect(HERO_SCRIM_PERCENT, `hero scrim content-zone declared at ${HERO_SCRIM_PERCENT}%`).toBe(
 			HERO_SCRIM_RATIFIED_PERCENT,
 		);
 	});
 
-	it('content-zone stops geometrically contain the true measured ink span at every P4 breakpoint', () => {
-		// Operationalizes the GEOMETRIC INVARIANT note above: reads the two
-		// --hero-scrim-content gradient stops back out of src/app.css and
+	it('content-zone stops contain the true measured ink span at every acceptance-responsive breakpoint', () => {
+		// No longer an AA invariant (see above) — a visual one: ink should not
+		// render on the heavier edge tint. Reads the two --hero-scrim-content
+		// gradient stops back out of src/app.css (rule-anchored, see above) and
 		// checks they contain the real measured ink span at every breakpoint,
-		// not just the widest one — so a future edit that narrows the band (or
-		// a re-measurement after the HEIC re-anchor that widens the ink span)
-		// fails this test instead of silently reopening the review-B gap.
+		// not just the widest one.
 		for (const [viewport, [start, end]] of Object.entries(HERO_MEASURED_INK_SPAN)) {
 			expect(
 				HERO_SCRIM_CONTENT_START,

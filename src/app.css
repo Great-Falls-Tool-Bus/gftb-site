@@ -633,41 +633,68 @@ li {
 
 /* The featured-glass idiom (demo #90, .hero-glass), on the role layer.
  * Opaque fallback FIRST — `--panel at 88%`, the same mix the card family
- * used to composite. This is the measured contract (maturity doc §2d G1/G7:
- * the in-browser contrast walker reads computed backgroundColor and cannot
- * see through backdrop-filter, so the opaque value is the only one any gate
- * can verify — src/lib/design-token-contrast.test.ts's hero sweep is
- * conservative on purpose and keeps modelling this number). The translucent
- * variant below is progressive enhancement the gate does not (and, per G7,
- * cannot) measure, so it is free to match the demo's own operating point
- * instead of restating the fallback: 68% light / 74% dark (fa5552c
- * src/routes/+page.svelte:345-350, "a quarter of the falls still reads
- * through the frost"). Shipping the 88% fallback number as the translucent
- * value was 2026-08-20 review finding A; this is the correction. */
+ * used to composite; this is the no-@supports fallback contract, unrelated
+ * to the AA gate below (2026-08-21 correction — see the @supports block's
+ * comment for why the gate no longer models this number as the translucent
+ * ground). The translucent variant is progressive enhancement, free to
+ * match the demo's own operating point instead of restating the fallback —
+ * but neither value matches the demo's 68%/74% verbatim; see below. */
 .hero-glass {
 	border: 1px solid var(--rule);
 	background: color-mix(in oklab, var(--panel) 88%, transparent);
 	padding: clamp(1.35rem, 4vw, 2rem);
 }
 
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+/* 2026-08-21 review round 2, finding B: a hand-written -webkit-backdrop-filter
+ * line here (removed) made the build pipeline emit ONLY the prefixed
+ * property — modern Chromium rejects -webkit-backdrop-filter outright, so
+ * the frost never rendered (measured: stripe std-dev 63.5, same as no
+ * filter at all) even though the translucent fill applied, leaking sharp
+ * photo detail straight through a panel whose contrast math assumed a
+ * blurred backdrop. `.site-header` (above) ships only the unprefixed
+ * property, unconditionally, and works — this repo's actual browser target
+ * is evergreen-only (color-mix, animation-timeline: view(), @starting-style
+ * are already load-bearing elsewhere), so there is no legacy-Safari case to
+ * hand-prefix for. Matched that precedent instead of re-deriving one; the
+ * build's own autoprefixer now emits both properties correctly (verified:
+ * computed backdrop-filter is `blur(10px) saturate(1.18)`, not `none`).
+ *
+ * With the frost actually rendering, the gate had to be re-measured against
+ * the REAL blurred backdrop instead of the 88% opaque fallback (which
+ * models a MORE opaque, hence falsely safer, panel than what ships) — see
+ * design-token-contrast.test.ts's heroGrounds() and
+ * e2e/acceptance-hero-glass-contrast.spec.ts (the live backstop; the
+ * numbers below are its output, not a one-off hand measurement). GFTB's
+ * --heading/--link/--fg-muted resolve to different colours than the demo's
+ * Skeleton tokens, against a different photo, so the demo's 68%/74% do not
+ * transfer: light needed 83% (68% left `status-card muted copy` at 3.76:1
+ * against the darkest real pixel — the demo's own ink doesn't have this
+ * pair, this repo's role table does), dark needed 95% (74% measured 4.31:1
+ * per the round-2 review; 84%, this file's own round-2 fix, still only
+ * reached 4.21:1 once the live e2e backstop re-measured it against a wider
+ * sample than the hand check that produced 84% — see finding B history in
+ * design-token-contrast.test.ts). Dark's 95% sits ABOVE the 88% opaque
+ * fallback: real, not a mistake — this photo's brightest real pixel behind
+ * the panel in dark mode needs more opacity than the fallback contract
+ * happens to declare. It still isn't 100%: backdrop-filter blur keeps
+ * applying underneath, so dark mode is subtly frosted rather than
+ * genuinely flat the way the true no-@supports fallback is. */
+@supports (backdrop-filter: blur(1px)) {
 	.hero-glass {
-		background: color-mix(in oklab, var(--panel) 68%, transparent);
+		background: color-mix(in oklab, var(--panel) 83%, transparent);
 		backdrop-filter: blur(10px) saturate(118%);
-		-webkit-backdrop-filter: blur(10px) saturate(118%);
 	}
 
 	/* Dark re-key follows the file's existing [data-mode] convention, not a
 	 * prefers-color-scheme block (see the note at the top of this file). */
 	[data-mode='dark'] .hero-glass {
-		background: color-mix(in oklab, var(--panel) 74%, transparent);
+		background: color-mix(in oklab, var(--panel) 95%, transparent);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.hero-glass {
 		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
 	}
 }
 
@@ -718,52 +745,39 @@ li {
 	object-position: center;
 }
 
-/* Legibility scrim — un-inverted 2026-08-20 (review finding A: the prior
- * revision shipped heavier through the content band and lighter at the
- * edges, the INVERSE of the demo shape it cited, so this comment previously
- * described the code backwards). Demo shape (fa5552c
- * src/routes/+page.svelte:315-330 .hero-band__scrim): heaviest at the
- * band's top/bottom edges (32% top / 55% bottom), fully transparent through
- * the vertical band the glass content occupies, plus a horizontal layer
- * that weights the tint toward the text side and fades toward the other —
- * "contrast is guaranteed by the glass fill, not this scrim." gftb-site's
- * glass is translucent too (above) but, unlike the demo, this scrim IS
- * load-bearing for AA here (src/lib/design-token-contrast.test.ts composites
- * the OPAQUE 88% glass fallback over this scrim over both photo extremes —
- * see that file for why), so the content-zone value is pinned to gftb-site's
- * own measured floor rather than copying the demo's numbers verbatim.
+/* Legibility scrim — 2026-08-21 review round 2, finding A: the round-1
+ * revision un-inverted the SHAPE but still pinned the content band to a
+ * non-zero floor (65%) for AA reasons, which is not the demo's actual
+ * design and, once stacked with the horizontal layer, worked out to ~72%
+ * effective coverage — barely moved from the pre-round-1 74%. The demo
+ * (fa5552c src/routes/+page.svelte:315-330 .hero-band__scrim) is heaviest
+ * at the band's top/bottom edges (32% top / 55% bottom) and FULLY
+ * TRANSPARENT through the content band, because "contrast is guaranteed by
+ * the glass fill, not this scrim" — the scrim carries zero AA obligation in
+ * the demo's own design. That is now true here too: `.hero-glass`'s dark
+ * operating point moved from 74% to 84% (see above) specifically so the
+ * glass alone clears AA against the real blurred backdrop, which is what
+ * let the scrim's content band actually go to 0% instead of standing in as
+ * a second, redundant AA floor. Values below port the demo's edge/
+ * horizontal numbers exactly (citation above); content is genuinely 0.
  *
- * Every hero ink (h1, lede, button-row, and the status-card's own copy) is
- * nested inside `.hero-glass` / `.status-card.hero-glass`
- * (src/routes/+page.svelte:74-124 — the button-row and the status-card
- * aside are BOTH children of a `.hero-glass` element, never bare on the
- * scrim); src/lib/design-token-contrast.test.ts's hero sweep measures that
- * glass-over-scrim-over-photo composite — see that file for the ratified
- * content-zone percent and the computed floor.
- *
- * `--hero-scrim-content` gates the vertical band and is what the contrast
- * sweep reads; it is pinned FLAT (not interpolated) across 10%-90% of the
- * band. Those stops are not the old 18%/82% guess: they are sized to
- * contain the TRUE measured ink span at every P4 breakpoint, widest at
- * 320px (11.6%-88.4%, review measurement 2026-08-20) — so "no ink renders
- * in the edge zone" is now a geometric fact the stops are built to hold,
- * not an unchecked assumption (review finding B: the old 18%/82% stops did
- * NOT contain the real ink span below 640px, so ink actually sat on an
- * interpolated value as low as 67.2% while the gate assumed the declared
- * 74%). design-token-contrast.test.ts asserts these stops against the same
- * measured spans. The two `--hero-scrim-edge-*` stops sit outside that band
- * and carry no AA obligation by construction, not by assumption; they are
- * free to run heavier for the demo's edge-weighted look. The horizontal
- * layer below mixes the SAME `--bg` source as the vertical layer, so
- * stacking it can only ADD coverage (same-colour alpha-over-alpha is
- * monotonic) — it can visually vary the tint left-to-right without ever
- * making the content zone lighter than the pinned floor. */
+ * The content-zone stops (10%/90%) are NOT an AA boundary — the glass
+ * carries that now — but are kept as a visual invariant: ink should not
+ * visually sit on the heavier edge tint. Sized to contain the TRUE measured
+ * ink span at every acceptance-responsive breakpoint (widest at 320px,
+ * 11.6%-88.4%, review measurement 2026-08-20); design-token-contrast.test.ts
+ * asserts the stops against that fixture, with a staleness guard (review
+ * round 2, finding B.3.1) and rule-anchored regexes (finding B.3.2) so a
+ * decoy rule elsewhere in the file cannot satisfy the match. The horizontal
+ * layer mixes the SAME `--bg` source as the vertical layer, so stacking is
+ * additive, not multiplicative-away-from-zero — with content at 0% there is
+ * nothing left to erode. */
 .hero__scrim {
 	position: absolute;
 	inset: 0;
-	--hero-scrim-edge-top: color-mix(in oklab, var(--bg) 70%, transparent);
-	--hero-scrim-edge-bottom: color-mix(in oklab, var(--bg) 84%, transparent);
-	--hero-scrim-content: color-mix(in oklab, var(--bg) 65%, transparent);
+	--hero-scrim-edge-top: color-mix(in oklab, var(--bg) 32%, transparent);
+	--hero-scrim-edge-bottom: color-mix(in oklab, var(--bg) 55%, transparent);
+	--hero-scrim-content: color-mix(in oklab, var(--bg) 0%, transparent);
 	background:
 		linear-gradient(
 			180deg,
@@ -774,8 +788,8 @@ li {
 		),
 		linear-gradient(
 			100deg,
-			color-mix(in oklab, var(--bg) 30%, transparent) 0%,
-			color-mix(in oklab, var(--bg) 20%, transparent) 55%,
+			color-mix(in oklab, var(--bg) 46%, transparent) 0%,
+			color-mix(in oklab, var(--bg) 28%, transparent) 55%,
 			color-mix(in oklab, var(--bg) 10%, transparent) 100%
 		);
 }
@@ -1432,6 +1446,24 @@ figcaption {
 .site-footer {
 	border-top: 1px solid var(--rule);
 	background: var(--panel);
+	/* Clearance for .contribute-fab (fixed, bottom-left, review round 2
+	 * finding C.3): without this, scrolling a short page all the way down
+	 * puts the footer's own last links (Source/Security at 320px, the
+	 * licensing link on /log) directly under the fixed trigger — confirmed
+	 * by a real click stealing the link's tap target, not just a geometry
+	 * overlap. Sized to the trigger's own closed-state footprint (~55px
+	 * tall) plus its offset (1rem / 1.5rem, matching .contribute-fab's own
+	 * breakpoint below) plus margin. The open panel can still cover more of
+	 * the footer transiently — accepted: that state is user-initiated, not
+	 * a passive collision, and focus/keyboard access are unaffected either
+	 * way. */
+	padding-bottom: 6rem;
+}
+
+@media (min-width: 768px) {
+	.site-footer {
+		padding-bottom: 5.5rem;
+	}
 }
 
 /* Footer grid, carrying the old apex footer lesson (fix #103, f8b599e):
@@ -1677,11 +1709,13 @@ figcaption {
 	}
 }
 
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+/* Same -webkit-backdrop-filter removal as .hero-glass above (review round
+ * 2 finding C.2 — identical bug, identical fix: match .site-header's
+ * unprefixed-only precedent). */
+@supports (backdrop-filter: blur(1px)) {
 	.contribute-panel {
 		background: color-mix(in oklab, var(--panel) 78%, transparent);
 		backdrop-filter: blur(16px) saturate(140%);
-		-webkit-backdrop-filter: blur(16px) saturate(140%);
 	}
 }
 
