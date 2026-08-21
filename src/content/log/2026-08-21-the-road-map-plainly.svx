@@ -16,7 +16,7 @@ published: false
 
 Where things actually stand, without calendar promises.
 
-- Shipped: the public website you're reading this on right now.
+- Built and deployed: the new site.
 - Built, tested, and not live yet: the whole membership system. Apply, tour, decision, agreement, active. It works. It's waiting on real wording before it goes out the door.
 - Next: harder real-world testing on a staging copy of the site.
 - After that: a small pilot letting real members check tools in and out with their phones, starting with about ten sewing tools.

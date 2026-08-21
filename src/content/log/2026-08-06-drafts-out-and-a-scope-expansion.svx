@@ -19,22 +19,21 @@ can't repeat.
 
 Drafts:
 
-- Sent four drafts for markup: membership and money, power and plant, plot
-  lease, SMLLC filing worksheet.
+- Sent four drafts for markup: membership and money, power and plant,
+  lease terms, entity filing worksheet.
 - These now live in a new meta repo, the source of truth for document
   revisions.
 - Site copy is still placeholder; site and mail list stay gated.
 
 Then:
 
-- Alex is drafting the lease between the bus and J.
-- Alex is pushing SMLLC formation through a registered agent, toward an
-  EIN.
+- Friends offered to help drive the formation paperwork and lease
+  drafting.
 - Palette locked in: bus purple, yellow, cream, straight from the bus's
   own livery.
-- New idea: a sliding-scale pay-what-you-can option in the onboarding
-  form.
 - Inventory idea: check tools in and out with phone camera photos.
 - Auth idea: base member identity lives in the mail stack, not a separate
   system.
 - Members get an @latoolb.us email address.
+- New idea: a sliding-scale pay-what-you-can option in the onboarding
+  form.

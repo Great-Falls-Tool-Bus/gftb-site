@@ -18,6 +18,7 @@ Here's the plan for how tools will move in and out of the bus.
 
 - Every tool gets its own ID and a short story: what it is, where it's been.
 - Check one out by scanning it with your phone. Log the kit and its condition, and it's yours for a week.
+- At checkout, you can optionally add a one-time photo and location. Both are opt-in, never required.
 - Only one person borrows a tool at a time. No double-booking.
 - Bring it back and we check it against what went out. Clean, and it's free for the next person.
 - Damaged or missing pieces send it to repair instead of back on the shelf.

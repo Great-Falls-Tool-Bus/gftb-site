@@ -16,11 +16,11 @@ published: false
 
 Here's how becoming a member works, start to finish.
 
-- Apply with a short form.
+- Apply with a short form, and verify your email.
 - A keyholder reviews it and sets up an in-person tour.
 - After the tour, one keyholder decides: yes or no.
 - Say yes, and you agree to the membership terms. Then you're active.
 - Money never enters that decision. Whoever reviews your application doesn't see what you've paid, or whether you've paid anything at all.
-- Your email address and mailing-list status don't gate membership either. Those are always separate.
-- Need a break? Pause, and pick back up later.
-- Leaving is simple, and handled with dignity.
+- An @latoolb.us mailbox and the mailing list are optional and separate. Neither one gates membership.
+- Need a break? Pause. You can't borrow tools while paused, and you can pick back up later.
+- Leaving means closing out anything you've borrowed first. Otherwise, it's simple, and handled with dignity.
