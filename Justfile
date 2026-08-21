@@ -22,7 +22,7 @@ dev:
 dev-open:
     cd {{ root }} && bazelisk run //:dev -- --open
 
-# CI ENFORCEMENT: run by ci-templates spoke-ci.yml@v2.12.2 job `flywheel-build`,
+# CI ENFORCEMENT: run by ci-templates spoke-ci.yml@v3.1.0 job `flywheel-build`,
 # step "Static site build" (line 266-267: `nix develop --command just build`),
 # and again by job `playwright` (line 375: `just test-e2e` -> playwright.config.ts
 # webServer -> `just preview-e2e` -> `build`).
@@ -178,7 +178,7 @@ flywheel-enrollment-contract-check:
 # decodes the same file; this proves the generator still produces those bytes.
 #
 # CI ENFORCEMENT: reached through `just check`, run by ci-templates
-# spoke-ci.yml@v2.12.2 job `flywheel-test`, step at line 291
+# spoke-ci.yml@v3.1.0 job `flywheel-test`, step at line 291
 # (`nix develop --command just check`), which lists qr-verify as a dependency.
 #
 # The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
@@ -228,7 +228,7 @@ qr-verify:
 # exercises, so the gate and its tests are one implementation, not two.
 #
 # CI ENFORCEMENT: run as the last step of `just build` (see the comment there),
-# which ci-templates spoke-ci.yml@v2.12.2 executes in job `flywheel-build`
+# which ci-templates spoke-ci.yml@v3.1.0 executes in job `flywheel-build`
 # (line 267) and, transitively, in job `playwright` (line 375).
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
@@ -342,7 +342,7 @@ _qa-packet-e2e port json: playwright-ensure
 qa-packet-diff baseline candidate *options:
     cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
 
-# CI ENFORCEMENT: ci-templates spoke-ci.yml@v2.12.2 job `flywheel-test`, line 291
+# CI ENFORCEMENT: ci-templates spoke-ci.yml@v3.1.0 job `flywheel-test`, line 291
 # (`nix develop --command just check`), once per lane in .github/lanes.json.
 # //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
 # (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
