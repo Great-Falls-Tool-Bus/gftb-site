@@ -1,7 +1,7 @@
 ---
 date: '2026-08-14'
 title: 'The system, in diagrams'
-summary: 'Five working diagrams of how membership, tools, and the release process actually fit together.'
+summary: 'Three working diagrams of how membership and tools actually fit together.'
 tags:
   - diagrams
 published: false
@@ -10,11 +10,22 @@ published: false
 <!-- TODO(jess): source = diagrams/launch-member-v0/*.mmd via the private
      meta repo, rendered SVGs embedded unmodified (swept for private info:
      clean). Colors are the ratified CityLink palette pulled from the bus's
-     own livery. Review and set published: true when this is your voice. -->
+     own livery. Two of the five source diagrams (release-proof-flow,
+     launch-authority-flow) carry internal-operations text — ticket/SLA
+     references and infra topology — and are excluded from this post per
+     the public-surface rule; the operator may override that call. Review
+     and set published: true when this is your voice. -->
+
+<!-- TODO(jess): on publish: git mv the SVGs from
+     src/content/log/_assets-pending/launch-member-v0/ to
+     static/diagrams/launch-member-v0/, then flip published: true. The
+     <img> srcs below already point at the post-publish static/ path. -->
 
 <!-- TODO(jess): photo — drop into static/photos/log/the-system-in-diagrams.<ext>, then an image reference with a one-line credit -->
 
-Five working diagrams of how this project fits together, straight from the project's own planning docs, unedited. Colors are the same CityLink yellow, purple, and cream the site itself uses, pulled from the bus's own livery.
+Three working diagrams of how this project fits together, straight from the project's own planning docs, unedited. Colors are the same CityLink yellow, purple, and cream the site itself uses, pulled from the bus's own livery.
+
+Two other operations diagrams from the same set are internal-only per the public-surface rule and aren't posted here; the operator may override that call.
 
 **How someone becomes a member**, from application through to active (or not).
 
@@ -22,16 +33,8 @@ Five working diagrams of how this project fits together, straight from the proje
 
 **What happens after you're active.** Contributions and other extras stay optional, and separate from membership itself.
 
-<img src="/diagrams/launch-member-v0/member-projection-flow.svg" alt="Member projection flow: active membership branches into an optional contribution offer (zero, cash or check, or Stripe) and an optional projection queue for mailing list and mailbox, none of which change membership." />
+<img src="/diagrams/launch-member-v0/member-projection-flow.svg" alt="Member projection flow: active membership branches into an optional contribution offer (no contribution, cash or check, or Stripe) and an optional projection queue for mailing list and mailbox, none of which change membership." />
 
 **How a tool moves** from the shelf to your hands and back.
 
 <img src="/diagrams/launch-member-v0/inventory-custody-flow.svg" alt="Inventory custody flow: scan a tool, check its availability and condition, finalize a loan, then scan it back in, inspect it, and route it to available or quarantine." />
-
-**How the pieces of the system talk to each other**, in plain shapes.
-
-<img src="/diagrams/launch-member-v0/launch-authority-flow.svg" alt="Launch authority flow: visitors reach the public site and a join link into the member app, both built from private source into images served by the project's own infrastructure." />
-
-**How a change gets checked and proven** before it ever reaches the live site.
-
-<img src="/diagrams/launch-member-v0/release-proof-flow.svg" alt="Release proof flow: a ready issue becomes a branch and a proposed change, passes review and human QA, gets a human ship decision, then moves through pinned, running, and served proof, with rollback if anything fails." />
