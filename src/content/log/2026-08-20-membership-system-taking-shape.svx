@@ -1,0 +1,19 @@
+---
+date: '2026-08-20'
+title: 'The membership system is taking shape, not live yet'
+summary: 'Application intake, keyholder review and tours, and cash/check/Stripe test-mode contribution tracking are all built and tested against a real database. Still waiting on real wording before anything ships.'
+tags:
+  - membership
+  - build
+published: false
+---
+
+<!-- TODO(jess): review and set published: true when this is your voice. -->
+
+Behind the scenes I've been building out the actual membership system: someone applies, a keyholder reviews it and can schedule a tour, a decision gets made, and if it's a yes the person gets provisioned in. Alongside that, a way to track contributions (cash, check, or Stripe in test mode for now) with append-only receipts, so the record can't quietly change after the fact.
+
+Every piece of this has been built against a real Postgres database and put through hostile testing on purpose: replayed webhooks, forged tokens, double-claims, race conditions between two keyholders acting at once. It's held up.
+
+None of it is live. It's all sitting as reviewed, unmerged work waiting on one more thing: the actual words. What the application form says, what the keyholder roles are called, what the agreement text is, that's mine to write and not something I want a machine guessing at. Once that's in hand this ships.
+
+-Jess

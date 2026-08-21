@@ -1,0 +1,19 @@
+---
+date: '2026-08-17'
+title: 'Starting a real public log for this project'
+summary: 'Set up the plumbing for a proper log on the site: one small file per entry, five plain fields up front, and drafts that stay invisible until I actually publish them.'
+tags:
+  - website
+  - log
+published: false
+---
+
+<!-- TODO(jess): review and set published: true when this is your voice. -->
+
+I built the plumbing for a real public log on the site this week, instead of just talking about doing it eventually. Every entry is one small file with five plain things at the top: a date, a title, a one-line summary, some tags, and whether it's actually published. Nothing else is allowed in there, on purpose.
+
+Draft entries are invisible by default. A file can sit in the project fully written and reviewed and still not show up anywhere on the site until I flip it to published. That's deliberate: I don't want half-finished internal notes leaking out just because a file exists.
+
+The first entry is already sitting there right now as exactly that kind of draft, a placeholder waiting on my actual write-up. This is where project updates are going to live from now on, in plain files, written by me.
+
+-Jess
