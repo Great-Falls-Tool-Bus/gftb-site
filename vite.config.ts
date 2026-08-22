@@ -37,7 +37,7 @@ if (analyzeRequested) {
 			template: 'treemap',
 			gzipSize: true,
 			brotliSize: true,
-		}) as Plugin,
+		}) as unknown as Plugin,
 	);
 }
 
