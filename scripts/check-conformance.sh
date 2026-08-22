@@ -19,7 +19,7 @@ check "python3 scripts/validate-skills.py >/dev/null" "repo skills validate"
 
 check "grep -q 'adapter-static' svelte.config.js && ! grep -q 'adapter-node' package.json svelte.config.js" "adapter-static is the only adapter"
 check "jq -e '.devDependencies[\"@skeletonlabs/skeleton\"] == \"5.0.0\" and .devDependencies[\"@skeletonlabs/skeleton-svelte\"] == \"5.0.0\"' package.json >/dev/null" "Skeleton 5 pair is exact-pinned"
-check "grep -q 'spoke-ci.yml@v2.12.2' .github/workflows/ci.yml" "CI template is pinned"
+check "grep -q 'spoke-ci.yml@v2.13.0' .github/workflows/ci.yml" "CI template is pinned"
 for input in default_runner_class heavy_runner_class kvm_runner_class; do
   check "grep -q \"${input}: tinyland-nix\" .github/workflows/ci.yml" "${input} maps to tinyland-nix"
 done
