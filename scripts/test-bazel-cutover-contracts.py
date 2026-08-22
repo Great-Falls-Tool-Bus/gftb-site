@@ -119,7 +119,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("adapter-static", (ROOT / "svelte.config.js").read_text())
 
     def test_ci_routes_every_required_class(self) -> None:
-        self.assertIn("spoke-ci.yml@v2.12.2", self.ci)
+        self.assertIn("spoke-ci.yml@v2.13.0", self.ci)
         for input_name in ("default_runner_class", "heavy_runner_class", "kvm_runner_class"):
             self.assertIn(f"{input_name}: tinyland-nix", self.ci)
 
