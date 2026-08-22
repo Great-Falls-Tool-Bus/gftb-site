@@ -8,16 +8,38 @@
 // microsite. Platform-owned surfaces (/tools, /cells*, /cell-sheets*,
 // /keyholders, /discuss) live in gftb-platform and are not navigation here.
 
-export interface NavItem {
+interface NavItemBase {
 	label: string;
 	href: string;
 	/** Base-relative path patterns that light this item as the active section. */
 	match: string[];
-	/** Rendered in the header bar. */
-	primary?: boolean;
-	/** When not `primary`, which footer group this item is demoted into. */
-	footerGroup?: 'About' | 'Get involved';
 }
+
+/**
+ * Rendered in the header bar. The header bar renders a bare `<a>` (no
+ * ExternalLink) for every primary item, so this variant cannot carry
+ * `external` — the type forbids the combination review PR #35 EDIT-2 flagged
+ * as comment-only and unenforced.
+ */
+interface HeaderNavItem extends NavItemBase {
+	primary: true;
+	footerGroup?: never;
+	external?: never;
+}
+
+/** Demoted into a footer group instead of the header bar. */
+interface FooterNavItem extends NavItemBase {
+	primary?: never;
+	/** Which footer group this item is demoted into. */
+	footerGroup: 'About' | 'Get involved';
+	/**
+	 * Destination leaves the site — the footer renders it through
+	 * ExternalLink (rel/target + the [↗] mark) instead of a bare anchor.
+	 */
+	external?: boolean;
+}
+
+export type NavItem = HeaderNavItem | FooterNavItem;
 
 export const navItems: NavItem[] = [
 	{ label: 'Log', href: '/log', match: ['/log'], primary: true },
@@ -26,6 +48,21 @@ export const navItems: NavItem[] = [
 	{ label: 'History', href: '/#history', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
+	// Public HyperKitty archive UI for discuss@ (operator ask 2026-08-20). The
+	// PRIVATE keyholders@ archive never gets a public link — see
+	// scripts/lib/leak-scan-rules.json's private-list-archive rule.
+	{
+		// LOW-1 (PR #35 review): home and contact both name this destination
+		// "public discussion archive"; "Discussion archive" reads unambiguously
+		// alongside them and, per the scope note above, keeps clear of
+		// gftb-platform's own /discuss surface — "Discuss archive" read like a
+		// third name for a fourth thing.
+		label: 'Discussion archive',
+		href: 'https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/',
+		match: [],
+		footerGroup: 'Get involved',
+		external: true,
+	},
 ];
 
 /** Header bar items — derived, never hand-duplicated. */

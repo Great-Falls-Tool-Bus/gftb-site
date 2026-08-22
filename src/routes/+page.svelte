@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { publicLogs } from '$lib/public-logs';
 	import SourceLink from '$lib/components/SourceLink.svelte';
+	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
@@ -55,11 +56,20 @@
 	// docs/attribution.md). The bus-photo corpus is pending its
 	// colorspace/EXIF audit; when an audited photo lands, swap ONLY this
 	// constant. The layer is decorative: empty alt, aria-hidden wrapper.
+	//
+	// `sizes` is its OWN value (apex-gaps diagnosis 2026-08-20 item 1),
+	// NOT historyPhoto.sizes: this picture fills `.hero`, which breaks out
+	// to the full 100vw band (app.css `.hero { width: 100vw; margin-left:
+	// calc(50% - 50vw); }`), not the ~604px-capped column the History
+	// thumbnail renders in. Reusing History's sizes told the browser this
+	// was a small, column-capped image, so at a 1440px viewport it picked
+	// the 640w candidate and stretched it ~2.3x via object-fit: cover —
+	// compounding the crush the scrim/blur tuning above fixes.
 	const heroPhoto = {
 		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
 		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
 		fallback: `${photoBase}-1280.jpg`,
-		sizes: historyPhoto.sizes,
+		sizes: '100vw',
 	};
 
 	const formatDate = (value: string) =>
@@ -233,7 +243,9 @@
 				Reach a keyholder through the <a href="/contact">contact page</a>. For open project conversation, email
 				<a href="mailto:discuss@latoolb.us">discuss@latoolb.us</a>
 				or read the
-				<a href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/">public discussion archive</a>.
+				<ExternalLink href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
+					>public discussion archive</ExternalLink
+				>.
 			</p>
 		</div>
 	</section>

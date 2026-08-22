@@ -4,6 +4,7 @@
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
+	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import { theme } from '$lib/theme.svelte';
@@ -90,86 +91,106 @@
 	jsonLd={isErrorSurface ? null : jsonLd}
 />
 
-<a class="skip-link" href="#main-content">Skip to content</a>
+<!-- App shell (operator diagnosis 2026-08-20: /log footer cascade fix). The
+     v5 Skeleton layout pattern demo fa5552c +layout.svelte:77/:206 ships —
+     min-h-screen flex column, main takes the remaining space — so the
+     footer sits at the viewport base on any page shorter than the
+     viewport. One shell for every route through this layout (incl. /log,
+     /contact, and the prerendered /404), so there is no per-page footer
+     hack. -->
+<div class="app-shell">
+	<a class="skip-link" href="#main-content">Skip to content</a>
 
-<header class="site-header">
-	<div class="site-header__inner">
-		<a class="brand" href="/" aria-label="Great Falls Tool Bus home">
-			<img src="/logo/bus-silhouette.svg" alt="" width="80" height="38" />
-			<!-- D12 residual: the wordmark carries the uppercase tracked
-			     Fraunces .font-display lockup (apex +layout.svelte:107-114,
-			     Wordmark.svelte). -->
-			<span class="font-display">Great Falls Tool Bus</span>
-		</a>
-		<nav class="site-nav" aria-label="Main navigation">
-			{#each primaryNavItems as item (item.href)}
-				<a href={item.href} aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}>{item.label}</a>
-			{/each}
-			<!-- D01 placement: the mode switch rides the third header column
-			     beside the anchors — the demo's AppBar.Trail position. -->
-			<ThemeSwitcher />
-		</nav>
-	</div>
-</header>
-
-<main id="main-content" tabindex="-1">
-	{@render children?.()}
-</main>
-
-<footer class="site-footer">
-	<div class="site-footer__inner">
-		<div class="site-footer__intro">
-			<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
-			<!-- Build provenance (D10, demo #140 fe32de1): the short sha plus the
-			     "GitHub-verified" label — main is merged through GitHub, so its
-			     commits are signed by GitHub's web-flow key (committer =
-			     GitHub), not the author's own key. Degrade-to-nothing on
-			     local/unstamped builds is already the build-info contract.
-			     DELIBERATELY NO ANCHOR (review B1): the demo could link its
-			     /commit page because that repo is public; this carrier is
-			     private and the leak-scan internal-tracker-reference rule bans
-			     the repo's pull/issues/commit path segments in the artifact by
-			     name (AGENTS.md sanctions exactly one repository pointer, the
-			     SourceLink affordance) — no sha length escapes a path-segment
-			     ban, and a stamped `just build` fails on the href. The
-			     leak-scan-stamped gate and src/lib/leak-scan.test.ts pin this;
-			     the link half of D10 is a recorded residual behind an operator
-			     ruling that would widen the sanctioned exception. -->
-			{#if buildShaShort}
-				<p class="site-footer__provenance">
-					built from <code>{buildShaShort}</code>, GitHub-verified
-				</p>
-			{/if}
-			<p class="site-footer__licensing">
-				Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · visual credits are listed with
-				each image.
-			</p>
+	<header class="site-header">
+		<div class="site-header__inner">
+			<a class="brand" href="/" aria-label="Great Falls Tool Bus home">
+				<img src="/logo/bus-silhouette.svg" alt="" width="80" height="38" />
+				<!-- D12 residual: the wordmark carries the uppercase tracked
+				     Fraunces .font-display lockup (apex +layout.svelte:107-114,
+				     Wordmark.svelte). -->
+				<span class="font-display">Great Falls Tool Bus</span>
+			</a>
+			<nav class="site-nav" aria-label="Main navigation">
+				{#each primaryNavItems as item (item.href)}
+					<a href={item.href} aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}>{item.label}</a>
+				{/each}
+				<!-- D01 placement: the mode switch rides the third header column
+				     beside the anchors — the demo's AppBar.Trail position. -->
+				<ThemeSwitcher />
+			</nav>
 		</div>
-		{#each footerNavGroups as group (group.heading)}
-			<nav class="site-footer__group" aria-label={group.heading}>
-				<h2>{group.heading}</h2>
+	</header>
+
+	<main id="main-content" class="site-main" tabindex="-1">
+		{@render children?.()}
+	</main>
+
+	<footer class="site-footer">
+		<div class="site-footer__inner">
+			<div class="site-footer__intro">
+				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
+				<!-- Build provenance (D10, demo #140 fe32de1): the short sha plus the
+				     "GitHub-verified" label — main is merged through GitHub, so its
+				     commits are signed by GitHub's web-flow key (committer =
+				     GitHub), not the author's own key. Degrade-to-nothing on
+				     local/unstamped builds is already the build-info contract.
+				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
+				     /commit page because that repo is public; this carrier is
+				     private and the leak-scan internal-tracker-reference rule bans
+				     the repo's pull/issues/commit path segments in the artifact by
+				     name (AGENTS.md sanctions exactly one repository pointer, the
+				     SourceLink affordance) — no sha length escapes a path-segment
+				     ban, and a stamped `just build` fails on the href. The
+				     leak-scan-stamped gate and src/lib/leak-scan.test.ts pin this;
+				     the link half of D10 is a recorded residual behind an operator
+				     ruling that would widen the sanctioned exception. -->
+				{#if buildShaShort}
+					<p class="site-footer__provenance">
+						built from <code>{buildShaShort}</code>, GitHub-verified
+					</p>
+				{/if}
+				<p class="site-footer__licensing">
+					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · visual credits are listed with
+					each image.
+				</p>
+			</div>
+			{#each footerNavGroups as group (group.heading)}
+				<nav class="site-footer__group" aria-label={group.heading}>
+					<h2>{group.heading}</h2>
+					<ul>
+						{#each group.items as item (item.label)}
+							<li>
+								{#if item.external}
+									<ExternalLink href={item.href}>{item.label}</ExternalLink>
+								{:else}
+									<a href={item.href}>{item.label}</a>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</nav>
+			{/each}
+			<nav class="site-footer__group" aria-label="Meta">
+				<h2>Meta</h2>
 				<ul>
-					{#each group.items as item (item.label)}
-						<li><a href={item.href}>{item.label}</a></li>
-					{/each}
+					<!-- D11: the AX/agent row restored to the meta group (apex
+					     +layout.svelte:256-267, operator-merged and unruled-against).
+					     This carrier ships no public /agent route (the operator docs
+					     surface was retired), and the source repo is private, so a
+					     blob link would be a guaranteed 404 for every public visitor
+					     (review E4) — the row is plain text until an operator names
+					     a public target. D06: outbound meta links ride
+					     ExternalLink. -->
+					<li>AX: AGENTS.md in the source repo</li>
+					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
+					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
 				</ul>
 			</nav>
-		{/each}
-		<nav class="site-footer__group" aria-label="Meta">
-			<h2>Meta</h2>
-			<ul>
-				<!-- D11: the AX/agent row restored to the meta group (apex
-				     +layout.svelte:256-267, operator-merged and unruled-against).
-				     This carrier ships no public /agent route (the operator docs
-				     surface was retired), and the source repo is private, so a
-				     blob link would be a guaranteed 404 for every public visitor
-				     (review E4) — the row is plain text until an operator names
-				     a public target. D06: outbound meta links ride
-				     ExternalLink. -->
-				<li>AX: AGENTS.md in the source repo</li>
-				<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
-				<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
-			</ul>
-		</nav>
-	</div>
-</footer>
+		</div>
+	</footer>
+
+	<!-- Mounted ONCE so it rides every route (ContributeMenu.svelte, review
+	     finding C). Fixed-position, so DOM order here does not affect its
+	     rendered placement. -->
+	<ContributeMenu />
+</div>
