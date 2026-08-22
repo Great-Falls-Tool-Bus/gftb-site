@@ -39,21 +39,33 @@ check "grep -q 'container-image-publish: build container-image-context' Justfile
 check "test -f .gitleaks.toml && grep -q 'gitleaks dir' Justfile && grep -q 'gitleaks git' Justfile && grep -q 'gitleaks' flake.nix" "secret scanning is reproducible"
 check "test -f .bazelrc.flywheel && ! grep -qE '(remote_cache|remote_executor)=((grpc|https?)://)' .bazelrc .bazelrc.flywheel" "Bazel configuration contains no endpoint"
 
+# TIN-3914: this org's CI runs only on the GF cache-fronted ARC fleet. No job
+# this repository owns may name a GitHub-hosted label at any runs-on nesting.
+check "! grep -RqiE '(^|[^a-z0-9_-])(ubuntu|macos|windows)-[a-z0-9.]+' .github/workflows" "no GitHub-hosted runner label in .github/workflows"
+
 for dead in \
   .claude-plugin plugins modules tofu \
   docs/release docs/research docs/spec docs/deploy docs/patterns docs/decisions \
-  src/lib/generated src/lib/projection static/llms.txt static/agent-map.md \
+  src/lib/projection static/llms.txt static/agent-map.md \
   .github/rulesets scripts/bazel/run-playwright-static-smoke.mjs \
   .github/workflows/pulse-ingest.yml .github/workflows/release.yml; do
   check "test ! -e '$dead'" "dead carrier absent: $dead"
 done
+
+# src/lib/generated left the dead-carrier list with addendum B1.2: it is the
+# live home of the route->source map behind the SourceLink edit-this-page
+# affordance (demo #94), regenerated and drift-gated by `just source-map-check`.
+check "test -s src/lib/generated/source-map.json" "source map present for the SourceLink affordance (B1.2)"
 
 public_hits=$(grep -RInE '(TIN-[0-9]+|Linear|github\.com/.+/(pull|commit)/|\bPR #[0-9]+)' src/content src/routes 2>/dev/null || true)
 if [[ -z "$public_hits" ]]; then ok "public content contains no internal work pointers"; else no "public content contains internal work pointers"; printf '%s\n' "$public_hits"; fi
 
 check "test -f static/vendor/altcha/altcha.js && test -f static/vendor/altcha/LICENSE" "contact proof-of-work asset retains its license"
 check "! find static -type f -name '*.md' -print -quit | grep -q ." "public static tree contains no developer Markdown"
-check "grep -q 'forms.latoolb.us' src/lib/components/ContactForm.svelte && grep -q 'discuss@latoolb.us' src/routes/+page.svelte && grep -q 'keyholders@latoolb.us' src/routes/+page.svelte" "contact and list boundaries are explicit"
+# The contact surface lives on its own page (B1.4: the demo /contact
+# architecture, restored); the root's row 8 still names the public discuss
+# list while the private keyholders boundary is explained beside the form.
+check "grep -q 'forms.latoolb.us' src/lib/components/ContactForm.svelte && grep -q 'discuss@latoolb.us' src/routes/+page.svelte && grep -q 'keyholders@latoolb.us' src/routes/contact/+page.svelte" "contact and list boundaries are explicit"
 
 echo "summary: ${pass} pass, ${fail} fail"
 (( fail == 0 ))

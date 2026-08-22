@@ -138,12 +138,54 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertNotIn(":latest", combined)
         self.assertFalse((ROOT / ".github/workflows/deploy-pages.yml").exists())
 
+    def test_publisher_root_carrier_configures_hermetic_python(self) -> None:
+        self.assertIn('bazel_dep(name = "rules_python", version = "1.0.0")', self.module)
+        self.assertIn(
+            'python = use_extension("@rules_python//python/extensions:python.bzl", "python")',
+            self.module,
+        )
+        self.assertIn('python_version = "3.11"', self.module)
+        self.assertIn("ignore_root_user_error = True", self.module)
+        self.assertIn("- 'MODULE.bazel'", self.publisher)
+        self.assertIn("- 'MODULE.bazel.lock'", self.publisher)
+        self.assertIn("- 'scripts/test-bazel-cutover-contracts.py'", self.publisher)
+        self.assertIn("nix develop . -c just container-image-context", self.publisher)
+
     def test_image_serves_an_exact_generated_source_marker(self) -> None:
         self.assertIn("printf '%s' '${commitSha}' > \"$out/srv/health.sha\"", self.flake)
+        # The materialized build root is a read-only store path; cp -a copies its
+        # 0555 mode onto $out/srv, so the marker write needs the directory reopened.
+        self.assertIn('chmod u+w "$out/srv"', self.flake)
+        self.assertLess(self.flake.index('chmod u+w "$out/srv"'), self.flake.index("> \"$out/srv/health.sha\""))
         self.assertIn("admin off", self.flake)
         self.assertIn("persist_config off", self.flake)
         self.assertIn('respond /health "ok" 200', self.flake)
         self.assertIn("file_server", self.flake)
+
+    def test_missing_paths_are_answered_with_the_prerendered_404_body(self) -> None:
+        """Pin the two hand-written implementations of the same behaviour together.
+
+        A bare `file_server` answers a miss with the status line and no body,
+        which is how the promoted site served 404 with zero bytes. The fix lives
+        in two places that nothing otherwise forces to agree: the `handle_errors`
+        block in the Caddyfile, which is what the image runs, and
+        `_StaticPreviewHandler.send_error` in this module's sibling, which is
+        what Playwright and a local curl measure. If either is edited away the
+        other keeps the gate green, so both are asserted here.
+        """
+        self.assertIn("handle_errors {", self.flake)
+        self.assertIn("rewrite * /404.html", self.flake)
+        # Without this the fallback is served with `file_server`'s own 200, and
+        # every missing path becomes a soft 404.
+        self.assertIn("status {err.status_code}", self.flake)
+        # The health probes are plain `respond` directives and must keep
+        # answering ahead of the error handler.
+        self.assertLess(self.flake.index('respond /healthz "ok" 200'), self.flake.index("handle_errors {"))
+
+        preview = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
+        self.assertIn("def send_error(", preview)
+        self.assertIn("HTTPStatus.NOT_FOUND", preview)
+        self.assertIn('"404.html"', preview)
         self.assertIn("BUILD_COMMIT_SHA must be 40 lowercase hex characters", self.justfile)
         self.assertFalse((ROOT / "static/health.sha").exists())
 
@@ -154,8 +196,13 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "node_modules/@tummycrypt/vite-plugin-a11y"', self.build)
 
     def test_public_agent_artifacts_are_absent(self) -> None:
-        for path in ("static/llms.txt", "static/agent-map.md", "src/routes/agent", "src/lib/generated/source-map.json"):
+        # src/lib/generated/source-map.json is no longer on this list: it is
+        # the generated route->source map behind the SourceLink edit-this-page
+        # affordance (demo #94, addendum B1.2), drift-gated by
+        # `just source-map-check`. The agent surfaces stay banned.
+        for path in ("static/llms.txt", "static/agent-map.md", "src/routes/agent"):
             self.assertFalse((ROOT / path).exists(), path)
+        self.assertTrue((ROOT / "src/lib/generated/source-map.json").exists(), "source map (B1.2) must be committed")
 
 
 if __name__ == "__main__":

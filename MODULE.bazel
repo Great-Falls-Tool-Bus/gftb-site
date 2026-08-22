@@ -10,12 +10,23 @@ bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
+# rules_pkg pulls the hermetic rules_python interpreter; the publish lane runs
+# on the tinyland-nix carrier as root, and only the root module may lift the
+# rules_python root-user refusal (see rules_python#713).
+bazel_dep(name = "rules_python", version = "1.0.0")
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
 bazel_dep(name = "aspect_rules_js", version = "2.9.1")
 bazel_dep(name = "aspect_rules_ts", version = "3.8.4")
 
 # First-party Vite plugin, graph-linked in BUILD.bazel rather than through npm.
 bazel_dep(name = "tummycrypt_vite_plugin_a11y", version = "0.2.4")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    python_version = "3.11",
+    is_default = True,
+    ignore_root_user_error = True,
+)
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 node.toolchain(node_version = "22.13.1")

@@ -17,6 +17,9 @@ npm_link_package(
 )
 
 APP_NPM_PACKAGES = [
+    ":node_modules/@fontsource-variable/fira-code",
+    ":node_modules/@fontsource-variable/fraunces",
+    ":node_modules/@fontsource/crimson-pro",
     ":node_modules/@fontsource/inter",
     ":node_modules/@skeletonlabs/skeleton",
     ":node_modules/@skeletonlabs/skeleton-svelte",
@@ -27,6 +30,7 @@ APP_NPM_PACKAGES = [
     ":node_modules/@types/node",
     ":node_modules/mdsvex",
     ":node_modules/rollup-plugin-visualizer",
+    ":node_modules/shiki",
     ":node_modules/svelte",
     ":node_modules/tailwindcss",
     ":node_modules/typescript",
@@ -64,12 +68,21 @@ filegroup(
             "src/**",
             "static/**",
             "scripts/bazel/**/*.mjs",
+            # Acceptance-test-only modules the unit suite imports (leak scanner,
+            # QR decoder, WCAG colour maths). They live outside src/lib so
+            # shipped code cannot reach them, but //:unit_tests must.
+            "scripts/lib/**/*.mjs",
+            "scripts/lib/**/*.json",
         ],
         allow_empty = True,
     ) + [
         ".npmrc",
         "package.json",
         "playwright.config.ts",
+        "playwright.qa-packet.config.ts",
+        # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
+        # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
+        "scripts/check-build-output.mjs",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -90,6 +103,7 @@ filegroup(
             "docs/**/*.json",
             "e2e/**/*.ts",
             "scripts/**/*.js",
+            "scripts/**/*.json",
             "scripts/**/*.mjs",
             "src/**/*.css",
             "src/**/*.html",
@@ -106,6 +120,7 @@ filegroup(
         "eslint.config.ts",
         "package.json",
         "playwright.config.ts",
+        "playwright.qa-packet.config.ts",
         "pnpm-workspace.yaml",
         "svelte.config.js",
         "tinyland.repo.json",

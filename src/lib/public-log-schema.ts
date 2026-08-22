@@ -6,7 +6,14 @@ export interface PublicLogMetadata {
 	title: string;
 	summary: string;
 	tags: string[];
-	published: true;
+	/**
+	 * Publication gate (spec §3): `true` is the only value production OUTPUT
+	 * may carry — the loader (src/lib/public-logs.ts) excludes `false` drafts
+	 * from every rendered index, page, and feed. `false` files may sit in the
+	 * content tree as operator-pending TODO(jess) drafts (addendum B1.2: all
+	 * agent-drafted text ships as published:false drafts).
+	 */
+	published: boolean;
 	updated?: string;
 }
 
@@ -49,8 +56,8 @@ export function assertPublicLogMetadata(input: unknown, source = 'public log'): 
 	) {
 		throw new Error(`${source}: tags must be a non-empty string array`);
 	}
-	if (record.published !== true) {
-		throw new Error(`${source}: published must be true; drafts do not belong in src/content/log`);
+	if (typeof record.published !== 'boolean') {
+		throw new Error(`${source}: published must be a boolean; drafts carry published: false`);
 	}
 	if (record.updated !== undefined && !isValidIsoDate(record.updated)) {
 		throw new Error(`${source}: updated must be YYYY-MM-DD when present`);

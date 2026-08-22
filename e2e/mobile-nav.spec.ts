@@ -1,38 +1,32 @@
 import { expect, test } from '@playwright/test';
+import {
+	compositeOver,
+	contrastRatio,
+	formatRgb,
+	parseCssColor,
+	roundRatio,
+	type Rgb,
+} from '../scripts/lib/color-contrast.mjs';
+
+// The colour maths comes from the shared module rather than a local copy. The
+// local copy read `getComputedStyle` output with /[\d.]+/ and assumed rgb();
+// once the panel moved onto CityLink tokens Chromium started returning
+// `oklch(0.3832 0.0755 294.64)`, which that regex read as a red channel of
+// 0.3832 — turning a 12.4:1 pair into a reported 1.0:1 failure.
 
 test.use({ viewport: { width: 375, height: 667 } });
 
-function relativeLuminance(color: string): number {
-	const channels = color
-		.match(/[\d.]+/g)
-		?.slice(0, 3)
-		.map(Number);
-	if (!channels || channels.length !== 3) throw new Error(`Expected an RGB color, received ${color}`);
-	const [red, green, blue] = channels.map((channel) => {
-		const normalized = channel / 255;
-		return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-	});
-	return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-}
-
-function contrastRatio(foreground: string, background: string): number {
-	const foregroundLuminance = relativeLuminance(foreground);
-	const backgroundLuminance = relativeLuminance(background);
-	const lighter = Math.max(foregroundLuminance, backgroundLuminance);
-	const darker = Math.min(foregroundLuminance, backgroundLuminance);
-	return (lighter + 0.05) / (darker + 0.05);
-}
-
 test('mobile public front door exposes current status and working anchors', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.getByRole('heading', { name: 'Tools belong in motion.' })).toBeAttached();
-	await expect(page.getByText('Building, not lending yet.')).toBeAttached();
-	await expect(page.getByText('Schedule being confirmed')).toBeAttached();
+	await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeAttached();
+	await expect(page.getByText('Current status')).toBeAttached();
+	await expect(page.getByText('Not scheduled yet')).toBeAttached();
 	await expect(page.getByText('Sunday, August 16, 2026 · afternoon')).toHaveCount(0);
 
+	// The primary CTA is a page link now (B1.4): the form lives on /contact.
 	await page.getByRole('link', { name: 'Help build the bus' }).click();
-	await expect(page).toHaveURL(/#contact$/);
-	await expect(page.getByRole('heading', { name: 'Bring a question, a skill, or a tool story.' })).toBeAttached();
+	await expect(page).toHaveURL(/\/contact\/?$/);
+	await expect(page.getByRole('heading', { name: 'Contact', exact: true })).toBeAttached();
 });
 
 test('keyboard users can leave the repeated header and reach main content', async ({ page }) => {
@@ -42,6 +36,60 @@ test('keyboard users can leave the repeated header and reach main content', asyn
 	await page.keyboard.press('Enter');
 	await expect(page).toHaveURL(/#main-content$/);
 	await expect(page.locator('main')).toBeFocused();
+});
+
+// B3 (previous apex drawer hit-test, adapted to the anchor nav): every header
+// nav link is fully inside the viewport AND actually receives a tap at its
+// centre — content stacked over the nav and off-canvas overflow both fail
+// here. This is the #139 bug class: a wide brand once pushed the nav control
+// past the right edge at this exact viewport.
+test('header nav links are on-screen and receive the tap at 375px', async ({ page }) => {
+	await page.goto('/');
+	const links = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
+	const count = await links.count();
+	expect(count).toBeGreaterThan(0);
+	for (let index = 0; index < count; index += 1) {
+		const geometry = await links.nth(index).evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+			return {
+				fullyInside: rect.left >= 0 && rect.right <= window.innerWidth,
+				hittable: hit !== null && (element === hit || element.contains(hit)),
+			};
+		});
+		expect(geometry.fullyInside, `nav link ${index} sits fully inside the viewport`).toBe(true);
+		expect(geometry.hittable, `nav link ${index} receives the tap at its centre`).toBe(true);
+	}
+});
+
+// B1 at the 320px reflow floor against a hostile brand: the wordmark column
+// must shrink (grid minmax(0,auto) + min-width: 0) rather than push the nav
+// off the right edge or widen the document.
+test('a long brand string cannot push the nav off-edge at 320px', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 667 });
+	await page.goto('/');
+	await page.evaluate(() => {
+		const wordmark = document.querySelector('.brand span');
+		if (wordmark) wordmark.textContent = 'GreatFallsToolBusWordmarkOverflowFixture Extended Edition';
+	});
+	const state = await page.evaluate(() => ({
+		scrollWidth: document.documentElement.scrollWidth,
+		innerWidth: window.innerWidth,
+		headerHeight: document.querySelector('.site-header')?.getBoundingClientRect().height ?? Number.NaN,
+		navLinks: Array.from(document.querySelectorAll('.site-nav a')).map((element) => {
+			const rect = element.getBoundingClientRect();
+			return rect.left >= 0 && rect.right <= window.innerWidth;
+		}),
+	}));
+	expect(state.navLinks.length).toBeGreaterThan(0);
+	expect(state.navLinks.every(Boolean), 'nav links all fully on-screen with the fixture brand').toBe(true);
+	expect(state.scrollWidth, 'document overflow with the fixture brand').toBeLessThanOrEqual(state.innerWidth + 1);
+	// The wordmark clamps at three lines, so a hostile brand cannot grow the
+	// sticky header without bound (unclamped, this fixture reached ~192px —
+	// more than half of a 320x568 viewport gone to chrome). Ceiling re-tuned
+	// for the ported demo type scale (18px base, B1.3): three clamped lines
+	// measure ~87px; 92 keeps the bound tight.
+	expect(state.headerHeight, 'sticky header height with the fixture brand').toBeLessThanOrEqual(92);
 });
 
 test('mobile navigation links keep a usable minimum target height', async ({ page }) => {
@@ -61,7 +109,7 @@ test('reduced-motion preference disables smooth anchor scrolling', async ({ page
 });
 
 test('contact surface keeps public discussion and private access distinct', async ({ page }) => {
-	await page.goto('/#contact');
+	await page.goto('/contact');
 	await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeAttached();
 	await expect(page.getByRole('textbox', { name: 'Email', exact: true })).toBeAttached();
 	await expect(page.getByRole('button', { name: 'Send to keyholders' })).toBeAttached();
@@ -71,19 +119,42 @@ test('contact surface keeps public discussion and private access distinct', asyn
 	await expect(page.getByText('Its archive is not public.')).toBeAttached();
 });
 
-test('contact helper and validation text remain readable on the dark panel', async ({ page }) => {
-	await page.goto('/#contact');
+test('contact helper and validation text remain readable on the contact card', async ({ page }) => {
+	await page.goto('/contact');
 	await page.getByRole('button', { name: 'Send to keyholders' }).click();
 
-	const contactBackground = await page
-		.locator('.contact-card')
-		.evaluate((element) => getComputedStyle(element).backgroundColor);
+	// The flat card's fill is translucent (color-mix … 88%, transparent), so
+	// the computed backgrounds are composited down to the opaque colour a
+	// person actually sees before measuring, the way acceptance-contrast does.
+	const layers = await page.locator('.form-help').evaluate((element) => {
+		const stack: string[] = [];
+		let node: Element | null = element;
+		while (node) {
+			stack.push(getComputedStyle(node).backgroundColor);
+			node = node.parentElement;
+		}
+		return stack;
+	});
+	const painted = layers.map((layer) => parseCssColor(layer)).filter((layer) => layer.alpha > 0);
+	let ground: Rgb = { red: 255, green: 255, blue: 255, alpha: 1 };
+	for (let index = painted.length - 1; index >= 0; index -= 1) {
+		ground = compositeOver(painted[index], ground);
+	}
 	const helperColor = await page.locator('.form-help').evaluate((element) => getComputedStyle(element).color);
 	const errorColor = await page
 		.locator('.field-error')
 		.first()
 		.evaluate((element) => getComputedStyle(element).color);
 
-	expect(contrastRatio(helperColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
-	expect(contrastRatio(errorColor, contactBackground)).toBeGreaterThanOrEqual(4.5);
+	const helperRatio = roundRatio(contrastRatio(helperColor, ground));
+	const errorRatio = roundRatio(contrastRatio(errorColor, ground));
+	const panel = formatRgb(ground);
+	expect(
+		helperRatio,
+		`helper text ${formatRgb(helperColor)} on ${panel} measured ${helperRatio}:1`,
+	).toBeGreaterThanOrEqual(4.5);
+	expect(
+		errorRatio,
+		`field error ${formatRgb(errorColor)} on ${panel} measured ${errorRatio}:1`,
+	).toBeGreaterThanOrEqual(4.5);
 });

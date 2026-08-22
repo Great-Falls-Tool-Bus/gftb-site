@@ -1,6 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = 3000;
+// PLAYWRIGHT_PORT exists so a run can be pointed at a preview server this
+// worktree started itself. `reuseExistingServer` is true off CI, so a bare run
+// silently attaches to whatever already holds the default port — which, on a
+// machine running several worktrees at once, can be another branch's build.
+// Overriding the port is how a lane proves it measured its OWN artefact.
+// Unset, everything below is exactly what it was: port 3000, `just preview-e2e`.
+const port = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? '3000', 10);
 const baseURL = `http://localhost:${port}`;
 const webServerTimeout = process.env.CI ? 600_000 : 180_000;
 

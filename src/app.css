@@ -1,23 +1,206 @@
 @import 'tailwindcss';
+/* Both Skeleton stylesheets, with exactly ONE component mounted: the v5
+ * Switch behind the light/dark switcher (D01). Everything else here is
+ * hand-rolled by ruling (the FR-9 non-adoption records at each site), and
+ * the one other live effect of these imports — the `card` @utility radius —
+ * stays pinned by the explicit border-radius: 0 on the card family plus
+ * e2e/acceptance-sharp-edges.spec.ts. */
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
+/* CityLink palette (TIN-3853/3854) — active via data-theme='gftb' on <html>. */
+@import './lib/styles/theme-gftb.css';
+/* Self-hosted typefaces (D08/D12, the merged demo #29 / Wave-2.5 pairing;
+ * all @fontsource files ship font-display:swap):
+ * - Crimson Pro (serif) for editorial body copy;
+ * - Fraunces Variable (display serif, wght axis) for headings and the
+ *   uppercase tracked .font-display wordmark lockup;
+ * - Inter retained for UI chrome;
+ * - Fira Code Variable for code surfaces, ligatures on (liga + calt) —
+ *   declared here but downloaded only where a code element renders (no
+ *   non-code rule may consume --font-mono; review E3 measured the [↗] mark
+ *   alone pulling 36 KB onto every page).
+ * Everything is self-hosted through fontsource — no runtime external font
+ * fetches. The swap handoff is made CLS-safe by the metric-adjusted local
+ * fallback faces declared right below the imports, not by the raw stacks. */
+@import '@fontsource/crimson-pro/latin-400.css';
+@import '@fontsource/crimson-pro/latin-400-italic.css';
+@import '@fontsource/crimson-pro/latin-600.css';
+@import '@fontsource/crimson-pro/latin-700.css';
 @import '@fontsource/inter/latin-400.css';
 @import '@fontsource/inter/latin-600.css';
 @import '@fontsource/inter/latin-700.css';
 
+/* Fraunces + Fira Code ride the variable packages, but ONLY the latin
+ * subset is declared (review E3 trim): the wholesale package css declares
+ * every script subset, whose woff2 files then ship in the artifact and the
+ * OCI image (~105 KB of greek/cyrillic/vietnamese/latin-ext bytes no
+ * rendered string can reach). These are the packages' own latin @font-face
+ * blocks verbatim, minus the unused subsets; the url() resolves into the
+ * same installed package. */
+@font-face {
+	font-family: 'Fraunces Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url('../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2')
+		format('woff2-variations');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: 'Fira Code Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 700;
+	src: url('../node_modules/@fontsource-variable/fira-code/files/fira-code-latin-wght-normal.woff2')
+		format('woff2-variations');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Metric-adjusted local fallbacks (review E2 — the D08 "CLS-safe" claim
+ * made real): Georgia is NOT metric-close to either serif; unadjusted it
+ * reflowed the built page by 45px at 1280 and flipped the hero lede's line
+ * count. These faces re-shape local Georgia to each webfont's metrics
+ * (fontaine-style size-adjust + ascent/descent overrides, computed from the
+ * shipped fonts' head/OS2/hmtx tables over a weighted English sample
+ * against macOS Georgia), so the swap changes glyphs, not layout. */
+@font-face {
+	font-family: 'Crimson Pro Fallback';
+	src: local('Georgia');
+	size-adjust: 89.96%;
+	ascent-override: 99.66%;
+	descent-override: 23.88%;
+	line-gap-override: 0%;
+}
+
+@font-face {
+	font-family: 'Fraunces Fallback';
+	src: local('Georgia');
+	size-adjust: 115.26%;
+	ascent-override: 84.85%;
+	descent-override: 22.12%;
+	line-gap-override: 0%;
+}
+
+/* Role layer (TIN-3854). Every rule below paints through a role, never a raw
+ * hex or a raw palette token, so a colour decision is made once and here.
+ * The `[data-mode='dark']` block at the end of this file redefines every
+ * scheme role in full; that block is the only place a second colour scheme
+ * is described. (D01 re-key: the attribute — set synchronously by the
+ * src/app.html FOUC script and by the theme store — replaced the
+ * prefers-color-scheme media query so a visitor's explicit choice can
+ * override the OS; the v5 light-switch strategy the demo shipped.)
+ *
+ * This block is the RATIFIED role table of the CityLink palette spec, carried
+ * verbatim: spec/gftb-citylink-palette (meta), gen_board.py:157-180 is the
+ * table of record and decisions/0015 ratified the numbers (Appendix A via
+ * src/lib/styles/theme-gftb.css + src/lib/theme/palette.ts, both byte-stable).
+ * The one deliberately inverted surface — the purple contact panel and its
+ * --inverse-* group — and the yellow livery block are PART of that table
+ * (rows :166-179). PR #25 deleted them on an invalid interview; restoration
+ * addendum B1 (2026-08-20) is the correction that put them back.
+ *
+ * Roles resolve to CityLink Skeleton families (src/lib/styles/theme-gftb.css).
+ * src/lib/design-token-contrast.test.ts resolves this file's `var()` graph and
+ * sweeps every pair below in both schemes, so a role that stops clearing its
+ * WCAG floor fails in milliseconds. */
 :root {
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-	color: #28222b;
-	background: #f7f0df;
 	font-synthesis: none;
+	color: var(--fg);
+	background: var(--bg);
+
+	--bg: var(--color-surface-100);
+	--panel: var(--color-surface-50);
+	--fg: var(--color-surface-950);
+	--fg-muted: var(--color-surface-700);
+	--heading: var(--color-primary-800);
+	--accent: var(--color-primary-700);
+	--accent-contrast: var(--color-primary-contrast-700);
+	/* anchors, pinned off Skeleton's 400 default (gen_board.py:164) */
+	--link: var(--color-primary-700);
+	/* decorative container edges */
+	--rule: var(--color-surface-300);
+	--highlight: var(--color-secondary-300);
+	--highlight-contrast: var(--color-secondary-contrast-300);
+	/* secondary fills sit at 1.43:1 on paper — every yellow control needs this
+	 * (the ratified 1.4.11 rescue edge, gen_board.py:167 / palette spec item 4) */
+	--highlight-edge: var(--color-secondary-700);
+	/* headings on the yellow livery fill (gen_board.py:168) */
+	--highlight-heading: var(--color-primary-800);
+	--danger: var(--color-error-700);
+	--wash: color-mix(in oklab, var(--color-secondary-300) 16%, transparent);
+	/* the mode switch's track (D01) — the thumb rides --accent on it, and the
+	 * thumb is the control's 1.4.11 boundary (measured 5.06:1 light / 3.74:1
+	 * dark by design-token-contrast.test.ts's swept pair) */
+	--control-track: var(--color-surface-300);
+
+	/* ── The inverted contact panel (restored) ────────────────────────────
+	 * The ratified role table's inverse group, gen_board.py:170-179: the
+	 * contact panel inverts in BOTH schemes, so every rung here is
+	 * scheme-invariant and is deliberately declared once, outside the dark
+	 * block (design-token-contrast.test.ts's scheme-parity sweep exempts
+	 * --inverse-* for exactly this reason). Deleted by PR #25 on an invalid
+	 * interview; restored by addendum B1. */
+	--inverse-panel: var(--color-primary-900);
+	--inverse-edge: var(--color-primary-500);
+	--inverse-fg: var(--color-surface-50);
+	--inverse-fg-muted: var(--color-primary-100);
+	--inverse-link: var(--color-primary-200);
+	--inverse-danger: var(--color-error-100);
+	/* paper-filled controls sitting on the panel (gen_board.py:176-179) */
+	--inverse-control-fg: var(--color-primary-900);
+	--inverse-control-accent: var(--color-primary-700);
+	--inverse-control-danger: var(--color-error-700);
+	--inverse-control-positive: var(--color-success-600);
+
+	/* --ink is the one literal left in this file. src/lib/theme/palette.test.ts
+	 * re-reads it as a hex to prove the shipped ink and surface-950 never
+	 * drifted apart; resolving it through var() would delete that proof. */
 	--ink: #28222b;
-	--purple: #512c64;
-	--purple-dark: #351b43;
-	--yellow: #f2c84b;
-	--cream: #f7f0df;
-	--paper: #fffdf7;
-	--muted: #6f6671;
-	--line: #d8cbb5;
+}
+
+/* color-scheme follows the toggle (D01, demo fa5552c src/app.css:55-60):
+ * native form controls and scrollbars flip with the data-mode attribute, not
+ * the OS. The dark side of this pair lives inside the single dark role block
+ * at the end of the file, so that block stays the only place the second
+ * scheme is described. The FOUC script also mirrors the value onto
+ * documentElement.style.colorScheme. */
+[data-mode='light'] {
+	color-scheme: light;
+}
+
+/* ===== Semantic z-index scale =====
+ * One ladder for every stacked surface: dropdown < sticky < modal-backdrop <
+ * modal < toast < tooltip. Never an arbitrary 999/9999. Rules consume the
+ * tokens through var() directly. Declared in its own :root block on purpose:
+ * the role block above is scheme-swept by design-token-contrast.test.ts, and
+ * these are not colours. (Ported from the previous apex, fix #139 era.) */
+:root {
+	--z-dropdown: 30;
+	--z-sticky: 40;
+	--z-modal-backdrop: 50;
+	--z-modal: 60;
+	--z-toast: 70;
+	--z-tooltip: 80;
+}
+
+/* ===== Typeface tokens (D08/D12) =====
+ * The merged demo #29 / Wave-2.5 pairing on this carrier's faces. Declared
+ * in their own :root block for the same reason as the z ladder: the role
+ * block above is scheme-swept by design-token-contrast.test.ts, and these
+ * are not colours. The serif stacks fall back through the metric-adjusted
+ * Georgia faces declared beside the imports, so the font-display:swap
+ * handoff is CLS-safe by construction, not by hope. */
+:root {
+	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--font-serif: 'Crimson Pro', 'Crimson Pro Fallback', Georgia, 'Times New Roman', serif;
+	--font-display: 'Fraunces Variable', 'Fraunces Fallback', Georgia, 'Times New Roman', serif;
+	--font-mono: 'Fira Code Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 * {
@@ -25,18 +208,54 @@
 }
 
 html {
+	/* Document-level guard: nothing may widen the page. `clip` rather than
+	 * `hidden` so no scroll container is created and position: sticky keeps
+	 * working. (Previous apex guard, present there since its first commit.) */
+	overflow-x: clip;
 	scroll-behavior: smooth;
 }
 
 body {
 	margin: 0;
 	min-width: 320px;
-	background: linear-gradient(180deg, rgb(242 200 75 / 16%), transparent 22rem), var(--cream);
-	color: var(--ink);
+	background: linear-gradient(180deg, var(--wash), transparent 22rem), var(--bg);
+	color: var(--fg);
+	/* Demo base body rhythm (demo src/app.css:104-113): 18px with generous
+	 * leading — now on the Crimson Pro editorial serif (D08); UI chrome
+	 * opts back into --font-sans below. */
+	font-family: var(--font-serif);
+	font-size: 1.125rem;
+	line-height: 1.6;
+	font-feature-settings:
+		'kern' 1,
+		'liga' 1;
+}
+
+/* App shell — v5 Skeleton layout pattern (operator diagnosis 2026-08-20: the
+ * /log footer was not sticking to the viewport base on short pages because
+ * there was no shell at all — html/body were plain block flow and
+ * +layout.svelte rendered header/main/footer as flat siblings). Ported from
+ * the demo (fa5552c src/routes/+layout.svelte:77 `min-h-screen flex
+ * flex-col`, :206 `flex-1` on the content wrapper): a min-height:100vh flex
+ * column with `.site-main` taking the remaining space pushes the footer to
+ * the viewport base on any page shorter than the viewport, on every route
+ * (verified against /, /log, /contact, /404 — all share this one
+ * +layout.svelte, so there is no per-page footer hack to keep in sync). A
+ * dedicated wrapper class, not html/body directly, so body's own
+ * `--wash` gradient background keeps painting behind the whole page exactly
+ * as before. */
+.app-shell {
+	display: flex;
+	min-height: 100vh;
+	flex-direction: column;
+}
+
+.site-main {
+	flex: 1 1 auto;
 }
 
 a {
-	color: inherit;
+	color: var(--link);
 }
 
 img {
@@ -56,26 +275,62 @@ figure {
 h1,
 h2,
 h3 {
-	font-family: Georgia, 'Times New Roman', serif;
-	color: var(--purple-dark);
+	font-family: var(--font-display);
+	color: var(--heading);
 	text-wrap: balance;
 }
 
+/* Display lockup (D12 residual, apex app.css:150-158): Fraunces, uppercase,
+ * tracked. Drives the header Wordmark brand lockup and is available for
+ * editorial eyebrows. */
+.font-display {
+	font-family: var(--font-display);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	line-height: 1.1;
+}
+
+/* Inter chrome (D08): structural chrome keeps the sans face; editorial copy
+ * rides the serif body above. Form controls inherit through .contact-form's
+ * `font: inherit`. */
+.site-header,
+.site-footer,
+.skip-link,
+.button,
+.breadcrumbs,
+.pagination,
+.contact-form,
+.form-notice,
+.log-meta,
+.log-tags,
+.source-link {
+	font-family: var(--font-sans);
+}
+
+/* Type scale ported from the demo site (greatfallstoolbus.org@origin/main
+ * src/app.css:119-148, operator design pass): the same clamps, leading and
+ * tracking, on the faces this repo already ships. The previous oversized
+ * scale (2.9-6rem h1) was the stub's, not the operator's. */
 h1 {
-	max-width: 12ch;
-	font-size: clamp(2.9rem, 13vw, 6rem);
-	line-height: 0.94;
-	letter-spacing: -0.045em;
+	max-width: 16ch;
+	font-size: clamp(2.5rem, 5vw + 1rem, 5rem);
+	line-height: 1.05;
+	letter-spacing: -0.025em;
+	font-weight: 700;
 }
 
 h2 {
-	font-size: clamp(2rem, 8vw, 3.5rem);
-	line-height: 1;
-	letter-spacing: -0.03em;
+	font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2.25rem);
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+	font-weight: 700;
 }
 
 h3 {
-	font-size: 1.35rem;
+	font-size: 1.5rem;
+	line-height: 1.25;
+	letter-spacing: -0.015em;
 }
 
 p,
@@ -91,11 +346,15 @@ li {
 	position: fixed;
 	top: 0.75rem;
 	left: 0.75rem;
-	z-index: 10;
+	/* Transient, keyboard-summoned, and must clear the sticky header. */
+	z-index: var(--z-toast);
 	transform: translateY(-180%);
-	border-radius: 999px;
-	background: var(--yellow);
+	/* The edge stays: a secondary fill reads 1.43:1 on paper, so every yellow
+	 * control carries --highlight-edge (palette spec, ratified item 4). */
+	border: 1px solid var(--highlight-edge);
+	background: var(--highlight);
 	padding: 0.65rem 1rem;
+	color: var(--highlight-contrast);
 	font-weight: 700;
 }
 
@@ -103,13 +362,49 @@ li {
 	transform: translateY(0);
 }
 
+/* The translucent blur is an existing design call — leave it. But know the
+ * lore it carries (previous apex, fix #142): `backdrop-filter` makes this
+ * element the containing block for any `fixed`-position descendants (CSS
+ * Filter Effects 2). A drawer, dialog, or toast rendered inside the header
+ * would have its `fixed inset-*` resolve against this ~4.3rem box, not the
+ * viewport — it must portal to <body> instead. And do NOT add a competing
+ * `position` from another rule: a stray `position: relative` at higher
+ * precedence once silently defeated `sticky` (the header never stuck). */
 .site-header {
 	position: sticky;
 	top: 0;
-	z-index: 5;
-	border-bottom: 1px solid rgb(81 44 100 / 18%);
-	background: rgb(247 240 223 / 92%);
+	z-index: var(--z-sticky);
+	/* Saturn ring line (D09, apex app.css:386-446): ~50% primary mix, the
+	 * planet's ring line — the brand voice, not a focal element. The 18%
+	 * hairline this replaces was the un-ported stub. */
+	border-bottom: 2px solid color-mix(in oklab, var(--accent) 50%, transparent);
+	background: color-mix(in oklab, var(--bg) 92%, transparent);
 	backdrop-filter: blur(12px);
+}
+
+/* Warm radial halo at the top-right corner (D09) — the planet's atmosphere
+ * tinting the chrome. Composes the role layer (--accent), so it flips with
+ * the scheme without a dark-block restatement. pointer-events: none and
+ * anchored inside the sticky box, so it can never widen the document or
+ * swallow a tap. */
+.site-header::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: clamp(120px, 18vw, 240px);
+	height: 100%;
+	background: radial-gradient(ellipse at 80% 20%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 70%);
+	pointer-events: none;
+}
+
+/* The reduced-motion backdrop-filter drop (D09, apex reduce-gate :441-446):
+ * the frost is a live re-filter of everything scrolling beneath the sticky
+ * header, so reduced motion gets the opaque-enough plain mix instead. */
+@media (prefers-reduced-motion: reduce) {
+	.site-header {
+		backdrop-filter: none;
+	}
 }
 
 .site-header__inner,
@@ -119,11 +414,18 @@ li {
 	margin-inline: auto;
 }
 
+/* Fix #139 class (previous apex): the brand column may shrink
+ * (minmax(0,auto)), the gutter column absorbs the slack, and the nav column
+ * keeps its intrinsic size. A plain space-between flex let a long brand
+ * expand past the viewport and push the nav off the right edge. The gutter
+ * is minmax(1rem, 1fr) with NO outer gap so narrow widths pay for exactly
+ * one 1rem separation — the flex original's width math; an outer `gap`
+ * would charge the brand column a second 16px at 320 and wrap the wordmark
+ * onto an extra line. */
 .site-header__inner {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, auto) minmax(1rem, 1fr) auto;
 	align-items: center;
-	justify-content: space-between;
-	gap: 1rem;
 	min-height: 4.3rem;
 }
 
@@ -131,8 +433,30 @@ li {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.65rem;
+	/* Let the grid column actually shrink this flex item (#139). */
+	min-width: 0;
+	color: var(--fg);
 	font-weight: 800;
 	text-decoration: none;
+}
+
+/* Last-resort guards (#139 adapted): the wordmark wraps at phone widths —
+ * the shipped look; a nowrap-ellipsis truncate would clip the real brand on
+ * every phone (the wordmark needs ~153px at its shipped size and the brand
+ * column offers less than that below 48rem). So the guards are: an
+ * unbreakable token wraps mid-word rather than widening the column, and the
+ * block clamps at three lines with an ellipsis — one more than the full
+ * wordmark needs at the 320 floor — so hostile content cannot grow the
+ * sticky header without bound (e2e pins the header ceiling under a long
+ * fixture). The grid geometry above is what keeps the nav on-edge; the
+ * anchor's aria-label carries the full name. */
+.brand span {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	min-width: 0;
+	overflow: hidden;
+	overflow-wrap: anywhere;
 }
 
 .brand img {
@@ -142,39 +466,364 @@ li {
 }
 
 .site-nav {
+	/* Third header column: the 1fr gutter in between keeps it right-aligned.
+	 * The mode switch rides in this column beside the anchors (D01 placement
+	 * — the demo's AppBar.Trail position). */
+	grid-column: 3;
 	display: flex;
+	align-items: center;
 	gap: 0.9rem;
 	font-size: 0.82rem;
 	font-weight: 700;
 }
 
-.site-nav a,
 .text-link {
 	text-decoration-thickness: 0.1em;
 	text-underline-offset: 0.22em;
 }
 
+/* ===== Nav active underline (D05, apex app.css:448-469) =====
+ * `aria-current="page"` was already set by the layout but nothing styled it.
+ * The animated scaleX bar answers hover, keyboard focus, and the current
+ * section; the current section also lifts to the accent ink. The transition
+ * is declared ONLY under no-preference, so reduced motion computes no
+ * transition at all (the acceptance-motion sweep's rule, not the 0.01ms
+ * trick). */
 .site-nav a {
+	position: relative;
 	padding-block: 0.35rem;
+	text-decoration: none;
+}
+
+.site-nav a::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0.1rem;
+	height: 2px;
+	background: var(--accent);
+	transform: scaleX(0);
+	transform-origin: left center;
+}
+
+.site-nav a:hover::after,
+.site-nav a:focus-visible::after,
+.site-nav a[aria-current='page']::after {
+	transform: scaleX(1);
+}
+
+.site-nav a[aria-current='page'] {
+	color: var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.site-nav a::after {
+		transition: transform 200ms ease;
+	}
+}
+
+/* ===== Light/dark mode switch (D01) =====
+ * The one mounted Skeleton component: v5 Switch anatomy, painted entirely
+ * through roles. v5 ships pill radii, brand presets, and an unconditional
+ * thumb transition; every one of those is re-pinned here — border-radius: 0
+ * (sharp-edges ruling; e2e/acceptance-sharp-edges.spec.ts sweeps the
+ * computed corners in both switch states), role fills instead of presets,
+ * and motion only under no-preference. */
+.mode-switch {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 0;
+	cursor: pointer;
+}
+
+.mode-switch__control {
+	display: flex;
+	justify-content: flex-start;
+	box-sizing: border-box;
+	width: 3.25rem;
+	height: 1.75rem;
+	padding: 3px;
+	border-radius: 0;
+	border: 1px solid var(--rule);
+	background: var(--control-track);
+}
+
+/* The thumb is the control's 1.4.11 boundary: --accent on --control-track
+ * (5.06:1 light / 3.74:1 dark) and on the page ground (the already-swept
+ * primary-fill pair). Glyph ink rides the accent-contrast rung the primary
+ * button label already proves. */
+.mode-switch__thumb {
+	display: grid;
+	place-items: center;
+	height: 100%;
+	aspect-ratio: 1;
+	border-radius: 0;
+	background: var(--accent);
+	color: var(--accent-contrast);
+	transform: translateX(0);
+	/* Kill the v5 default `transition: transform 100ms` unconditionally;
+	 * motion re-enters ONLY under no-preference below. */
+	transition: none;
+}
+
+.mode-switch__thumb[data-state='checked'] {
+	transform: translateX(1.5rem);
+}
+
+/* Sun/moon crossfade riding the Switch.Context state. */
+.mode-switch__glyph {
+	grid-area: 1 / 1;
+	width: 14px;
+	height: 14px;
+	opacity: 0;
+	transform: rotate(-90deg) scale(0.6);
+	transition: none;
+}
+
+.mode-switch__glyph--active {
+	opacity: 1;
+	transform: rotate(0deg) scale(1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.mode-switch__thumb {
+		transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.mode-switch__glyph {
+		transition:
+			opacity 200ms ease,
+			transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+	}
+}
+
+/* Focus ring = the ratified 1.4.11 rescue edge (0015 item 4), replacing the
+ * v5 default surface-pair outline. Zag reflects keyboard focus on the root
+ * as data-focus-visible. */
+.mode-switch[data-focus-visible] {
+	outline: 2px solid var(--highlight-edge);
+	outline-offset: 2px;
 }
 
 .page-shell {
 	padding-block: 2rem 5rem;
 }
 
+/* Full-bleed band (demo #90, .hero-band): the section breaks out of the
+ * centered content column to the full viewport. `html` carries
+ * `overflow-x: clip`, so a 100vw child never adds a horizontal scrollbar
+ * (the overflow e2e guard stays green). The inner shell re-centers the
+ * content on the same width the rest of the page uses. */
 .hero {
-	display: grid;
-	gap: 2rem;
-	padding-block: clamp(2rem, 10vw, 7rem);
+	position: relative;
+	isolation: isolate;
+	width: 100vw;
+	margin-left: calc(50% - 50vw);
 }
 
-.eyebrow {
-	margin-bottom: 1rem;
-	color: var(--purple);
-	font-size: 0.78rem;
-	font-weight: 800;
-	letter-spacing: 0.13em;
-	text-transform: uppercase;
+.hero__inner {
+	display: grid;
+	gap: 2rem;
+	width: min(100% - 2rem, 72rem);
+	margin-inline: auto;
+	/* Demo hero rhythm: py-16 / md:py-24 / lg:py-28 (4 / 6 / 7rem). */
+	padding-block: clamp(4rem, 10vw, 7rem);
+}
+
+/* The featured-glass idiom (demo #90, .hero-glass), on the role layer.
+ * Opaque fallback FIRST — `--panel at 88%`, the same mix the card family
+ * used to composite; this is the no-@supports fallback contract, unrelated
+ * to the AA gate below (2026-08-20 correction — see the @supports block's
+ * comment for why the gate no longer models this number as the translucent
+ * ground). The translucent variant is progressive enhancement, free to
+ * match the demo's own operating point instead of restating the fallback —
+ * but neither value matches the demo's 68%/74% verbatim; see below. */
+.hero-glass {
+	border: 1px solid var(--rule);
+	background: color-mix(in oklab, var(--panel) 88%, transparent);
+	padding: clamp(1.35rem, 4vw, 2rem);
+}
+
+/* 2026-08-20 review round 2, finding B: a hand-written -webkit-backdrop-filter
+ * line here (removed) made the build pipeline emit ONLY the prefixed
+ * property — modern Chromium rejects -webkit-backdrop-filter outright, so
+ * the frost never rendered (measured: stripe std-dev 63.5, same as no
+ * filter at all) even though the translucent fill applied, leaking sharp
+ * photo detail straight through a panel whose contrast math assumed a
+ * blurred backdrop. `.site-header` (above) ships only the unprefixed
+ * property, unconditionally, and works — this repo's actual browser target
+ * is evergreen-only (color-mix, animation-timeline: view(), @starting-style
+ * are already load-bearing elsewhere), so there is no legacy-Safari case to
+ * hand-prefix for. Matched that precedent instead of re-deriving one; the
+ * build's own autoprefixer now emits both properties correctly (verified:
+ * computed backdrop-filter is `blur(10px) saturate(1.18)`, not `none`).
+ *
+ * With the frost actually rendering, the gate had to be re-measured against
+ * the REAL blurred backdrop instead of the 88% opaque fallback (which
+ * models a MORE opaque, hence falsely safer, panel than what ships) — see
+ * design-token-contrast.test.ts's heroGrounds() and
+ * e2e/acceptance-hero-glass-contrast.spec.ts (the live backstop; the
+ * numbers below are its output, not a one-off hand measurement). GFTB's
+ * --heading/--link/--fg-muted resolve to different colours than the demo's
+ * Skeleton tokens, against a different photo, so the demo's 68%/74% do not
+ * transfer: light needed 83% (68% left `status-card muted copy` at 3.76:1
+ * against the darkest real pixel — the demo's own ink doesn't have this
+ * pair, this repo's role table does), dark needed 95% (74% measured 4.31:1
+ * per the round-2 review; 84%, this file's own round-2 fix, still only
+ * reached 4.21:1 once the live e2e backstop re-measured it against a wider
+ * sample than the hand check that produced 84% — see finding B history in
+ * design-token-contrast.test.ts). Dark's 95% sits ABOVE the 88% opaque
+ * fallback: real, not a mistake — this photo's brightest real pixel behind
+ * the panel in dark mode needs more opacity than the fallback contract
+ * happens to declare. It still isn't 100%: backdrop-filter blur keeps
+ * applying underneath, so dark mode is subtly frosted rather than
+ * genuinely flat the way the true no-@supports fallback is. */
+@supports (backdrop-filter: blur(1px)) {
+	.hero-glass {
+		background: color-mix(in oklab, var(--panel) 83%, transparent);
+		backdrop-filter: blur(10px) saturate(118%);
+	}
+
+	/* Dark re-key follows the file's existing [data-mode] convention, not a
+	 * prefers-color-scheme block (see the note at the top of this file). */
+	[data-mode='dark'] .hero-glass {
+		background: color-mix(in oklab, var(--panel) 95%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hero-glass {
+		backdrop-filter: none;
+	}
+}
+
+/* ===== Hero backdrop (restoration: the old apex falls hero) =====
+ * The old apex drove this layer with a JS action (rAF + scroll listeners +
+ * a runtime px clamp). Ruled out: the drift is re-expressed below as a CSS
+ * scroll-driven animation — no JS, no listeners — and the clamp becomes
+ * geometric. The mechanics kept: block-axis over-scan gives the drift its
+ * slack, blur softens the image, and the scrim carries text legibility.
+ * Every colour composes the role layer (CityLink authority: ADR 0015 /
+ * palette spec Appendix A via theme-gftb.css + palette.ts) — the scrim
+ * mixes var(--bg), so it flips with the scheme without a dark-block
+ * restatement. */
+.hero__media {
+	position: absolute;
+	inset: 0;
+	/* Deliberately OUTSIDE the semantic --z-* ladder (which starts at the
+	 * above-content tiers, 30+): this is a below-content layer inside .hero's
+	 * own `isolation: isolate` stacking context, not a UI tier. */
+	z-index: -1;
+	overflow: clip;
+}
+
+/* Backdrop layer. Over-scans the band on the BLOCK axis only: 20% top and
+ * bottom is the drift slack. The inline size stays exactly the band's, so
+ * the layer can never widen the document (overflow row B1, and
+ * acceptance-responsive's image-width gate); the blur's soft inline fringe
+ * disappears under the scrim instead of under an inline over-scan.
+ * Geometry the clamp rests on: layer height = 140% of the band, so ±8% of
+ * the layer's own height (the keyframes below) is at most 11.2% of the band
+ * — always inside the 20% over-scan. No gap can open at any scroll
+ * position; e2e/hero-parallax.spec.ts asserts the covered rect. */
+.hero__drift {
+	position: absolute;
+	inset: -20% 0;
+	display: flex;
+	/* 10px, not 16px (apex-gaps diagnosis 2026-08-20 item 1; demo
+	 * fa5552c src/routes/+page.svelte:304-308 .hero-band__parallax). The
+	 * scrim carries legibility (below), so the extra 6px bought nothing but
+	 * softness on top of an already-blurred backdrop. */
+	filter: blur(10px);
+}
+
+.hero__drift img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center;
+}
+
+/* Legibility scrim — 2026-08-20 review round 2, finding A: the round-1
+ * revision un-inverted the SHAPE but still pinned the content band to a
+ * non-zero floor (65%) for AA reasons, which is not the demo's actual
+ * design and, once stacked with the horizontal layer, worked out to ~72%
+ * effective coverage — barely moved from the pre-round-1 74%. The demo
+ * (fa5552c src/routes/+page.svelte:315-330 .hero-band__scrim) is heaviest
+ * at the band's top/bottom edges (32% top / 55% bottom) and FULLY
+ * TRANSPARENT through the content band, because "contrast is guaranteed by
+ * the glass fill, not this scrim" — the scrim carries zero AA obligation in
+ * the demo's own design. That is now true here too: `.hero-glass`'s dark
+ * operating point moved from 74% to 95% (see above) specifically so the
+ * glass alone clears AA against the real blurred backdrop, which is what
+ * let the scrim's content band actually go to 0% instead of standing in as
+ * a second, redundant AA floor. Values below port the demo's edge/
+ * horizontal numbers exactly (citation above); content is genuinely 0.
+ *
+ * The content-zone stops (10%/90%) are NOT an AA boundary — the glass
+ * carries that now — but are kept as a visual invariant: ink should not
+ * visually sit on the heavier edge tint. Sized to contain the TRUE measured
+ * ink span at every acceptance-responsive breakpoint (widest at 320px,
+ * 11.6%-88.4%, review measurement 2026-08-20); design-token-contrast.test.ts
+ * asserts the stops against that fixture, with a staleness guard (review
+ * round 2, finding B.3.1) and rule-anchored regexes (finding B.3.2) so a
+ * decoy rule elsewhere in the file cannot satisfy the match. The horizontal
+ * layer mixes the SAME `--bg` source as the vertical layer, so stacking is
+ * additive, not multiplicative-away-from-zero — with content at 0% there is
+ * nothing left to erode. */
+.hero__scrim {
+	position: absolute;
+	inset: 0;
+	--hero-scrim-edge-top: color-mix(in oklab, var(--bg) 32%, transparent);
+	--hero-scrim-edge-bottom: color-mix(in oklab, var(--bg) 55%, transparent);
+	--hero-scrim-content: color-mix(in oklab, var(--bg) 0%, transparent);
+	background:
+		linear-gradient(
+			180deg,
+			var(--hero-scrim-edge-top) 0%,
+			var(--hero-scrim-content) 10%,
+			var(--hero-scrim-content) 90%,
+			var(--hero-scrim-edge-bottom) 100%
+		),
+		linear-gradient(
+			100deg,
+			color-mix(in oklab, var(--bg) 46%, transparent) 0%,
+			color-mix(in oklab, var(--bg) 28%, transparent) 55%,
+			color-mix(in oklab, var(--bg) 10%, transparent) 100%
+		);
+}
+
+/* Drift, double-gated: only when the browser has scroll-driven animations
+ * AND the visitor has not asked for reduced motion. Outside either gate
+ * nothing here declares an animation — computed animation-name stays
+ * 'none' (breakpoint row B5) and the layer is a static centered cover
+ * image, the same safe default the old hero's no-JS/SSR path shipped. */
+@supports (animation-timeline: view()) {
+	@media (prefers-reduced-motion: no-preference) {
+		.hero {
+			view-timeline: --hero-view block;
+		}
+
+		.hero__drift {
+			animation-name: hero-drift;
+			animation-duration: auto;
+			animation-timing-function: linear;
+			animation-fill-mode: both;
+			animation-timeline: --hero-view;
+			will-change: transform;
+		}
+
+		@keyframes hero-drift {
+			from {
+				transform: translateY(-8%);
+			}
+
+			to {
+				transform: translateY(8%);
+			}
+		}
+	}
 }
 
 .lede {
@@ -194,34 +843,100 @@ li {
 	align-items: center;
 	justify-content: center;
 	min-height: 3rem;
-	border: 2px solid var(--purple);
-	border-radius: 999px;
+	/* The border stays: it is what makes .button--secondary a control (3:1). */
+	border: 2px solid var(--accent);
 	padding: 0.7rem 1.15rem;
-	background: var(--purple);
-	color: white;
+	background: var(--accent);
+	color: var(--accent-contrast);
 	font-weight: 800;
 	text-decoration: none;
 }
 
 .button--secondary {
 	background: transparent;
-	color: var(--purple-dark);
+	color: var(--heading);
 }
 
-.button:hover,
+/* The sole button focus indicator (the decorative hover glow was stripped,
+ * de-slop ruling 2026-08-19). The ring adjoins two colours — the button's
+ * accent fill and the ground behind it — and SC 1.4.11 asks it to separate
+ * from either adjacent edge; design-token-contrast.test.ts measures both
+ * grounds in both schemes and pins 56% as the ratified operating point. */
 .button:focus-visible {
-	box-shadow: 0 0 0 4px rgb(242 200 75 / 65%);
+	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
 }
 
+/* Card-fill reduction, ruled 2026-08-20 (judge review on gftb-site PR #32,
+ * finding D). The TODO this replaces deferred on "keep or flatten is yours
+ * to rule; it stays until ruled" — the operator's 2026-08-20 checklist item
+ * 3 ("further reduction of unneeded bg card fill-ins") IS that ruling, so
+ * the deferral is superseded, not still open. The finding that makes
+ * removal safe, kept verbatim from the test's own honest status note: every
+ * text role clears its floor on the bare page ground in both schemes, and
+ * in dark the card ground actually LOWERS body-copy contrast (15.25:1 →
+ * 12.96:1) — so the border and fill were never AA-load-bearing here. Under
+ * the standing de-slop rule (P24: a decorative container must justify
+ * itself — AA need or it goes), that makes the border+fill decoration, and
+ * it goes; these render as page ground now (surfaces() in
+ * design-token-contrast.test.ts models `card` as `page` for the same
+ * reason). `.next-session` is explicitly excluded — it is the one ratified
+ * coloured container (gen_board.py:166-168) and was never a candidate. */
 .status-card,
 .card,
 .log-entry,
-.history-card,
+.history-card {
+	/* Explicit 0, not an omission: Skeleton 5 ships a `card` @utility whose
+	 * border-radius: var(--radius-container) reaches the class="card"
+	 * elements through the BUILT stylesheet, where a source grep cannot see
+	 * it (review finding). e2e/acceptance-sharp-edges.spec.ts sweeps the
+	 * computed style so this class of collision fails loudly. */
+	border-radius: 0;
+}
+
+/* The purple contact panel, restored (gen_board.py:170-179; addendum B1):
+ * the panel inverts in BOTH schemes — primary-900 ground, primary-500 edge —
+ * and every ink on it comes from the --inverse-* group. Radius stays an
+ * explicit 0 (sharp-edges ruling; the Skeleton `card` @utility collision
+ * class documented on the neutral family above applies here too). */
 .contact-card {
-	border: 1px solid var(--line);
-	border-radius: 1.25rem;
-	background: rgb(255 253 247 / 88%);
-	box-shadow: 0 0.8rem 2.5rem rgb(53 27 67 / 7%);
+	border-radius: 0;
+	border: 1px solid var(--inverse-edge);
+	background: var(--inverse-panel);
+	color: var(--inverse-fg);
+}
+
+.contact-card h1,
+.contact-card h2,
+.contact-card h3 {
+	color: var(--inverse-fg);
+}
+
+.contact-card a {
+	color: var(--inverse-link);
+}
+
+.contact-card .muted {
+	color: var(--inverse-fg-muted);
+}
+
+/* The [↗] ExternalLink mark declares its own color (D06 BELOW, :1382),
+ * which wins over the panel's `.contact-card a` link-color rule for that
+ * child span — so the inverted panel needs its own mark override, same
+ * pairing as `.contact-card .muted` and `.contact-card a` right above. This
+ * rule sits ABOVE the D06 base rule in the file yet still overrides it: the
+ * win is on SPECIFICITY (`.contact-card .external-link__mark` is 0,2,0
+ * against D06's 0,1,0), not source order — a later, more general rule
+ * would not have clawed this back. Caught by e2e/acceptance-contrast.spec.ts
+ * when the discuss-archive ExternalLink first landed on this panel
+ * (operator ask 2026-08-20/21): --fg-muted (the light-ground default)
+ * measured 1.94:1 on --inverse-panel. */
+.contact-card .external-link__mark {
+	color: var(--inverse-fg-muted);
+}
+
+.contact-card .external-link:hover .external-link__mark,
+.contact-card .external-link:focus-visible .external-link__mark {
+	color: var(--inverse-link);
 }
 
 .status-card,
@@ -250,14 +965,19 @@ li {
 	font-weight: 700;
 }
 
+/* Paper-filled controls on the inverted panel (gen_board.py:176-179): the
+ * fields fill with paper (--inverse-fg, surface-50) so the fill itself is
+ * the WCAG 1.4.11 boundary against primary-900, and the control's own inks
+ * come from the --inverse-control-* rungs — primary-900 text, primary-700
+ * accent boundary, error-700 errors. Restored by addendum B1 (PR #25 had
+ * flattened the fields to transparent page-role boxes). */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
 	width: 100%;
-	border: 1px solid var(--line);
-	border-radius: 0.45rem;
-	background: var(--paper);
-	color: var(--ink);
+	border: 1px solid var(--inverse-control-accent);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-fg);
 	font: inherit;
 }
 
@@ -272,14 +992,36 @@ li {
 	padding: 0.75rem;
 }
 
+/* outline-offset pushes the ring off the field and onto the panel, so the
+ * ring is measured against the panel ground — and there the bare yellow is
+ * the ratified indicator: "focus outline on the contact panel" is
+ * secondary-300 on primary-900 at 7.77:1 (gen_board.py:221), in both
+ * schemes. (On paper-side grounds the yellow fails and --highlight-edge is
+ * the rescue — the skip-link keeps that pairing.) */
 .contact-form :is(input, textarea):focus-visible {
-	outline: 3px solid var(--yellow);
+	outline: 3px solid var(--highlight);
 	outline-offset: 2px;
 }
 
 .contact-form .button {
 	width: fit-content;
 	margin-top: 0.5rem;
+}
+
+/* The paper submit button on the panel (gen_board.py:176-177 and the 56%
+ * glow rationale's own wording, "the paper button"): paper fill, primary-700
+ * label — 7.96:1 text on paper, and the fill itself is the 1.4.11 boundary
+ * against primary-900. */
+.contact-card .button {
+	border-color: var(--inverse-fg);
+	background: var(--inverse-fg);
+	color: var(--inverse-control-accent);
+}
+
+/* Errors on the paper-filled controls carry the ratified error-700 rung
+ * (gen_board.py:178). */
+.contact-form :is(input, textarea)[aria-invalid='true'] {
+	border-color: var(--inverse-control-danger);
 }
 
 .contact-form .button:disabled {
@@ -293,24 +1035,27 @@ li {
 	font-size: 0.86rem;
 }
 
+/* Helper text and field errors sit on the panel ground: the ratified
+ * "contact panel helper text" (primary-100) and "contact panel field error"
+ * (error-100) pairs, gen_board.py:217-219. */
 .form-help {
-	color: var(--muted);
+	color: var(--inverse-fg-muted);
 }
 
-.field-error,
-.form-notice--error {
-	color: #8b1f25;
+.field-error {
+	color: var(--inverse-danger);
 }
 
+/* Notices on the panel: the edge bar is the ratified panel eyebrow/outline
+ * yellow (secondary-300 on primary-900, 7.77:1 non-text); error text keeps
+ * the panel's error-100 ink. */
 .form-notice {
-	border-left: 0.4rem solid var(--purple);
+	border-left: 0.4rem solid var(--highlight);
 	padding: 1rem;
-	background: var(--paper);
-	color: var(--ink);
 }
 
-.form-notice--success {
-	border-left-color: #32704a;
+.form-notice--error {
+	color: var(--inverse-danger);
 }
 
 .text-button {
@@ -334,20 +1079,62 @@ li {
 
 .status-card {
 	align-self: center;
-	border-top: 0.55rem solid var(--yellow);
 }
 
-.status-card strong,
-.date-chip {
-	color: var(--purple-dark);
+.status-card strong {
+	color: var(--heading);
 }
 
 .muted {
-	color: var(--muted);
+	color: var(--fg-muted);
 }
 
+/* Demo vertical rhythm (apex-gaps diagnosis 2026-08-20 item 4): the previous
+ * clamp(4rem,8vw,6rem) padding-block on every section claimed to model "demo
+ * section steps 4-6rem", but the demo does not apply a uniform padding block
+ * per section — checked directly (fa5552c src/routes/+page.svelte:184, 218,
+ * 223, 233, 246): sections carry `mt-16` (4rem) margin-top plus a thin
+ * `border-y`/`border-t` divider with `py-6`/`py-8` (1.5-2rem) internal
+ * padding. The old rule ran ~50% heavier than the demo on both edges and
+ * dropped the divider treatment entirely. The first section keeps no extra
+ * margin/rule: `.page-shell`'s own top padding-block already separates it
+ * from the hero, and the demo has no equivalent of that wrapper to double up
+ * against. */
 .section {
-	padding-block: clamp(2.5rem, 8vw, 5rem);
+	margin-top: 4rem;
+	border-top: 1px solid var(--rule);
+	padding-top: 2rem;
+}
+
+.section:first-child {
+	margin-top: 0;
+	border-top: none;
+	padding-top: 0;
+}
+
+/* ===== Scroll-reveal (D04, apex app.css:568-580) =====
+ * Flash-free + no-JS-safe + reduced-motion-safe: the hidden start state
+ * applies ONLY under html.motion-safe-ready, a class the app.html sync
+ * script sets before first paint and ONLY when motion is allowed — SSR,
+ * no-JS, and reduced-motion visitors therefore always render content at
+ * rest, and the same script arms a 3s FAIL-OPEN timer that removes the
+ * class if the bundle never hydrates, so a dead enhancement layer cannot
+ * strand content hidden. The `use:reveal` action (src/lib/motion.svelte.ts)
+ * adds .reveal-in when the element scrolls in; per-item stagger rides
+ * --reveal-delay. */
+html.motion-safe-ready .reveal-armed {
+	opacity: 0;
+	transform: translateY(10px);
+	transition:
+		opacity 150ms ease,
+		transform 150ms ease;
+	transition-delay: var(--reveal-delay, 0ms);
+	will-change: opacity, transform;
+}
+
+html.motion-safe-ready .reveal-armed.reveal-in {
+	opacity: 1;
+	transform: none;
 }
 
 .section-heading {
@@ -366,19 +1153,36 @@ li {
 }
 
 .check-list li::marker {
-	color: var(--purple);
+	color: var(--accent);
 }
 
+/* The yellow livery block, restored (gen_board.py:166-168; addendum B1): the
+ * next-session/status band is THE one coloured container the ratified table
+ * names. --highlight is scheme-invariant (secondary-300, 9.57:1 non-text on
+ * the dark page), the 1.4.11 rescue edge carries the paper-side boundary
+ * (secondary-700 light / secondary-500 dark), headings pin to
+ * --highlight-heading (primary-800, both schemes) and copy to the ratified
+ * contrast token (--highlight-contrast = secondary-950, 7.26:1). PR #25
+ * flattened this to page roles on an invalid interview; this is the
+ * correction. */
 .next-session {
 	display: grid;
 	gap: 1.25rem;
-	border-radius: 1.5rem;
-	background: var(--yellow);
-	padding: clamp(1.5rem, 6vw, 3rem);
+	border: 1px solid var(--highlight-edge);
+	background: var(--highlight);
+	padding: clamp(1.35rem, 4vw, 2rem);
+	color: var(--highlight-contrast);
 }
 
 .next-session h2 {
 	margin-bottom: 0.75rem;
+	color: var(--highlight-heading);
+}
+
+/* Anchors on the yellow fill keep the ratified "headings on the yellow
+ * fill" pair (primary-800, AA at every size there). */
+.next-session a {
+	color: var(--highlight-heading);
 }
 
 .date-chip {
@@ -396,36 +1200,108 @@ li {
 }
 
 .log-entry__header {
-	border-bottom: 1px solid var(--line);
+	border-bottom: 1px solid var(--rule);
 }
 
 .log-entry__body > :last-child {
 	margin-bottom: 0;
 }
 
-.tag-list {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.45rem;
-	margin: 0;
-	padding: 0;
-	list-style: none;
+/* Wrap-not-scroll, ahead of the log content pipeline: log bodies render
+ * operator-authored markdown, where a long unbroken token (URL, sha, path)
+ * must wrap rather than widen the document. Prose tables are the one
+ * sanctioned horizontal scroller. (Previous apex guard kit.) */
+.log-entry__body :is(a, li, blockquote, td),
+.prior-logs details :is(a, li, blockquote, td) {
+	overflow-wrap: anywhere;
 }
 
-.tag-list li {
-	border-radius: 999px;
-	background: rgb(81 44 100 / 10%);
-	padding: 0.2rem 0.6rem;
-	font-size: 0.76rem;
-	font-weight: 700;
+.log-entry__body pre,
+.prior-logs details pre {
+	white-space: pre-wrap;
 }
 
+.log-entry__body table,
+.prior-logs details table {
+	display: block;
+	overflow-x: auto;
+}
+
+/* ===== Code surfaces (D07, apex app.css:16-27,46-47,185-235) =====
+ * The code-surface contract, landed BEFORE the first code-bearing log post
+ * (the B1.2 pipeline is live): Fira Code Variable with ligatures on every
+ * code surface, and pre blocks that WRAP rather than scroll — a long line
+ * breaks on word boundaries and unbreakable tokens use overflow-wrap:
+ * anywhere; prose tables above stay the one sanctioned horizontal
+ * scroller. */
+code,
+kbd,
+pre,
+samp {
+	font-family: var(--font-mono);
+	font-feature-settings:
+		'liga' 1,
+		'calt' 1;
+}
+
+pre {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	word-break: normal;
+}
+
+pre.shiki {
+	padding: 0.875rem 1rem;
+	border-radius: 0;
+	line-height: 1.55;
+	font-size: 0.8125rem;
+}
+
+/* Shiki dual-theme cascade (D07): the svelte.config.js highlighter runs
+ * shiki with `themes: { light, dark }` + `defaultColor: false`, which emits
+ * inline `--shiki-light:#xxx; --shiki-dark:#yyy` per token but applies
+ * NEITHER — the walk below turns the variables into painted colour, keyed on
+ * the same data-mode attribute as the role layer. These are the one family
+ * of colours that legitimately bypass the role table: they are shiki's own
+ * syntax palette, scoped to pre.shiki, never a site surface. */
+pre.shiki,
+pre.shiki code,
+pre.shiki span {
+	color: var(--shiki-light);
+	background-color: var(--shiki-light-bg);
+	font-family: var(--font-mono);
+	font-feature-settings:
+		'liga' 1,
+		'calt' 1;
+}
+
+[data-mode='dark'] pre.shiki,
+[data-mode='dark'] pre.shiki code,
+[data-mode='dark'] pre.shiki span {
+	color: var(--shiki-dark);
+	background-color: var(--shiki-dark-bg);
+}
+
+/* Inline code in prose stays compact; no card chrome. The wash composes the
+ * role layer, so it flips with the scheme. */
+:not(pre) > code {
+	font-size: 0.875em;
+	padding: 0.1em 0.3em;
+	border-radius: 0;
+	background: color-mix(in oklab, var(--rule) 45%, transparent);
+}
+
+/* NON-ADOPTION RECORD (FR-9, Skeleton audit §a) — do not "fix": older-log
+ * progressive disclosure stays native <details>/<summary>. It satisfies the
+ * no-JS disclosure decision (spec §3:89-90) with zero runtime JS, and v5's
+ * Disclosure component is built on <details> anyway — mounting it would add
+ * a component for behaviour the platform already ships. */
 .prior-logs {
 	margin-top: 1rem;
 }
 
 .prior-logs details {
-	border-bottom: 1px solid var(--line);
+	border-bottom: 1px solid var(--rule);
 	padding-block: 1rem;
 }
 
@@ -434,15 +1310,130 @@ li {
 	font-weight: 800;
 }
 
+/* ===== Public log surfaces (spec §3 rows 5-6; B1.2) =====
+ * The archive is a plain hairline LIST, never cards, with plain-text badges
+ * — the jesssullivan.github.io blog-list structure the addendum names. */
+.log-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.log-list li {
+	border-bottom: 1px solid var(--rule);
+	padding-block: 1.5rem;
+}
+
+.log-list h3 {
+	margin-bottom: 0.35rem;
+}
+
+.log-meta {
+	margin: 0 0 0.35rem;
+	color: var(--fg-muted);
+	font-size: 0.86rem;
+}
+
+/* Plain-text tag badges: text, separated by middots, no chip chrome. */
+.log-tags {
+	color: var(--fg-muted);
+	font-size: 0.86rem;
+}
+
+.breadcrumbs {
+	margin-bottom: 1.5rem;
+	color: var(--fg-muted);
+	font-size: 0.86rem;
+}
+
+.breadcrumbs ol {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.breadcrumbs li + li::before {
+	content: '/';
+	margin-right: 0.45rem;
+	color: var(--fg-muted);
+}
+
+/* No-JS pagination (spec :90-91): plain prev/older links, prerendered. */
+.pagination {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-top: 2rem;
+	font-weight: 700;
+}
+
+/* Edit-this-page affordance, ported from the demo SourceLink (#94). */
+.source-link {
+	margin-top: 2.5rem;
+	border-top: 1px solid var(--rule);
+	padding-top: 1rem;
+	color: var(--fg-muted);
+	font-size: 0.82rem;
+}
+
+.source-link a {
+	margin-left: 0.75rem;
+}
+
+/* ===== External-link mark (D06, apex app.css:512-525) =====
+ * The [↗] "leaves the site" mark on <ExternalLink>. Muted, lifts to the
+ * link ink alongside the anchor on hover/focus. In print the mark is
+ * dropped and the href is expanded after the text (the @media print block
+ * below — D03). DELIBERATE deviation from the apex's mono mark (review E3,
+ * measured): --font-mono here made the mark the only mono consumer on every
+ * page, pulling the whole 36 KB Fira Code face for three glyphs; the chrome
+ * sans carries the same [↗] and the code face now loads only where code
+ * renders. */
+.external-link__mark {
+	font-family: var(--font-sans);
+	font-size: 0.8em;
+	margin-inline-start: 0.25em;
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+.external-link:hover .external-link__mark,
+.external-link:focus-visible .external-link__mark {
+	color: var(--link);
+}
+
 .history-card {
 	display: grid;
 	overflow: hidden;
 }
 
+/* TIN-3932: the figure is a flex column so the photo absorbs the space the
+ * credit line does not need. The photo used to carry `height: 100%`, which
+ * resolved against the stretched <figure> and left the <figcaption> with
+ * nowhere inside the figure to go — it spilled into the next grid row. Above
+ * 48rem that row is empty, so the desktop card looked correct; below it the row
+ * holds .history-card__copy and the credit printed on top of the eyebrow
+ * (41px of overlap at 320 CSS px, 17px at 600). `flex: 1` with `min-height`
+ * keeps the same 16rem floor and the same cover crop, but now the caption is
+ * laid out first and the image takes what is left. */
+.history-card figure {
+	display: flex;
+	flex-direction: column;
+}
+
+/* <picture> only selects a source; it carries the flex sizing so the <img>
+ * inside it still fills whatever the credit line leaves. */
+.history-card picture {
+	display: flex;
+	flex: 1;
+	min-height: 16rem;
+}
+
 .history-card img {
 	width: 100%;
-	height: 100%;
-	min-height: 16rem;
 	object-fit: cover;
 }
 
@@ -452,55 +1443,102 @@ li {
 
 figcaption {
 	margin-top: 0.7rem;
-	color: var(--muted);
+	color: var(--fg-muted);
 	font-size: 0.78rem;
 	line-height: 1.45;
 }
 
+/* Layout only — the panel's restored inverse paint lives with the card
+ * family rules above (gen_board.py:170-179). */
 .contact-card {
 	display: grid;
 	gap: 1.5rem;
-	background: var(--purple-dark);
-	color: white;
-}
-
-.contact-card h2 {
-	color: white;
-}
-
-.contact-card .form-help {
-	color: #d8c9de;
-}
-
-.contact-card .field-error {
-	color: #ffd0cb;
+	padding: clamp(1.35rem, 4vw, 2rem);
 }
 
 .qr {
 	width: min(100%, 11rem);
-	border-radius: 0.6rem;
-	background: white;
+	/* literal white: a QR quiet zone must stay white to stay scannable */
+	background: #fff;
 	padding: 0.45rem;
 }
 
 .site-footer {
-	border-top: 1px solid var(--line);
-	background: var(--paper);
+	border-top: 1px solid var(--rule);
+	background: var(--panel);
+	/* Clearance for .contribute-fab (fixed, bottom-left, review round 2
+	 * finding C.3): without this, scrolling a short page all the way down
+	 * puts the footer's own last links (Source/Security at 320px, the
+	 * licensing link on /log) directly under the fixed trigger — confirmed
+	 * by a real click stealing the link's tap target, not just a geometry
+	 * overlap. Sized to the trigger's own closed-state footprint (~55px
+	 * tall) plus its offset (1rem / 1.5rem, matching .contribute-fab's own
+	 * breakpoint below) plus margin. The open panel can still cover more of
+	 * the footer transiently — accepted: that state is user-initiated, not
+	 * a passive collision, and focus/keyboard access are unaffected either
+	 * way. */
+	padding-bottom: 6rem;
 }
 
+@media (min-width: 768px) {
+	.site-footer {
+		padding-bottom: 5.5rem;
+	}
+}
+
+/* Footer grid, carrying the old apex footer lesson (fix #103, f8b599e):
+ * exactly one direct child per template track — multi-line columns nest
+ * their lines inside their one cell (see .site-footer__intro), so an added
+ * line can never become a phantom track that breaks the template.
+ * Colours stay on the existing roles (--panel ground, --fg-muted ink,
+ * --link anchors) — pairs already swept by design-token-contrast.test.ts. */
 .site-footer__inner {
-	display: flex;
-	flex-direction: column;
-	gap: 0.6rem;
-	padding-block: 1.5rem;
-	color: var(--muted);
+	display: grid;
+	gap: 2rem;
+	/* Demo footer rhythm: py-10 (2.5rem). */
+	padding-block: 2.5rem;
+	color: var(--fg-muted);
 	font-size: 0.78rem;
+}
+
+.site-footer__group {
+	display: grid;
+	gap: 0.35rem;
+	align-content: start;
+}
+
+.site-footer__group h2 {
+	margin: 0;
+	color: var(--fg-muted);
+	font-family: inherit;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.site-footer__group ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.35rem;
+}
+
+.site-footer__inner p {
+	margin: 0;
+}
+
+.site-footer__intro {
+	display: grid;
+	gap: 0.35rem;
 }
 
 @media (min-width: 48rem) {
 	.site-header__inner,
 	.page-shell,
-	.site-footer__inner {
+	.site-footer__inner,
+	.hero__inner {
 		width: min(100% - 4rem, 72rem);
 	}
 
@@ -509,7 +1547,7 @@ figcaption {
 		font-size: 0.9rem;
 	}
 
-	.hero {
+	.hero__inner {
 		grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
 	}
 
@@ -524,18 +1562,19 @@ figcaption {
 		align-items: center;
 	}
 
-	.qr-card {
-		position: sticky;
-		top: 6rem;
-	}
-
 	.history-card {
 		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
 
+	/* Four explicit tracks, the demo's intro-weighted footer template
+	 * (demo +layout.svelte footer: md:grid-cols-[2fr_1fr_1fr_1fr] — the
+	 * intro column plus three nav groups). e2e/footer.spec.ts asserts the
+	 * computed track count matches this template at 768/1440 and collapses
+	 * to a single column below (the B4 breakpoint row); the #103 one-child-
+	 * per-track lesson still holds. */
 	.site-footer__inner {
-		flex-direction: row;
-		justify-content: space-between;
+		grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+		align-items: start;
 	}
 }
 
@@ -543,4 +1582,277 @@ figcaption {
 	html {
 		scroll-behavior: auto;
 	}
+}
+
+/* ===== Print — spec-sheet treatment (D03, apex app.css:587-641) =====
+ * Global print treatment for every route: chrome and backgrounds dropped,
+ * ink on white, outbound URLs expanded after their link text (spec-sheet
+ * transparency — pairs with the D06 ExternalLink), sharp corners already
+ * sitewide, awkward breaks avoided. The printed QR is first-class output
+ * (spec §10's public-site row), so its quiet zone is pinned printable. The
+ * #fff/#000 literals are print ink, not screen roles: paper output has no
+ * scheme to resolve against. */
+@media print {
+	.site-header,
+	.site-footer,
+	.skip-link,
+	.hero__media {
+		display: none !important;
+	}
+
+	html,
+	body {
+		background: #fff !important;
+		color: #000 !important;
+	}
+
+	body {
+		font-size: 11pt;
+		line-height: 1.4;
+	}
+
+	main {
+		max-width: none !important;
+		margin: 0 !important;
+		padding: 0 !important;
+	}
+
+	a {
+		color: #000 !important;
+		text-decoration: underline;
+	}
+
+	.external-link[href^='http']::after {
+		content: ' <' attr(href) '>';
+		font-family: var(--font-mono);
+		font-size: 0.85em;
+		word-break: break-all;
+	}
+
+	.external-link__mark {
+		display: none !important;
+	}
+
+	/* A print begun before the reveal IO ever fires must still show every
+	 * armed element (D04's fail-open discipline, applied to paper). The
+	 * transition dies too: a print snapshot taken mid-reveal must capture
+	 * the resting state, never a partial opacity. */
+	html.motion-safe-ready .reveal-armed {
+		opacity: 1 !important;
+		transform: none !important;
+		transition: none !important;
+	}
+
+	:where(h1, h2, h3) {
+		page-break-after: avoid;
+	}
+
+	section,
+	li,
+	figure,
+	.qr {
+		break-inside: avoid;
+	}
+
+	.qr {
+		print-color-adjust: exact;
+		-webkit-print-color-adjust: exact;
+	}
+}
+
+/* Floating "Contribute" affordance (ContributeMenu.svelte), ported from the
+ * demo per the 2026-08-20 review finding C (maturity doc §5 V2: ADOPT,
+ * scoped — asked-for, not optional). Dropdown-tier fixed affordance,
+ * anchored bottom-left — the site's only other fixed element is
+ * `.skip-link` (top-left, transient, keyboard-summoned only), so there is
+ * no collision to clear. */
+.contribute-fab {
+	position: fixed;
+	bottom: 1rem;
+	left: 1rem;
+	z-index: var(--z-dropdown);
+	display: flex;
+	flex-direction: column-reverse;
+	align-items: flex-start;
+	gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+	.contribute-fab {
+		bottom: 1.5rem;
+		left: 1.5rem;
+	}
+}
+
+@media print {
+	.contribute-fab {
+		display: none !important;
+	}
+}
+
+.contribute-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	border: 2px solid var(--accent);
+	border-radius: 0;
+	background: var(--accent);
+	padding: 0.7rem 1.15rem;
+	color: var(--accent-contrast);
+	font-weight: 800;
+	font-family: var(--font-sans);
+}
+
+/* Featured-glass idiom, same shape as .hero-glass above: opaque fallback
+ * first (the measured, gate-verifiable contract), translucent under
+ * @supports as progressive enhancement. Unlike the hero, this panel never
+ * sits over a photo, so there is no separate scrim floor to carry (maturity
+ * doc §2d G7 applies only to glass-over-imagery). */
+.contribute-panel {
+	position: absolute;
+	bottom: calc(100% + 0.75rem);
+	left: 0;
+	width: min(20rem, calc(100vw - 2rem));
+	border: 1px solid var(--rule);
+	border-radius: 0;
+	background: color-mix(in oklab, var(--panel) 92%, transparent);
+	box-shadow: 0 1px 30px color-mix(in oklab, var(--bg) 40%, transparent);
+	transition-property: opacity, transform;
+	transition-timing-function: ease-out;
+	transform-origin: bottom left;
+}
+
+@starting-style {
+	.contribute-panel {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+}
+
+/* Same -webkit-backdrop-filter removal as .hero-glass above (review round
+ * 2 finding C.2 — identical bug, identical fix: match .site-header's
+ * unprefixed-only precedent). */
+@supports (backdrop-filter: blur(1px)) {
+	.contribute-panel {
+		background: color-mix(in oklab, var(--panel) 78%, transparent);
+		backdrop-filter: blur(16px) saturate(140%);
+	}
+}
+
+.contribute-panel__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	border-bottom: 1px solid var(--rule);
+	padding: 0.6rem 1rem;
+}
+
+.contribute-panel__eyebrow {
+	margin: 0;
+	color: var(--fg-muted);
+	font-family: var(--font-sans);
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.contribute-panel__close {
+	border: 0;
+	background: transparent;
+	padding: 0.25rem 0.5rem;
+	color: var(--fg-muted);
+	font-size: 1.1rem;
+	line-height: 1;
+}
+
+.contribute-panel__close:hover,
+.contribute-panel__close:focus-visible {
+	color: var(--fg);
+}
+
+.contribute-panel__list {
+	margin: 0;
+	padding: 0.35rem 0;
+	list-style: none;
+}
+
+.contribute-panel__list a {
+	display: block;
+	padding: 0.65rem 1rem;
+	color: inherit;
+	text-decoration: none;
+}
+
+.contribute-panel__list a:hover,
+.contribute-panel__list a:focus-visible {
+	background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+.contribute-panel__item-label {
+	display: block;
+	color: var(--heading);
+	font-weight: 700;
+	font-size: 0.9rem;
+}
+
+.contribute-panel__item-desc {
+	display: block;
+	margin-top: 0.15rem;
+	color: var(--fg-muted);
+	font-size: 0.78rem;
+	line-height: 1.35;
+}
+
+/* Reduced-motion collapse: the component also zeroes its own
+ * transition-duration inline (matches the app.html sync-script idiom used
+ * elsewhere), but the sitewide gate sweeps computed style, so the rule
+ * lives here too — belt and suspenders, same as .hero-glass above. */
+@media (prefers-reduced-motion: reduce) {
+	.contribute-panel {
+		transition-duration: 0s !important;
+	}
+}
+
+/* Dark scheme. Light is the default; every scheme role is restated here, including
+ * the ones whose value does not change, so this block is a complete description
+ * of the second scheme rather than a diff a reader has to reconstruct.
+ *
+ * D01 re-key: selected by the data-mode attribute (the v5 light-switch
+ * strategy the demo shipped, fa5552c src/app.css:53) — set pre-paint by the
+ * src/app.html FOUC script and at runtime by the theme store — never by the
+ * OS media query, so an explicit visitor choice always wins. color-scheme
+ * rides in this same block (its light twin sits beside the :root role block)
+ * so this stays the only place the second scheme is described. The
+ * scripts/lib/css-tokens.mjs extractor and design-token-contrast.test.ts are
+ * keyed to this exact block shape. */
+[data-mode='dark'] {
+	color-scheme: dark;
+	--bg: var(--color-surface-950);
+	--panel: var(--color-surface-900);
+	--fg: var(--color-surface-50);
+	--fg-muted: var(--color-surface-400);
+	--heading: var(--color-primary-300);
+	--accent: var(--color-primary-300);
+	--accent-contrast: var(--color-primary-contrast-300);
+	/* pinned off Skeleton's 400 default (gen_board.py:164) */
+	--link: var(--color-primary-300);
+	--rule: var(--color-surface-700);
+	/* The yellow livery block and skip-link chip are brand livery, not a
+	 * surface: they read at 9.57:1 on the dark page and must not shift, so
+	 * highlight and its ink hold (gen_board.py:166). */
+	--highlight: var(--color-secondary-300);
+	--highlight-contrast: var(--color-secondary-contrast-300);
+	/* On a dark ground the fill already carries the 1.4.11 boundary, so the
+	 * edge is only a rim; secondary-700 reads as a smudge there
+	 * (gen_board.py:167). */
+	--highlight-edge: var(--color-secondary-500);
+	/* held in both schemes: the yellow fill does not flip (gen_board.py:168) */
+	--highlight-heading: var(--color-primary-800);
+	--danger: var(--color-error-300);
+	--wash: color-mix(in oklab, var(--color-primary-300) 12%, transparent);
+	/* surface-700 leaves the accent thumb at 2.53:1; -800 restores the 3:1
+	 * floor with room (3.74:1, the measured pair) */
+	--control-track: var(--color-surface-800);
 }

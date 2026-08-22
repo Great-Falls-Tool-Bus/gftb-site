@@ -22,13 +22,24 @@ dev:
 dev-open:
     cd {{ root }} && bazelisk run //:dev -- --open
 
+# CI ENFORCEMENT: run by ci-templates spoke-ci.yml@v2.12.2 job `flywheel-build`,
+# step "Static site build" (line 266-267: `nix develop --command just build`),
+# and again by job `playwright` (line 375: `just test-e2e` -> playwright.config.ts
+# webServer -> `just preview-e2e` -> `build`).
+#
+# leak-scan is the LAST step on purpose: it can only run against a materialized
+# artefact, and a published tree that has never been scanned must not be
+# publishable. Wiring it here (rather than into `just ci`, which no template job
+# invokes) is what makes the gate actually execute on a pull request.
 build:
     cd {{ root }} && bazelisk build //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
+    cd {{ root }} && {{ just_executable() }} leak-scan build
 
 build-ci:
     cd {{ root }} && bazelisk build --config=ci-cached --remote_cache="${BAZEL_REMOTE_CACHE:-}" --remote_download_outputs=toplevel //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
+    cd {{ root }} && {{ just_executable() }} leak-scan build
 
 preview port="4173": build
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
@@ -126,9 +137,17 @@ endpoint-check:
       echo "endpoint-check: forbidden endpoint literal found" >&2; exit 1; \
     else echo "endpoint-check: no cache, executor, or private-network endpoint literals"; fi
 
-source-map-check:
-    @cd {{ root }} && test ! -e src/lib/generated/source-map.json && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
-    @echo "source-map-check: no public developer/source-map artifacts"
+# Derive the page/post source map (demo #94 pattern; addendum B1.2 wires the
+# "Edit this page" affordance per log post). The former "no source-map
+# artifacts" posture was the stub's; the agent-surface bans it also carried
+# (no /agent route, no llms.txt, no agent-map.md) remain below.
+source-map-build:
+    cd {{ root }} && node scripts/build-source-map.mjs
+
+source-map-check: source-map-build
+    @cd {{ root }} && git diff --exit-code -- src/lib/generated/source-map.json || { echo "source-map-check: src/lib/generated/source-map.json drifted; commit the regenerated map" >&2; exit 1; }
+    @cd {{ root }} && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
+    @echo "source-map-check: map is current; no agent surfaces"
 
 entrypoint-contract:
     cd {{ root }} && python3 scripts/test-bazel-cutover-contracts.py
@@ -154,14 +173,192 @@ conformance:
 flywheel-enrollment-contract-check:
     cd {{ root }} && bash scripts/flywheel-enrollment-contract-test.sh
 
-check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate conformance
+# Byte-reproducibility proof for the printed apex QR: regenerate the code from
+# the canonical URL and compare it to the committed artefact. The unit suite
+# decodes the same file; this proves the generator still produces those bytes.
+#
+# CI ENFORCEMENT: reached through `just check`, run by ci-templates
+# spoke-ci.yml@v2.12.2 job `flywheel-test`, step at line 291
+# (`nix develop --command just check`), which lists qr-verify as a dependency.
+#
+# The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
+# BOTH sides before comparing. It records the encoder build, not the symbol, so a
+# nixpkgs patch bump of qrencode would otherwise break this gate for every
+# developer with an opaque `cmp: differ: byte N`. Every module, dimension and
+# path command is still compared exactly.
+qr-verify:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{ root }}
+    committed="static/qr/greatfallstoolbus-apex.svg"
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "https://greatfallstoolbus.org/"
+    strip_provenance='/^<!-- Created with qrencode /d'
+    sed "$strip_provenance" "$committed" >"$tmp/committed.stripped"
+    sed "$strip_provenance" "$tmp/apex.svg" >"$tmp/fresh.stripped"
+    if ! diff -u "$tmp/committed.stripped" "$tmp/fresh.stripped" >"$tmp/diff"; then
+      # The module path is one very long line; truncate it so the guidance below
+      # is not pushed off the top of a CI log.
+      echo "--- committed (a) vs fresh qrencode run (b), long lines truncated to 160 columns ---" >&2
+      cut -c1-160 "$tmp/diff" | head -40 >&2
+      cat >&2 <<'GUIDANCE'
+    qr-verify FAILED: the committed printed QR is not what `just qr-generate` now produces.
+    The encoder-version comment line is already ignored, so this is a real difference
+    in the symbol, its geometry, or the encoder's output format.
+
+    What to do:
+      1. Did the payload change? The canonical apex URL is pinned in BOTH
+         `just qr-generate` and `just qr-verify`. It must stay https://greatfallstoolbus.org/.
+      2. Did the encoder parameters change? They are pinned to
+         --type=SVG --svg-path --level=H --margin=2 --size=4 in both recipes.
+      3. If the difference is intended, regenerate and RE-PROVE the artefact:
+           just qr-generate
+           bazelisk test //:unit_tests --test_output=all --test_filter='printed apex QR'
+         then update QR_SHA256 in src/lib/qr-code.test.ts to the new hash deliberately.
+         Do not update the golden hash without a decode that still yields the apex URL:
+         nobody can proofread a printed QR code by eye.
+    GUIDANCE
+      exit 1
+    fi
+    echo "qr-verify: $committed matches a fresh qrencode run (encoder-version comment ignored, $(grep -c '' "$tmp/committed.stripped") lines compared)"
+
+# Leak scan over a built artefact. scripts/check-build-output.mjs is a thin
+# runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
+# exercises, so the gate and its tests are one implementation, not two.
+#
+# CI ENFORCEMENT: run as the last step of `just build` (see the comment there),
+# which ci-templates spoke-ci.yml@v2.12.2 executes in job `flywheel-build`
+# (line 267) and, transitively, in job `playwright` (line 375).
+#
+# Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
+# file whose extension the scanner has no verdict for is not a pass (exit 2), and
+# any finding is a failure (exit 1). Set GFTB_LEAK_SCAN_DENY to add operator-held
+# literals; never commit them.
+# Stamped-artifact leak-scan (review B1 regression row). A local `just build`
+# stamps the literal 'unknown', so the footer provenance branch never renders
+# and the ordinary artifact scan cannot see what a PUBLISH-lane build emits:
+# .github/workflows/container-ghcr.yml sets BUILD_COMMIT_SHA, and its `build`
+# dependency ends in leak-scan — so a stamped-only finding red-lines the OCI
+# lane on the next push to main while every PR gate stays green. This recipe
+# closes that blind spot: build with a FIXED fake sha (constant on purpose —
+# the stamped stable-status is identical across runs, so caches still hit
+# when sources are unchanged), prove the stamp actually rendered, and scan
+# that artifact. Wired into `check`/`check-ci` so it runs per PR.
+leak-scan-stamped:
+    cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
+    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build-stamped
+    cd {{ root }} && grep -q "deadbee" build-stamped/index.html
+    cd {{ root }} && {{ just_executable() }} leak-scan build-stamped
+    cd {{ root }} && rm -rf build-stamped
+
+leak-scan build_dir="build":
+    cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
+
+# Repeatable QA evidence packet for one build, ready to paste into a review.
+#
+# NOT A CI GATE: no ci-templates job invokes it, and `qa-packet/` is git-ignored.
+# It is the reviewer/operator entrypoint, and it deliberately re-runs the gates
+# rather than trusting a green tick from an earlier tree — the receipt in
+# INDEX.md has to describe the SAME bytes the screenshots were taken of.
+#
+# Order matters: `build` materializes and leak-scans the artefact, `check` runs
+# the four repo gates, then the preview comes up on ITS OWN port through the same
+# `preview-e2e` machinery Playwright uses in CI. The acceptance suite is pointed
+# at that already-running preview through playwright.qa-packet.config.ts, so this
+# recipe never competes for the CI port and never silently reuses another lane's
+# server. playwright.config.ts, which CI reads, is untouched.
+#
+# A failing acceptance suite does not abort the capture — a packet that shows
+# what a regression looks like is the point — but the recipe still exits non-zero.
+qa-packet port="3355":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{ root }}
+    receipts="$(mktemp -d)"
+    preview_pid=""
+    kill_tree() {
+      local pid="$1" child
+      for child in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$child"; done
+      kill "$pid" 2>/dev/null || true
+    }
+    cleanup() {
+      if [[ -n "$preview_pid" ]]; then
+        kill_tree "$preview_pid"
+        wait "$preview_pid" 2>/dev/null || true
+      fi
+      rm -rf "$receipts"
+    }
+    trap cleanup EXIT
+
+    # A build failure aborts: there is no artefact to photograph. A gate failure
+    # does not — a packet showing what the failure looks like is the point.
+    {{ just_executable() }} build 2>&1 | tee "$receipts/build.log"
+    check_status=0
+    {{ just_executable() }} check 2>&1 | tee "$receipts/check.log" || check_status=$?
+
+    {{ just_executable() }} preview-e2e {{ port }} >"$receipts/preview.log" 2>&1 &
+    preview_pid=$!
+    for attempt in $(seq 1 300); do
+      if (exec 3<>/dev/tcp/127.0.0.1/{{ port }}) 2>/dev/null; then break; fi
+      if ! kill -0 "$preview_pid" 2>/dev/null; then
+        echo "qa-packet: the preview exited before it started listening on {{ port }}" >&2
+        cat "$receipts/preview.log" >&2
+        exit 1
+      fi
+      sleep 1
+      if [[ "$attempt" == "300" ]]; then
+        echo "qa-packet: the preview never started listening on {{ port }}" >&2
+        exit 1
+      fi
+    done
+
+    e2e_status=0
+    if command -v nix >/dev/null 2>&1; then
+      nix develop .#playwright --command {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
+    else
+      {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
+    fi
+
+    node scripts/qa-packet.mjs --port {{ port }} \
+      --build-log "$receipts/build.log" \
+      --check-log "$receipts/check.log" \
+      --e2e-json "$receipts/e2e.json"
+
+    if [[ "$check_status" != "0" || "$e2e_status" != "0" ]]; then
+      echo "qa-packet: the packet was captured, but a gate failed (check exit $check_status, acceptance suite exit $e2e_status)" >&2
+      exit 1
+    fi
+
+_qa-packet-e2e port json: playwright-ensure
+    cd {{ root }} && env -u LD_LIBRARY_PATH QA_PACKET_BASE_URL="http://127.0.0.1:{{ port }}" \
+      PLAYWRIGHT_JSON_OUTPUT_NAME="{{ json }}" \
+      pnpm exec playwright test --config playwright.qa-packet.config.ts --reporter=json
+
+# Per-image pixel diff between two packets produced by `just qa-packet`.
+# Both arguments are `qa-packet/<sha>` directories and may live in other
+# worktrees. The comparison runs inside the same pinned Chromium rather than
+# pulling `pixelmatch`/`pngjs` into package.json; see scripts/qa-packet-diff.mjs.
+qa-packet-diff baseline candidate *options:
+    cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
+
+# CI ENFORCEMENT: ci-templates spoke-ci.yml@v2.12.2 job `flywheel-test`, line 291
+# (`nix develop --command just check`), once per lane in .github/lanes.json.
+# //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
+# (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
+# every pull request through this recipe.
+check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test //:local_validation_suite
     @echo "All checks passed."
 
-check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate conformance
+check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test --config=ci //:local_validation_suite
     @echo "All CI artifact checks passed."
 
+# Local convenience aggregate. NOTE: no ci-templates job invokes `just ci` — the
+# template calls `just setup`, `just build`, `just check` and `just test-e2e`
+# individually — so nothing may be enforced ONLY from here. `build` now carries
+# leak-scan itself, which is why it is no longer listed separately.
 ci: check build test-e2e
 
 sbom out_dir="build/sbom":
@@ -193,7 +390,11 @@ flywheel-test target="//:ci_validation_suite":
 flywheel-fetch target="//...":
     cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh fetch {{ target }}
 
-flywheel-check *targets="//:eslint_test //:prettier_check_test //:svelte_check_test":
+# Cache-first Bazel test pass over the flywheel-eligible gates. //:unit_tests is
+# in the default set because it carries the acceptance suite and is tagged
+# `flywheel-eligible` in BUILD.bazel (so it is cache-eligible under
+# --config=ci-cached exactly like the other three).
+flywheel-check *targets="//:eslint_test //:prettier_check_test //:svelte_check_test //:unit_tests":
     cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE=shared-cache-backed GF_BAZEL_REMOTE_UPLOAD=false BAZEL_REMOTE_EXECUTOR= bash scripts/gloriousflywheel-bazel.sh test --config=ci-cached {{ targets }}
 
 bundle target="//:deployment_bundle":

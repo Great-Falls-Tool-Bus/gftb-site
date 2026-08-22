@@ -5,6 +5,11 @@ import { expect, test } from '@playwright/test';
 // resolves to an actual element.
 
 const breakpoints = [
+	// 320 is the body { min-width } floor (WCAG 1.4.10 reflow); 375 is the
+	// mobile-nav.spec.ts pinned viewport (iPhone SE class). Both ported from
+	// the previous apex's verified breakpoint set.
+	{ label: 'reflow-floor', width: 320, height: 1200 },
+	{ label: 'iphone-se', width: 375, height: 1200 },
 	{ label: 'mobile-small', width: 390, height: 1200 },
 	{ label: 'mobile-large', width: 430, height: 1200 },
 	{ label: 'tablet', width: 768, height: 1200 },

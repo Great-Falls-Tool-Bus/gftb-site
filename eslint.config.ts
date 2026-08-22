@@ -22,6 +22,36 @@ export default ts.config(
 		},
 	},
 	{
+		// Test-only modules live in scripts/lib precisely so shipped code cannot
+		// reach them: scripts/lib/leak-scan-rules.json carries credential-detection
+		// regexes (ghp_, AKIA/ASIA, glpat-, JWT, kubeconfig fragments) and
+		// scripts/lib/qr-code.mjs is a 300-line decoder. Neither belongs in a public
+		// client bundle. The file location is the primary defence; this is the
+		// second, and src/lib/leak-scan.test.ts asserts it from the other side.
+		files: ['src/**'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: ['**/scripts/lib/*', '**/scripts/lib/**'],
+							message:
+								'scripts/lib/* is acceptance-test-only (it carries credential regexes and a QR decoder). Shipped code under src/ must not import it; test files reach it by relative path from src/lib/*.test.ts only.',
+						},
+					],
+				},
+			],
+		},
+	},
+	{
+		// The unit suite is the one caller allowed to reach the test-only modules.
+		files: ['src/**/*.test.ts', 'src/**/*.test.svelte.ts'],
+		rules: {
+			'no-restricted-imports': 'off',
+		},
+	},
+	{
 		files: ['**/*.svelte', '**/*.svelte.ts'],
 		languageOptions: {
 			parserOptions: {
