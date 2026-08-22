@@ -1,14 +1,18 @@
 # Bibliography (rescued from platform `/bibliography`)
 
-Source: `greatfallstoolbus.org` `src/routes/bibliography/+page.svelte`.
-Redactions: none — every entry cites an already-published external work by
-its title and author/publisher byline, with no relationship, affiliation, or
-biography claim. This is exactly the exception `steering/naming-consent.md`
-(meta repo) carves out: *"A bibliography may reproduce the work's published
-title and author or publisher byline... without a consent row, provided it
-makes no project affiliation, endorsement, relationship, biography, or
-private-context claim."* Every link below was verified live by the source
+Source: `greatfallstoolbus.org` `src/routes/bibliography/+page.svelte`. Every
+entry cites an already-published external work by its title and
+author/publisher byline. Every link below was verified live by the source
 author on 2026-07-02.
+
+Round 2 (adversarial review of platform PR #193): two entries originally
+also carried an organizational byline for one of the private-only
+organizations `steering/naming-consent.md` (meta repo) covers. That
+organization's specific restriction overrides the general bibliography
+exception this file's earlier note claimed — the general exception does not
+apply where a more specific restriction exists. Fixed by dropping the
+organizational byline from both entries; the title/author/date citations
+stand on their own.
 
 The tool bus is not a guess: it stands on forty years of tool-library
 practice, the hackerspace design-pattern tradition, and a growing body of
@@ -22,12 +26,12 @@ scholarship on shared workshops.
 - **Hackerspace Design Patterns 2.0** — Mitch Altman, CCCamp 2015. Adds the
   Mentor and Caretaker patterns.
   <https://www.noisebridge.net/wiki/Hackerspace_Design_Patterns_2.0>
-- **Making Makerspaces: Creating a Business Model** — Gui Cavalcanti
-  (Artisan's Asylum), Make:, 2013. The canonical expense/income taxonomy for
-  creative manufacturing spaces.
+- **Making Makerspaces: Creating a Business Model** — Gui Cavalcanti, Make:,
+  2013. The canonical expense/income taxonomy for creative manufacturing
+  spaces.
   <https://makezine.com/article/education/making-makerspaces-creating-a-business-model/>
-- **How to Make a Makerspace (workshop series)** — Cavalcanti + MAKE /
-  Artisan's Asylum, 2013–2014.
+- **How to Make a Makerspace (workshop series)** — Cavalcanti + MAKE,
+  2013–2014.
   <https://makezine.com/2014/05/08/learn-how-to-make-a-makerspace-with-gui-cavalcanti/>
 - **Nation of Makers Resource Library** — ongoing. Crowdsourced best-practice
   repository across 2,000+ US maker organizations.

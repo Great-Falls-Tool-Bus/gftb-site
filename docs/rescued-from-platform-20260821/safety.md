@@ -1,11 +1,17 @@
 # Safety & responsible use (rescued from platform `/safety`)
 
 Source: `greatfallstoolbus.org` `src/routes/safety/+page.svelte`.
-Redactions: none needed. **Not operator-ratified** — the source page's own
-comments mark this content as community defaults drawn from Artisan's
-Asylum / Station North precedent (see `bibliography.md`), pending operator
-review. Preserved with that caveat; do not publish as final policy without a
-real review pass.
+**Not operator-ratified** — the source page's own comments mark this content
+as community defaults drawn from established makerspace and tool-library
+practice, pending operator review. Preserved with that caveat; do not
+publish as final policy without a real review pass.
+
+Redaction (round 2, adversarial review of platform PR #193): the source
+page's script comment named two specific organizations as the precedent this
+content draws from. The platform repo itself already redacted that same
+attribution (its `fix: remove private precedent references` commit) in favor
+of the generic wording above; this rescue re-imported the pre-redaction
+form. Fixed to match the platform's own redacted wording, not the original.
 
 Shared power tools only work when everyone borrows them safely and treats
 the community with care. Read the ground rules before you borrow.

@@ -27,7 +27,7 @@ is not leak-scanned as published content and does not affect `just build`.
 | wants | RESCUED-AS-DRAFT | `wants.md`. Tool-gap subset overlaps `tools-inventory.md`; the "hands and skills" asks (bus setup help, graphic designer, site reviewers) are new and clean. |
 | donate | RESCUED-AS-DRAFT | `donate.md`. Donation criteria and give-vs-lend framing; clean, generic. |
 | safety | RESCUED-AS-DRAFT | `safety.md`. Ground rules + code of conduct; substantive and clean, but explicitly **not operator-ratified** in the source (`OPERATOR-CONFIRM` markers) — preserved as such here. |
-| bibliography | RESCUED-AS-DRAFT | `bibliography.md`. External citations of already-published works only (author/title/publisher, no relationship or affiliation claim) — fits the naming-consent.md bibliography exception. High value, low risk. |
+| bibliography | RESCUED-AS-DRAFT, two entries edited | `bibliography.md`. External citations of already-published works only (author/title/publisher, no relationship or affiliation claim). Two entries originally also carried an organizational byline for an organization with no current public-consent row; a more specific restriction in `steering/naming-consent.md` overrides the general bibliography exception for that organization, so the byline was dropped from both (round 2, see file header). |
 | shout-outs | RESCUED-AS-DRAFT, heavily redacted | `shout-outs.md`. See "Redactions" below — most of the source page could not be rescued as-is. |
 | keyholders | RESCUED-AS-DRAFT, flagged for an operator call | `keyholders-mail-guide.md`. Mechanically clean (no PII), but it is a private-list onboarding runbook, not obviously "public information site" content — operator should decide whether it belongs here or in the private ops docs instead. |
 | stewards | NOT-WORTH-RESCUING | The "steward" vocabulary is retired (absolute consent rule for this task). The source page's roster was already empty (`Do NOT invent names here`), so nothing concrete is lost; the underlying role concept (someone coordinates, one person per cell who knows the kit, someone owns safety) may be worth re-deriving under new, non-"steward" vocabulary as a future operator decision — not drafted here, to avoid inventing copy under a retired term. |
@@ -49,44 +49,68 @@ is not leak-scanned as published content and does not affect `just build`.
   platform's other credited photo, is already in this site's `static/photos/`
   and `docs/attribution.md` — not duplicated here.)
 
-## Redactions made before this first commit
+## Redactions
 
-Per the absolute public-naming-consent rules for this task (both repos are
-public; a name in any commit, even a draft, is a disclosure), the following
-were redacted or excluded entirely from the source `shout-outs` page before
-anything was staged — no redact-after-commit step was needed because the
-removal happened before the first write:
+A commit to a public repository is publication, draft directory or not — so
+this section describes what was removed **by category only**. No third-party
+name, organization name, or restated claim is reproduced here; anyone who
+needs the specifics has access to the private `steering/naming-consent.md`
+authority (meta repo) that governs this.
 
-1. **The bus host's property as the bus's home base.** The source page named
-   "J." (his consented public form) as an Alderman who "hosts the bus on his
-   property," with "the home base a keyholder shares with you on request."
-   `steering/naming-consent.md` (meta repo) grants "J." only an initial-only
-   attribution row; it explicitly does **not** extend to publishing an
-   address, schedule, or live location. `shout-outs.md` keeps the "J." /
-   Alderman / hosts-the-bus attribution but drops the "home base" /
-   location-sharing sentence.
-2. **The entire "Friends of the bus" section**: The Portland makerspace
-   community, Ithaca Generator, and Artisan's Asylum. `naming-consent.md`
-   states in terms: *"The Portland makerspace community, Ithaca Generator,
-   Artisan's Asylum, Cornell CALS Landscape Architecture makerspace, and
-   Plymouth State D&M Makerspace have no current public-consent row. Do not
-   include them in public shout-outs, history, biography, or bibliography
-   without new consent."* Excluded wholesale, not just trimmed.
-3. **The "About the shop chops behind the site" biography paragraph**, which
-   named Cornell CALS, Ithaca Generator, and Plymouth State's D&M Makerspace
-   as Jess's affiliations. Same rule as (2) — "biography" is one of the
-   explicitly banned uses for these five organizations. Jess Sullivan's own
-   name and role ("Webmaster & mail admin") are fully consented and kept;
-   the specific-affiliation biography prose is not.
-4. Ripley ("Founding supporter") and Alex ("Founder") entries are kept
-   verbatim — both have a current public-consent row for exactly this scope.
+**Round 1 (before the first commit):**
 
-No other family's source content named anyone beyond Jess Sullivan / Alex /
-Ripley / "J." within their consented scopes, published a bare personal email,
-a dollar amount, a donor name, a lease specific, or "steward" vocabulary
-(`stewards` itself is excluded wholesale, see above), or implied the bus is
-anything but permanently parked (verified: no motion/travel copy in any of
-the 15 families read for this rescue).
+1. A location/relationship detail belonging to a consented subject, beyond
+   the scope their consent row actually grants (initial only — not an
+   address, office, schedule, or live location).
+2. An entire section crediting several third-party organizations with no
+   current public-consent row.
+3. A biography paragraph restating those same organizations as personal
+   affiliations.
+4. The two consented founder/supporter entries and the consented
+   webmaster/mail-admin entry are kept verbatim — each has a current
+   public-consent row covering exactly that scope.
+
+**Round 2 (adversarial review of platform PR #193, after the first commit):**
+
+5. `shout-outs.md`'s bus-host entry still carried an office, a municipality,
+   and a property-hosting fact together after round 1 — round 1 had only
+   trimmed one clause, not the underlying facts. Deducible in combination:
+   a public office-holder roster resolves the office+municipality pair to a
+   legal identity, and identity plus "hosts the bus" narrows the bus's
+   physical location to that person's property. Reduced to the consented
+   initial plus the generic role his own consent row uses. The matching
+   municipality reference in `contact-supplement.md` was removed for the
+   same reason.
+6. `safety.md` had re-imported a named-precedent attribution that the
+   platform repository's own history already redacted (a real commit on that
+   repo removed exactly this attribution). Fixed to match the platform's own
+   redacted wording, not the original.
+7. Two `bibliography.md` entries carried an organizational byline for one of
+   the round-1 organizations. The general bibliography exception in
+   `steering/naming-consent.md` does not apply where a more specific
+   restriction exists for that organization — dropped the byline, kept the
+   title/author/date citation.
+
+No other family's source content named anyone beyond the consented subjects
+within their consented scopes, published a bare personal email, a dollar
+amount (except third-party-published-source citations in `bibliography.md`,
+judged acceptable — see that file), a donor name, a lease specific, or
+"steward" vocabulary (`stewards` itself is excluded wholesale). One
+imprecision in an earlier version of this file: an absolute "no motion/travel
+copy" claim was true of every family's substance but glossed two incidental
+"on wheels" / "even on wheels" phrases describing the vehicle, not asserting
+travel — noted, not treated as a violation, but this file no longer asserts
+absolutes it hasn't re-checked after each edit.
+
+## Before using any of this
+
+Nothing here has been checked for present-tense availability language.
+Several files carry copy inherited from a marketing site — "the tool is
+yours to take," "every request gets a human answer" — written when intake
+was live. It is not, right now. The standing rule for dated public copy is
+that it may say something is **not yet** available; it must never say it
+**is**. Check each file against current status before publishing, not just
+against naming consent.
 
 ## What to do with this
 
@@ -94,4 +118,8 @@ Operator: turn any of these into a real page (or a `published: false` →
 `published: true` `.svx` log entry once written in your own words) whenever
 you're ready. Wording is yours — this is the raw material, not a draft ready
 to publish; the `just leak-scan` / naming-consent gates apply the moment
-anything here moves into `src/`.
+anything here moves into `src/`. Note that `just leak-scan`'s structural
+rules (hosts, mailboxes, secret shapes) cannot substantiate a naming-consent
+claim by themselves — a green gate run is not consent evidence for prose
+content; the redactions above were done by reading the actual text, and any
+future edit to these files needs the same.
