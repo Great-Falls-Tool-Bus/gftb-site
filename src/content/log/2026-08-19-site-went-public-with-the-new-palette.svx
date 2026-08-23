@@ -1,0 +1,17 @@
+---
+date: '2026-08-19'
+title: 'The site went public, carrying the new color system'
+summary: 'CityLink, the transit-signage palette I signed off this week, shipped live on the actual site for the first time: yellow livery band, purple accent, colors pulled from real reference photos instead of guessed.'
+tags:
+  - website
+  - design
+published: false
+---
+
+<!-- TODO(jess): review and set published: true when this is your voice. -->
+
+Two things landed together this week. First, I signed off on the color system: CityLink, built off real transit signage, a yellow livery band and a purple accent, the kind of palette you'd see on a city bus route sign. Colors were measured off the bus itself, from reference photos, not eyeballed off a screen. A corrected pass is still to come once the color-corrected set lands.
+
+Second, the site itself went public for the first time, carrying that palette. Before this it was placeholder styling behind a private wall. I reviewed it and flipped the access open myself, and it was live for a few hours.
+
+It's not finished. I found a couple of things worth fixing and put the gate back up for one more review round before the real opening. The real palette is now the one true source for the site's colors, checked into the code as the single place every page reads from.

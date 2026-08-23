@@ -85,6 +85,19 @@ describe('public log frontmatter', () => {
 		expect(() => assertPublicLogMetadata({ ...validMetadata(), date: '2026-13-01' }, 'fixture')).toThrow(/date/u);
 		expect(() => assertPublicLogMetadata({ ...validMetadata(), tags: [] }, 'fixture')).toThrow(/tags/u);
 	});
+
+	// Loader fence (spec §3 :112-116), moved off src/lib/public-logs.ts by the
+	// B1 fix: two entries sharing a date would be a silent tie-break at the
+	// reader-visible sort key, so it stays a build-time rejection — just
+	// asserted here, over every checked-in file (published or draft), instead
+	// of inside the module the client bundle reaches.
+	it('rejects two log entries sharing a frontmatter date', () => {
+		const dates = logFiles.map((file) => {
+			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
+			return parseFrontmatter(raw, file).date;
+		});
+		expect(new Set(dates).size).toBe(dates.length);
+	});
 });
 
 describe('static build wiring for the logs', () => {
@@ -139,11 +152,40 @@ describe('static build wiring for the logs', () => {
 		expect(notFoundRoute).toContain('export const csr = false');
 	});
 
-	it('picks up every checked-in log through the eager glob', () => {
+	it('never re-introduces an eager glob over the content tree (B1 regression guard)', () => {
+		// PR #33 review B1: an eager `import.meta.glob` over every entry —
+		// published or not — made every draft's prose and metadata a static
+		// import, so it shipped to every visitor regardless of the runtime
+		// `published` filter. The fix (src/lib/generated/log-manifest.ts,
+		// scripts/build-log-manifest.mjs) reads the content tree with plain
+		// node:fs at generation time instead, so this module must never glob
+		// src/content/log again.
 		const publicLogs = readFileSync(path.join(repoRoot, 'src/lib/public-logs.ts'), 'utf8');
-		expect(publicLogs).toContain("import.meta.glob<PublicLogModule>('../content/log/*.svx', { eager: true })");
-		expect(publicLogs).toContain('assertPublicLogMetadata(module.metadata, path)');
+		expect(publicLogs).not.toContain('import.meta.glob(');
+		expect(publicLogs).toContain("import { publishedLogEntries } from './generated/log-manifest'");
 		for (const file of logFiles) expect(file).toMatch(/^[\d-]+[a-z0-9-]+\.svx$/u);
+	});
+
+	it('generates the checked-in log manifest from PUBLISHED entries only (B1 fix)', () => {
+		const manifest = readFileSync(path.join(repoRoot, 'src/lib/generated/log-manifest.ts'), 'utf8');
+		const publishedFiles = logFiles.filter((file) => {
+			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
+			return parseFrontmatter(raw, file).published === true;
+		});
+		// Every published slug is imported by the generated manifest...
+		for (const file of publishedFiles) {
+			const slug = file.replace(/\.svx$/u, '');
+			expect(manifest).toContain(`slug: ${JSON.stringify(slug)}`);
+		}
+		// ...and no UNPUBLISHED entry's title or summary appears in it at all —
+		// the exact defect the review's grep proved against build output.
+		for (const file of logFiles) {
+			if (publishedFiles.includes(file)) continue;
+			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
+			const metadata = parseFrontmatter(raw, file);
+			expect(manifest, `${file} title leaked into log-manifest.ts`).not.toContain(metadata.title as string);
+			expect(manifest, `${file} summary leaked into log-manifest.ts`).not.toContain(metadata.summary as string);
+		}
 	});
 });
 

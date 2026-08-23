@@ -3,6 +3,9 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
 	// 70ms stagger. The hidden start state only exists under
@@ -181,7 +184,7 @@
 		</div>
 
 		{#if latest}
-			{@const LatestLog = latest.component}
+			{@const LatestLog = data.LatestLog}
 			<article class="log-entry">
 				<header class="log-entry__header">
 					<h3><a href={`/log/${latest.slug}`}>{latest.metadata.title}</a></h3>

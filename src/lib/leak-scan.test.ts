@@ -18,6 +18,7 @@ import {
 	scanFiles,
 	scanText,
 } from '../../scripts/lib/leak-scan.mjs';
+import { distinctiveDraftLiterals, readLogEntries } from '../../scripts/lib/log-content.mjs';
 
 // Acceptance row: nothing private reaches the published artefact. The rules are
 // proven here against synthetic material; `just leak-scan` runs the same rules
@@ -243,6 +244,57 @@ describe('leak-scan over the checked-in public inputs', () => {
 		for (const host of ALLOWED_HOSTS) expect(host).not.toMatch(/^\*|\s/u);
 		expect(ALLOWED_HOSTS).toContain('greatfallstoolbus.org');
 		expect(ALLOWED_HOSTS).toContain('forms.latoolb.us');
+	});
+});
+
+// B1 regression gate (PR #33 review comment
+// https://github.com/Great-Falls-Tool-Bus/gftb-site/pull/33#issuecomment-5364998251):
+// an eager `import.meta.glob` over src/content/log/*.svx made every draft's
+// title, summary, and full body a static import, so it shipped to every
+// visitor in build/_app/immutable/chunks/* regardless of the `published`
+// runtime filter — proven by grepping a real build for the exact draft
+// prose. The fix (src/lib/generated/log-manifest.ts,
+// scripts/build-log-manifest.mjs) excludes unpublished entries at
+// generation time, outside Vite's module graph entirely. This does not
+// re-run a real `vite build` (the leak-scan-stamped Justfile recipe already
+// does that, for the reason its own comment gives: it needs a real build and
+// so cannot live in the unit suite) — it proves the DETECTION mechanism
+// scripts/check-build-output.mjs now always runs against build/ would catch
+// a regression, against a synthetic "leaked chunk" shaped exactly like the
+// review's grep proof.
+describe('content-train B1: unpublished drafts never reach a build artefact', () => {
+	const logDir = path.join(repoRoot, 'src/content/log');
+	const draftLiterals = distinctiveDraftLiterals(readLogEntries(logDir));
+
+	it('finds at least one published:false draft to test against', () => {
+		expect(draftLiterals.length).toBeGreaterThan(0);
+	});
+
+	it('every distinctive draft literal is absent from the checked-in, client-reachable manifest', () => {
+		const manifest = readFileSync(path.join(repoRoot, 'src/lib/generated/log-manifest.ts'), 'utf8');
+		for (const literal of draftLiterals) {
+			expect(manifest, `"${literal}" leaked into log-manifest.ts`).not.toContain(literal);
+		}
+	});
+
+	it('would catch the exact review-proven leak shape if it ever regressed', () => {
+		// Shaped like the review's own grep proof: a minified bundle chunk that
+		// inlines a draft's metadata object literal, unrelated bytes around it.
+		const leakedChunk = `…,M={date:\`2026-08-20\`,title:\`${draftLiterals[0]}\`,summary:\`x\`,tags:[],published:!1}…`;
+		const root = mkdtempSync(path.join(tmpdir(), 'gftb-b1-regression-'));
+		writeFileSync(path.join(root, 'chunk.js'), leakedChunk, 'utf8');
+		const report = scanBuildDirectory(root, { deniedLiterals: draftLiterals });
+		expect(report.findings.map((finding) => finding.ruleId)).toContain('operator-denied-literal');
+	});
+
+	it('scripts/check-build-output.mjs always folds draft literals into the denylist, unconditionally', () => {
+		// Belt and braces over the wiring: this is what makes `just build` and
+		// `just leak-scan-stamped` (both real-artefact gates) enforce the row
+		// above on the actual build/ directory, without an operator having to
+		// remember to set GFTB_LEAK_SCAN_DENY.
+		const runner = readFileSync(path.join(repoRoot, 'scripts/check-build-output.mjs'), 'utf8');
+		expect(runner).toContain("from './lib/log-content.mjs'");
+		expect(runner).toContain('distinctiveDraftLiterals');
 	});
 });
 

@@ -8,7 +8,7 @@
 	// per-post edit affordance (SourceLink resolves /log/<slug> to the .svx
 	// source through the generated map, #94 pattern).
 	const entry = $derived(publicLogs.find((candidate) => candidate.slug === data.slug)!);
-	const EntryBody = $derived(entry.component);
+	const EntryBody = $derived(data.EntryBody);
 
 	const formatDate = (value: string) =>
 		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));

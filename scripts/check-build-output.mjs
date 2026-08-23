@@ -17,12 +17,22 @@
  * Operator-supplied literals (real private names, private hostnames) can be
  * passed through GFTB_LEAK_SCAN_DENY as a comma-separated list. They are never
  * committed. The script reports whether it ran with or without that list.
+ *
+ * B1 regression gate (PR #33 review): every `published: false` entry's
+ * title and summary (scripts/lib/log-content.mjs) is ALWAYS folded into the
+ * denylist too, unconditionally — not opt-in like GFTB_LEAK_SCAN_DENY. The
+ * review proved a draft's full prose shipping in build/_app/immutable/
+ * chunks; the fix (src/lib/generated/log-manifest.ts, B1) should make that
+ * structurally impossible, but this makes it a build-breaking finding, not
+ * an assumption, on the exact artefact `just build` and `just
+ * leak-scan-stamped` scan.
  */
 
 import { statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { readLogEntries, distinctiveDraftLiterals } from './lib/log-content.mjs';
 import { LEAK_RULES, REPO_ROOT, UnclassifiedOutputError, scanBuildDirectory } from './lib/leak-scan.mjs';
 
 const buildDirectory = path.resolve(REPO_ROOT, process.argv[2] ?? 'build');
@@ -39,10 +49,15 @@ if (!stats.isDirectory()) {
 	process.exit(2);
 }
 
-const deniedLiterals = (process.env.GFTB_LEAK_SCAN_DENY ?? '')
+const operatorDeniedLiterals = (process.env.GFTB_LEAK_SCAN_DENY ?? '')
 	.split(',')
 	.map((literal) => literal.trim())
 	.filter(Boolean);
+
+const draftLogEntries = readLogEntries(path.join(REPO_ROOT, 'src', 'content', 'log'));
+const draftDeniedLiterals = distinctiveDraftLiterals(draftLogEntries);
+
+const deniedLiterals = [...operatorDeniedLiterals, ...draftDeniedLiterals];
 
 let report;
 try {
@@ -71,10 +86,12 @@ if (findings.length > 0) {
 }
 
 const denyNote =
-	deniedLiterals.length > 0
-		? `${deniedLiterals.length} operator-supplied literal(s)`
+	operatorDeniedLiterals.length > 0
+		? `${operatorDeniedLiterals.length} operator-supplied literal(s)`
 		: 'no operator-supplied literals (set GFTB_LEAK_SCAN_DENY to add real private names)';
 console.log(
 	`leak-scan: clean across ${files.length} published file(s) in ${path.relative(REPO_ROOT, buildDirectory)} ` +
-		`using ${LEAK_RULES.length} rules, host and mailbox allowlists, and ${denyNote}`,
+		`using ${LEAK_RULES.length} rules, host and mailbox allowlists, ${denyNote}, and ` +
+		`${draftDeniedLiterals.length} unpublished-draft literal(s) from ${draftLogEntries.length} content/log entr` +
+		`${draftLogEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
 );
