@@ -24,7 +24,6 @@ What survives (all within current public-naming-consent scope):
 
 - **Ripley** — Founding supporter. Whose backing turned the tool bus from an
   idea into a thing with wheels.
-- **J.** — Bus host. Provides the bus's home base.
 - **Alex** — Founder. Started it.
 - **Jess Sullivan** — Webmaster & mail admin. Runs this site and the
   keyholders mail infrastructure.
