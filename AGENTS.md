@@ -90,7 +90,7 @@ is not public.
 
 ### Which CI job runs which gate
 
-CI is `tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v2.12.2`. Every
+CI is `tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v3.1.0`. Every
 gate below is named with the job and line that executes it, so a gate can never
 again be described as enforced when nothing runs it:
 
