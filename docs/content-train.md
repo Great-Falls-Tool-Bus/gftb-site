@@ -23,6 +23,31 @@ Money and contribution copy stays recipient-neutral: describe what happens
 (cash, check, Stripe) without implying tax-deductibility or nonprofit
 status that hasn't been decided.
 
+## Availability claims: under-claim only, always dated
+
+HARD RULE, refined in PR #36's round-3 review after four recurrences of the
+same pattern (F2 in PR #33; B4 and EDIT-1 in PR #36). The axis is direction
+plus dating, not which system the claim is about:
+
+- A dated entry MAY state that something is **not yet** available ("not
+  live yet", "still gated", "waiting on wording"). Under-claiming ages into
+  a true historical note.
+- A dated entry may NEVER state that something **is** available ("the
+  public website you're reading this on", "the membership system is live").
+  Over-claiming ages into a false invitation — the worst case being copy
+  that invites applications into a system that cannot receive them.
+
+A draft can sit in the tree for days before the operator rewrites and
+merges it, and the apex's public/gated state can flip in that window
+(access-gated for a review round, opened, re-gated again). Any sentence
+that asserts "the public website you're reading this on right now" or
+similar is a claim about the world at merge time, made at draft time. It
+will eventually be wrong even if it happens to be right today. Say what
+was built and shipped in the codebase sense ("Built and deployed: the new
+site.") and leave live/gated status out of draft prose entirely; the
+operator adds a status claim only when writing in their own words, at the
+moment they know it's still true.
+
 ## The frontmatter contract
 
 Five required keys, one optional, enforced by
