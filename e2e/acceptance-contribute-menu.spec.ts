@@ -104,19 +104,27 @@ test.describe('hydrated behaviour', () => {
 test.describe('main-content clearance (TIN-4227 LOOK gate)', () => {
 	for (const width of [320, 1280] as const) {
 		for (const route of ['/', '/log', '/contact'] as const) {
-			test(`${width}px ${route} keeps the closed trigger outside main content`, async ({ page }) => {
+			test(`${width}px ${route} keeps the closed trigger in its footer rail`, async ({ page }) => {
 				await page.setViewportSize({ width, height: 800 });
 				await page.goto(route);
 				const trigger = page.locator('.contribute-trigger');
 				const main = page.locator('#main-content');
+				const footer = page.locator('.site-footer');
+				const footerInner = page.locator('.site-footer__inner');
 				await expect(trigger).toBeVisible();
 				await expect(main).toBeVisible();
+				await page.evaluate(() => {
+					document.documentElement.style.scrollBehavior = 'auto';
+				});
 
 				for (const fraction of [0, 0.5, 1]) {
-					await page.evaluate((position) => {
+					const targetY = await page.evaluate((position) => {
 						const limit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-						window.scrollTo(0, limit * position);
+						const target = Math.round(limit * position);
+						window.scrollTo(0, target);
+						return target;
 					}, fraction);
+					await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(targetY);
 
 					const triggerBox = await trigger.boundingBox();
 					const mainBox = await main.boundingBox();
@@ -124,12 +132,32 @@ test.describe('main-content clearance (TIN-4227 LOOK gate)', () => {
 					expect(mainBox, 'main-content bounding box').not.toBeNull();
 					if (!triggerBox || !mainBox) throw new Error('required geometry was unavailable');
 
-					const overlaps =
+					const overlapsMain =
 						triggerBox.x < mainBox.x + mainBox.width &&
 						triggerBox.x + triggerBox.width > mainBox.x &&
 						triggerBox.y < mainBox.y + mainBox.height &&
 						triggerBox.y + triggerBox.height > mainBox.y;
-					expect(overlaps, `closed trigger intersects main content at scroll fraction ${fraction}`).toBe(false);
+					expect(overlapsMain, `closed trigger intersects main content at scroll fraction ${fraction}`).toBe(
+						false,
+					);
+
+					if (fraction === 1) {
+						await expect(trigger).toBeInViewport();
+						const footerBox = await footer.boundingBox();
+						const footerInnerBox = await footerInner.boundingBox();
+						expect(footerBox, 'footer bounding box').not.toBeNull();
+						expect(footerInnerBox, 'footer inner bounding box').not.toBeNull();
+						if (!footerBox || !footerInnerBox) throw new Error('footer geometry was unavailable');
+
+						expect(triggerBox.y).toBeGreaterThanOrEqual(footerBox.y);
+						expect(triggerBox.y + triggerBox.height).toBeLessThanOrEqual(footerBox.y + footerBox.height);
+						const overlapsFooterInner =
+							triggerBox.x < footerInnerBox.x + footerInnerBox.width &&
+							triggerBox.x + triggerBox.width > footerInnerBox.x &&
+							triggerBox.y < footerInnerBox.y + footerInnerBox.height &&
+							triggerBox.y + triggerBox.height > footerInnerBox.y;
+						expect(overlapsFooterInner, 'closed trigger intersects footer content').toBe(false);
+					}
 				}
 			});
 		}

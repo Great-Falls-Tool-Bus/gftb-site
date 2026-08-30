@@ -76,7 +76,11 @@ test('the diagram post exposes full-size affordances at mobile width', async ({ 
 			'/diagrams/launch-member-v0/launch-authority-flow-public.svg',
 		],
 	] as const) {
-		await expect(page.getByRole('link', { name })).toHaveAttribute('href', href);
+		const link = page.getByRole('link', { name });
+		await expect(link).toBeVisible();
+		await link.scrollIntoViewIfNeeded();
+		await expect(link).toBeInViewport();
+		await expect(link).toHaveAttribute('href', href);
 	}
 });
 
