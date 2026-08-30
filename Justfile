@@ -31,6 +31,8 @@ dev-open:
 # artefact, and a published tree that has never been scanned must not be
 # publishable. Wiring it here (rather than into `just ci`, which no template job
 # invokes) is what makes the gate actually execute on a pull request.
+# Materialization is publish-once: the destination must be absent, and any
+# existing output or transaction residue fails closed and remains untouched.
 build:
     cd {{ root }} && bazelisk build //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
@@ -279,11 +281,12 @@ leak-scan build_dir="build":
 # INDEX.md has to describe the SAME bytes the screenshots were taken of.
 #
 # Order matters: `build` materializes and leak-scans the artefact, `check` runs
-# the four repo gates, then the preview comes up on ITS OWN port through the same
-# `preview-e2e` machinery Playwright uses in CI. The acceptance suite is pointed
-# at that already-running preview through playwright.qa-packet.config.ts, so this
-# recipe never competes for the CI port and never silently reuses another lane's
-# server. playwright.config.ts, which CI reads, is untouched.
+# the four repo gates, then Bazel is shut down and `preview-only` serves those
+# already-built bytes on ITS OWN port. Playwright CI keeps `preview-e2e: build`
+# for its fresh job. The acceptance suite is pointed at the QA preview through
+# playwright.qa-packet.config.ts, so this recipe never competes for the CI port
+# and never silently rebuilds or reuses another lane's server.
+# playwright.config.ts, which CI reads, is untouched.
 #
 # A failing acceptance suite does not abort the capture — a packet that shows
 # what a regression looks like is the point — but the recipe still exits non-zero.
@@ -328,7 +331,8 @@ qa-packet port="3355":
     check_status=0
     {{ just_executable() }} check 2>&1 | tee "$receipts/check.log" || check_status=$?
 
-    {{ just_executable() }} preview-e2e {{ port }} >"$receipts/preview.log" 2>&1 &
+    bazelisk shutdown
+    {{ just_executable() }} preview-only {{ port }} >"$receipts/preview.log" 2>&1 &
     preview_pid=$!
     for attempt in $(seq 1 300); do
       if (exec 3<>/dev/tcp/127.0.0.1/{{ port }}) 2>/dev/null; then break; fi
@@ -389,9 +393,10 @@ check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check sou
 
 # Local convenience aggregate. NOTE: no ci-templates job invokes `just ci` — the
 # template calls `just setup`, `just build`, `just check` and `just test-e2e`
-# individually — so nothing may be enforced ONLY from here. `build` now carries
-# leak-scan itself, which is why it is no longer listed separately.
-ci: check build test-e2e
+# individually — so nothing may be enforced ONLY from here. `test-e2e` performs
+# its own scanned fresh build through `preview-e2e`; materializing `build` first
+# would violate the publish-once output contract.
+ci: check test-e2e
 
 sbom out_dir="build/sbom":
     cd {{ root }} && mkdir -p "{{ out_dir }}" && version="$(jq -r '.version' package.json)" && \

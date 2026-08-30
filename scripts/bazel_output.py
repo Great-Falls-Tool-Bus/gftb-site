@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import functools
 import json
 import os
@@ -100,20 +102,8 @@ def _directory_open_flags() -> int:
     directory_flag = getattr(os, "O_DIRECTORY", None)
     nofollow_flag = getattr(os, "O_NOFOLLOW", None)
     if directory_flag is None or nofollow_flag is None:
-        raise OutputError("descriptor-custodied cleanup requires O_DIRECTORY and O_NOFOLLOW")
+        raise OutputError("descriptor-custodied materialization requires O_DIRECTORY and O_NOFOLLOW")
     return os.O_RDONLY | directory_flag | nofollow_flag | getattr(os, "O_CLOEXEC", 0)
-
-
-def _nondirectory_open_flags() -> int:
-    nofollow_flag = getattr(os, "O_NOFOLLOW", None)
-    if nofollow_flag is None:
-        raise OutputError("descriptor-custodied cleanup requires O_NOFOLLOW")
-    if sys.platform.startswith("linux"):
-        path_flag = getattr(os, "O_PATH", None)
-        if path_flag is None:
-            raise OutputError("Linux mount-boundary checks require O_PATH")
-        return path_flag | nofollow_flag | getattr(os, "O_CLOEXEC", 0)
-    return os.O_RDONLY | nofollow_flag | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_CLOEXEC", 0)
 
 
 def _inode_identity(metadata: os.stat_result) -> tuple[int, int, int]:
@@ -126,7 +116,7 @@ def _assert_inode_identity(
     label: str,
 ) -> None:
     if _inode_identity(metadata) != expected_identity:
-        raise OutputError(f"cleanup identity changed for {label}; transaction was left untouched")
+        raise OutputError(f"identity changed for {label}; transaction was left untouched")
 
 
 def _linux_mount_id(file_descriptor: int) -> int:
@@ -152,7 +142,7 @@ def _assert_same_mount(
     label: str,
 ) -> None:
     if candidate_mount != expected_mount:
-        raise OutputError(f"refusing recursive cleanup across a mount boundary at {label}")
+        raise OutputError(f"refusing materialization across a mount boundary at {label}")
 
 
 def _entry_exists_at(parent_fd: int, name: str) -> bool:
@@ -171,161 +161,16 @@ def _open_custodied_directory(
     try:
         directory_fd = os.open(name, _directory_open_flags(), dir_fd=parent_fd)
     except OSError as error:
-        raise OutputError(f"cannot open cleanup directory {name} without following links: {error}") from error
+        raise OutputError(f"cannot open materialization directory {name} without following links: {error}") from error
     try:
         held_metadata = os.fstat(directory_fd)
         _assert_inode_identity(held_metadata, _inode_identity(expected_metadata), name)
         if not stat.S_ISDIR(held_metadata.st_mode):
-            raise OutputError(f"cleanup entry is not a held directory: {name}")
+            raise OutputError(f"materialization entry is not a held directory: {name}")
         return directory_fd
     except BaseException:
         os.close(directory_fd)
         raise
-
-
-def _nondirectory_mount_identity(
-    parent_fd: int,
-    name: str,
-    expected_metadata: os.stat_result,
-) -> tuple[int, int | None]:
-    if stat.S_ISLNK(expected_metadata.st_mode) and not sys.platform.startswith("linux"):
-        return (expected_metadata.st_dev, None)
-    try:
-        entry_fd = os.open(name, _nondirectory_open_flags(), dir_fd=parent_fd)
-    except OSError as error:
-        raise OutputError(f"cannot open cleanup entry {name} without following links: {error}") from error
-    try:
-        held_metadata = os.fstat(entry_fd)
-        _assert_inode_identity(held_metadata, _inode_identity(expected_metadata), name)
-        return _mount_identity(entry_fd, held_metadata)
-    finally:
-        os.close(entry_fd)
-
-
-@dataclass
-class _CleanupEntry:
-    name: str
-    metadata: os.stat_result
-    directory_fd: int | None
-    children: list[_CleanupEntry] | None
-
-
-def _close_cleanup_entries(entries: list[_CleanupEntry]) -> None:
-    for entry in entries:
-        if entry.children is not None:
-            _close_cleanup_entries(entry.children)
-        if entry.directory_fd is not None:
-            os.close(entry.directory_fd)
-            entry.directory_fd = None
-
-
-def _capture_cleanup_entries(
-    parent_fd: int,
-    expected_mount: tuple[int, int | None],
-    *,
-    allowed_names: frozenset[str] | None = None,
-) -> list[_CleanupEntry]:
-    try:
-        names = sorted(os.listdir(parent_fd))
-    except OSError as error:
-        raise OutputError(f"cannot enumerate held cleanup directory: {error}") from error
-    if allowed_names is not None:
-        unexpected = sorted(set(names) - allowed_names)
-        if unexpected:
-            raise OutputError(
-                "owned transaction contains unexpected entries and was left untouched: " + ", ".join(unexpected)
-            )
-
-    entries: list[_CleanupEntry] = []
-    try:
-        for name in names:
-            try:
-                metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
-            except OSError as error:
-                raise OutputError(f"cannot inspect cleanup entry {name}: {error}") from error
-
-            if stat.S_ISDIR(metadata.st_mode):
-                directory_fd = _open_custodied_directory(parent_fd, name, metadata)
-                try:
-                    held_metadata = os.fstat(directory_fd)
-                    _assert_same_mount(expected_mount, _mount_identity(directory_fd, held_metadata), name)
-                    children = _capture_cleanup_entries(directory_fd, expected_mount)
-                except BaseException:
-                    os.close(directory_fd)
-                    raise
-                entries.append(_CleanupEntry(name, metadata, directory_fd, children))
-            else:
-                candidate_mount = _nondirectory_mount_identity(parent_fd, name, metadata)
-                _assert_same_mount(expected_mount, candidate_mount, name)
-                entries.append(_CleanupEntry(name, metadata, None, None))
-    except BaseException:
-        _close_cleanup_entries(entries)
-        raise
-    return entries
-
-
-def _validate_cleanup_entries(
-    parent_fd: int,
-    entries: list[_CleanupEntry],
-    expected_mount: tuple[int, int | None],
-) -> None:
-    try:
-        current_names = sorted(os.listdir(parent_fd))
-    except OSError as error:
-        raise OutputError(f"cannot re-enumerate held cleanup directory: {error}") from error
-    expected_names = sorted(entry.name for entry in entries)
-    if current_names != expected_names:
-        raise OutputError("cleanup directory entries changed after custody capture; transaction was left untouched")
-
-    for entry in entries:
-        try:
-            current_metadata = os.stat(entry.name, dir_fd=parent_fd, follow_symlinks=False)
-        except OSError as error:
-            raise OutputError(f"cannot revalidate cleanup entry {entry.name}: {error}") from error
-        _assert_inode_identity(current_metadata, _inode_identity(entry.metadata), entry.name)
-
-        if entry.children is not None:
-            if entry.directory_fd is None:
-                raise OutputError(f"cleanup directory custody is missing for {entry.name}")
-            held_metadata = os.fstat(entry.directory_fd)
-            _assert_inode_identity(held_metadata, _inode_identity(entry.metadata), entry.name)
-            _assert_same_mount(expected_mount, _mount_identity(entry.directory_fd, held_metadata), entry.name)
-            _validate_cleanup_entries(entry.directory_fd, entry.children, expected_mount)
-        else:
-            candidate_mount = _nondirectory_mount_identity(parent_fd, entry.name, current_metadata)
-            _assert_same_mount(expected_mount, candidate_mount, entry.name)
-
-
-def _delete_cleanup_entries(
-    parent_fd: int,
-    entries: list[_CleanupEntry],
-    expected_mount: tuple[int, int | None],
-) -> None:
-    for entry in entries:
-        current_metadata = os.stat(entry.name, dir_fd=parent_fd, follow_symlinks=False)
-        _assert_inode_identity(current_metadata, _inode_identity(entry.metadata), entry.name)
-
-        if entry.children is not None:
-            if entry.directory_fd is None:
-                raise OutputError(f"cleanup directory custody is missing for {entry.name}")
-            held_metadata = os.fstat(entry.directory_fd)
-            _assert_inode_identity(held_metadata, _inode_identity(entry.metadata), entry.name)
-            _assert_same_mount(expected_mount, _mount_identity(entry.directory_fd, held_metadata), entry.name)
-            _delete_cleanup_entries(entry.directory_fd, entry.children, expected_mount)
-            if os.listdir(entry.directory_fd):
-                raise OutputError(f"held cleanup directory did not become empty: {entry.name}")
-            current_metadata = os.stat(entry.name, dir_fd=parent_fd, follow_symlinks=False)
-            _assert_inode_identity(current_metadata, _inode_identity(entry.metadata), entry.name)
-            held_metadata = os.fstat(entry.directory_fd)
-            _assert_inode_identity(held_metadata, _inode_identity(entry.metadata), entry.name)
-            _assert_same_mount(expected_mount, _mount_identity(entry.directory_fd, held_metadata), entry.name)
-            os.rmdir(entry.name, dir_fd=parent_fd)
-        else:
-            candidate_mount = _nondirectory_mount_identity(parent_fd, entry.name, current_metadata)
-            _assert_same_mount(expected_mount, candidate_mount, entry.name)
-            current_metadata = os.stat(entry.name, dir_fd=parent_fd, follow_symlinks=False)
-            _assert_inode_identity(current_metadata, _inode_identity(entry.metadata), entry.name)
-            os.unlink(entry.name, dir_fd=parent_fd)
 
 
 def _assert_named_transaction_custody(
@@ -356,69 +201,77 @@ def _assert_named_transaction_custody(
     _assert_same_mount(expected_mount, _mount_identity(transaction_fd, held_metadata), transaction_name)
 
 
-def _remove_owned_transaction(
-    parent_fd: int,
-    transaction_name: str,
-    transaction_fd: int,
-    expected_prefix: str,
-    expected_identity: tuple[int, int, int],
-    expected_mount: tuple[int, int | None],
+def _rename_directory_noreplace(
+    source_fd: int,
+    source_name: str,
+    destination_fd: int,
+    destination_name: str,
 ) -> None:
-    _assert_named_transaction_custody(
-        parent_fd,
-        transaction_name,
-        transaction_fd,
-        expected_prefix,
-        expected_identity,
-        expected_mount,
-    )
-    entries = _capture_cleanup_entries(
-        transaction_fd,
-        expected_mount,
-        allowed_names=frozenset({"stage", "previous"}),
-    )
+    """Atomically publish one held directory without replacing any destination."""
+
+    if not sys.platform.startswith("linux"):
+        raise OutputError("atomic no-replace materialization requires Linux renameat2")
     try:
-        _assert_named_transaction_custody(
-            parent_fd,
-            transaction_name,
-            transaction_fd,
-            expected_prefix,
-            expected_identity,
-            expected_mount,
+        renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+    except (AttributeError, OSError) as error:
+        raise OutputError(f"atomic no-replace materialization is unavailable: {error}") from error
+
+    renameat2.argtypes = (
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    )
+    renameat2.restype = ctypes.c_int
+    rename_noreplace = 1
+    if (
+        renameat2(
+            source_fd,
+            os.fsencode(source_name),
+            destination_fd,
+            os.fsencode(destination_name),
+            rename_noreplace,
         )
-        _validate_cleanup_entries(transaction_fd, entries, expected_mount)
-        _assert_named_transaction_custody(
-            parent_fd,
-            transaction_name,
-            transaction_fd,
-            expected_prefix,
-            expected_identity,
-            expected_mount,
+        == 0
+    ):
+        return
+
+    error_number = ctypes.get_errno()
+    if error_number in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise OutputError(
+            f"destination appeared before publish and was left untouched: {destination_name}; "
+            "transaction was retained"
         )
-        _delete_cleanup_entries(transaction_fd, entries, expected_mount)
-        if os.listdir(transaction_fd):
-            raise OutputError(f"owned transaction is not empty after held cleanup: {transaction_name}")
-        _assert_named_transaction_custody(
-            parent_fd,
-            transaction_name,
-            transaction_fd,
-            expected_prefix,
-            expected_identity,
-            expected_mount,
-        )
-        os.rmdir(transaction_name, dir_fd=parent_fd)
-    finally:
-        _close_cleanup_entries(entries)
+    raise OutputError(
+        f"atomic no-replace materialization failed; transaction was retained: {os.strerror(error_number)}"
+    )
+
+
+def _assert_required_file_at(directory_fd: int, required_path: Path) -> None:
+    try:
+        metadata = os.stat(os.fspath(required_path), dir_fd=directory_fd, follow_symlinks=False)
+    except OSError as error:
+        raise OutputError(f"staged output is missing required file {required_path}: {error}") from error
+    if not stat.S_ISREG(metadata.st_mode):
+        raise OutputError(f"staged output is missing required file {required_path}")
 
 
 def materialize_tree(source: Path, destination: Path, required_path: Path, manifest_path: Path) -> None:
+    """Publish into an absent allowlisted destination; never clean or replace output."""
+
     destination = resolve_materialize_destination(manifest_path, destination)
+    if _path_exists(destination):
+        raise OutputError(
+            f"destination already exists and was left untouched: {destination}; "
+            "materialization only publishes fresh output"
+        )
+
     source = source.resolve(strict=True)
     required_path = Path(required_path)
-
     if not source.is_dir():
         raise OutputError(f"Bazel output is not a directory: {source}")
-    if required_path.is_absolute() or ".." in required_path.parts:
+    if required_path.is_absolute() or not required_path.parts or ".." in required_path.parts:
         raise OutputError(f"required path must stay within the output tree: {required_path}")
     if not (source / required_path).is_file():
         raise OutputError(f"Bazel output {source} is missing required file {required_path}")
@@ -432,6 +285,9 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
     parent_fd = os.open(destination_parent, _directory_open_flags())
     transaction_fd: int | None = None
     try:
+        if _entry_exists_at(parent_fd, destination.name):
+            raise OutputError(f"destination appeared before transaction creation and was left untouched: {destination}")
+
         parent_metadata = os.fstat(parent_fd)
         parent_mount = _mount_identity(parent_fd, parent_metadata)
         transaction_prefix = f".{destination.name}.transaction-"
@@ -440,9 +296,13 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
         try:
             transaction_fd = os.open(transaction_name, _directory_open_flags(), dir_fd=parent_fd)
         except OSError as error:
-            raise OutputError(f"cannot take custody of new transaction {transaction_name}: {error}") from error
+            raise OutputError(
+                f"cannot take custody of new transaction {transaction_name}; it was retained: {error}"
+            ) from error
 
         transaction_metadata = os.fstat(transaction_fd)
+        if stat.S_IMODE(transaction_metadata.st_mode) & 0o077:
+            raise OutputError(f"new transaction is not private and was retained: {transaction_name}")
         transaction_identity = _inode_identity(transaction_metadata)
         transaction_mount = _mount_identity(transaction_fd, transaction_metadata)
         _assert_same_mount(parent_mount, transaction_mount, transaction_name)
@@ -456,11 +316,31 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
         )
 
         stage = transaction / "stage"
-        moved_destination = False
-        cleanup_transaction = True
+        shutil.copytree(source, stage, symlinks=False)
+        _assert_named_transaction_custody(
+            parent_fd,
+            transaction_name,
+            transaction_fd,
+            transaction_prefix,
+            transaction_identity,
+            transaction_mount,
+        )
 
         try:
-            shutil.copytree(source, stage, symlinks=False)
+            named_stage_metadata = os.stat("stage", dir_fd=transaction_fd, follow_symlinks=False)
+        except OSError as error:
+            raise OutputError(f"cannot inspect staged output without following links: {error}") from error
+        if not stat.S_ISDIR(named_stage_metadata.st_mode):
+            raise OutputError("staged output is not a directory; transaction was retained")
+
+        stage_fd = _open_custodied_directory(transaction_fd, "stage", named_stage_metadata)
+        try:
+            held_stage_metadata = os.fstat(stage_fd)
+            stage_identity = _inode_identity(held_stage_metadata)
+            stage_mount = _mount_identity(stage_fd, held_stage_metadata)
+            _assert_same_mount(transaction_mount, stage_mount, "stage")
+            _assert_required_file_at(stage_fd, required_path)
+
             _assert_named_transaction_custody(
                 parent_fd,
                 transaction_name,
@@ -469,74 +349,53 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
                 transaction_identity,
                 transaction_mount,
             )
-            try:
-                named_stage_metadata = os.stat("stage", dir_fd=transaction_fd, follow_symlinks=False)
-            except OSError as error:
-                raise OutputError(f"cannot inspect staged output without following links: {error}") from error
-            if not stat.S_ISDIR(named_stage_metadata.st_mode):
-                raise OutputError("staged output is not a directory")
-            stage_fd = _open_custodied_directory(transaction_fd, "stage", named_stage_metadata)
-            try:
-                held_stage_metadata = os.fstat(stage_fd)
-                stage_identity = _inode_identity(held_stage_metadata)
-                stage_mount = _mount_identity(stage_fd, held_stage_metadata)
-                _assert_same_mount(transaction_mount, stage_mount, "stage")
-                if not (stage / required_path).is_file():
-                    raise OutputError(f"staged output is missing required file {required_path}")
-
-                if _entry_exists_at(parent_fd, destination.name):
-                    os.replace(
-                        destination.name,
-                        "previous",
-                        src_dir_fd=parent_fd,
-                        dst_dir_fd=transaction_fd,
-                    )
-                    moved_destination = True
-
-                named_stage_metadata = os.stat("stage", dir_fd=transaction_fd, follow_symlinks=False)
-                _assert_inode_identity(named_stage_metadata, stage_identity, "stage")
-                held_stage_metadata = os.fstat(stage_fd)
-                _assert_inode_identity(held_stage_metadata, stage_identity, "stage")
-                _assert_same_mount(transaction_mount, _mount_identity(stage_fd, held_stage_metadata), "stage")
-                os.replace(
-                    "stage",
-                    destination.name,
-                    src_dir_fd=transaction_fd,
-                    dst_dir_fd=parent_fd,
+            named_stage_metadata = os.stat("stage", dir_fd=transaction_fd, follow_symlinks=False)
+            _assert_inode_identity(named_stage_metadata, stage_identity, "stage")
+            held_stage_metadata = os.fstat(stage_fd)
+            _assert_inode_identity(held_stage_metadata, stage_identity, "stage")
+            _assert_same_mount(transaction_mount, _mount_identity(stage_fd, held_stage_metadata), "stage")
+            if _entry_exists_at(parent_fd, destination.name):
+                raise OutputError(
+                    f"destination appeared before publish and was left untouched: {destination}; "
+                    "transaction was retained"
                 )
-            finally:
-                os.close(stage_fd)
-        except BaseException:
-            if moved_destination:
-                try:
-                    if _entry_exists_at(parent_fd, destination.name):
-                        raise OutputError(f"cannot roll back {destination}: destination path reappeared")
-                    if not _entry_exists_at(transaction_fd, "previous"):
-                        raise OutputError(f"cannot roll back {destination}: previous output is missing")
-                    os.replace(
-                        "previous",
-                        destination.name,
-                        src_dir_fd=transaction_fd,
-                        dst_dir_fd=parent_fd,
-                    )
-                    moved_destination = False
-                except BaseException as rollback_error:
-                    cleanup_transaction = False
-                    raise OutputError(
-                        f"materialization rollback failed; owned transaction {transaction_name} "
-                        "was left untouched"
-                    ) from rollback_error
-            raise
+
+            _rename_directory_noreplace(
+                transaction_fd,
+                "stage",
+                parent_fd,
+                destination.name,
+            )
         finally:
-            if cleanup_transaction:
-                _remove_owned_transaction(
-                    parent_fd,
-                    transaction_name,
-                    transaction_fd,
-                    transaction_prefix,
-                    transaction_identity,
-                    transaction_mount,
-                )
+            os.close(stage_fd)
+
+        _assert_named_transaction_custody(
+            parent_fd,
+            transaction_name,
+            transaction_fd,
+            transaction_prefix,
+            transaction_identity,
+            transaction_mount,
+        )
+        try:
+            remaining_entries = os.listdir(transaction_fd)
+        except OSError as error:
+            raise OutputError(
+                f"cannot prove published transaction is empty; {transaction_name} was retained: {error}"
+            ) from error
+        if remaining_entries:
+            raise OutputError(
+                f"published transaction has unexpected residue and was retained: {transaction_name}"
+            )
+        _assert_named_transaction_custody(
+            parent_fd,
+            transaction_name,
+            transaction_fd,
+            transaction_prefix,
+            transaction_identity,
+            transaction_mount,
+        )
+        os.rmdir(transaction_name, dir_fd=parent_fd)
     finally:
         if transaction_fd is not None:
             os.close(transaction_fd)
@@ -679,7 +538,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    materialize = subparsers.add_parser("materialize", help="transactionally replace an output tree")
+    materialize = subparsers.add_parser("materialize", help="publish a fresh output tree without replacing or cleaning")
     materialize.add_argument("--source", type=Path, required=True)
     materialize.add_argument("--destination", type=Path, required=True)
     materialize.add_argument("--manifest", type=Path, default=Path("tinyland.repo.json"))
