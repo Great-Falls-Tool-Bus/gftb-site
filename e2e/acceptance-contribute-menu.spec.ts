@@ -137,9 +137,7 @@ test.describe('main-content clearance (TIN-4227 LOOK gate)', () => {
 						triggerBox.x + triggerBox.width > mainBox.x &&
 						triggerBox.y < mainBox.y + mainBox.height &&
 						triggerBox.y + triggerBox.height > mainBox.y;
-					expect(overlapsMain, `closed trigger intersects main content at scroll fraction ${fraction}`).toBe(
-						false,
-					);
+					expect(overlapsMain, `closed trigger intersects main content at scroll fraction ${fraction}`).toBe(false);
 
 					if (fraction === 1) {
 						await expect(trigger).toBeInViewport();
