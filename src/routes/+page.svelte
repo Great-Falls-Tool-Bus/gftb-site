@@ -70,7 +70,6 @@
 		fallback: `${photoBase}-1280.jpg`,
 		sizes: '100vw',
 	};
-
 </script>
 
 <!-- Row 1 (spec §3 :85): project name, one-sentence purpose, current status.
