@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SourceLink from '$lib/components/SourceLink.svelte';
 
-	// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): refund/cancellation copy for spec §12
+	// RATIFIED INTERIM (operator Option A, 2026-08-29): refund/cancellation copy for spec §12
 	// P1 (2026-08-30 deliverable list includes "privacy and retention
 	// copy"; refund/cancellation is the companion money-copy surface for the
 	// same contribution subsystem, spec §5). The route stays unlinked: no
@@ -93,7 +93,6 @@
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> or use the <a href="/contact">contact form</a>.
 			</p>
 
-			<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
 			<p><em>Last reviewed: 29 August 2026.</em></p>
 		</div>
 	</article>

@@ -2,7 +2,7 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 
-	// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): privacy +
+	// RATIFIED INTERIM (operator Option A, 2026-08-29): privacy +
 	// retention copy for spec §12 may land while exact retention periods remain
 	// unset. The route stays unlinked: no nav-items.ts entry and no cross-link
 	// from /contact, /apply, or the root page. ADR 0016 still routes numerical
@@ -116,7 +116,6 @@
 				This page describes the system as built. When retention periods are ratified, or the system changes in a way
 				that affects what is collected or who can see it, this page is updated and the update date below changes.
 			</p>
-			<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
 			<p><em>Last reviewed: 29 August 2026.</em></p>
 		</div>
 	</article>
