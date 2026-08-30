@@ -63,9 +63,9 @@ if [[ -z "$public_hits" ]]; then ok "public content contains no internal work po
 check "test -f static/vendor/altcha/altcha.js && test -f static/vendor/altcha/LICENSE" "contact proof-of-work asset retains its license"
 check "! find static -type f -name '*.md' -print -quit | grep -q ." "public static tree contains no developer Markdown"
 # The contact surface lives on its own page (B1.4: the demo /contact
-# architecture, restored); the root's row 8 still names the public discuss
-# list while the private keyholders boundary is explained beside the form.
-check "grep -q 'forms.latoolb.us' src/lib/components/ContactForm.svelte && grep -q 'discuss@latoolb.us' src/routes/+page.svelte && grep -q 'keyholders@latoolb.us' src/routes/contact/+page.svelte" "contact and list boundaries are explicit"
+# architecture, restored); the homepage links there while the private
+# keyholders boundary is explained beside the form.
+check "grep -q 'forms.latoolb.us' src/lib/components/ContactForm.svelte && grep -Fq 'href=\"/contact\"' src/routes/+page.svelte && grep -q 'keyholders@latoolb.us' src/routes/contact/+page.svelte" "contact route and private-list boundary are explicit"
 
 echo "summary: ${pass} pass, ${fail} fail"
 (( fail == 0 ))

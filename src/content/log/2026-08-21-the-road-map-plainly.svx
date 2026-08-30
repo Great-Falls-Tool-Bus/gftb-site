@@ -1,7 +1,7 @@
 ---
 date: '2026-08-21'
 title: 'Mapping MVP, V0 and beyond'
-summary: 'Hello'
+summary: 'Mapping MVP, V0 and beyond'
 tags:
   - roadmap
 published: false
