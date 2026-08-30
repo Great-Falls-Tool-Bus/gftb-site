@@ -28,19 +28,21 @@ test.describe('JavaScript disabled', () => {
 	});
 
 	test('the public log row and archive render their real state from the static build', async ({ page }) => {
-		// Addendum B1.2: every checked-in entry is a published:false TODO(jess)
-		// draft, and the loader excludes drafts from production output
-		// (spec §3). The row and the archive both show the honest empty state
-		// — and the draft's text must NOT leak into either surface.
+		// Addendum B1.2: the homepage renders the newest of the four reviewed
+		// entries and the archive renders the complete approved batch from the
+		// prerendered artifact. The remaining published:false draft must not
+		// leak into either surface.
 		await page.goto('/');
-		await expect(page.locator('.log-entry')).toHaveCount(0);
-		await expect(page.getByText('No log entries have been published yet.')).toBeVisible();
+		const latest = page.locator('.log-entry');
+		await expect(latest).toHaveCount(1);
+		const latestLink = latest.locator('h3 a');
+		await expect(latestLink).toHaveText('We laugh, we graph, we diagramming the system');
+		await expect(latestLink).toHaveAttribute('href', '/log/2026-08-14-the-system-in-diagrams');
 
 		await page.goto('/log');
-		await expect(page.locator('.log-list li')).toHaveCount(0);
-		await expect(page.getByText('No log entries have been published yet.')).toBeVisible();
+		await expect(page.locator('.log-list li')).toHaveCount(4);
 		const html = await page.content();
-		expect(html).not.toContain('First public log entry');
+		expect(html).not.toContain('Mapping MVP, V0 and beyond');
 	});
 
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
