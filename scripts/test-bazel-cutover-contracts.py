@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -160,6 +161,25 @@ class StaticOutputTests(unittest.TestCase):
             ".build.transaction-regular-file",
             regular_file=True,
         )
+
+    def test_different_mnt_id_refuses_publish_and_retains_transaction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+
+            with mock.patch("bazel_output._mount_identity", side_effect=[(7, 101), (7, 202)]):
+                with self.assertRaisesRegex(OutputError, "mount boundary"):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertFalse(os.path.lexists(destination))
+            residues = self._transaction_residues(root)
+            self.assertEqual(len(residues), 1)
+            self.assertEqual(list(residues[0].iterdir()), [])
 
     def test_copy_failure_retains_partial_transaction_without_external_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -376,6 +396,43 @@ class StaticOutputTests(unittest.TestCase):
                 resolve_materialize_destination(manifest, Path("build"))
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
 
+    def test_existing_regular_file_destination_is_refused_and_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest = root / "tinyland.repo.json"
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            destination.write_bytes(b"must survive")
+
+            with self.assertRaisesRegex(OutputError, "destination already exists"):
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual(destination.read_bytes(), b"must survive")
+            self.assertEqual(self._transaction_residues(root), [])
+
+    def test_existing_broken_symlink_destination_is_refused_and_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest = root / "tinyland.repo.json"
+            missing_target = root / "missing-target"
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            destination.symlink_to(missing_target, target_is_directory=True)
+
+            with self.assertRaisesRegex(OutputError, "destination"):
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertTrue(destination.is_symlink())
+            self.assertEqual(os.readlink(destination), os.fspath(missing_target))
+            self.assertFalse(missing_target.exists())
+            self.assertEqual(self._transaction_residues(root), [])
+
     def test_invalid_destination_fails_before_materialization_and_preserves_outside_sentinel(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             container = Path(temporary)
@@ -418,6 +475,47 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
         self.assertIn('name = "container_image_context"', self.build)
+
+    def test_live_build_check_and_qa_recipes_never_recursively_clean(self) -> None:
+        live_recipes = (
+            "build",
+            "build-ci",
+            "preview",
+            "preview-e2e",
+            "preview-only",
+            "test-e2e",
+            "_playwright-run",
+            "_playwright-test",
+            "qr-verify",
+            "leak-scan-stamped",
+            "leak-scan",
+            "qa-packet",
+            "_qa-packet-e2e",
+            "check",
+            "check-ci",
+            "ci",
+        )
+        recursive_rm = re.compile(
+            r"\brm\b[^\n]*(?:\s--recursive(?:[=\s]|$)|\s-[A-Za-z]*r[A-Za-z]*(?:\s|$))"
+        )
+        for name in live_recipes:
+            with self.subTest(recipe=name):
+                body = recipe(self.justfile, name)
+                self.assertNotRegex(body, recursive_rm)
+                self.assertNotIn("rmtree(", body)
+
+        stamped = recipe(self.justfile, "leak-scan-stamped")
+        self.assertIn("bazelisk build //:build", stamped)
+        self.assertIn('grep -q "deadbee" bazel-bin/build/index.html', stamped)
+        self.assertIn("leak-scan bazel-bin/build", stamped)
+        self.assertNotIn("materialize", stamped)
+        self.assertNotIn("build-stamped", stamped)
+        self.assertNotIn("build-stamped", MATERIALIZED_OUTPUT_NAMES)
+
+        qr = recipe(self.justfile, "qr-verify")
+        self.assertIn("umask 077", qr)
+        self.assertIn('rm -f -- "$tmp/apex.svg"', qr)
+        self.assertIn('rmdir -- "$tmp"', qr)
 
     def test_playwright_releases_bazel_before_chromium(self) -> None:
         preview = recipe(self.justfile, "preview-e2e")

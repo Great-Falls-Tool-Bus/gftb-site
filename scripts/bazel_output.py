@@ -22,7 +22,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 
 STATIC_ROLES = {"static-spoke", "static-spoke-scaffold"}
-MATERIALIZED_OUTPUT_NAMES = frozenset({"build", "coverage", "build-stamped", ".svelte-kit", ".bundle-stats"})
+MATERIALIZED_OUTPUT_NAMES = frozenset({"build", "coverage", ".svelte-kit", ".bundle-stats"})
 
 
 class OutputError(RuntimeError):

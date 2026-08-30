@@ -24,11 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium } from '@playwright/test';
 
-import {
-	parseQaPacketDiffArguments,
-	prepareDiffDirectory,
-	readFixedPacket,
-} from './lib/qa-packet-paths.mjs';
+import { parseQaPacketDiffArguments, prepareDiffDirectory, readFixedPacket } from './lib/qa-packet-paths.mjs';
 
 /**
  * A pixel counts as changed when any channel moves by more than this. Zero would

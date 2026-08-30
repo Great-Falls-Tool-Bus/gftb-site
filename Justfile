@@ -206,8 +206,23 @@ qr-verify:
     set -euo pipefail
     cd {{ root }}
     committed="static/qr/greatfallstoolbus-apex.svg"
+    umask 077
     tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
+    tmp_parent="$(dirname -- "$tmp")"
+    tmp_name="$(basename -- "$tmp")"
+    [[ -n "$tmp" && -d "$tmp" && ! -L "$tmp" && -O "$tmp" && "$(stat -c '%a' -- "$tmp")" == "700" ]] || {
+      echo "qr-verify: mktemp did not create a private owned directory" >&2
+      exit 1
+    }
+    cleanup() {
+      if [[ -z "$tmp" || ! -d "$tmp" || -L "$tmp" || ! -O "$tmp" || "$(dirname -- "$tmp")" != "$tmp_parent" || "$(basename -- "$tmp")" != "$tmp_name" || "$(stat -c '%a' -- "$tmp")" != "700" ]]; then
+        echo "qr-verify: refusing unsafe temporary-directory cleanup target" >&2
+        return 1
+      fi
+      rm -f -- "$tmp/apex.svg" "$tmp/committed.stripped" "$tmp/fresh.stripped" "$tmp/diff"
+      rmdir -- "$tmp"
+    }
+    trap cleanup EXIT
     qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "https://greatfallstoolbus.org/"
     strip_provenance='/^<!-- Created with qrencode /d'
     sed "$strip_provenance" "$committed" >"$tmp/committed.stripped"
@@ -259,13 +274,12 @@ qr-verify:
 # closes that blind spot: build with a FIXED fake sha (constant on purpose —
 # the stamped stable-status is identical across runs, so caches still hit
 # when sources are unchanged), prove the stamp actually rendered, and scan
-# that artifact. Wired into `check`/`check-ci` so it runs per PR.
+# the Bazel output in place. No second tree is materialized or cleaned.
+# Wired into `check`/`check-ci` so it runs per PR.
 leak-scan-stamped:
     cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build-stamped
-    cd {{ root }} && grep -q "deadbee" build-stamped/index.html
-    cd {{ root }} && {{ just_executable() }} leak-scan build-stamped
-    cd {{ root }} && rm -rf build-stamped
+    cd {{ root }} && grep -q "deadbee" bazel-bin/build/index.html
+    cd {{ root }} && {{ just_executable() }} leak-scan bazel-bin/build
 
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}

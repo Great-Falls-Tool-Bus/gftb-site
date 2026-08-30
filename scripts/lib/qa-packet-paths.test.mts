@@ -121,11 +121,7 @@ describe('qa-packet-diff destructive-path contract', () => {
 		writeFileSync(sentinel, 'must survive', 'utf8');
 		for (const value of ['/absolute/diff', '..', '.', '', repoRoot, '/Users/example']) {
 			expect(
-				() =>
-					parseQaPacketDiffArguments(
-						['qa-packet/a', 'qa-packet/b', '--out', value],
-						8,
-					),
+				() => parseQaPacketDiffArguments(['qa-packet/a', 'qa-packet/b', '--out', value], 8),
 				value,
 			).toThrow('unknown argument --out');
 			expect(readFileSync(sentinel, 'utf8'), value).toBe('must survive');
@@ -153,6 +149,7 @@ describe('qa-packet-diff destructive-path contract', () => {
 		mkdirSync(syntheticRepo);
 		writeFileSync(sentinel, 'must survive', 'utf8');
 		const packetRoot = writePacket(syntheticRepo, validSha);
+		mkdirSync(path.join(packetRoot, 'shots'));
 		writeFileSync(
 			path.join(packetRoot, 'manifest.json'),
 			JSON.stringify({
