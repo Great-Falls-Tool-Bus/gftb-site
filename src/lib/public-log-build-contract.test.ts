@@ -175,7 +175,7 @@ describe('static build wiring for the logs', () => {
 		// Every published slug is imported by the generated manifest...
 		for (const file of publishedFiles) {
 			const slug = file.replace(/\.svx$/u, '');
-			expect(manifest).toContain(`slug: ${JSON.stringify(slug)}`);
+			expect(manifest).toContain(`slug: '${slug}'`);
 		}
 		// ...and no UNPUBLISHED entry's title or summary appears in it at all —
 		// the exact defect the review's grep proved against build output.

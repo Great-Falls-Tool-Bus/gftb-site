@@ -46,9 +46,7 @@ describe('qa-packet destructive-path contract', () => {
 		writeFileSync(sentinel, 'must survive', 'utf8');
 
 		for (const value of ['/absolute/packet', '..', '.', '', repoRoot, '/Users/example']) {
-			expect(() => parseQaPacketArguments(['--port', '3355', '--out', value]), value).toThrow(
-				'unknown argument --out',
-			);
+			expect(() => parseQaPacketArguments(['--port', '3355', '--out', value]), value).toThrow('unknown argument --out');
 			expect(readFileSync(sentinel, 'utf8'), value).toBe('must survive');
 		}
 	});
@@ -120,10 +118,9 @@ describe('qa-packet-diff destructive-path contract', () => {
 		const sentinel = path.join(container, 'outside-sentinel');
 		writeFileSync(sentinel, 'must survive', 'utf8');
 		for (const value of ['/absolute/diff', '..', '.', '', repoRoot, '/Users/example']) {
-			expect(
-				() => parseQaPacketDiffArguments(['qa-packet/a', 'qa-packet/b', '--out', value], 8),
-				value,
-			).toThrow('unknown argument --out');
+			expect(() => parseQaPacketDiffArguments(['qa-packet/a', 'qa-packet/b', '--out', value], 8), value).toThrow(
+				'unknown argument --out',
+			);
 			expect(readFileSync(sentinel, 'utf8'), value).toBe('must survive');
 		}
 	});

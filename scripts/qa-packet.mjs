@@ -118,9 +118,7 @@ function discoverRoutes(buildDirectory) {
 			routes.push(segments.length === 0 ? '/' : `/${segments.join('/')}`);
 		}
 
-		for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
-			a.name.localeCompare(b.name),
-		)) {
+		for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
 			if (!entry.isDirectory()) continue;
 			if (entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
 			walk(path.join(directory, entry.name), [...segments, entry.name]);
@@ -128,7 +126,8 @@ function discoverRoutes(buildDirectory) {
 	}
 
 	walk(buildDirectory, []);
-	if (routes.length === 0) throw new Error(`qa-packet: no prerendered route with an index.html under ${buildDirectory}`);
+	if (routes.length === 0)
+		throw new Error(`qa-packet: no prerendered route with an index.html under ${buildDirectory}`);
 	return routes.sort((a, b) => a.localeCompare(b));
 }
 
@@ -345,7 +344,7 @@ function collectReceipt(options) {
 	let unitTotals = { files: 0, total: 0, passed: 0, failed: 0, skipped: 0, source: 'not captured' };
 	// vitest colours its summary, and Bazel keeps the escape codes in the test log.
 	const testLog = readIfPresent(path.join(REPO_ROOT, 'bazel-testlogs/unit_tests/test.log')).replace(
-		/\u001B\[[0-9;]*m/gu,
+		/^[\[[0-9;]*m/gu,
 		'',
 	);
 	const countIn = (segment, label) => Number((segment.match(new RegExp(`(\\d+) ${label}`, 'u')) ?? ['', '0'])[1]);
