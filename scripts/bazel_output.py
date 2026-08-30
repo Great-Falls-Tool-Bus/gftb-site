@@ -71,20 +71,6 @@ def resolve_materialize_destination(manifest_path: Path, destination: Path) -> P
     return candidate
 
 
-def _make_owner_writable(root: Path) -> None:
-    for current, directories, files in os.walk(root):
-        current_path = Path(current)
-        current_path.chmod(current_path.stat().st_mode | stat.S_IWUSR | stat.S_IXUSR)
-        for name in directories:
-            path = current_path / name
-            if not path.is_symlink():
-                path.chmod(path.stat().st_mode | stat.S_IWUSR | stat.S_IXUSR)
-        for name in files:
-            path = current_path / name
-            if not path.is_symlink():
-                path.chmod(path.stat().st_mode | stat.S_IWUSR)
-
-
 def _materialization_residue_prefixes(destination: Path) -> tuple[str, str, str]:
     return (
         f".{destination.name}.previous-",
@@ -325,7 +311,6 @@ def _delete_cleanup_entries(
             held_metadata = os.fstat(entry.directory_fd)
             _assert_inode_identity(held_metadata, _inode_identity(entry.metadata), entry.name)
             _assert_same_mount(expected_mount, _mount_identity(entry.directory_fd, held_metadata), entry.name)
-            os.fchmod(entry.directory_fd, held_metadata.st_mode | stat.S_IWUSR | stat.S_IXUSR)
             _delete_cleanup_entries(entry.directory_fd, entry.children, expected_mount)
             if os.listdir(entry.directory_fd):
                 raise OutputError(f"held cleanup directory did not become empty: {entry.name}")
@@ -484,24 +469,43 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
                 transaction_identity,
                 transaction_mount,
             )
-            _make_owner_writable(stage)
-            if not (stage / required_path).is_file():
-                raise OutputError(f"staged output is missing required file {required_path}")
+            try:
+                named_stage_metadata = os.stat("stage", dir_fd=transaction_fd, follow_symlinks=False)
+            except OSError as error:
+                raise OutputError(f"cannot inspect staged output without following links: {error}") from error
+            if not stat.S_ISDIR(named_stage_metadata.st_mode):
+                raise OutputError("staged output is not a directory")
+            stage_fd = _open_custodied_directory(transaction_fd, "stage", named_stage_metadata)
+            try:
+                held_stage_metadata = os.fstat(stage_fd)
+                stage_identity = _inode_identity(held_stage_metadata)
+                stage_mount = _mount_identity(stage_fd, held_stage_metadata)
+                _assert_same_mount(transaction_mount, stage_mount, "stage")
+                if not (stage / required_path).is_file():
+                    raise OutputError(f"staged output is missing required file {required_path}")
 
-            if _entry_exists_at(parent_fd, destination.name):
+                if _entry_exists_at(parent_fd, destination.name):
+                    os.replace(
+                        destination.name,
+                        "previous",
+                        src_dir_fd=parent_fd,
+                        dst_dir_fd=transaction_fd,
+                    )
+                    moved_destination = True
+
+                named_stage_metadata = os.stat("stage", dir_fd=transaction_fd, follow_symlinks=False)
+                _assert_inode_identity(named_stage_metadata, stage_identity, "stage")
+                held_stage_metadata = os.fstat(stage_fd)
+                _assert_inode_identity(held_stage_metadata, stage_identity, "stage")
+                _assert_same_mount(transaction_mount, _mount_identity(stage_fd, held_stage_metadata), "stage")
                 os.replace(
+                    "stage",
                     destination.name,
-                    "previous",
-                    src_dir_fd=parent_fd,
-                    dst_dir_fd=transaction_fd,
+                    src_dir_fd=transaction_fd,
+                    dst_dir_fd=parent_fd,
                 )
-                moved_destination = True
-            os.replace(
-                "stage",
-                destination.name,
-                src_dir_fd=transaction_fd,
-                dst_dir_fd=parent_fd,
-            )
+            finally:
+                os.close(stage_fd)
         except BaseException:
             if moved_destination:
                 try:

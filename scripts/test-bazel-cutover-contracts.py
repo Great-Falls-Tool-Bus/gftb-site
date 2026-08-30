@@ -273,9 +273,58 @@ class StaticOutputTests(unittest.TestCase):
                 os.close(transaction_fd)
                 os.close(parent_fd)
 
-    def test_materialization_cleanup_has_no_path_recursive_delete(self) -> None:
+    def test_materialization_cleanup_has_no_path_recursive_mutation(self) -> None:
         implementation = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
-        self.assertNotIn("shutil.rmtree", implementation)
+        for forbidden in ("shutil.rmtree", "_make_owner_writable", "os.walk(", ".chmod(", "os.fchmod("):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, implementation)
+
+    def test_swapped_stage_symlink_preserves_external_sentinel(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            external = root / "external"
+            displaced_stage = root / "displaced-stage"
+            source.mkdir(parents=True)
+            destination.mkdir()
+            external.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            (destination / "stale.txt").write_text("old", encoding="utf-8")
+            sentinel = external / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            original_copytree = bazel_output.shutil.copytree
+
+            def copy_then_swap_stage(
+                source_path: str | os.PathLike[str],
+                destination_path: str | os.PathLike[str],
+                *,
+                symlinks: bool = False,
+            ) -> str | os.PathLike[str]:
+                copied = original_copytree(source_path, destination_path, symlinks=symlinks)
+                Path(destination_path).rename(displaced_stage)
+                Path(destination_path).symlink_to(external, target_is_directory=True)
+                return copied
+
+            with mock.patch("bazel_output.shutil.copytree", side_effect=copy_then_swap_stage):
+                with self.assertRaises(OutputError):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+            self.assertEqual((destination / "stale.txt").read_text(encoding="utf-8"), "old")
+            self.assertEqual((displaced_stage / "index.html").read_text(encoding="utf-8"), "new")
+            self.assertEqual(
+                [
+                    child.name
+                    for child in root.iterdir()
+                    if child.name.startswith(
+                        (".build.previous-", ".build.materialize-", ".build.transaction-")
+                    )
+                ],
+                [],
+            )
 
     def test_materialize_destination_is_one_allowlisted_manifest_child(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
