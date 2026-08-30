@@ -9,14 +9,15 @@
 	// page — until the operator reviews and merges.
 	//
 	// Retention PERIODS are spec §14 item 4, an explicit future human
-	// ratification (routed to sitting #3, spec/sitting-3-packet-2026-09.md
-	// Item 1 — STUB, no input document landed as of 2026-08-29). The S6.1
-	// conflict note (member-v0-executable-slices-2026-08-18.md §6.1) rules
-	// this exact tension: ship the privacy/retention copy the phase list
-	// requires, but state truthfully that periods are not yet set rather
-	// than inventing or defaulting a number. Every OPERATOR-VALUE marker
-	// below is a TODO(jess) slot for that ratification, not a placeholder to
-	// "fill in with something reasonable."
+	// ratification. ADR 0016 routes them to sitting #3; its packet Item 1 is
+	// a STUB with no input, options, or recommendation as of 2026-08-29.
+	// Section 6.1 of member-v0-executable-slices-2026-08-18.md offers
+	// "retention periods are not yet set" only as a Recommended resolution
+	// in a pre-staged design, with Jess as resolver; it is not ratification.
+	// The operator must either ratify that interim wording, supply the exact
+	// periods, or wait for sitting #3. Do not invent or default a number.
+	// Every OPERATOR-VALUE marker below remains a TODO(jess) slot, not a
+	// placeholder to "fill in with something reasonable."
 </script>
 
 <div class="page-shell">
