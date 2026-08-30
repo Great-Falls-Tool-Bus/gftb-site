@@ -57,7 +57,7 @@ is not public.
   provenance line so an encoder patch bump is not a false failure. The unit
   suite separately decodes the payload.
 - `just qa-packet [port]` produces the reviewable QA evidence packet for one
-  build under `qa-packet/<sha>/` (git-ignored): every top-level route at the
+  build under `qa-packet/<sha>/` (git-ignored): every prerendered route at the
   spec §3 widths, in both colour schemes, at 200% zoom, with reduced motion, and
   with keyboard focus on the primary call to action and the contact submit, plus
   an `INDEX.md` receipt of what `build`, `check`, the unit suite, the browser
@@ -65,8 +65,13 @@ is not public.
   itself and stands up its own preview on its own port, so a packet always
   describes one tree. `just qa-packet-diff <baseline> <candidate>` produces
   per-image pixel diffs and a `DIFF.md`. `INDEX.md` and `manifest.json` are
-  leak-scanned with the same rules as the published build. Neither recipe is a
-  CI gate. Operator guide: `docs/qa-packet.md`.
+  leak-scanned with the same rules as the published build. The output is fixed
+  under `qa-packet/<40-lowercase-hex-sha>`; arbitrary output roots are rejected
+  and an existing packet is never deleted or replaced. Pull requests run
+  `qa-packet` in the exact-head `qa-look` job and upload that packet for human
+  review; `qa-packet-diff` accepts only two fixed packet roots and derives a
+  non-replacing output under `qa-packet/diff/`. Operator guide:
+  `docs/qa-packet.md`.
 - `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
   built artefact. `scripts/check-build-output.mjs` is a thin runner over
   `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`

@@ -21,6 +21,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 
 STATIC_ROLES = {"static-spoke", "static-spoke-scaffold"}
+MATERIALIZED_OUTPUT_NAMES = frozenset({"build", "coverage", "build-stamped", ".svelte-kit", ".bundle-stats"})
 
 
 class OutputError(RuntimeError):
@@ -48,6 +49,27 @@ def adapter_contract(manifest_path: Path) -> AdapterContract:
 
 def _path_exists(path: Path) -> bool:
     return os.path.lexists(path)
+
+
+def resolve_materialize_destination(manifest_path: Path, destination: Path) -> Path:
+    """Return one allowlisted direct child of the manifest root, or fail before mutation."""
+
+    if destination.is_absolute():
+        raise OutputError(f"destination must be a lexical direct child of the manifest root: {destination}")
+    if len(destination.parts) != 1 or destination.name not in MATERIALIZED_OUTPUT_NAMES:
+        raise OutputError(
+            f"destination must be one exact generated-output name: {', '.join(sorted(MATERIALIZED_OUTPUT_NAMES))}"
+        )
+
+    manifest = manifest_path.resolve(strict=True)
+    root = manifest.parent
+    candidate = root / destination.name
+    resolved = candidate.resolve(strict=False)
+    if candidate == root or resolved.parent != root or resolved.name != destination.name:
+        raise OutputError(f"destination resolves outside the manifest root: {destination}")
+    if candidate.is_symlink():
+        raise OutputError(f"destination must not be a symlink: {destination}")
+    return candidate
 
 
 def _remove_path(path: Path) -> None:
@@ -93,9 +115,9 @@ def recover_interrupted_materialization(destination: Path) -> None:
         _remove_path(backup)
 
 
-def materialize_tree(source: Path, destination: Path, required_path: Path) -> None:
+def materialize_tree(source: Path, destination: Path, required_path: Path, manifest_path: Path) -> None:
+    destination = resolve_materialize_destination(manifest_path, destination)
     source = source.resolve(strict=True)
-    destination = destination.absolute()
     required_path = Path(required_path)
 
     if not source.is_dir():
@@ -300,7 +322,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "materialize":
             contract = adapter_contract(args.manifest)
             required_path = args.required_path or contract.required_entrypoint
-            materialize_tree(args.source, args.destination, required_path)
+            materialize_tree(args.source, args.destination, required_path, args.manifest)
             print(f"materialized {args.source} -> {args.destination} ({required_path})")
             return 0
 

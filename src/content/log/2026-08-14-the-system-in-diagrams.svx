@@ -1,51 +1,30 @@
 ---
 date: '2026-08-14'
-title: 'The system, in diagrams'
-summary: 'Five working diagrams of how membership and tools actually fit together.'
+title: 'We laugh, we graph, we diagramming the system'
+summary: 'I love graphs almost as much as I love email'
 tags:
   - diagrams
-published: false
+  - ricing
+published: true
 ---
 
-<!-- TODO(jess): source = diagrams/launch-member-v0/*.mmd via the private
-     meta repo, rendered SVGs embedded unmodified (swept for private info:
-     clean). Colors are the ratified CityLink palette pulled from the bus's
-     own livery. Two of the five source diagrams (release-proof-flow,
-     launch-authority-flow) carry internal-operations text — ticket/SLA
-     references and infra topology — in their original form, so those two
-     stay internal-only; simplified public variants of the same two
-     (release-proof-flow-public, launch-authority-flow-public: same
-     palette, internal tokens stripped, independently swept clean) stand
-     in below instead. Review and set published: true when this is your
-     voice. -->
+Three diagrams are shown below.
 
-<!-- TODO(jess): on publish: git mv the SVGs from
-     src/content/log/_assets-pending/launch-member-v0/ to
-     static/diagrams/launch-member-v0/, then flip published: true. The
-     <img> srcs below already point at the post-publish static/ path. -->
+These diagrams show the planned release, authority, and inventory-custody flow; they do not claim the system is deployed or public.
 
-<!-- TODO(jess): photo — drop into static/photos/log/the-system-in-diagrams.<ext>, then an image reference with a one-line credit -->
+***Colors have been attempted to recycle the CityLink pallete oWo***
 
-Five working diagrams of how this project fits together, straight from the project's own planning docs. Colors are the same CityLink yellow, purple, and cream the site itself uses, pulled from the bus's own livery.
 
-Three are posted unedited. Two others, covering how a release gets proven safe and who decides what, carry internal-only detail in their original form, so simplified public versions stand in for those instead; the originals stay internal.
 
-**How someone becomes a member**, from application through to active (or not).
-
-<img src="/diagrams/launch-member-v0/member-lifecycle.svg" alt="Member lifecycle: submit application, verify email, keyholder claims and tours, one keyholder decides, then assent leads to active, paused, left, or removed." />
-
-**What happens after you're active.** Contributions and other extras stay optional, and separate from membership itself.
-
-<img src="/diagrams/launch-member-v0/member-projection-flow.svg" alt="Member projection flow: active membership branches into an optional contribution offer (no contribution, cash or check, or Stripe when live gates pass) and an optional projection queue for mailing list and mailbox, none of which change membership." />
-
-**How a tool moves** from the shelf to your hands and back.
+**How tool moves** 
 
 <img src="/diagrams/launch-member-v0/inventory-custody-flow.svg" alt="Inventory custody flow: scan a tool, check its availability and condition, finalize a loan, then scan it back in, inspect it, and route it to available or quarantine." />
 
-**How a change gets safely onto the site.** Reviewed, built, checked twice, deployed, then confirmed actually serving before it's called done, with a rollback path if something's wrong.
+**How a change gets safely onto the site.** Reviewed, built, checked twice, deployed  :-)
 
 <img src="/diagrams/launch-member-v0/release-proof-flow-public.svg" alt="Release proof flow: reviewed by another person, built into a release, checked twice (automated tests, then a human check), deployed to the site, confirmed actually serving and not just deployed, then recorded as done; if something's wrong, rolled back to the last working version instead." />
 
-**Who decides what.** Different kinds of decisions go to different people, on purpose.
+
+Descision flow:
 
 <img src="/diagrams/launch-member-v0/launch-authority-flow-public.svg" alt="Launch authority flow: members' personal facts stay private; applications to join go to keyholders, who decide on admission; money and payments are handled separately from membership decisions; releases of the site get the operator's sign-off." />

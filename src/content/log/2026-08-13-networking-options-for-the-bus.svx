@@ -1,26 +1,21 @@
 ---
 date: '2026-08-13'
-title: 'Sizing up networking options for the bus'
-summary: 'Working hours set for the bus, and a first pass at how to get it connected.'
+title: 'Sizing up networkies for the bus'
+summary: 'Working hours set for the bus and whimsying around for a ping'
 tags:
   - infrastructure
-published: false
+published: true
 ---
 
-<!-- TODO(jess): source = operator email of 2026-08-13, converted
-     2026-08-21, redactions applied per steering/naming-consent.md. Review
-     and set published: true when this is your voice. -->
+Heading to the bus once the rain clears. 
 
-Heading to the bus once the rain clears. Quick note on hours and
-networking.
 
-<!-- TODO(jess): photo — drop into static/photos/log/networking-options-for-the-bus.<ext>, then an image reference with a one-line credit -->
 
-- Set tentative regular working sessions at the site.
+OK, post bus time, Quick notes on hours and networking:
+
+- I (Jess, supreme overload tiny, queen of the abyss) am generally working onsite on the bus Friday Afternoons ~3pm-5pm.  Find me there.  Otherwise I'm holed up cooking BS TS.
 - Checking in on where the lease and entity work stand.
-- Want to get networking routed to the bus.
-- Scoping connectivity options for the site, still narrowing down the
-  simplest low-cost path.
-- Other options on the table: wireless point-to-point or fiber,
-  piggybacking on an existing uplink. Both add complexity, so saved for
-  later.
+- We’re comparing a temporary wireless link with a longer-term wired connection.
+- Scoping radio interference issues with da SDR 
+- used screwdriver, used wrench
+- excited to turn the in bus benches into out of bus benches 

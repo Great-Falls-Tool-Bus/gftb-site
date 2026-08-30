@@ -8,7 +8,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bazel_output import adapter_contract, materialize_tree, preview_command
+from bazel_output import (
+    MATERIALIZED_OUTPUT_NAMES,
+    OutputError,
+    adapter_contract,
+    materialize_tree,
+    preview_command,
+    resolve_materialize_destination,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,13 +46,83 @@ class StaticOutputTests(unittest.TestCase):
             (destination / "stale.txt").write_text("old")
 
             contract = adapter_contract(manifest)
-            materialize_tree(source, destination, contract.required_entrypoint)
+            materialize_tree(source, Path("build"), contract.required_entrypoint, manifest)
             command, _ = preview_command(destination, contract, "127.0.0.1", 4173)
 
             self.assertEqual(contract.name, "adapter-static")
             self.assertTrue((destination / "index.html").is_file())
             self.assertFalse((destination / "stale.txt").exists())
             self.assertIn("serve-static", command)
+
+    def test_materialize_destination_is_one_allowlisted_manifest_child(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text("{}", encoding="utf-8")
+            for name in MATERIALIZED_OUTPUT_NAMES:
+                with self.subTest(name=name):
+                    self.assertEqual(resolve_materialize_destination(manifest, Path(name)), root / name)
+
+    def test_materialize_destination_rejects_escape_shapes_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            root.mkdir()
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text("{}", encoding="utf-8")
+            sentinel = container / "outside-sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            invalid = [
+                Path(""),
+                Path("."),
+                Path(".."),
+                Path("nested/build"),
+                Path("../build"),
+                root,
+                root.parent / "outside-build",
+                Path("/Users/example"),
+                Path("not-allowlisted"),
+            ]
+            for destination in invalid:
+                with self.subTest(destination=destination):
+                    with self.assertRaises(OutputError):
+                        resolve_materialize_destination(manifest, destination)
+                    self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_materialize_destination_rejects_symlink_escape_and_preserves_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            outside = container / "outside"
+            root.mkdir()
+            outside.mkdir()
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text("{}", encoding="utf-8")
+            sentinel = outside / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            (root / "build").symlink_to(outside, target_is_directory=True)
+
+            with self.assertRaises(OutputError):
+                resolve_materialize_destination(manifest, Path("build"))
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_invalid_destination_fails_before_materialization_and_preserves_outside_sentinel(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            source = root / "bazel-bin" / "build"
+            manifest = root / "tinyland.repo.json"
+            outside = container / "outside"
+            sentinel = outside / "sentinel"
+            source.mkdir(parents=True)
+            outside.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            sentinel.write_text("must survive", encoding="utf-8")
+
+            with self.assertRaises(OutputError):
+                materialize_tree(source, outside, Path("index.html"), manifest)
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
 
 
 class RepositoryContractTests(unittest.TestCase):

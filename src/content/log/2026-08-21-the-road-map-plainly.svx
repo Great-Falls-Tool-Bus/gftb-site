@@ -1,7 +1,7 @@
 ---
 date: '2026-08-21'
-title: 'The road map, plainly'
-summary: 'What is done, what is built and waiting on words, and what comes next, as a sequence rather than a calendar.'
+title: 'Mapping MVP, V0 and beyond'
+summary: 'Hello'
 tags:
   - roadmap
 published: false
@@ -12,13 +12,7 @@ published: false
      internal target dates, per the operator's no-calendar-promises ruling.
      Review and set published: true when this is your voice. -->
 
-<!-- TODO(jess): photo — drop into static/photos/log/the-road-map-plainly.<ext>, then an image reference with a one-line credit -->
+- V0 membership MVP: apply, tour, decision, agreement, etc. flow.
 
-Where things actually stand, without calendar promises.
 
-- Built and deployed: the new site.
-- Built, tested, and not live yet: the whole membership system. Apply, tour, decision, agreement, active. It works. It's waiting on real wording before it goes out the door.
-- Next: harder real-world testing on a staging copy of the site.
-- After that: a small pilot letting real members check tools in and out with their phones, starting with about ten sewing tools.
-- Then: a pass focused on reliability, so nothing gets lost if something breaks.
-- No dates here on purpose. Each step ships when it's actually ready, not on a calendar.
+**What happens after you're active.** Contributions and other extras stay optional, and separate from membership itself.  

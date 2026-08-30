@@ -17,12 +17,18 @@
  * the directory listing is the finding) and a `DIFF.md` summary.
  */
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { chromium } from '@playwright/test';
+
+import {
+	parseQaPacketDiffArguments,
+	prepareDiffDirectory,
+	readFixedPacket,
+} from './lib/qa-packet-paths.mjs';
 
 /**
  * A pixel counts as changed when any channel moves by more than this. Zero would
@@ -32,34 +38,12 @@ import { chromium } from '@playwright/test';
  */
 const DEFAULT_CHANNEL_THRESHOLD = 8;
 
-function parseArguments(argv) {
-	const positional = [];
-	let threshold = DEFAULT_CHANNEL_THRESHOLD;
-	let out = '';
-	for (let index = 0; index < argv.length; index += 1) {
-		if (argv[index] === '--threshold') {
-			threshold = Number.parseInt(argv[index + 1], 10);
-			index += 1;
-		} else if (argv[index] === '--out') {
-			out = argv[index + 1];
-			index += 1;
-		} else {
-			positional.push(argv[index]);
-		}
-	}
-	if (positional.length !== 2) {
-		throw new Error('qa-packet-diff: expected <baseline-packet-dir> <candidate-packet-dir>');
-	}
-	if (!Number.isInteger(threshold) || threshold < 0 || threshold > 255) {
-		throw new Error('qa-packet-diff: --threshold must be an integer between 0 and 255');
-	}
-	return { baseline: positional[0], candidate: positional[1], threshold, out };
-}
-
-/** @param {string} directory */
-function readPacket(directory) {
-	const root = path.resolve(directory);
-	const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+/**
+ * @param {string} directory
+ * @param {string} repoRoot
+ */
+function readPacket(directory, repoRoot) {
+	const { root, manifest } = readFixedPacket(repoRoot, directory);
 	return { root, manifest, shots: new Map(manifest.shots.map((shot) => [shot.id, shot])) };
 }
 
@@ -206,20 +190,12 @@ function renderDiffMarkdown(summary) {
 }
 
 async function main() {
-	const options = parseArguments(process.argv.slice(2));
+	const options = parseQaPacketDiffArguments(process.argv.slice(2), DEFAULT_CHANNEL_THRESHOLD);
 	const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-	const baseline = readPacket(options.baseline);
-	const candidate = readPacket(options.candidate);
+	const baseline = readPacket(options.baseline, repoRoot);
+	const candidate = readPacket(options.candidate, repoRoot);
 
-	const outputDirectory = options.out
-		? path.resolve(repoRoot, options.out)
-		: path.resolve(
-				repoRoot,
-				'qa-packet/diff',
-				`${baseline.manifest.sha.slice(0, 12)}__${candidate.manifest.sha.slice(0, 12)}`,
-			);
-	rmSync(outputDirectory, { recursive: true, force: true });
-	mkdirSync(outputDirectory, { recursive: true });
+	const outputDirectory = prepareDiffDirectory(repoRoot, baseline.manifest.sha, candidate.manifest.sha);
 
 	const shared = [...baseline.shots.keys()].filter((id) => candidate.shots.has(id)).sort();
 	const onlyInBaseline = [...baseline.shots.keys()].filter((id) => !candidate.shots.has(id)).sort();

@@ -1,9 +1,9 @@
 # QA evidence packet
 
 `just qa-packet` produces the evidence a reviewer reads instead of re-running
-the acceptance suite by hand: every top-level route photographed at the
+the acceptance suite by hand: every prerendered route photographed at the
 acceptance widths (spec §3), plus a receipt saying what the gates reported for
-exactly those bytes.
+exactly those bytes. Pull requests run the same recipe in the `qa-look` job and upload `qa-packet/<head-sha>/` as the exact-head human-review carrier.
 
 ```bash
 just qa-packet            # captures on port 3355
@@ -26,8 +26,7 @@ listening: an evidence packet of somebody else's build is worse than no packet.
 4. The browser acceptance suite against that preview, through
    `playwright.qa-packet.config.ts`. That file is a thin variant of
    `playwright.config.ts` with the web server removed and the base URL taken
-   from the environment. **`playwright.config.ts` itself is never touched**, so
-   CI is unaffected.
+   from the environment. **`playwright.config.ts` itself is never touched**; the PR-only `qa-look` job invokes this dedicated packet recipe after the reusable CI succeeds.
 5. `scripts/qa-packet.mjs` — the screenshots, `manifest.json` and `INDEX.md`.
 6. Teardown. The recipe kills only the preview it started.
 
@@ -45,7 +44,9 @@ qa-packet/<40-character head sha>/
 ```
 
 `qa-packet/` is git-ignored. A packet is fully regenerable from a SHA, so it is
-evidence, not source.
+evidence, not source. The output root is fixed at `qa-packet/<40-lowercase-hex-sha>`;
+`--out` is rejected, and an existing packet fails closed instead of being deleted
+or replaced.
 
 ### The capture matrix
 
@@ -95,12 +96,14 @@ finding.
 
 ```bash
 just qa-packet-diff qa-packet/<baseline-sha> qa-packet/<candidate-sha>
-just qa-packet-diff /path/to/other-worktree/qa-packet/<sha> qa-packet/<sha>
 ```
 
-Either argument may live in another worktree, which is the usual case: capture
-the baseline from the branch point, capture the candidate from the head, and
-diff them.
+Both arguments must be exact packet roots under this checkout's
+`qa-packet/<40-lowercase-hex-sha>/`; arbitrary and cross-worktree roots are
+rejected before any image is read. Manifest shot IDs and paths are fixed too, so
+packet metadata cannot steer a read or diff write outside that root. The output is derived as
+`qa-packet/diff/<baseline-12hex>__<candidate-12hex>/` and an existing diff fails
+closed instead of being deleted or replaced.
 
 Output lands in `qa-packet/diff/<baseline-short>__<candidate-short>/` as one
 `<shot-id>.diff.png` per **changed** image plus a `DIFF.md` table sorted by

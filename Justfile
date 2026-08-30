@@ -270,8 +270,11 @@ leak-scan build_dir="build":
 
 # Repeatable QA evidence packet for one build, ready to paste into a review.
 #
-# NOT A CI GATE: no ci-templates job invokes it, and `qa-packet/` is git-ignored.
-# It is the reviewer/operator entrypoint, and it deliberately re-runs the gates
+# PR CI GATE: the repo-local `qa-look` job invokes this recipe at the exact
+# pull-request head and uploads `qa-packet/<sha>/` for the human LOOK. The
+# directory remains git-ignored. The recipe has no recursive deletion: output
+# is fixed to `qa-packet/<sha>` and an existing packet fails closed. This is also
+# the reviewer/operator entrypoint, and it deliberately re-runs the gates
 # rather than trusting a green tick from an earlier tree — the receipt in
 # INDEX.md has to describe the SAME bytes the screenshots were taken of.
 #
@@ -288,7 +291,17 @@ qa-packet port="3355":
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{ root }}
-    receipts="$(mktemp -d)"
+    receipts_parent="${TMPDIR:-/tmp}"
+    case "$receipts_parent" in
+      /*) ;;
+      *) echo "qa-packet: TMPDIR must be absolute" >&2; exit 1 ;;
+    esac
+    receipts="$(mktemp -d "${receipts_parent%/}/gftb-qa-receipts.XXXXXXXX")"
+    [[ -n "$receipts" && -d "$receipts" ]] || {
+      echo "qa-packet: mktemp did not create a receipts directory" >&2
+      exit 1
+    }
+    receipts_parent="$(dirname "$receipts")"
     preview_pid=""
     kill_tree() {
       local pid="$1" child
@@ -300,7 +313,12 @@ qa-packet port="3355":
         kill_tree "$preview_pid"
         wait "$preview_pid" 2>/dev/null || true
       fi
-      rm -rf "$receipts"
+      if [[ -z "$receipts" || ! -d "$receipts" || "$(dirname "$receipts")" != "$receipts_parent" || "$(basename "$receipts")" != gftb-qa-receipts.* ]]; then
+        echo "qa-packet: refusing unsafe receipts cleanup target" >&2
+        return 1
+      fi
+      rm -f -- "$receipts/build.log" "$receipts/check.log" "$receipts/preview.log" "$receipts/e2e.json"
+      rmdir -- "$receipts"
     }
     trap cleanup EXIT
 
@@ -349,8 +367,9 @@ _qa-packet-e2e port json: playwright-ensure
       pnpm exec playwright test --config playwright.qa-packet.config.ts --reporter=json
 
 # Per-image pixel diff between two packets produced by `just qa-packet`.
-# Both arguments are `qa-packet/<sha>` directories and may live in other
-# worktrees. The comparison runs inside the same pinned Chromium rather than
+# Both arguments must be exact `qa-packet/<40hex>` directories in this
+# checkout. Output is fixed under `qa-packet/diff/` and never replaces an
+# existing diff. The comparison runs inside the same pinned Chromium rather than
 # pulling `pixelmatch`/`pngjs` into package.json; see scripts/qa-packet-diff.mjs.
 qa-packet-diff baseline candidate *options:
     cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
