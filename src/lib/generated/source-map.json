@@ -6,6 +6,8 @@
 		"/": "src/routes/+page.svelte",
 		"/404": "src/routes/404/+page.svelte",
 		"/contact": "src/routes/contact/+page.svelte",
-		"/log": "src/routes/log/+page.svelte"
+		"/log": "src/routes/log/+page.svelte",
+		"/privacy": "src/routes/privacy/+page.svelte",
+		"/refund-policy": "src/routes/refund-policy/+page.svelte"
 	}
 }
