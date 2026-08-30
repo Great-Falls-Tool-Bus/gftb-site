@@ -57,8 +57,8 @@ jobs:
           packet="qa-packet/${EXPECTED_HEAD_SHA}"
           test -f "${packet}/INDEX.md"
           test -f "${packet}/manifest.json"
-          nix develop --command jq -e --arg sha "${EXPECTED_HEAD_SHA}" \
-            '.sha == $sha and .worktreeClean == true' "${packet}/manifest.json"
+          nix develop --command jq -e \
+            '(.sha == env.EXPECTED_HEAD_SHA) and (.worktreeClean == true)' "${packet}/manifest.json"
 
       - name: Upload exact-head LOOK carrier
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

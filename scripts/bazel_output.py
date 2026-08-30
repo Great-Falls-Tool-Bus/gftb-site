@@ -7,7 +7,6 @@ import argparse
 import functools
 import json
 import os
-import secrets
 import shlex
 import shutil
 import stat
@@ -72,15 +71,6 @@ def resolve_materialize_destination(manifest_path: Path, destination: Path) -> P
     return candidate
 
 
-def _remove_path(path: Path) -> None:
-    if not _path_exists(path):
-        return
-    if path.is_symlink() or path.is_file():
-        path.unlink()
-    else:
-        shutil.rmtree(path)
-
-
 def _make_owner_writable(root: Path) -> None:
     for current, directories, files in os.walk(root):
         current_path = Path(current)
@@ -95,24 +85,59 @@ def _make_owner_writable(root: Path) -> None:
                 path.chmod(path.stat().st_mode | stat.S_IWUSR)
 
 
-def _previous_outputs(destination: Path) -> list[Path]:
-    return sorted(
-        destination.parent.glob(f".{destination.name}.previous-*"),
-        key=lambda path: path.stat().st_mtime_ns,
+def _materialization_residue_prefixes(destination: Path) -> tuple[str, str, str]:
+    return (
+        f".{destination.name}.previous-",
+        f".{destination.name}.materialize-",
+        f".{destination.name}.transaction-",
     )
 
 
-def recover_interrupted_materialization(destination: Path) -> None:
-    """Restore or clear backups left by an uncatchable interruption."""
+def _assert_no_materialization_residue(destination: Path) -> None:
+    prefixes = _materialization_residue_prefixes(destination)
+    try:
+        residues = sorted(
+            child.name
+            for child in destination.parent.iterdir()
+            if any(child.name.startswith(prefix) for prefix in prefixes)
+        )
+    except OSError as error:
+        raise OutputError(f"cannot inspect materialization residue beside {destination}: {error}") from error
+    if residues:
+        raise OutputError(
+            "pre-existing materialization residue must be inspected manually and was left untouched: "
+            + ", ".join(residues)
+        )
 
-    destination = destination.absolute()
-    backups = _previous_outputs(destination)
-    if not backups:
+
+def _remove_owned_transaction(
+    transaction: Path,
+    destination_parent: Path,
+    expected_prefix: str,
+    expected_identity: tuple[int, int],
+) -> None:
+    if not _path_exists(transaction):
         return
-    if not _path_exists(destination):
-        os.replace(backups.pop(), destination)
-    for backup in backups:
-        _remove_path(backup)
+    if (
+        not transaction.name
+        or transaction == Path(transaction.anchor)
+        or transaction.parent != destination_parent
+        or not transaction.name.startswith(expected_prefix)
+        or len(transaction.name) <= len(expected_prefix)
+    ):
+        raise OutputError(f"refusing to remove an invalid materialization transaction path: {transaction}")
+    try:
+        metadata = transaction.lstat()
+    except OSError as error:
+        raise OutputError(f"cannot inspect materialization transaction {transaction}: {error}") from error
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise OutputError(f"refusing to remove a non-directory materialization transaction: {transaction}")
+    if (metadata.st_dev, metadata.st_ino) != expected_identity:
+        raise OutputError(f"refusing to remove a replaced materialization transaction: {transaction}")
+    try:
+        shutil.rmtree(transaction)
+    except OSError as error:
+        raise OutputError(f"cannot remove owned materialization transaction {transaction}: {error}") from error
 
 
 def materialize_tree(source: Path, destination: Path, required_path: Path, manifest_path: Path) -> None:
@@ -128,35 +153,53 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
         raise OutputError(f"Bazel output {source} is missing required file {required_path}")
 
     destination_parent = destination.parent
-    destination_parent.mkdir(parents=True, exist_ok=True)
-    recover_interrupted_materialization(destination)
+    _assert_no_materialization_residue(destination)
     destination_resolved = destination.resolve(strict=False)
     if destination_resolved == source or destination_resolved.is_relative_to(source):
         raise OutputError("destination must not be the Bazel output or one of its children")
 
-    stage = Path(tempfile.mkdtemp(prefix=f".{destination.name}.materialize-", dir=destination_parent))
-    backup = destination_parent / f".{destination.name}.previous-{os.getpid()}-{secrets.token_hex(6)}"
+    transaction_prefix = f".{destination.name}.transaction-"
+    transaction = Path(tempfile.mkdtemp(prefix=transaction_prefix, dir=destination_parent))
+    transaction_metadata = transaction.lstat()
+    transaction_identity = (transaction_metadata.st_dev, transaction_metadata.st_ino)
+    stage = transaction / "stage"
+    previous = transaction / "previous"
     moved_destination = False
+    cleanup_transaction = True
 
     try:
-        shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=False)
+        shutil.copytree(source, stage, symlinks=False)
         _make_owner_writable(stage)
         if not (stage / required_path).is_file():
             raise OutputError(f"staged output is missing required file {required_path}")
 
         if _path_exists(destination):
-            os.replace(destination, backup)
+            os.replace(destination, previous)
             moved_destination = True
         os.replace(stage, destination)
     except BaseException:
-        if moved_destination and not _path_exists(destination) and _path_exists(backup):
-            os.replace(backup, destination)
+        if moved_destination:
+            try:
+                if _path_exists(destination):
+                    raise OutputError(f"cannot roll back {destination}: destination path reappeared")
+                if not _path_exists(previous):
+                    raise OutputError(f"cannot roll back {destination}: previous output is missing")
+                os.replace(previous, destination)
+                moved_destination = False
+            except BaseException as rollback_error:
+                cleanup_transaction = False
+                raise OutputError(
+                    f"materialization rollback failed; owned transaction {transaction.name} was left untouched"
+                ) from rollback_error
         raise
     finally:
-        _remove_path(stage)
-        if _path_exists(destination):
-            _remove_path(backup)
-
+        if cleanup_transaction:
+            _remove_owned_transaction(
+                transaction,
+                destination_parent,
+                transaction_prefix,
+                transaction_identity,
+            )
 
 def _normalize_base_path(value: str) -> str:
     if not value or value == "/":

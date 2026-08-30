@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from bazel_output import (
@@ -53,6 +55,99 @@ class StaticOutputTests(unittest.TestCase):
             self.assertTrue((destination / "index.html").is_file())
             self.assertFalse((destination / "stale.txt").exists())
             self.assertIn("serve-static", command)
+            self.assertEqual(
+                [
+                    child.name
+                    for child in root.iterdir()
+                    if child.name.startswith(
+                        (".build.previous-", ".build.materialize-", ".build.transaction-")
+                    )
+                ],
+                [],
+            )
+
+    def _assert_preexisting_residue_is_preserved(self, residue_name: str, *, symlink: bool = False) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest = root / "tinyland.repo.json"
+            source.mkdir(parents=True)
+            destination.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            (destination / "stale.txt").write_text("old", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+
+            residue = root / residue_name
+            if symlink:
+                residue_target = container / "residue-target"
+                residue_target.mkdir()
+                sentinel = residue_target / "sentinel"
+                sentinel.write_text("must survive", encoding="utf-8")
+                residue.symlink_to(residue_target, target_is_directory=True)
+            else:
+                residue.mkdir()
+                sentinel = residue / "sentinel"
+                sentinel.write_text("must survive", encoding="utf-8")
+
+            with self.assertRaisesRegex(OutputError, "pre-existing materialization residue"):
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual((destination / "stale.txt").read_text(encoding="utf-8"), "old")
+            self.assertFalse((destination / "index.html").exists())
+            self.assertTrue(residue.is_symlink() if symlink else residue.is_dir())
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_preexisting_legacy_previous_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.previous-hostile")
+
+    def test_preexisting_legacy_stage_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.materialize-hostile")
+
+    def test_preexisting_current_transaction_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.transaction-hostile")
+
+    def test_preexisting_symlink_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.transaction-symlink", symlink=True)
+
+    def test_materialization_rolls_back_destination_inside_owned_transaction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            source.mkdir(parents=True)
+            destination.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            (destination / "stale.txt").write_text("old", encoding="utf-8")
+            original_replace = os.replace
+
+            def replace_with_failed_publish(
+                source_path: str | os.PathLike[str],
+                destination_path: str | os.PathLike[str],
+            ) -> None:
+                if Path(source_path).name == "stage" and Path(destination_path) == destination:
+                    raise OSError("simulated publish failure")
+                original_replace(source_path, destination_path)
+
+            with mock.patch("bazel_output.os.replace", side_effect=replace_with_failed_publish):
+                with self.assertRaisesRegex(OSError, "simulated publish failure"):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual((destination / "stale.txt").read_text(encoding="utf-8"), "old")
+            self.assertFalse((destination / "index.html").exists())
+            self.assertEqual(
+                [
+                    child.name
+                    for child in root.iterdir()
+                    if child.name.startswith(
+                        (".build.previous-", ".build.materialize-", ".build.transaction-")
+                    )
+                ],
+                [],
+            )
 
     def test_materialize_destination_is_one_allowlisted_manifest_child(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

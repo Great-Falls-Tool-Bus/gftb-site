@@ -9,7 +9,7 @@ published: true
 
 
 Continued minutes w. Mx. A.;
-- each tool gets its own ID (see code relating to too cells, tool, its docs / data +< accutriments) 
+- each tool gets its own ID (see code relating to too cells, tool, its docs / data +&lt; accutriments) 
 - Check one out by scanning it with your phone. Log the kit and its condition, and it's yours for a week be default.
 - Photos or location details will be opt-in.
 - Only one person borrows a tool at a time. No double-booking please.
