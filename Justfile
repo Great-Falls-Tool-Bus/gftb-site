@@ -369,10 +369,17 @@ qa-packet port="3355":
       {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
     fi
 
-    node scripts/qa-packet.mjs --port {{ port }} \
-      --build-log "$receipts/build.log" \
-      --check-log "$receipts/check.log" \
+"    capture_args=(
+      --port {{ port }}
+      --build-log "$receipts/build.log"
+      --check-log "$receipts/check.log"
       --e2e-json "$receipts/e2e.json"
+    )
+    if command -v nix >/dev/null 2>&1; then
+      nix develop .#playwright --command node scripts/qa-packet.mjs "${capture_args[@]}"
+    else
+      node scripts/qa-packet.mjs "${capture_args[@]}"
+    fi"
 
     if [[ "$check_status" != "0" || "$e2e_status" != "0" ]]; then
       echo "qa-packet: the packet was captured, but a gate failed (check exit $check_status, acceptance suite exit $e2e_status)" >&2
