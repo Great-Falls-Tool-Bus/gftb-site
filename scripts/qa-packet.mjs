@@ -344,7 +344,7 @@ function collectReceipt(options) {
 	let unitTotals = { files: 0, total: 0, passed: 0, failed: 0, skipped: 0, source: 'not captured' };
 	// vitest colours its summary, and Bazel keeps the escape codes in the test log.
 	const testLog = readIfPresent(path.join(REPO_ROOT, 'bazel-testlogs/unit_tests/test.log')).replace(
-		/^[\[[0-9;]*m/gu,
+		/\u001B\[[0-9;]*m/gu,
 		'',
 	);
 	const countIn = (segment, label) => Number((segment.match(new RegExp(`(\\d+) ${label}`, 'u')) ?? ['', '0'])[1]);
