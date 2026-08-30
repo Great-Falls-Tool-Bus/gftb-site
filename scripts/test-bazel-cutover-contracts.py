@@ -7,9 +7,10 @@ import json
 import os
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
+import bazel_output
 from bazel_output import (
     MATERIALIZED_OUTPUT_NAMES,
     OutputError,
@@ -66,7 +67,13 @@ class StaticOutputTests(unittest.TestCase):
                 [],
             )
 
-    def _assert_preexisting_residue_is_preserved(self, residue_name: str, *, symlink: bool = False) -> None:
+    def _assert_preexisting_residue_is_preserved(
+        self,
+        residue_name: str,
+        *,
+        symlink: bool = False,
+        regular_file: bool = False,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             container = Path(temporary)
             root = container / "repo"
@@ -86,6 +93,9 @@ class StaticOutputTests(unittest.TestCase):
                 sentinel = residue_target / "sentinel"
                 sentinel.write_text("must survive", encoding="utf-8")
                 residue.symlink_to(residue_target, target_is_directory=True)
+            elif regular_file:
+                residue.write_text("must survive", encoding="utf-8")
+                sentinel = residue
             else:
                 residue.mkdir()
                 sentinel = residue / "sentinel"
@@ -96,7 +106,12 @@ class StaticOutputTests(unittest.TestCase):
 
             self.assertEqual((destination / "stale.txt").read_text(encoding="utf-8"), "old")
             self.assertFalse((destination / "index.html").exists())
-            self.assertTrue(residue.is_symlink() if symlink else residue.is_dir())
+            if symlink:
+                self.assertTrue(residue.is_symlink())
+            elif regular_file:
+                self.assertTrue(residue.is_file())
+            else:
+                self.assertTrue(residue.is_dir())
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
 
     def test_preexisting_legacy_previous_residue_is_preserved(self) -> None:
@@ -110,6 +125,12 @@ class StaticOutputTests(unittest.TestCase):
 
     def test_preexisting_symlink_residue_is_preserved(self) -> None:
         self._assert_preexisting_residue_is_preserved(".build.transaction-symlink", symlink=True)
+
+    def test_preexisting_regular_file_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(
+            ".build.transaction-regular-file",
+            regular_file=True,
+        )
 
     def test_materialization_rolls_back_destination_inside_owned_transaction(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -127,10 +148,18 @@ class StaticOutputTests(unittest.TestCase):
             def replace_with_failed_publish(
                 source_path: str | os.PathLike[str],
                 destination_path: str | os.PathLike[str],
+                *,
+                src_dir_fd: int | None = None,
+                dst_dir_fd: int | None = None,
             ) -> None:
-                if Path(source_path).name == "stage" and Path(destination_path) == destination:
+                if source_path == "stage" and destination_path == destination.name:
                     raise OSError("simulated publish failure")
-                original_replace(source_path, destination_path)
+                original_replace(
+                    source_path,
+                    destination_path,
+                    src_dir_fd=src_dir_fd,
+                    dst_dir_fd=dst_dir_fd,
+                )
 
             with mock.patch("bazel_output.os.replace", side_effect=replace_with_failed_publish):
                 with self.assertRaisesRegex(OSError, "simulated publish failure"):
@@ -148,6 +177,105 @@ class StaticOutputTests(unittest.TestCase):
                 ],
                 [],
             )
+
+    def test_mount_boundary_fails_before_any_recursive_deletion(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            transaction_name = ".build.transaction-held"
+            transaction = root / transaction_name
+            boundary = transaction / "previous" / "mounted"
+            boundary.mkdir(parents=True)
+            sentinel = boundary / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            parent_fd = os.open(root, bazel_output._directory_open_flags())
+            transaction_fd = os.open(
+                transaction_name,
+                bazel_output._directory_open_flags(),
+                dir_fd=parent_fd,
+            )
+            try:
+                transaction_metadata = os.fstat(transaction_fd)
+                transaction_identity = bazel_output._inode_identity(transaction_metadata)
+                boundary_identity = bazel_output._inode_identity(boundary.stat())
+                expected_mount = (transaction_metadata.st_dev, 101)
+
+                def mocked_mount_identity(
+                    _file_descriptor: int,
+                    metadata: os.stat_result,
+                ) -> tuple[int, int | None]:
+                    mount_id = 202 if bazel_output._inode_identity(metadata) == boundary_identity else 101
+                    return (metadata.st_dev, mount_id)
+
+                with (
+                    mock.patch("bazel_output._mount_identity", side_effect=mocked_mount_identity),
+                    mock.patch("bazel_output.os.unlink") as unlink,
+                    mock.patch("bazel_output.os.rmdir") as rmdir,
+                ):
+                    with self.assertRaisesRegex(OutputError, "mount boundary"):
+                        bazel_output._remove_owned_transaction(
+                            parent_fd,
+                            transaction_name,
+                            transaction_fd,
+                            ".build.transaction-",
+                            transaction_identity,
+                            expected_mount,
+                        )
+                    unlink.assert_not_called()
+                    rmdir.assert_not_called()
+
+                self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+                self.assertTrue(transaction.is_dir())
+            finally:
+                os.close(transaction_fd)
+                os.close(parent_fd)
+
+    def test_replaced_transaction_directory_is_preserved_without_deletion(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            transaction_name = ".build.transaction-held"
+            transaction = root / transaction_name
+            transaction.mkdir()
+            parent_fd = os.open(root, bazel_output._directory_open_flags())
+            transaction_fd = os.open(
+                transaction_name,
+                bazel_output._directory_open_flags(),
+                dir_fd=parent_fd,
+            )
+            try:
+                transaction_metadata = os.fstat(transaction_fd)
+                transaction_identity = bazel_output._inode_identity(transaction_metadata)
+                transaction_mount = bazel_output._mount_identity(transaction_fd, transaction_metadata)
+                displaced = root / "displaced-transaction"
+                transaction.rename(displaced)
+                transaction.mkdir()
+                sentinel = transaction / "sentinel"
+                sentinel.write_text("must survive", encoding="utf-8")
+
+                with (
+                    mock.patch("bazel_output.os.unlink") as unlink,
+                    mock.patch("bazel_output.os.rmdir") as rmdir,
+                ):
+                    with self.assertRaisesRegex(OutputError, "path was replaced"):
+                        bazel_output._remove_owned_transaction(
+                            parent_fd,
+                            transaction_name,
+                            transaction_fd,
+                            ".build.transaction-",
+                            transaction_identity,
+                            transaction_mount,
+                        )
+                    unlink.assert_not_called()
+                    rmdir.assert_not_called()
+
+                self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+                self.assertTrue(displaced.is_dir())
+            finally:
+                os.close(transaction_fd)
+                os.close(parent_fd)
+
+    def test_materialization_cleanup_has_no_path_recursive_delete(self) -> None:
+        implementation = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
+        self.assertNotIn("shutil.rmtree", implementation)
 
     def test_materialize_destination_is_one_allowlisted_manifest_child(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
