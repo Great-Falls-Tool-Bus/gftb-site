@@ -30,17 +30,65 @@ jobs:
       kvm_runner_class: tinyland-nix
     secrets: inherit
 
+  qa-look:
+    name: qa-look
+    if: github.event_name == 'pull_request'
+    needs: [ci]
+    runs-on: tinyland-nix
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build exact-head QA packet
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test -z "$(git status --porcelain)"
+          nix develop --command just qa-packet
+          packet="qa-packet/${EXPECTED_HEAD_SHA}"
+          test -f "${packet}/INDEX.md"
+          test -f "${packet}/manifest.json"
+          nix develop --command jq -e --arg sha "${EXPECTED_HEAD_SHA}" \
+            '.sha == $sha and .worktreeClean == true' "${packet}/manifest.json"
+
+      - name: Upload exact-head LOOK carrier
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gftb-site-qa-look-${{ github.event.pull_request.head.sha }}
+          path: qa-packet/${{ github.event.pull_request.head.sha }}/
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 14
+
   merge-gate:
     name: merge-gate
     if: always()
-    needs: [ci]
+    needs: [ci, qa-look]
     # TIN-3914: no GitHub-hosted runners in this org. `tinyland-nix` is served
     # here by the `great-falls-tool-bus-nix` ARC scale set; this repository is
     # on the `great-falls-tool-bus-infra` runner-group roster (TIN-3902).
     runs-on: tinyland-nix
     timeout-minutes: 5
     steps:
-      - name: Require complete reusable CI
+      - name: Require complete reusable CI and PR LOOK carrier
         env:
+          EVENT_NAME: ${{ github.event_name }}
           REUSABLE_CI_RESULT: ${{ needs.ci.result }}
-        run: test "$REUSABLE_CI_RESULT" = success
+          QA_LOOK_RESULT: ${{ needs.qa-look.result }}
+        run: |
+          set -euo pipefail
+          test "${REUSABLE_CI_RESULT}" = success
+          if [[ "${EVENT_NAME}" == pull_request ]]; then
+            test "${QA_LOOK_RESULT}" = success
+          else
+            test "${QA_LOOK_RESULT}" = skipped
+          fi
