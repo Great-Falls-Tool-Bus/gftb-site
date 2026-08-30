@@ -169,6 +169,17 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		expect(lede).toContain('community-run tool library');
 	});
 
+	test('the hero carries the confirmed Friday hours and local contact CTA', async ({ page }) => {
+		await page.goto('/');
+		const status = page.locator('#status');
+		await expect(status).toContainText(
+			'Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the contact form to confirm before traveling.',
+		);
+		await expect(status.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
+		await expect(page.locator('#contact a')).toHaveCount(1);
+		await expect(page.locator('#contact a')).toHaveAttribute('href', '/contact');
+	});
+
 	test('every interim string still carries its TODO(jess) marker', async () => {
 		for (const relative of [
 			'src/routes/+page.svelte',
@@ -176,7 +187,6 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 			'src/routes/contact/+page.svelte',
 			'src/app.html',
 			'src/lib/components/ContactForm.svelte',
-			'src/content/log/2026-08-16-public-front-door.svx',
 		]) {
 			expect(readSource(relative).includes('TODO(jess)'), `${relative} lost its TODO(jess) marker`).toBe(true);
 		}

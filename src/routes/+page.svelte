@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { publicLogs } from '$lib/public-logs';
 	import SourceLink from '$lib/components/SourceLink.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 	import type { PageData } from './$types';
 
@@ -131,6 +130,10 @@
 			     statement. -->
 			<h2 id="status-title">Current status</h2>
 			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
+			<p>
+				Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the
+				<a href="/contact">contact form</a> to confirm before traveling.
+			</p>
 			<p class="muted">Updates here describe completed work.</p>
 		</aside>
 	</div>
@@ -242,14 +245,7 @@
 	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="contact" aria-labelledby="contact-title">
 		<div class="section-heading">
 			<h2 id="contact-title">Contact and discussion</h2>
-			<p>
-				Reach a keyholder through the <a href="/contact">contact page</a>. For open project conversation, email
-				<a href="mailto:discuss@latoolb.us">discuss@latoolb.us</a>
-				or read the
-				<ExternalLink href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
-					>public discussion archive</ExternalLink
-				>.
-			</p>
+			<p>Reach a keyholder through the <a href="/contact">contact page</a>.</p>
 		</div>
 	</section>
 

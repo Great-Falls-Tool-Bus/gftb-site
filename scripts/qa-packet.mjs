@@ -3,7 +3,7 @@
  * `just qa-packet` — capture the repeatable QA evidence packet for one build.
  *
  * The packet is the artefact a reviewer reads instead of re-running the suite by
- * hand: every top-level route photographed at the acceptance widths, in both
+ * hand: every prerendered route photographed at the acceptance widths, in both
  * colour schemes, at 200% zoom, with reduced motion, and with real keyboard
  * focus on the two controls the acceptance rows single out — plus a receipt
  * saying what the gates reported for the same tree.
@@ -27,7 +27,7 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 import { REPO_ROOT, scanText } from './lib/leak-scan.mjs';
+import { parseQaPacketArguments, preparePacketDirectories } from './lib/qa-packet-paths.mjs';
 
 /** The acceptance widths (spec §3), in CSS pixels. 320 is the WCAG 1.4.10 reflow floor. */
 const NOMINAL_WIDTHS = [320, 375, 768, 1280];
@@ -58,8 +59,14 @@ const FOCUS_WIDTH = 1280;
 
 /** The two controls the acceptance rows name by hand. */
 const FOCUS_TARGETS = [
-	{ id: 'cta', description: 'primary call to action', role: 'link', name: 'Help build the bus' },
-	{ id: 'contact-submit', description: 'contact form submit', role: 'button', name: 'Send to keyholders' },
+	{ route: '/', id: 'cta', description: 'primary call to action', role: 'link', name: 'Help build the bus' },
+	{
+		route: '/contact',
+		id: 'contact-submit',
+		description: 'contact form submit',
+		role: 'button',
+		name: 'Send to keyholders',
+	},
 ];
 
 const VIEWPORT_HEIGHT = 900;
@@ -90,78 +97,38 @@ const HEAD_SHA_PLACEHOLDER = '<packet-head-sha>';
 const SETTLE_TIMEOUT_MS = 15_000;
 const SCREENSHOT_TIMEOUT_MS = 60_000;
 
-function parseArguments(argv) {
-	const options = {
-		port: 0,
-		out: 'qa-packet',
-		buildDir: 'build',
-		sha: '',
-		buildLog: '',
-		checkLog: '',
-		e2eJson: '',
-	};
-	for (let index = 0; index < argv.length; index += 1) {
-		const flag = argv[index];
-		const value = argv[index + 1];
-		switch (flag) {
-			case '--port':
-				options.port = Number.parseInt(value, 10);
-				index += 1;
-				break;
-			case '--out':
-				options.out = value;
-				index += 1;
-				break;
-			case '--build-dir':
-				options.buildDir = value;
-				index += 1;
-				break;
-			case '--sha':
-				options.sha = value;
-				index += 1;
-				break;
-			case '--build-log':
-				options.buildLog = value;
-				index += 1;
-				break;
-			case '--check-log':
-				options.checkLog = value;
-				index += 1;
-				break;
-			case '--e2e-json':
-				options.e2eJson = value;
-				index += 1;
-				break;
-			default:
-				throw new Error(`qa-packet: unknown argument ${flag}`);
-		}
-	}
-	if (!Number.isInteger(options.port) || options.port <= 0) {
-		throw new Error('qa-packet: --port is required and must be a positive integer');
-	}
-	return options;
-}
-
 /**
- * Top-level routes, read from the built tree rather than from a hand-kept list,
- * so a route added tomorrow is photographed without editing this file.
+ * Every prerendered route, read recursively from the built tree rather than
+ * from a hand-kept list. Nested log details therefore enter the LOOK packet
+ * automatically, while SvelteKit internals remain excluded.
  *
  * @param {string} buildDirectory
  * @returns {string[]}
  */
-function discoverTopLevelRoutes(buildDirectory) {
+function discoverRoutes(buildDirectory) {
 	const routes = [];
-	if (statSync(path.join(buildDirectory, 'index.html'), { throwIfNoEntry: false })?.isFile()) routes.push('/');
-	for (const entry of readdirSync(buildDirectory, { withFileTypes: true }).sort((a, b) =>
-		a.name.localeCompare(b.name),
-	)) {
-		if (!entry.isDirectory()) continue;
-		if (entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
-		const index = path.join(buildDirectory, entry.name, 'index.html');
-		if (statSync(index, { throwIfNoEntry: false })?.isFile()) routes.push(`/${entry.name}`);
+
+	/**
+	 * @param {string} directory
+	 * @param {string[]} segments
+	 */
+	function walk(directory, segments) {
+		const index = path.join(directory, 'index.html');
+		if (statSync(index, { throwIfNoEntry: false })?.isFile()) {
+			routes.push(segments.length === 0 ? '/' : `/${segments.join('/')}`);
+		}
+
+		for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+			if (!entry.isDirectory()) continue;
+			if (entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
+			walk(path.join(directory, entry.name), [...segments, entry.name]);
+		}
 	}
-	if (routes.length === 0) throw new Error(`qa-packet: no top-level route with an index.html under ${buildDirectory}`);
-	return routes;
+
+	walk(buildDirectory, []);
+	if (routes.length === 0)
+		throw new Error(`qa-packet: no prerendered route with an index.html under ${buildDirectory}`);
+	return routes.sort((a, b) => a.localeCompare(b));
 }
 
 /** @param {string} route */
@@ -219,7 +186,7 @@ function buildShotPlan(routes) {
 					note: `${width} CSS px under prefers-reduced-motion: reduce`,
 				});
 			}
-			for (const target of FOCUS_TARGETS) {
+			for (const target of FOCUS_TARGETS.filter((candidate) => candidate.route === route)) {
 				shots.push({
 					id: `${slug}__w${FOCUS_WIDTH}__${scheme}__focus-${target.id}`,
 					route,
@@ -496,7 +463,7 @@ function scanPacket(files, headSha) {
 }
 
 async function main() {
-	const options = parseArguments(process.argv.slice(2));
+	const options = parseQaPacketArguments(process.argv.slice(2));
 	const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 	const buildDirectory = path.resolve(repoRoot, options.buildDir);
 	const baseURL = `http://127.0.0.1:${options.port}`;
@@ -505,12 +472,9 @@ async function main() {
 	const worktreeClean =
 		execFileSync('git', ['status', '--porcelain'], { cwd: repoRoot, encoding: 'utf8' }).trim().length === 0;
 
-	const packetRoot = path.resolve(repoRoot, options.out, sha);
-	const shotsDirectory = path.join(packetRoot, 'shots');
-	rmSync(packetRoot, { recursive: true, force: true });
-	mkdirSync(shotsDirectory, { recursive: true });
+	const { packetRoot, shotsDirectory } = preparePacketDirectories(repoRoot, sha);
 
-	const routes = discoverTopLevelRoutes(buildDirectory);
+	const routes = discoverRoutes(buildDirectory);
 	const plan = buildShotPlan(routes);
 
 	const browser = await chromium.launch();
@@ -617,7 +581,11 @@ async function main() {
 			schemes: SCHEMES,
 			reducedMotionWidths: REDUCED_MOTION_WIDTHS,
 			focusWidth: FOCUS_WIDTH,
-			focusTargets: FOCUS_TARGETS.map((target) => ({ id: target.id, description: target.description })),
+			focusTargets: FOCUS_TARGETS.map((target) => ({
+				route: target.route,
+				id: target.id,
+				description: target.description,
+			})),
 		},
 		offOriginHostsBlocked: [...blockedHosts].sort(),
 		widgetStatesObserved: [...widgetStates].sort(),

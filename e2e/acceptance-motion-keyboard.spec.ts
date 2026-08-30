@@ -123,6 +123,7 @@ test.describe('keyboard operability', () => {
 
 	test('every focused control shows a visible indicator', async ({ page, baseURL }) => {
 		await openPage(page, baseURL);
+		await page.waitForLoadState('networkidle');
 
 		const invisible = await page.evaluate(async () => {
 			// Declare keyboard modality before the sweep: the switch's ring is

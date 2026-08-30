@@ -190,7 +190,7 @@
 	</footer>
 
 	<!-- Mounted ONCE so it rides every route (ContributeMenu.svelte, review
-	     finding C). Fixed-position, so DOM order here does not affect its
-	     rendered placement. -->
+	     finding C). Its absolute position is anchored to .app-shell's reserved
+	     footer rail, after the footer in both DOM and visual custody. -->
 	<ContributeMenu />
 </div>

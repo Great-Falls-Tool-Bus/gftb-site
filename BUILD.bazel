@@ -6,6 +6,7 @@ load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
+load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 npm_link_all_packages(name = "node_modules")
@@ -72,6 +73,7 @@ filegroup(
             # QR decoder, WCAG colour maths). They live outside src/lib so
             # shipped code cannot reach them, but //:unit_tests must.
             "scripts/lib/**/*.mjs",
+            "scripts/lib/**/*.test.mts",
             "scripts/lib/**/*.json",
         ],
         allow_empty = True,
@@ -83,6 +85,9 @@ filegroup(
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
+        # qa-packet-paths.test.mts audits both destructive-capability runners.
+        "scripts/qa-packet-diff.mjs",
+        "scripts/qa-packet.mjs",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -105,6 +110,7 @@ filegroup(
             "scripts/**/*.js",
             "scripts/**/*.json",
             "scripts/**/*.mjs",
+            "scripts/**/*.mts",
             "src/**/*.css",
             "src/**/*.html",
             "src/**/*.js",
@@ -265,9 +271,29 @@ js_run_binary(
     tool = ":vitest_coverage_bin",
 )
 
+py_test(
+    name = "bazel_output_contract_test",
+    srcs = [
+        "scripts/bazel_output.py",
+        "scripts/test-bazel-cutover-contracts.py",
+    ],
+    main = "scripts/test-bazel-cutover-contracts.py",
+    imports = ["scripts"],
+    data = [
+        ":app_srcs",
+        ".github/workflows/ci.yml",
+        ".github/workflows/container-ghcr.yml",
+        "BUILD.bazel",
+        "Justfile",
+        "MODULE.bazel",
+        "flake.nix",
+    ],
+    tags = ["flywheel-eligible"],
+)
+
 test_suite(
     name = "ci_validation_suite",
-    tests = [":svelte_check_test", ":unit_tests"],
+    tests = [":bazel_output_contract_test", ":svelte_check_test", ":unit_tests"],
 )
 
 test_suite(
@@ -277,7 +303,13 @@ test_suite(
 
 test_suite(
     name = "local_validation_suite",
-    tests = [":eslint_test", ":prettier_check_test", ":svelte_check_test", ":unit_tests"],
+    tests = [
+        ":bazel_output_contract_test",
+        ":eslint_test",
+        ":prettier_check_test",
+        ":svelte_check_test",
+        ":unit_tests",
+    ],
 )
 
 pkg_tar(

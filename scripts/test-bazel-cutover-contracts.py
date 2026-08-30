@@ -4,11 +4,22 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from bazel_output import adapter_contract, materialize_tree, preview_command
+import bazel_output
+from bazel_output import (
+    MATERIALIZED_OUTPUT_NAMES,
+    OutputError,
+    adapter_contract,
+    materialize_tree,
+    preview_command,
+    resolve_materialize_destination,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,7 +37,28 @@ def recipe(justfile: str, name: str) -> str:
 
 
 class StaticOutputTests(unittest.TestCase):
-    def test_static_output_materializes_transactionally(self) -> None:
+    @staticmethod
+    def _transaction_residues(root: Path) -> list[Path]:
+        return sorted(
+            (
+                child
+                for child in root.iterdir()
+                if child.name.startswith(
+                    (".build.previous-", ".build.materialize-", ".build.transaction-")
+                )
+            ),
+            key=lambda child: child.name,
+        )
+
+    @staticmethod
+    def _tree_bytes(root: Path) -> dict[str, bytes]:
+        return {
+            str(path.relative_to(root)): path.read_bytes()
+            for path in sorted(root.rglob("*"))
+            if path.is_file()
+        }
+
+    def test_static_output_materializes_once_into_absent_destination(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             manifest = root / "tinyland.repo.json"
@@ -34,18 +66,390 @@ class StaticOutputTests(unittest.TestCase):
             source = root / "bazel-bin" / "build"
             destination = root / "build"
             source.mkdir(parents=True)
-            destination.mkdir()
-            (source / "index.html").write_text("new")
-            (destination / "stale.txt").write_text("old")
+            (source / "index.html").write_text("new", encoding="utf-8")
 
             contract = adapter_contract(manifest)
-            materialize_tree(source, destination, contract.required_entrypoint)
+            materialize_tree(source, Path("build"), contract.required_entrypoint, manifest)
             command, _ = preview_command(destination, contract, "127.0.0.1", 4173)
 
             self.assertEqual(contract.name, "adapter-static")
-            self.assertTrue((destination / "index.html").is_file())
-            self.assertFalse((destination / "stale.txt").exists())
+            self.assertEqual((destination / "index.html").read_text(encoding="utf-8"), "new")
             self.assertIn("serve-static", command)
+            self.assertEqual(self._transaction_residues(root), [])
+
+    def test_second_materialization_fails_before_transaction_and_preserves_exact_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            first_source = root / "bazel-bin" / "first"
+            second_source = root / "bazel-bin" / "second"
+            destination = root / "build"
+            (first_source / "nested").mkdir(parents=True)
+            second_source.mkdir(parents=True)
+            (first_source / "index.html").write_bytes(b"first\x00bytes")
+            (first_source / "nested" / "asset.bin").write_bytes(b"\x00\xffstable")
+            (second_source / "index.html").write_bytes(b"second")
+
+            materialize_tree(first_source, Path("build"), Path("index.html"), manifest)
+            before = self._tree_bytes(destination)
+
+            with self.assertRaisesRegex(OutputError, "destination already exists"):
+                materialize_tree(second_source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual(self._tree_bytes(destination), before)
+            self.assertEqual(self._transaction_residues(root), [])
+
+    def _assert_preexisting_residue_is_preserved(
+        self,
+        residue_name: str,
+        *,
+        symlink: bool = False,
+        regular_file: bool = False,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest = root / "tinyland.repo.json"
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+
+            residue = root / residue_name
+            if symlink:
+                residue_target = container / "residue-target"
+                residue_target.mkdir()
+                sentinel = residue_target / "sentinel"
+                sentinel.write_text("must survive", encoding="utf-8")
+                residue.symlink_to(residue_target, target_is_directory=True)
+            elif regular_file:
+                residue.write_text("must survive", encoding="utf-8")
+                sentinel = residue
+            else:
+                residue.mkdir()
+                sentinel = residue / "sentinel"
+                sentinel.write_text("must survive", encoding="utf-8")
+
+            with self.assertRaisesRegex(OutputError, "pre-existing materialization residue"):
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertFalse(os.path.lexists(destination))
+            if symlink:
+                self.assertTrue(residue.is_symlink())
+            elif regular_file:
+                self.assertTrue(residue.is_file())
+            else:
+                self.assertTrue(residue.is_dir())
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_preexisting_legacy_previous_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.previous-hostile")
+
+    def test_preexisting_legacy_stage_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.materialize-hostile")
+
+    def test_preexisting_current_transaction_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.transaction-hostile")
+
+    def test_preexisting_symlink_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(".build.transaction-symlink", symlink=True)
+
+    def test_preexisting_regular_file_residue_is_preserved(self) -> None:
+        self._assert_preexisting_residue_is_preserved(
+            ".build.transaction-regular-file",
+            regular_file=True,
+        )
+
+    def test_different_mnt_id_refuses_publish_and_retains_transaction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+
+            with mock.patch("bazel_output._mount_identity", side_effect=[(7, 101), (7, 202)]):
+                with self.assertRaisesRegex(OutputError, "mount boundary"):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertFalse(os.path.lexists(destination))
+            residues = self._transaction_residues(root)
+            self.assertEqual(len(residues), 1)
+            self.assertEqual(list(residues[0].iterdir()), [])
+
+    def test_copy_failure_retains_partial_transaction_without_external_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            external = root / "external"
+            source.mkdir(parents=True)
+            external.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            sentinel = external / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+
+            def copy_partially_then_fail(
+                _source_path: str | os.PathLike[str],
+                destination_path: str | os.PathLike[str],
+                *,
+                symlinks: bool = False,
+            ) -> str | os.PathLike[str]:
+                self.assertFalse(symlinks)
+                stage = Path(destination_path)
+                stage.mkdir()
+                (stage / "partial").write_text("inspect me", encoding="utf-8")
+                raise OSError("simulated copy failure")
+
+            with mock.patch("bazel_output.shutil.copytree", side_effect=copy_partially_then_fail):
+                with self.assertRaisesRegex(OSError, "simulated copy failure"):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            residues = self._transaction_residues(root)
+            self.assertEqual(len(residues), 1)
+            self.assertEqual((residues[0] / "stage" / "partial").read_text(encoding="utf-8"), "inspect me")
+            self.assertFalse(os.path.lexists(destination))
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_validation_failure_retains_stage_without_external_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            external = root / "external"
+            source.mkdir(parents=True)
+            external.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            sentinel = external / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            original_copytree = bazel_output.shutil.copytree
+
+            def copy_without_required_file(
+                source_path: str | os.PathLike[str],
+                destination_path: str | os.PathLike[str],
+                *,
+                symlinks: bool = False,
+            ) -> str | os.PathLike[str]:
+                copied = original_copytree(source_path, destination_path, symlinks=symlinks)
+                (Path(destination_path) / "index.html").unlink()
+                return copied
+
+            with mock.patch("bazel_output.shutil.copytree", side_effect=copy_without_required_file):
+                with self.assertRaisesRegex(OutputError, "missing required file"):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            residues = self._transaction_residues(root)
+            self.assertEqual(len(residues), 1)
+            self.assertTrue((residues[0] / "stage").is_dir())
+            self.assertFalse((residues[0] / "stage" / "index.html").exists())
+            self.assertFalse(os.path.lexists(destination))
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_destination_publish_race_never_replaces_new_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+            original_entry_exists = bazel_output._entry_exists_at
+            checks = 0
+
+            def inject_destination_after_final_precheck(parent_fd: int, name: str) -> bool:
+                nonlocal checks
+                checks += 1
+                if checks == 2:
+                    destination.mkdir()
+                    (destination / "sentinel").write_text("must survive", encoding="utf-8")
+                    return False
+                return original_entry_exists(parent_fd, name)
+
+            with mock.patch(
+                "bazel_output._entry_exists_at",
+                side_effect=inject_destination_after_final_precheck,
+            ):
+                with self.assertRaisesRegex(OutputError, "destination appeared before publish"):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual((destination / "sentinel").read_text(encoding="utf-8"), "must survive")
+            residues = self._transaction_residues(root)
+            self.assertEqual(len(residues), 1)
+            self.assertEqual((residues[0] / "stage" / "index.html").read_text(encoding="utf-8"), "new")
+
+    def test_swapped_stage_symlink_preserves_external_sentinel_and_transaction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            external = root / "external"
+            displaced_stage = root / "displaced-stage"
+            source.mkdir(parents=True)
+            external.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            sentinel = external / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            original_copytree = bazel_output.shutil.copytree
+
+            def copy_then_swap_stage(
+                source_path: str | os.PathLike[str],
+                destination_path: str | os.PathLike[str],
+                *,
+                symlinks: bool = False,
+            ) -> str | os.PathLike[str]:
+                copied = original_copytree(source_path, destination_path, symlinks=symlinks)
+                Path(destination_path).rename(displaced_stage)
+                Path(destination_path).symlink_to(external, target_is_directory=True)
+                return copied
+
+            with mock.patch("bazel_output.shutil.copytree", side_effect=copy_then_swap_stage):
+                with self.assertRaises(OutputError):
+                    materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+            self.assertFalse(os.path.lexists(destination))
+            self.assertEqual((displaced_stage / "index.html").read_text(encoding="utf-8"), "new")
+            residues = self._transaction_residues(root)
+            self.assertEqual(len(residues), 1)
+            self.assertTrue((residues[0] / "stage").is_symlink())
+            self.assertEqual((residues[0] / "stage" / "sentinel").read_text(encoding="utf-8"), "must survive")
+
+    def test_materialization_has_no_automatic_recursive_cleanup(self) -> None:
+        implementation = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
+        for forbidden in (
+            "shutil.rmtree",
+            "_make_owner_writable",
+            "_CleanupEntry",
+            "_capture_cleanup_entries",
+            "_delete_cleanup_entries",
+            "_remove_owned_transaction",
+            "os.walk(",
+            ".chmod(",
+            "os.fchmod(",
+            "os.unlink(",
+            "os.replace(",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, implementation)
+        self.assertEqual(implementation.count("os.rmdir("), 1)
+
+    def test_materialize_destination_is_one_allowlisted_manifest_child(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text("{}", encoding="utf-8")
+            for name in MATERIALIZED_OUTPUT_NAMES:
+                with self.subTest(name=name):
+                    self.assertEqual(resolve_materialize_destination(manifest, Path(name)), root / name)
+
+    def test_materialize_destination_rejects_escape_shapes_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            root.mkdir()
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text("{}", encoding="utf-8")
+            sentinel = container / "outside-sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            invalid = [
+                Path(""),
+                Path("."),
+                Path(".."),
+                Path("nested/build"),
+                Path("../build"),
+                root,
+                root.parent / "outside-build",
+                Path("/Users/example"),
+                Path("not-allowlisted"),
+            ]
+            for destination in invalid:
+                with self.subTest(destination=destination):
+                    with self.assertRaises(OutputError):
+                        resolve_materialize_destination(manifest, destination)
+                    self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_materialize_destination_rejects_symlink_escape_and_preserves_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            outside = container / "outside"
+            root.mkdir()
+            outside.mkdir()
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text("{}", encoding="utf-8")
+            sentinel = outside / "sentinel"
+            sentinel.write_text("must survive", encoding="utf-8")
+            (root / "build").symlink_to(outside, target_is_directory=True)
+
+            with self.assertRaises(OutputError):
+                resolve_materialize_destination(manifest, Path("build"))
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
+
+    def test_existing_regular_file_destination_is_refused_and_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest = root / "tinyland.repo.json"
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            destination.write_bytes(b"must survive")
+
+            with self.assertRaisesRegex(OutputError, "destination already exists"):
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertEqual(destination.read_bytes(), b"must survive")
+            self.assertEqual(self._transaction_residues(root), [])
+
+    def test_existing_broken_symlink_destination_is_refused_and_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "bazel-bin" / "build"
+            destination = root / "build"
+            manifest = root / "tinyland.repo.json"
+            missing_target = root / "missing-target"
+            source.mkdir(parents=True)
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            destination.symlink_to(missing_target, target_is_directory=True)
+
+            with self.assertRaisesRegex(OutputError, "destination"):
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+
+            self.assertTrue(destination.is_symlink())
+            self.assertEqual(os.readlink(destination), os.fspath(missing_target))
+            self.assertFalse(missing_target.exists())
+            self.assertEqual(self._transaction_residues(root), [])
+
+    def test_invalid_destination_fails_before_materialization_and_preserves_outside_sentinel(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            container = Path(temporary)
+            root = container / "repo"
+            source = root / "bazel-bin" / "build"
+            manifest = root / "tinyland.repo.json"
+            outside = container / "outside"
+            sentinel = outside / "sentinel"
+            source.mkdir(parents=True)
+            outside.mkdir()
+            (source / "index.html").write_text("new", encoding="utf-8")
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            sentinel.write_text("must survive", encoding="utf-8")
+
+            with self.assertRaises(OutputError):
+                materialize_tree(source, outside, Path("index.html"), manifest)
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "must survive")
 
 
 class RepositoryContractTests(unittest.TestCase):
@@ -72,12 +476,59 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "deployment_bundle"', self.build)
         self.assertIn('name = "container_image_context"', self.build)
 
+    def test_live_build_check_and_qa_recipes_never_recursively_clean(self) -> None:
+        live_recipes = (
+            "build",
+            "build-ci",
+            "preview",
+            "preview-e2e",
+            "preview-only",
+            "test-e2e",
+            "_playwright-run",
+            "_playwright-test",
+            "qr-verify",
+            "leak-scan-stamped",
+            "leak-scan",
+            "qa-packet",
+            "_qa-packet-e2e",
+            "check",
+            "check-ci",
+            "ci",
+        )
+        recursive_rm = re.compile(
+            r"\brm\b[^\n]*(?:\s--recursive(?:[=\s]|$)|\s-[A-Za-z]*r[A-Za-z]*(?:\s|$))"
+        )
+        for name in live_recipes:
+            with self.subTest(recipe=name):
+                body = recipe(self.justfile, name)
+                self.assertNotRegex(body, recursive_rm)
+                self.assertNotIn("rmtree(", body)
+
+        stamped = recipe(self.justfile, "leak-scan-stamped")
+        self.assertIn("bazelisk build //:build", stamped)
+        self.assertIn('grep -q "deadbee" bazel-bin/build/index.html', stamped)
+        self.assertIn("leak-scan bazel-bin/build", stamped)
+        self.assertNotIn("materialize", stamped)
+        self.assertNotIn("build-stamped", stamped)
+        self.assertNotIn("build-stamped", MATERIALIZED_OUTPUT_NAMES)
+
+        qr = recipe(self.justfile, "qr-verify")
+        self.assertIn("umask 077", qr)
+        self.assertIn('rm -f -- "$tmp/apex.svg"', qr)
+        self.assertIn('rmdir -- "$tmp"', qr)
+
     def test_playwright_releases_bazel_before_chromium(self) -> None:
         preview = recipe(self.justfile, "preview-e2e")
         self.assertIn('preview-e2e port="4173": build', preview)
         self.assertIn("bazelisk shutdown", preview)
         self.assertLess(preview.index("bazelisk shutdown"), preview.index("scripts/bazel_output.py preview"))
         self.assertIn("just preview-e2e ${port}", self.playwright)
+        qa_packet = recipe(self.justfile, "qa-packet")
+        self.assertIn("bazelisk shutdown", qa_packet)
+        self.assertIn("preview-only {{ port }}", qa_packet)
+        self.assertNotIn("preview-e2e {{ port }}", qa_packet)
+        self.assertLess(qa_packet.index("bazelisk shutdown"), qa_packet.index("preview-only {{ port }}"))
+        self.assertEqual(recipe(self.justfile, "ci").splitlines()[0], "ci: check test-e2e")
 
     def test_playwright_uses_its_locked_browser(self) -> None:
         ensure = recipe(self.justfile, "playwright-ensure")

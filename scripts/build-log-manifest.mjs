@@ -27,6 +27,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { format, resolveConfig } from 'prettier';
+
 import { readLogEntries } from './lib/log-content.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -94,8 +96,11 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 ${body}];
 `;
 
+	const prettierOptions = (await resolveConfig(OUT_FILE)) ?? {};
+	const formattedContent = await format(content, { ...prettierOptions, filepath: OUT_FILE });
+
 	await fs.mkdir(path.dirname(OUT_FILE), { recursive: true });
-	await fs.writeFile(OUT_FILE, content);
+	await fs.writeFile(OUT_FILE, formattedContent);
 
 	console.log(
 		`log-manifest-build: ${published.length} published of ${entries.length} log entr${entries.length === 1 ? 'y' : 'ies'} -> src/lib/generated/log-manifest.ts`,

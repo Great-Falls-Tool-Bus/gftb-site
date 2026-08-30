@@ -101,6 +101,67 @@ test.describe('hydrated behaviour', () => {
 	});
 });
 
+test.describe('main-content clearance (TIN-4227 LOOK gate)', () => {
+	for (const width of [320, 1280] as const) {
+		for (const route of ['/', '/log', '/contact'] as const) {
+			test(`${width}px ${route} keeps the closed trigger in its footer rail`, async ({ page }) => {
+				await page.setViewportSize({ width, height: 800 });
+				await page.goto(route);
+				const trigger = page.locator('.contribute-trigger');
+				const main = page.locator('#main-content');
+				const footer = page.locator('.site-footer');
+				const footerInner = page.locator('.site-footer__inner');
+				await expect(trigger).toBeVisible();
+				await expect(main).toBeVisible();
+				await page.evaluate(() => {
+					document.documentElement.style.scrollBehavior = 'auto';
+				});
+
+				for (const fraction of [0, 0.5, 1]) {
+					const targetY = await page.evaluate((position) => {
+						const limit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+						const target = Math.round(limit * position);
+						window.scrollTo(0, target);
+						return target;
+					}, fraction);
+					await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(targetY);
+
+					const triggerBox = await trigger.boundingBox();
+					const mainBox = await main.boundingBox();
+					expect(triggerBox, 'contribute trigger bounding box').not.toBeNull();
+					expect(mainBox, 'main-content bounding box').not.toBeNull();
+					if (!triggerBox || !mainBox) throw new Error('required geometry was unavailable');
+
+					const overlapsMain =
+						triggerBox.x < mainBox.x + mainBox.width &&
+						triggerBox.x + triggerBox.width > mainBox.x &&
+						triggerBox.y < mainBox.y + mainBox.height &&
+						triggerBox.y + triggerBox.height > mainBox.y;
+					expect(overlapsMain, `closed trigger intersects main content at scroll fraction ${fraction}`).toBe(false);
+
+					if (fraction === 1) {
+						await expect(trigger).toBeInViewport();
+						const footerBox = await footer.boundingBox();
+						const footerInnerBox = await footerInner.boundingBox();
+						expect(footerBox, 'footer bounding box').not.toBeNull();
+						expect(footerInnerBox, 'footer inner bounding box').not.toBeNull();
+						if (!footerBox || !footerInnerBox) throw new Error('footer geometry was unavailable');
+
+						expect(triggerBox.y).toBeGreaterThanOrEqual(footerBox.y);
+						expect(triggerBox.y + triggerBox.height).toBeLessThanOrEqual(footerBox.y + footerBox.height);
+						const overlapsFooterInner =
+							triggerBox.x < footerInnerBox.x + footerInnerBox.width &&
+							triggerBox.x + triggerBox.width > footerInnerBox.x &&
+							triggerBox.y < footerInnerBox.y + footerInnerBox.height &&
+							triggerBox.y + triggerBox.height > footerInnerBox.y;
+						expect(overlapsFooterInner, 'closed trigger intersects footer content').toBe(false);
+					}
+				}
+			});
+		}
+	}
+});
+
 test.describe('320px footer clearance (review round 2 finding C.3)', () => {
 	test('the closed trigger does not steal the footer Security link click', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 800 });
@@ -110,7 +171,7 @@ test.describe('320px footer clearance (review round 2 finding C.3)', () => {
 		await expect(security).toBeVisible();
 		// A real click, not a geometry check — this is what the review used to
 		// prove the collision (a visual near-miss can still steal the click if
-		// the fixed trigger's hit area is on top).
+		// the trigger's hit area is on top).
 		const [popup] = await Promise.all([page.waitForEvent('popup'), security.click()]);
 		expect(popup.url()).toContain('github.com');
 		await popup.close();

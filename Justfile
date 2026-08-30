@@ -31,6 +31,8 @@ dev-open:
 # artefact, and a published tree that has never been scanned must not be
 # publishable. Wiring it here (rather than into `just ci`, which no template job
 # invokes) is what makes the gate actually execute on a pull request.
+# Materialization is publish-once: the destination must be absent, and any
+# existing output or transaction residue fails closed and remains untouched.
 build:
     cd {{ root }} && bazelisk build //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
@@ -204,8 +206,23 @@ qr-verify:
     set -euo pipefail
     cd {{ root }}
     committed="static/qr/greatfallstoolbus-apex.svg"
+    umask 077
     tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
+    tmp_parent="$(dirname -- "$tmp")"
+    tmp_name="$(basename -- "$tmp")"
+    [[ -n "$tmp" && -d "$tmp" && ! -L "$tmp" && -O "$tmp" && "$(stat -c '%a' -- "$tmp")" == "700" ]] || {
+      echo "qr-verify: mktemp did not create a private owned directory" >&2
+      exit 1
+    }
+    cleanup() {
+      if [[ -z "$tmp" || ! -d "$tmp" || -L "$tmp" || ! -O "$tmp" || "$(dirname -- "$tmp")" != "$tmp_parent" || "$(basename -- "$tmp")" != "$tmp_name" || "$(stat -c '%a' -- "$tmp")" != "700" ]]; then
+        echo "qr-verify: refusing unsafe temporary-directory cleanup target" >&2
+        return 1
+      fi
+      rm -f -- "$tmp/apex.svg" "$tmp/committed.stripped" "$tmp/fresh.stripped" "$tmp/diff"
+      rmdir -- "$tmp"
+    }
+    trap cleanup EXIT
     qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "https://greatfallstoolbus.org/"
     strip_provenance='/^<!-- Created with qrencode /d'
     sed "$strip_provenance" "$committed" >"$tmp/committed.stripped"
@@ -257,30 +274,33 @@ qr-verify:
 # closes that blind spot: build with a FIXED fake sha (constant on purpose —
 # the stamped stable-status is identical across runs, so caches still hit
 # when sources are unchanged), prove the stamp actually rendered, and scan
-# that artifact. Wired into `check`/`check-ci` so it runs per PR.
+# the Bazel output in place. No second tree is materialized or cleaned.
+# Wired into `check`/`check-ci` so it runs per PR.
 leak-scan-stamped:
     cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build-stamped
-    cd {{ root }} && grep -q "deadbee" build-stamped/index.html
-    cd {{ root }} && {{ just_executable() }} leak-scan build-stamped
-    cd {{ root }} && rm -rf build-stamped
+    cd {{ root }} && grep -q "deadbee" bazel-bin/build/index.html
+    cd {{ root }} && {{ just_executable() }} leak-scan bazel-bin/build
 
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
 # Repeatable QA evidence packet for one build, ready to paste into a review.
 #
-# NOT A CI GATE: no ci-templates job invokes it, and `qa-packet/` is git-ignored.
-# It is the reviewer/operator entrypoint, and it deliberately re-runs the gates
+# PR CI GATE: the repo-local `qa-look` job invokes this recipe at the exact
+# pull-request head and uploads `qa-packet/<sha>/` for the human LOOK. The
+# directory remains git-ignored. The recipe has no recursive deletion: output
+# is fixed to `qa-packet/<sha>` and an existing packet fails closed. This is also
+# the reviewer/operator entrypoint, and it deliberately re-runs the gates
 # rather than trusting a green tick from an earlier tree — the receipt in
 # INDEX.md has to describe the SAME bytes the screenshots were taken of.
 #
 # Order matters: `build` materializes and leak-scans the artefact, `check` runs
-# the four repo gates, then the preview comes up on ITS OWN port through the same
-# `preview-e2e` machinery Playwright uses in CI. The acceptance suite is pointed
-# at that already-running preview through playwright.qa-packet.config.ts, so this
-# recipe never competes for the CI port and never silently reuses another lane's
-# server. playwright.config.ts, which CI reads, is untouched.
+# the four repo gates, then Bazel is shut down and `preview-only` serves those
+# already-built bytes on ITS OWN port. Playwright CI keeps `preview-e2e: build`
+# for its fresh job. The acceptance suite is pointed at the QA preview through
+# playwright.qa-packet.config.ts, so this recipe never competes for the CI port
+# and never silently rebuilds or reuses another lane's server.
+# playwright.config.ts, which CI reads, is untouched.
 #
 # A failing acceptance suite does not abort the capture — a packet that shows
 # what a regression looks like is the point — but the recipe still exits non-zero.
@@ -288,7 +308,17 @@ qa-packet port="3355":
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{ root }}
-    receipts="$(mktemp -d)"
+    receipts_parent="${TMPDIR:-/tmp}"
+    case "$receipts_parent" in
+      /*) ;;
+      *) echo "qa-packet: TMPDIR must be absolute" >&2; exit 1 ;;
+    esac
+    receipts="$(mktemp -d "${receipts_parent%/}/gftb-qa-receipts.XXXXXXXX")"
+    [[ -n "$receipts" && -d "$receipts" ]] || {
+      echo "qa-packet: mktemp did not create a receipts directory" >&2
+      exit 1
+    }
+    receipts_parent="$(dirname "$receipts")"
     preview_pid=""
     kill_tree() {
       local pid="$1" child
@@ -300,7 +330,12 @@ qa-packet port="3355":
         kill_tree "$preview_pid"
         wait "$preview_pid" 2>/dev/null || true
       fi
-      rm -rf "$receipts"
+      if [[ -z "$receipts" || ! -d "$receipts" || "$(dirname "$receipts")" != "$receipts_parent" || "$(basename "$receipts")" != gftb-qa-receipts.* ]]; then
+        echo "qa-packet: refusing unsafe receipts cleanup target" >&2
+        return 1
+      fi
+      rm -f -- "$receipts/build.log" "$receipts/check.log" "$receipts/preview.log" "$receipts/e2e.json"
+      rmdir -- "$receipts"
     }
     trap cleanup EXIT
 
@@ -310,7 +345,8 @@ qa-packet port="3355":
     check_status=0
     {{ just_executable() }} check 2>&1 | tee "$receipts/check.log" || check_status=$?
 
-    {{ just_executable() }} preview-e2e {{ port }} >"$receipts/preview.log" 2>&1 &
+    bazelisk shutdown
+    {{ just_executable() }} preview-only {{ port }} >"$receipts/preview.log" 2>&1 &
     preview_pid=$!
     for attempt in $(seq 1 300); do
       if (exec 3<>/dev/tcp/127.0.0.1/{{ port }}) 2>/dev/null; then break; fi
@@ -333,10 +369,17 @@ qa-packet port="3355":
       {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
     fi
 
-    node scripts/qa-packet.mjs --port {{ port }} \
-      --build-log "$receipts/build.log" \
-      --check-log "$receipts/check.log" \
+    capture_args=(
+      --port {{ port }}
+      --build-log "$receipts/build.log"
+      --check-log "$receipts/check.log"
       --e2e-json "$receipts/e2e.json"
+    )
+    if command -v nix >/dev/null 2>&1; then
+      nix develop .#playwright --command node scripts/qa-packet.mjs "${capture_args[@]}"
+    else
+      node scripts/qa-packet.mjs "${capture_args[@]}"
+    fi
 
     if [[ "$check_status" != "0" || "$e2e_status" != "0" ]]; then
       echo "qa-packet: the packet was captured, but a gate failed (check exit $check_status, acceptance suite exit $e2e_status)" >&2
@@ -349,8 +392,9 @@ _qa-packet-e2e port json: playwright-ensure
       pnpm exec playwright test --config playwright.qa-packet.config.ts --reporter=json
 
 # Per-image pixel diff between two packets produced by `just qa-packet`.
-# Both arguments are `qa-packet/<sha>` directories and may live in other
-# worktrees. The comparison runs inside the same pinned Chromium rather than
+# Both arguments must be exact `qa-packet/<40hex>` directories in this
+# checkout. Output is fixed under `qa-packet/diff/` and never replaces an
+# existing diff. The comparison runs inside the same pinned Chromium rather than
 # pulling `pixelmatch`/`pngjs` into package.json; see scripts/qa-packet-diff.mjs.
 qa-packet-diff baseline candidate *options:
     cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
@@ -370,9 +414,10 @@ check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check sou
 
 # Local convenience aggregate. NOTE: no ci-templates job invokes `just ci` — the
 # template calls `just setup`, `just build`, `just check` and `just test-e2e`
-# individually — so nothing may be enforced ONLY from here. `build` now carries
-# leak-scan itself, which is why it is no longer listed separately.
-ci: check build test-e2e
+# individually — so nothing may be enforced ONLY from here. `test-e2e` performs
+# its own scanned fresh build through `preview-e2e`; materializing `build` first
+# would violate the publish-once output contract.
+ci: check test-e2e
 
 sbom out_dir="build/sbom":
     cd {{ root }} && mkdir -p "{{ out_dir }}" && version="$(jq -r '.version' package.json)" && \
