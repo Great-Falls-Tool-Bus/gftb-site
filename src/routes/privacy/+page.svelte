@@ -2,22 +2,11 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 
-	// DRAFT (B build b2, 2026-08-29): privacy + retention copy for spec §12
-	// P1 (2026-08-30 deliverable list: "audit, rate limits, idempotency,
-	// privacy and retention copy"). Ships unlinked on a draft branch/PR — no
-	// nav-items.ts entry, no cross-link from /contact, /apply, or the root
-	// page — until the operator reviews and merges.
-	//
-	// Retention PERIODS are spec §14 item 4, an explicit future human
-	// ratification. ADR 0016 routes them to sitting #3; its packet Item 1 is
-	// a STUB with no input, options, or recommendation as of 2026-08-29.
-	// Section 6.1 of member-v0-executable-slices-2026-08-18.md offers
-	// "retention periods are not yet set" only as a Recommended resolution
-	// in a pre-staged design, with Jess as resolver; it is not ratification.
-	// The operator must either ratify that interim wording, supply the exact
-	// periods, or wait for sitting #3. Do not invent or default a number.
-	// Every OPERATOR-VALUE marker below remains a TODO(jess) slot, not a
-	// placeholder to "fill in with something reasonable."
+t// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): privacy +
+t// retention copy for spec §12 may land while exact retention periods remain
+t// unset. The route stays unlinked: no nav-items.ts entry and no cross-link
+t// from /contact, /apply, or the root page. ADR 0016 still routes numerical
+t// periods to sitting #3; this ruling does not invent or default a number.
 </script>
 
 <div class="page-shell">
@@ -31,8 +20,7 @@
 	<article class="log-entry">
 		<header class="log-entry__header">
 			<h1>Privacy and data retention</h1>
-			<!-- TODO(jess): one-line summary in your own words; interim line
-			     states only what is structurally true today. -->
+ttt<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 			<p>
 				What we collect, why, who can see it, and how long we keep it — for the contact form, membership application,
 				contribution records, and (once it exists) the tool-lending pilot.
@@ -73,10 +61,7 @@
 			</p>
 			<p>
 				<strong>Declined or withdrawn applications.</strong>
-				<!-- TODO(jess): OPERATOR-VALUE — retention period for declined/withdrawn
-				     applications is spec §14 item 4, not yet ratified (sitting #3,
-				     Item 1: STUB). Do not fill in a number here without that
-				     ratification landing first. -->
+tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
 				How long we keep a declined or withdrawn application is not yet decided. This page will state the exact period once
 				it is set.
 			</p>
@@ -94,8 +79,7 @@
 			</p>
 			<p>
 				<strong>Finance and audit records.</strong>
-				<!-- TODO(jess): OPERATOR-VALUE — retention period for finance/audit
-				     records is spec §14 item 4, not yet ratified. -->
+tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
 				How long finance and audit records are kept — including after a membership ends — is not yet decided. This page will
 				state the exact period once it is set.
 			</p>
@@ -108,8 +92,7 @@
 			</p>
 			<p>
 				<strong>Photos and location observations.</strong>
-				<!-- TODO(jess): OPERATOR-VALUE — retention period for photos and
-				     location observations is spec §14 item 4, not yet ratified. -->
+tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
 				How long photos and location observations are kept is not yet decided. This page will state the exact period, and
 				this section will be updated before the pilot's data collection goes live, once it is set.
 			</p>
@@ -133,8 +116,8 @@
 				This page describes the system as built. When retention periods are ratified, or the system changes in a way
 				that affects what is collected or who can see it, this page is updated and the update date below changes.
 			</p>
-			<!-- TODO(jess): OPERATOR-VALUE — last-reviewed date, set at merge. -->
-			<p><em>Last reviewed: not yet published.</em></p>
+ttt<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
+ttt<p><em>Last reviewed: 29 August 2026.</em></p>
 		</div>
 	</article>
 

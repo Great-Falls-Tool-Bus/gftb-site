@@ -1,12 +1,12 @@
 <script lang="ts">
 	import SourceLink from '$lib/components/SourceLink.svelte';
 
-	// DRAFT (B build b2, 2026-08-29): refund/cancellation copy for spec §12
+	// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): refund/cancellation copy for spec §12
 	// P1 (2026-08-30 deliverable list includes "privacy and retention
 	// copy"; refund/cancellation is the companion money-copy surface for the
-	// same contribution subsystem, spec §5). Ships unlinked on a draft
-	// branch/PR — no nav-items.ts entry, no cross-link — until the operator
-	// reviews and merges.
+t// same contribution subsystem, spec §5). The route stays unlinked: no
+t// nav-items.ts entry and no cross-link. Operator Option A authorizes this
+t// truthful interim copy without setting a refund-request deadline.
 	//
 	// Money-copy rule (binding, ADR 0014 §0.6 + ratification sitting #1 Card
 	// B, meta drafts/2026-08-18-ratification-sitting-1.md): public money
@@ -18,9 +18,8 @@
 	// 2, an operator-only track this build does not touch). No entity name
 	// is printed here because none is ratified yet.
 	//
-	// A specific refund-request WINDOW/deadline is not ratified anywhere in
-	// spec/ADR/sitting documents as of 2026-08-29; the OPERATOR-VALUE marker
-	// below is a TODO(jess) slot, not an invented number.
+t// No binding source sets a refund-request window. Option A ratifies the
+t// truthful not-yet-set wording below; it does not invent a deadline.
 </script>
 
 <div class="page-shell">
@@ -34,7 +33,7 @@
 	<article class="log-entry">
 		<header class="log-entry__header">
 			<h1>Contribution refunds and cancellation</h1>
-			<!-- TODO(jess): one-line summary in your own words. -->
+ttt<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 			<p>How to stop a recurring contribution, and how to ask about a refund.</p>
 		</header>
 
@@ -69,9 +68,7 @@
 				by a keyholder on a case-by-case basis.
 			</p>
 			<p>
-				<!-- TODO(jess): OPERATOR-VALUE — no refund-request window (e.g. "within
-				     30 days") is ratified anywhere. Set one here, or state explicitly
-				     that requests are accepted at any time, before this page ships. -->
+tttt<!-- Option A ratifies the truthful no-fixed-window wording; no deadline is implied. -->
 				A specific time window for refund requests is not yet set. Until it is, this page makes no promise about how long
 				after a contribution a refund can be requested — ask, and a keyholder will tell you what's possible for your situation.
 			</p>
@@ -96,8 +93,8 @@
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> or use the <a href="/contact">contact form</a>.
 			</p>
 
-			<!-- TODO(jess): OPERATOR-VALUE — last-reviewed date, set at merge. -->
-			<p><em>Last reviewed: not yet published.</em></p>
+ttt<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
+ttt<p><em>Last reviewed: 29 August 2026.</em></p>
 		</div>
 	</article>
 
