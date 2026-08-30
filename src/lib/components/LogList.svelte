@@ -1,8 +1,10 @@
 <script lang="ts">
-	import type { PublicLog } from '$lib/public-logs';
+	import { formatLogDate, summaryDiffersFromTitle, type PublicLog } from '$lib/public-logs';
 
-	// The archive list row: hairline list, NO cards, plain-text badges
-	// (jesssullivan.github.io blog-list structure; addendum B1.2). Shared by
+	// The archive list row: a plain list, NO cards, plain-text badges
+	// (jesssullivan.github.io blog-list structure; addendum B1.2). Operator
+	// ruling 2026-08-30 supersedes B1.2's hairline clause: rows are separated
+	// by whitespace only, borderless. The never-cards clause stands. Shared by
 	// /log and every /log/page/<n> so the pages cannot drift.
 
 	interface Props {
@@ -10,9 +12,6 @@
 	}
 
 	let { entries }: Props = $props();
-
-	const formatDate = (value: string) =>
-		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
 
 <ul class="log-list">
@@ -20,11 +19,13 @@
 		<li>
 			<h3><a href={`/log/${entry.slug}`}>{entry.metadata.title}</a></h3>
 			<p class="log-meta">
-				{formatDate(entry.metadata.date)}{#if entry.metadata.updated}
-					· updated {formatDate(entry.metadata.updated)}{/if}
+				{formatLogDate(entry.metadata.date)}{#if entry.metadata.updated}
+					· updated {formatLogDate(entry.metadata.updated)}{/if}
+				· {entry.metadata.tags.join(' · ')}
 			</p>
-			<p>{entry.metadata.summary}</p>
-			<p class="log-tags">{entry.metadata.tags.join(' · ')}</p>
+			{#if summaryDiffersFromTitle(entry.metadata)}
+				<p>{entry.metadata.summary}</p>
+			{/if}
 		</li>
 	{/each}
 </ul>

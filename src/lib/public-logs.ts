@@ -32,6 +32,14 @@ export interface PublicLog {
 /** Older entries per archive page (spec :90-91 pagination, no-JS path). */
 export const LOG_PAGE_SIZE = 10;
 
+/** One date formatter for every log surface (home row, archive, permalink). */
+export const formatLogDate = (value: string): string =>
+	new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
+
+/** The 2026-08-11 entry's summary equals its title; never print a title twice. */
+export const summaryDiffersFromTitle = (metadata: { title: string; summary: string }): boolean =>
+	metadata.summary.trim() !== metadata.title.trim();
+
 /**
  * Published entries only, newest first. Unpublished (`published: false`)
  * TODO(jess) drafts never reach this array — src/lib/generated/log-manifest.ts
