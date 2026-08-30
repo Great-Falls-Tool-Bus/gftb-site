@@ -2,11 +2,11 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 
-t// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): privacy +
-t// retention copy for spec §12 may land while exact retention periods remain
-t// unset. The route stays unlinked: no nav-items.ts entry and no cross-link
-t// from /contact, /apply, or the root page. ADR 0016 still routes numerical
-t// periods to sitting #3; this ruling does not invent or default a number.
+	// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): privacy +
+	// retention copy for spec §12 may land while exact retention periods remain
+	// unset. The route stays unlinked: no nav-items.ts entry and no cross-link
+	// from /contact, /apply, or the root page. ADR 0016 still routes numerical
+	// periods to sitting #3; this ruling does not invent or default a number.
 </script>
 
 <div class="page-shell">
@@ -20,7 +20,7 @@ t// periods to sitting #3; this ruling does not invent or default a number.
 	<article class="log-entry">
 		<header class="log-entry__header">
 			<h1>Privacy and data retention</h1>
-ttt<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
+			<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 			<p>
 				What we collect, why, who can see it, and how long we keep it — for the contact form, membership application,
 				contribution records, and (once it exists) the tool-lending pilot.
@@ -61,7 +61,7 @@ ttt<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 			</p>
 			<p>
 				<strong>Declined or withdrawn applications.</strong>
-tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
+				<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
 				How long we keep a declined or withdrawn application is not yet decided. This page will state the exact period once
 				it is set.
 			</p>
@@ -79,7 +79,7 @@ tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still o
 			</p>
 			<p>
 				<strong>Finance and audit records.</strong>
-tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
+				<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
 				How long finance and audit records are kept — including after a membership ends — is not yet decided. This page will
 				state the exact period once it is set.
 			</p>
@@ -92,7 +92,7 @@ tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still o
 			</p>
 			<p>
 				<strong>Photos and location observations.</strong>
-tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
+				<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
 				How long photos and location observations are kept is not yet decided. This page will state the exact period, and
 				this section will be updated before the pilot's data collection goes live, once it is set.
 			</p>
@@ -116,8 +116,8 @@ tttt<!-- Option A ratifies the truthful unset-period wording; sitting #3 still o
 				This page describes the system as built. When retention periods are ratified, or the system changes in a way
 				that affects what is collected or who can see it, this page is updated and the update date below changes.
 			</p>
-ttt<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
-ttt<p><em>Last reviewed: 29 August 2026.</em></p>
+			<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
+			<p><em>Last reviewed: 29 August 2026.</em></p>
 		</div>
 	</article>
 

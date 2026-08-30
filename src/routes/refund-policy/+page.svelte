@@ -4,9 +4,9 @@
 	// RATIFIED INTERIM (operator Option A, 2026-08-29; TIN-4210): refund/cancellation copy for spec §12
 	// P1 (2026-08-30 deliverable list includes "privacy and retention
 	// copy"; refund/cancellation is the companion money-copy surface for the
-t// same contribution subsystem, spec §5). The route stays unlinked: no
-t// nav-items.ts entry and no cross-link. Operator Option A authorizes this
-t// truthful interim copy without setting a refund-request deadline.
+	// same contribution subsystem, spec §5). The route stays unlinked: no
+	// nav-items.ts entry and no cross-link. Operator Option A authorizes this
+	// truthful interim copy without setting a refund-request deadline.
 	//
 	// Money-copy rule (binding, ADR 0014 §0.6 + ratification sitting #1 Card
 	// B, meta drafts/2026-08-18-ratification-sitting-1.md): public money
@@ -18,8 +18,8 @@ t// truthful interim copy without setting a refund-request deadline.
 	// 2, an operator-only track this build does not touch). No entity name
 	// is printed here because none is ratified yet.
 	//
-t// No binding source sets a refund-request window. Option A ratifies the
-t// truthful not-yet-set wording below; it does not invent a deadline.
+	// No binding source sets a refund-request window. Option A ratifies the
+	// truthful not-yet-set wording below; it does not invent a deadline.
 </script>
 
 <div class="page-shell">
@@ -33,7 +33,7 @@ t// truthful not-yet-set wording below; it does not invent a deadline.
 	<article class="log-entry">
 		<header class="log-entry__header">
 			<h1>Contribution refunds and cancellation</h1>
-ttt<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
+			<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 			<p>How to stop a recurring contribution, and how to ask about a refund.</p>
 		</header>
 
@@ -68,7 +68,7 @@ ttt<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 				by a keyholder on a case-by-case basis.
 			</p>
 			<p>
-tttt<!-- Option A ratifies the truthful no-fixed-window wording; no deadline is implied. -->
+				<!-- Option A ratifies the truthful no-fixed-window wording; no deadline is implied. -->
 				A specific time window for refund requests is not yet set. Until it is, this page makes no promise about how long
 				after a contribution a refund can be requested — ask, and a keyholder will tell you what's possible for your situation.
 			</p>
@@ -93,8 +93,8 @@ tttt<!-- Option A ratifies the truthful no-fixed-window wording; no deadline is 
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> or use the <a href="/contact">contact form</a>.
 			</p>
 
-ttt<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
-ttt<p><em>Last reviewed: 29 August 2026.</em></p>
+			<!-- Operator review and interim-policy ratification recorded in TIN-4210. -->
+			<p><em>Last reviewed: 29 August 2026.</em></p>
 		</div>
 	</article>
 
