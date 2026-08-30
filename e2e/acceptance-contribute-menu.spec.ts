@@ -101,6 +101,41 @@ test.describe('hydrated behaviour', () => {
 	});
 });
 
+test.describe('main-content clearance (TIN-4227 LOOK gate)', () => {
+	for (const width of [320, 1280] as const) {
+		for (const route of ['/', '/log', '/contact'] as const) {
+			test(`${width}px ${route} keeps the closed trigger outside main content`, async ({ page }) => {
+				await page.setViewportSize({ width, height: 800 });
+				await page.goto(route);
+				const trigger = page.locator('.contribute-trigger');
+				const main = page.locator('#main-content');
+				await expect(trigger).toBeVisible();
+				await expect(main).toBeVisible();
+
+				for (const fraction of [0, 0.5, 1]) {
+					await page.evaluate((position) => {
+						const limit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+						window.scrollTo(0, limit * position);
+					}, fraction);
+
+					const triggerBox = await trigger.boundingBox();
+					const mainBox = await main.boundingBox();
+					expect(triggerBox, 'contribute trigger bounding box').not.toBeNull();
+					expect(mainBox, 'main-content bounding box').not.toBeNull();
+					if (!triggerBox || !mainBox) throw new Error('required geometry was unavailable');
+
+					const overlaps =
+						triggerBox.x < mainBox.x + mainBox.width &&
+						triggerBox.x + triggerBox.width > mainBox.x &&
+						triggerBox.y < mainBox.y + mainBox.height &&
+						triggerBox.y + triggerBox.height > mainBox.y;
+					expect(overlaps, `closed trigger intersects main content at scroll fraction ${fraction}`).toBe(false);
+				}
+			});
+		}
+	}
+});
+
 test.describe('320px footer clearance (review round 2 finding C.3)', () => {
 	test('the closed trigger does not steal the footer Security link click', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 800 });
@@ -110,7 +145,7 @@ test.describe('320px footer clearance (review round 2 finding C.3)', () => {
 		await expect(security).toBeVisible();
 		// A real click, not a geometry check — this is what the review used to
 		// prove the collision (a visual near-miss can still steal the click if
-		// the fixed trigger's hit area is on top).
+		// the trigger's hit area is on top).
 		const [popup] = await Promise.all([page.waitForEvent('popup'), security.click()]);
 		expect(popup.url()).toContain('github.com');
 		await popup.close();

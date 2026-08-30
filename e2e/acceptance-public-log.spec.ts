@@ -59,6 +59,27 @@ test('the approved public diagrams are served from the static carrier', async ({
 	}
 });
 
+test('the diagram post exposes full-size affordances at mobile width', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 800 });
+	await page.goto('/log/2026-08-14-the-system-in-diagrams');
+	for (const [name, href] of [
+		[
+			'Open the full-size inventory custody diagram',
+			'/diagrams/launch-member-v0/inventory-custody-flow.svg',
+		],
+		[
+			'Open the full-size release proof diagram',
+			'/diagrams/launch-member-v0/release-proof-flow-public.svg',
+		],
+		[
+			'Open the full-size launch authority diagram',
+			'/diagrams/launch-member-v0/launch-authority-flow-public.svg',
+		],
+	] as const) {
+		await expect(page.getByRole('link', { name })).toHaveAttribute('href', href);
+	}
+});
+
 test('removed entries stay deleted and the remaining draft stays unpublished', async ({ page }) => {
 	for (const slug of removed) {
 		expect(existsSync(path.join(repoRoot, 'src', 'content', 'log', `${slug}.svx`)), slug).toBe(false);

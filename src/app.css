@@ -245,6 +245,8 @@ body {
  * `--wash` gradient background keeps painting behind the whole page exactly
  * as before. */
 .app-shell {
+	/* Positioned containing block for the non-occluding Contribute rail. */
+	position: relative;
 	display: flex;
 	min-height: 100vh;
 	flex-direction: column;
@@ -1466,10 +1468,10 @@ figcaption {
 .site-footer {
 	border-top: 1px solid var(--rule);
 	background: var(--panel);
-	/* Clearance for .contribute-fab (fixed, bottom-left, review round 2
-	 * finding C.3): without this, scrolling a short page all the way down
-	 * puts the footer's own last links (Source/Security at 320px, the
-	 * licensing link on /log) directly under the fixed trigger — confirmed
+	/* Clearance for .contribute-fab (anchored bottom-left in this reserved
+	 * rail, review round 2 finding C.3): without this, the footer's own last
+	 * links (Source/Security at 320px, the licensing link on /log) sit under
+	 * the trigger — confirmed
 	 * by a real click stealing the link's tap target, not just a geometry
 	 * overlap. Sized to the trigger's own closed-state footprint (~55px
 	 * tall) plus its offset (1rem / 1.5rem, matching .contribute-fab's own
@@ -1662,12 +1664,11 @@ figcaption {
 
 /* Floating "Contribute" affordance (ContributeMenu.svelte), ported from the
  * demo per the 2026-08-20 review finding C (maturity doc §5 V2: ADOPT,
- * scoped — asked-for, not optional). Dropdown-tier fixed affordance,
- * anchored bottom-left — the site's only other fixed element is
- * `.skip-link` (top-left, transient, keyboard-summoned only), so there is
- * no collision to clear. */
+ * scoped — asked-for, not optional). It remains a dropdown-tier floating
+ * affordance, but anchors inside the app shell's reserved bottom-left footer
+ * rail instead of the viewport, so it cannot obscure main content. */
 .contribute-fab {
-	position: fixed;
+	position: absolute;
 	bottom: 1rem;
 	left: 1rem;
 	z-index: var(--z-dropdown);
