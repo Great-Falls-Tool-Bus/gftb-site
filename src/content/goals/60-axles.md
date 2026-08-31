@@ -2,7 +2,7 @@
 kind: goal
 order: 60
 title: 'Reinstall the axles'
-window: 'Most Fridays, 3 to 5 PM ET'
+window: 'Fridays, about 3 to 5 PM ET'
 cta_label: 'Help with the axles'
 cta_href: '/contact'
 published: true

@@ -8,4 +8,4 @@ cta_href: '/contact'
 published: true
 source: 'operator 2026-08-31; decision 0023 sequence (bank after EIN, then entity-owned card payments)'
 ---
-The account belongs to the club, not to any one person. Online membership payments follow it.
+The account will belong to the club, not to any one person. Online membership payments follow it.

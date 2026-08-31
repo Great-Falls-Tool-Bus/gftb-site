@@ -96,5 +96,6 @@ console.log(
 	`leak-scan: clean across ${files.length} published file(s) in ${path.relative(REPO_ROOT, buildDirectory)} ` +
 		`using ${LEAK_RULES.length} rules, host and mailbox allowlists, ${denyNote}, and ` +
 		`${draftDeniedLiterals.length} unpublished-draft literal(s) from ${draftLogEntries.length} content/log entr` +
-		`${draftLogEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
+		`${draftLogEntries.length === 1 ? 'y' : 'ies'} plus ${draftGoalDeniedLiterals.length} from ${draftGoalEntries.length} content/goals entr` +
+		`${draftGoalEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
 );

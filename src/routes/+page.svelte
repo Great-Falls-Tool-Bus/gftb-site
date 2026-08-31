@@ -145,12 +145,12 @@
 				     card (which keeps only the not-live-yet statement). The
 				     schedule line is consent-covered (meta steering/naming-consent,
 				     row added 2026-08-30). A confirmed one-off session replaces the chip. -->
-				<h2 id="next-title">Next public work session</h2>
+				<h2 id="next-title">Public work sessions</h2>
 				<p class="date-chip">Fridays, about 3 to 5 PM ET</p>
 			</div>
 			<div>
 				<p>
-					Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the
+					Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the
 					<a href="/contact">contact form</a> to confirm before traveling.
 				</p>
 				<p>Exact location details are shared directly. A confirmed one-off session will be posted here.</p>
@@ -169,7 +169,7 @@
 		{#if publicGoals.length > 0}
 			<!-- Borderless timeline grid (never-cards stands): title, plain
 			     window, one sentence, at most one CTA per row. -->
-			<ol class="goal-list">
+			<ol class="goal-list" role="list">
 				{#each publicGoals as goal (goal.slug)}
 					<li>
 						<h3>{goal.metadata.title}</h3>
@@ -194,12 +194,13 @@
 				{#if memberBenefits.length > 0}
 					<div class="goal-aside" id="benefits">
 						<h3>What members get</h3>
-						<p class="muted">Member accounts are not live yet. When membership opens, every member gets:</p>
+						<p class="muted">Member accounts are not live yet. Membership is being built to include:</p>
 						<ul class="plain-list">
 							{#each memberBenefits as benefit (benefit.slug)}
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>
 							{/each}
 						</ul>
+						<p class="muted">Email and list access switch on once the mail system is proved.</p>
 					</div>
 				{/if}
 				{#if publicHelpAsks.length > 0}

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { distinctiveDraftGoalLiterals } from '../../scripts/lib/goals-content.mjs';
 import { parseLogFrontmatter } from '../../scripts/lib/log-content.mjs';
 import { assertPublicGoalMetadata } from './public-goal-schema';
 
@@ -45,5 +46,25 @@ describe('assertPublicGoalMetadata', () => {
 			const { metadata } = parseLogFrontmatter(readFileSync(path.join(dir, file), 'utf8'), file);
 			expect(() => assertPublicGoalMetadata(metadata, file)).not.toThrow();
 		}
+	});
+
+	it('folds even a short unpublished title into the leak denylist', () => {
+		const literals = distinctiveDraftGoalLiterals([
+			{
+				file: 'x.md',
+				slug: 'x',
+				sourcePath: 'src/content/goals/x.md',
+				metadata: { kind: 'benefit', title: 'Free beer.', published: false },
+				text: '',
+			},
+			{
+				file: 'y.md',
+				slug: 'y',
+				sourcePath: 'src/content/goals/y.md',
+				metadata: { kind: 'goal', title: 'Published row', published: true },
+				text: 'Long enough prose to matter here.',
+			},
+		]);
+		expect(literals).toEqual(['Free beer.']);
 	});
 });

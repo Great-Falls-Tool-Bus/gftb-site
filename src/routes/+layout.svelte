@@ -179,8 +179,10 @@
 			<nav class="site-footer__group" aria-label="Meta">
 				<h2>Meta</h2>
 				<ul>
-					<!-- D11's AX/agent row was retired by operator ruling 2026-08-31
-					     (it named a private file no visitor could open). D06:
+					<!-- D11's AX/agent row was retired by operator ruling 2026-08-31.
+					     Source and Security still point at the private site repo (a
+					     404 for visitors, review E4); whether they should point at the
+					     organization root instead is a separate operator call. D06:
 					     outbound meta links ride ExternalLink. -->
 					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
 					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>

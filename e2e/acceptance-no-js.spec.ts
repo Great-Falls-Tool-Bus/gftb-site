@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+
+import { primaryNavItems } from '../src/lib/nav-items';
 import { CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 
 // Acceptance row (§3): core content works with JavaScript disabled, and the
@@ -18,7 +20,7 @@ test.describe('JavaScript disabled', () => {
 		// (restoration PR-5); update in lockstep with src/routes/+page.svelte.
 		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Current status' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Next public work session' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Public work sessions' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Near-term goals' })).toBeVisible();
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
@@ -54,8 +56,11 @@ test.describe('JavaScript disabled', () => {
 
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
 		await page.goto('/');
-		// The nav SSOT renders two primary items (Log, Contact) — B1.3.
-		await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link')).toHaveCount(2);
+		// The nav SSOT's primary items (Log, Contact, GitHub since the operator
+		// ruling of 2026-08-31); the count derives from the SSOT so it cannot drift.
+		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
+		await expect(headerLinks).toHaveCount(primaryNavItems.length);
+		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u]);
 
 		const broken = await page.evaluate(() =>
 			Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="#"], a[href^="/#"]'))

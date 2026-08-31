@@ -17,10 +17,23 @@ const GOALS_DIR = path.join(ROOT, 'src', 'content', 'goals');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'goals-manifest.ts');
 
 const KINDS = new Set(['goal', 'help', 'benefit']);
+// Mirrors src/lib/public-goal-schema.ts (the binding contract, exercised by
+// src/lib/public-goal-schema.test.ts over every content file); the generator
+// refuses the same shapes so an invalid file never reaches the manifest.
+const ALLOWED_KEYS = new Set(['kind', 'order', 'title', 'published', 'window', 'cta_label', 'cta_href', 'source']);
 
 function renderEntry(entry) {
 	const m = entry.metadata;
+	const unknown = Object.keys(m).filter((key) => !ALLOWED_KEYS.has(key));
+	if (unknown.length > 0) throw new Error(`${entry.file}: unsupported frontmatter keys: ${unknown.join(', ')}`);
+	if (typeof m.published !== 'boolean') throw new Error(`${entry.file}: published must be a boolean`);
 	if (!KINDS.has(m.kind)) throw new Error(`${entry.file}: kind must be goal, help, or benefit`);
+	if (/—/u.test(`${m.title} ${m.window ?? ''} ${m.cta_label ?? ''} ${entry.text}`)) {
+		throw new Error(`${entry.file}: no em dashes in public copy`);
+	}
+	if (m.cta_href !== undefined && !/^(\/|https:\/\/)/u.test(String(m.cta_href))) {
+		throw new Error(`${entry.file}: cta_href must be a site-relative path or an https URL`);
+	}
 	const order = Number.parseInt(String(m.order), 10);
 	if (!Number.isInteger(order) || order < 0) throw new Error(`${entry.file}: order must be a non-negative integer`);
 	if (typeof m.title !== 'string' || m.title.trim().length < 3) throw new Error(`${entry.file}: title required`);

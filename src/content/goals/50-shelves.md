@@ -2,7 +2,7 @@
 kind: goal
 order: 50
 title: 'Build shelves in the bus'
-window: 'Most Fridays, 3 to 5 PM ET'
+window: 'Fridays, about 3 to 5 PM ET'
 cta_label: 'Help build shelves'
 cta_href: '/contact'
 published: true

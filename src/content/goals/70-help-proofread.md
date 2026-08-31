@@ -1,7 +1,7 @@
 ---
 kind: help
 order: 10
-title: 'Proofread the member documents before they are final.'
+title: 'Good with words? We will need proofreaders for the member documents.'
 cta_label: 'Offer an hour'
 cta_href: '/contact'
 published: true

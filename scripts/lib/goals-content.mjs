@@ -57,7 +57,10 @@ export function distinctiveDraftGoalLiterals(entries) {
 	const literals = [];
 	for (const entry of entries) {
 		if (entry.metadata.published !== false) continue;
-		if (typeof entry.metadata.title === 'string' && entry.metadata.title.length >= MIN_LITERAL_LENGTH) {
+		// The title IS the whole public copy for help and benefit rows, so it
+		// joins the denylist whenever present, like draft log titles do; the
+		// length floor applies only to free prose.
+		if (typeof entry.metadata.title === 'string' && entry.metadata.title.length > 0) {
 			literals.push(entry.metadata.title);
 		}
 		if (entry.text.length >= MIN_LITERAL_LENGTH) literals.push(entry.text);

@@ -175,7 +175,7 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		await page.goto('/');
 		const band = page.locator('.next-session');
 		await expect(band).toContainText(
-			'Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the contact form to confirm before traveling.',
+			'Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the contact form to confirm before traveling.',
 		);
 		await expect(band.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
 		await expect(page.locator('#status')).not.toContainText('Fridays');
