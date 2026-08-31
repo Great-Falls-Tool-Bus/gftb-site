@@ -1192,17 +1192,41 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	font-weight: 800;
 }
 
+/* Operator ruling 2026-08-30: log surfaces are borderless. The entry sits
+ * flush on the page ground; header and body are parted by whitespace, not a
+ * rule. No fill, no border, no radius (never-cards stands). */
 .log-entry {
-	overflow: hidden;
+	/* E1 (UI-QA 2026-08-30): visible, so focus rings are not clipped now that
+	 * the article has no padding; body wrap rules and img max-width contain
+	 * wide content. */
+	overflow: visible;
 }
 
-.log-entry__header,
+/* E3 (UI-QA 2026-08-30): air between the read-more and the next paragraph. */
+.log-entry + p {
+	margin-top: 1.25rem;
+}
+
 .log-entry__body {
-	padding: 1.25rem;
+	margin-top: 2rem;
 }
 
-.log-entry__header {
-	border-bottom: 1px solid var(--rule);
+.log-entry__more {
+	margin-top: 0.75rem;
+	font-family: var(--font-sans);
+	font-weight: 700;
+}
+
+.log-entry__more a {
+	/* E2 (UI-QA 2026-08-30): standalone link takes the full line box (>= 24px). */
+	display: inline-block;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.log-entry__more a:hover,
+.log-entry__more a:focus-visible {
+	text-decoration-thickness: 2px;
 }
 
 .log-entry__body > :last-child {
@@ -1313,21 +1337,24 @@ pre.shiki span {
 }
 
 /* ===== Public log surfaces (spec §3 rows 5-6; B1.2) =====
- * The archive is a plain hairline LIST, never cards, with plain-text badges
- * — the jesssullivan.github.io blog-list structure the addendum names. */
+ * The archive is a plain LIST, never cards, with plain-text badges (the
+ * jesssullivan.github.io blog-list structure the addendum names). Operator
+ * ruling 2026-08-30 supersedes B1.2's hairline clause: rows are parted by
+ * air alone, no rules. The never-cards clause stands. */
 .log-list {
-	margin: 0;
+	margin: 2rem 0 0;
 	padding: 0;
 	list-style: none;
 }
 
-.log-list li {
-	border-bottom: 1px solid var(--rule);
-	padding-block: 1.5rem;
+.log-list li + li {
+	margin-top: 1.75rem;
 }
 
 .log-list h3 {
-	margin-bottom: 0.35rem;
+	margin-bottom: 0.25rem;
+	font-size: 1.25rem;
+	line-height: 1.3;
 }
 
 .log-meta {

@@ -38,6 +38,13 @@ test.describe('JavaScript disabled', () => {
 		const latestLink = latest.locator('h3 a');
 		await expect(latestLink).toHaveText('We laugh, we graph, we diagramming the system');
 		await expect(latestLink).toHaveAttribute('href', '/log/2026-08-14-the-system-in-diagrams');
+		// Operator ruling 2026-08-30: the home row is a citation with a
+		// read-more link and ships no body media (the space ruling).
+		await expect(latest.getByRole('link', { name: 'Read the full entry' })).toHaveAttribute(
+			'href',
+			'/log/2026-08-14-the-system-in-diagrams',
+		);
+		await expect(latest.locator('img')).toHaveCount(0);
 
 		await page.goto('/log');
 		await expect(page.locator('.log-list li')).toHaveCount(4);

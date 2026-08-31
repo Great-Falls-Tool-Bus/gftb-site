@@ -1,6 +1,6 @@
 <script lang="ts">
 	import SourceLink from '$lib/components/SourceLink.svelte';
-	import { publicLogs } from '$lib/public-logs';
+	import { publicLogs, formatLogDate } from '$lib/public-logs';
 
 	let { data } = $props();
 
@@ -9,9 +9,6 @@
 	// source through the generated map, #94 pattern).
 	const entry = $derived(publicLogs.find((candidate) => candidate.slug === data.slug)!);
 	const EntryBody = $derived(data.EntryBody);
-
-	const formatDate = (value: string) =>
-		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
 
 <!-- No <svelte:head> title here: the layout's SEOHead is the single head
@@ -29,8 +26,8 @@
 		<header class="log-entry__header">
 			<h1>{entry.metadata.title}</h1>
 			<p class="log-meta">
-				{formatDate(entry.metadata.date)}{#if entry.metadata.updated}
-					· updated {formatDate(entry.metadata.updated)}{/if}
+				{formatLogDate(entry.metadata.date)}{#if entry.metadata.updated}
+					· updated {formatLogDate(entry.metadata.updated)}{/if}
 			</p>
 			<p>{entry.metadata.summary}</p>
 			<p class="log-tags">{entry.metadata.tags.join(' · ')}</p>

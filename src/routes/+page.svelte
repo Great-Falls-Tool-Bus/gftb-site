@@ -1,10 +1,7 @@
 <script lang="ts">
-	import { publicLogs } from '$lib/public-logs';
+	import { publicLogs, formatLogDate, summaryDiffersFromTitle } from '$lib/public-logs';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
-	import type { PageData } from './$types';
-
-	let { data }: { data: PageData } = $props();
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
 	// 70ms stagger. The hidden start state only exists under
@@ -73,9 +70,6 @@
 		fallback: `${photoBase}-1280.jpg`,
 		sizes: '100vw',
 	};
-
-	const formatDate = (value: string) =>
-		new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 </script>
 
 <!-- Row 1 (spec §3 :85): project name, one-sentence purpose, current status.
@@ -187,14 +181,18 @@
 		</div>
 
 		{#if latest}
-			{@const LatestLog = data.LatestLog}
+			<!-- Operator ruling 2026-08-30: the home row is a concise citation
+			     (title, date, summary, one read-more link), never the inline
+			     body. The full entry lives on its permalink. -->
 			<article class="log-entry">
 				<header class="log-entry__header">
 					<h3><a href={`/log/${latest.slug}`}>{latest.metadata.title}</a></h3>
-					<p class="log-meta">{formatDate(latest.metadata.date)}</p>
-					<p>{latest.metadata.summary}</p>
+					<p class="log-meta">{formatLogDate(latest.metadata.date)}</p>
+					{#if summaryDiffersFromTitle(latest.metadata)}
+						<p>{latest.metadata.summary}</p>
+					{/if}
+					<p class="log-entry__more"><a href={`/log/${latest.slug}`}>Read the full entry</a></p>
 				</header>
-				<div class="log-entry__body"><LatestLog /></div>
 			</article>
 		{:else}
 			<!-- TODO(jess): the first entry is a published:false draft awaiting

@@ -30,6 +30,16 @@ const removed = [
 	'2026-08-20-membership-system-taking-shape',
 ] as const;
 
+test('an entry whose summary equals its title prints the title once', async ({ page }) => {
+	// Operator ruling 2026-08-30 (density): the 2026-08-11 summary is
+	// byte-identical to its title; the archive row must not print it twice.
+	await page.goto('/log');
+	const row = page.locator('.log-list li', { has: page.locator('a[href="/log/2026-08-11-how-tools-will-move"]') });
+	await expect(row).toHaveCount(1);
+	const text = (await row.innerText()).split('Sweet semaphores and lore').length - 1;
+	expect(text).toBe(1);
+});
+
 test('the public log exposes exactly the approved four-entry batch', async ({ page }) => {
 	await page.goto('/log');
 	const links = page.locator('.log-list h3 a');
