@@ -72,10 +72,13 @@ test('the approved public diagrams are served from the static carrier', async ({
 test('the diagram post exposes full-size affordances at mobile width', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 800 });
 	await page.goto('/log/2026-08-14-the-system-in-diagrams');
+	// Operator edit 2026-08-31 (2d167956): the post now carries two diagrams
+	// (inventory, release proof); the launch-authority figure and its link
+	// were removed from the prose. The SVG stays served from the static
+	// carrier (previous test) because the file remains public.
 	for (const [name, href] of [
-		['Open the full-size inventory custody diagram', '/diagrams/launch-member-v0/inventory-custody-flow.svg'],
+		['Open the full-size inventory diagram', '/diagrams/launch-member-v0/inventory-custody-flow.svg'],
 		['Open the full-size release proof diagram', '/diagrams/launch-member-v0/release-proof-flow-public.svg'],
-		['Open the full-size launch authority diagram', '/diagrams/launch-member-v0/launch-authority-flow-public.svg'],
 	] as const) {
 		const link = page.getByRole('link', { name });
 		await expect(link).toBeVisible();
