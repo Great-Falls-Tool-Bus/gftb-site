@@ -87,8 +87,8 @@
 		},
 		{
 			"id": "internal-tracker-reference",
-			"description": "issue tracker, pull request, commit, or repository pointer (the site's own repo pages are the one sanctioned exception: the SourceLink edit-this-page affordance, demo #94 / addendum B1.2, links the public sources; its PR, issue, and commit surfaces stay banned)",
-			"pattern": "\\bTIN-\\d+\\b|\\blinear\\.app\\b|\\bgithub\\.com/(?!Great-Falls-Tool-Bus/gftb-site\\b)|\\bgithub\\.com/Great-Falls-Tool-Bus/gftb-site/(?:pull|issues|commits?)\\b|\\bpull request\\b|\\bPR\\s*#\\d+\\b|\\b[0-9a-f]{40}\\b",
+			"description": "issue tracker, pull request, commit, or repository pointer (the site's own repo pages are the one sanctioned exception: the SourceLink edit-this-page affordance, demo #94 / addendum B1.2, links the public sources; its PR, issue, and commit surfaces stay banned; the organization root page alone is the second exception, the header GitHub link, operator ruling 2026-08-31)",
+			"pattern": "\\bTIN-\\d+\\b|\\blinear\\.app\\b|\\bgithub\\.com/(?!Great-Falls-Tool-Bus/gftb-site\\b)(?!Great-Falls-Tool-Bus/?(?:[\"'\\s<)\\]`]|$))|\\bgithub\\.com/Great-Falls-Tool-Bus/gftb-site/(?:pull|issues|commits?)\\b|\\bpull request\\b|\\bPR\\s*#\\d+\\b|\\b[0-9a-f]{40}\\b",
 			"flags": "iu"
 		},
 		{
