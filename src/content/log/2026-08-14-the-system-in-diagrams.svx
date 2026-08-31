@@ -10,8 +10,6 @@ published: true
 
 Three diagrams are shown below.
 
-These diagrams show the planned release, authority, and inventory-custody flow; they do not claim the system is deployed or public.
-
 ***Colors have been attempted to recycle the CityLink pallete oWo***
 
 
@@ -20,17 +18,10 @@ These diagrams show the planned release, authority, and inventory-custody flow; 
 
 <img src="/diagrams/launch-member-v0/inventory-custody-flow.svg" alt="Inventory custody flow: scan a tool, check its availability and condition, finalize a loan, then scan it back in, inspect it, and route it to available or quarantine." />
 
-[Open the full-size inventory custody diagram](/diagrams/launch-member-v0/inventory-custody-flow.svg)
+[Open the full-size inventory diagram](/diagrams/launch-member-v0/inventory-custody-flow.svg)
 
 **How a change gets safely onto the site.** Reviewed, built, checked twice, deployed  :-)
 
 <img src="/diagrams/launch-member-v0/release-proof-flow-public.svg" alt="Release proof flow: reviewed by another person, built into a release, checked twice (automated tests, then a human check), deployed to the site, confirmed actually serving and not just deployed, then recorded as done; if something's wrong, rolled back to the last working version instead." />
 
 [Open the full-size release proof diagram](/diagrams/launch-member-v0/release-proof-flow-public.svg)
-
-
-Descision flow:
-
-<img src="/diagrams/launch-member-v0/launch-authority-flow-public.svg" alt="Launch authority flow: members' personal facts stay private; applications to join go to keyholders, who decide on admission; money and payments are handled separately from membership decisions; releases of the site get the operator's sign-off." />
-
-[Open the full-size launch authority diagram](/diagrams/launch-member-v0/launch-authority-flow-public.svg)
