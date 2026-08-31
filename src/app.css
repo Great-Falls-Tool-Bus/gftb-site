@@ -1196,7 +1196,15 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * flush on the page ground; header and body are parted by whitespace, not a
  * rule. No fill, no border, no radius (never-cards stands). */
 .log-entry {
-	overflow: hidden;
+	/* E1 (UI-QA 2026-08-30): visible, so focus rings are not clipped now that
+	 * the article has no padding; body wrap rules and img max-width contain
+	 * wide content. */
+	overflow: visible;
+}
+
+/* E3 (UI-QA 2026-08-30): air between the read-more and the next paragraph. */
+.log-entry + p {
+	margin-top: 1.25rem;
 }
 
 .log-entry__body {
@@ -1210,6 +1218,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 .log-entry__more a {
+	/* E2 (UI-QA 2026-08-30): standalone link takes the full line box (>= 24px). */
+	display: inline-block;
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
