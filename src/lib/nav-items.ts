@@ -16,15 +16,15 @@ interface NavItemBase {
 }
 
 /**
- * Rendered in the header bar. The header bar renders a bare `<a>` (no
- * ExternalLink) for every primary item, so this variant cannot carry
- * `external` — the type forbids the combination review PR #35 EDIT-2 flagged
- * as comment-only and unenforced.
+ * Rendered in the header bar. Since the operator ruling of 2026-08-31 (GitHub
+ * in the header) a primary item may leave the site; the header then renders
+ * it through ExternalLink, never a bare `<a>`, so rel/target cannot drift
+ * (the PR #35 EDIT-2 concern, now enforced at the render site).
  */
 interface HeaderNavItem extends NavItemBase {
 	primary: true;
 	footerGroup?: never;
-	external?: never;
+	external?: boolean;
 }
 
 /** Demoted into a footer group instead of the header bar. */
@@ -44,6 +44,10 @@ export type NavItem = HeaderNavItem | FooterNavItem;
 export const navItems: NavItem[] = [
 	{ label: 'Log', href: '/log', match: ['/log'], primary: true },
 	{ label: 'Contact', href: '/contact', match: ['/contact'], primary: true },
+	// Operator ruling 2026-08-31: GitHub in the header. The org page is the
+	// public target (gftb-site itself is private; a repo link would 404 for
+	// visitors, review E4).
+	{ label: 'GitHub', href: 'https://github.com/Great-Falls-Tool-Bus', match: [], primary: true, external: true },
 	// Footer-demoted rows. History is the home page's spec §3 row 7 anchor.
 	{ label: 'History', href: '/#history', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },

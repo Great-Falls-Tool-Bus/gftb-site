@@ -33,6 +33,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { readLogEntries, distinctiveDraftLiterals } from './lib/log-content.mjs';
+import { readGoalEntries, distinctiveDraftGoalLiterals } from './lib/goals-content.mjs';
 import { LEAK_RULES, REPO_ROOT, UnclassifiedOutputError, scanBuildDirectory } from './lib/leak-scan.mjs';
 
 const buildDirectory = path.resolve(REPO_ROOT, process.argv[2] ?? 'build');
@@ -56,8 +57,10 @@ const operatorDeniedLiterals = (process.env.GFTB_LEAK_SCAN_DENY ?? '')
 
 const draftLogEntries = readLogEntries(path.join(REPO_ROOT, 'src', 'content', 'log'));
 const draftDeniedLiterals = distinctiveDraftLiterals(draftLogEntries);
+const draftGoalEntries = readGoalEntries(path.join(REPO_ROOT, 'src', 'content', 'goals'));
+const draftGoalDeniedLiterals = distinctiveDraftGoalLiterals(draftGoalEntries);
 
-const deniedLiterals = [...operatorDeniedLiterals, ...draftDeniedLiterals];
+const deniedLiterals = [...operatorDeniedLiterals, ...draftDeniedLiterals, ...draftGoalDeniedLiterals];
 
 let report;
 try {
@@ -93,5 +96,6 @@ console.log(
 	`leak-scan: clean across ${files.length} published file(s) in ${path.relative(REPO_ROOT, buildDirectory)} ` +
 		`using ${LEAK_RULES.length} rules, host and mailbox allowlists, ${denyNote}, and ` +
 		`${draftDeniedLiterals.length} unpublished-draft literal(s) from ${draftLogEntries.length} content/log entr` +
-		`${draftLogEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
+		`${draftLogEntries.length === 1 ? 'y' : 'ies'} plus ${draftGoalDeniedLiterals.length} from ${draftGoalEntries.length} content/goals entr` +
+		`${draftGoalEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
 );

@@ -119,7 +119,9 @@ test.describe('the switch as a control', () => {
 		// modality-aware, and the REAL indicator (review E7) is the root's
 		// data-focus-visible + the app.css rescue-edge outline — there is
 		// deliberately no decorative outline on the clipped input.
-		await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Contact' }).focus();
+		// The switch must stay the last tab stop in the header, whatever the nav
+		// SSOT lists before it (GitHub joined after Contact on 2026-08-31).
+		await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link').last().focus();
 		await page.keyboard.press('Tab');
 		await expect(input).toBeFocused();
 
