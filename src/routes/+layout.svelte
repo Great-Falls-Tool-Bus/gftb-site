@@ -112,7 +112,13 @@
 			</a>
 			<nav class="site-nav" aria-label="Main navigation">
 				{#each primaryNavItems as item (item.href)}
-					<a href={item.href} aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}>{item.label}</a>
+					{#if item.external}
+						<ExternalLink href={item.href}>{item.label}</ExternalLink>
+					{:else}
+						<a href={item.href} aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}
+							>{item.label}</a
+						>
+					{/if}
 				{/each}
 				<!-- D01 placement: the mode switch rides the third header column
 				     beside the anchors — the demo's AppBar.Trail position. -->
@@ -173,15 +179,9 @@
 			<nav class="site-footer__group" aria-label="Meta">
 				<h2>Meta</h2>
 				<ul>
-					<!-- D11: the AX/agent row restored to the meta group (apex
-					     +layout.svelte:256-267, operator-merged and unruled-against).
-					     This carrier ships no public /agent route (the operator docs
-					     surface was retired), and the source repo is private, so a
-					     blob link would be a guaranteed 404 for every public visitor
-					     (review E4) — the row is plain text until an operator names
-					     a public target. D06: outbound meta links ride
-					     ExternalLink. -->
-					<li>AX: AGENTS.md in the source repo</li>
+					<!-- D11's AX/agent row was retired by operator ruling 2026-08-31
+					     (it named a private file no visitor could open). D06:
+					     outbound meta links ride ExternalLink. -->
 					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
 					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
 				</ul>

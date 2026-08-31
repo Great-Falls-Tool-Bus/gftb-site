@@ -33,6 +33,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { readLogEntries, distinctiveDraftLiterals } from './lib/log-content.mjs';
+import { readGoalEntries, distinctiveDraftGoalLiterals } from './lib/goals-content.mjs';
 import { LEAK_RULES, REPO_ROOT, UnclassifiedOutputError, scanBuildDirectory } from './lib/leak-scan.mjs';
 
 const buildDirectory = path.resolve(REPO_ROOT, process.argv[2] ?? 'build');
@@ -56,8 +57,10 @@ const operatorDeniedLiterals = (process.env.GFTB_LEAK_SCAN_DENY ?? '')
 
 const draftLogEntries = readLogEntries(path.join(REPO_ROOT, 'src', 'content', 'log'));
 const draftDeniedLiterals = distinctiveDraftLiterals(draftLogEntries);
+const draftGoalEntries = readGoalEntries(path.join(REPO_ROOT, 'src', 'content', 'goals'));
+const draftGoalDeniedLiterals = distinctiveDraftGoalLiterals(draftGoalEntries);
 
-const deniedLiterals = [...operatorDeniedLiterals, ...draftDeniedLiterals];
+const deniedLiterals = [...operatorDeniedLiterals, ...draftDeniedLiterals, ...draftGoalDeniedLiterals];
 
 let report;
 try {

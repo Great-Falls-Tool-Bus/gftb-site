@@ -121,3 +121,16 @@ PR; only the operator merges it.
   still build input and are never a place to stash anything sensitive).
 - A normal PR the operator reviews and merges like any other change. No
   auto-merge, no agent merge authority over content PRs.
+
+## Home goals, help asks, and member benefits
+
+The home page's "Near-term goals" row renders from `src/content/goals/*.md`,
+one file per row, through `src/lib/generated/goals-manifest.ts`
+(`just goals-manifest-build`, drift-checked by `just goals-manifest-check`
+inside `just check`). Frontmatter keys: `kind` (`goal`, `help`, or `benefit`),
+`order`, `title`, `published`, and optionally `window` (plain-English timing),
+`cta_label` + `cta_href` (travel together), and `source` (internal provenance,
+read at build time and never emitted). The body is one or two plain sentences.
+Unpublished entries never reach the manifest, and their text joins the
+build-output leak denylist like draft log entries. Operator ruling 2026-08-31:
+these rows are operator-authored and may carry penciled-in dates.

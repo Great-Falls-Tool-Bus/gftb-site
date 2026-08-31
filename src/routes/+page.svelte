@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { publicLogs, formatLogDate, summaryDiffersFromTitle } from '$lib/public-logs';
+	import { publicGoals, publicHelpAsks, memberBenefits } from '$lib/public-goals';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
@@ -18,17 +19,12 @@
 
 	const latest = publicLogs[0];
 
-	// TODO(jess): goals content. The three goal cards were swept as
-	// unverified AI-authored copy (operator re-review 2026-08-19, salvaged
-	// from restoration PR-5); nothing renders until you write the real
-	// goals. The swept items, restore whatever is real:
-	//   Make the bus ready — Keep water out, clear and prepare the interior,
-	//     and establish a simple interim lock and safe working setup.
-	//   Design membership together — Storyboard a welcoming sliding-scale
-	//     membership path before collecting online payments or issuing
-	//     accounts.
-	//   Start with useful tools — Build a small inventory and checkout
-	//     process that works well from a phone and still respects privacy.
+	// Near-term goals, help asks, and member benefits render from
+	// src/content/goals/*.md through the drift-checked manifest
+	// (src/lib/public-goals.ts), the log pattern. Operator-authored
+	// 2026-08-31 (timelines penciled in by the operator; the earlier
+	// no-calendar-promises posture is superseded for these rows). The
+	// three swept goal cards (2026-08-19) stay retired.
 
 	// TODO(jess): needs list. The five specific asks (bus-seat removal help,
 	// sheet metal/plastic, a 9/16-inch impact or breaker bar, cleaning
@@ -124,10 +120,6 @@
 			     statement. -->
 			<h2 id="status-title">Current status</h2>
 			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
-			<p>
-				Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the
-				<a href="/contact">contact form</a> to confirm before traveling.
-			</p>
 			<p class="muted">Updates here describe completed work.</p>
 		</aside>
 	</div>
@@ -148,16 +140,20 @@
 				       body: "Our current hands-on focus is sealing the body and
 				       openings, then measuring wonky shapes that may need
 				       fabricated inserts."
-				     The interim copy is the spec's honest not-scheduled state
-				     (spec §3 row 2). -->
+				     Operator ruling 2026-08-31: the recurring Friday window is the
+				     public work session, so the hours moved here from the status
+				     card (which keeps only the not-live-yet statement). The
+				     schedule line is consent-covered (meta steering/naming-consent,
+				     row added 2026-08-30). A confirmed one-off session replaces the chip. -->
 				<h2 id="next-title">Next public work session</h2>
-				<p class="date-chip">Not scheduled yet</p>
+				<p class="date-chip">Fridays, about 3 to 5 PM ET</p>
 			</div>
 			<div>
-				<p>The next open work time will be posted here once confirmed.</p>
 				<p>
-					Use the <a href="/contact">contact page</a>; timing and exact location details are shared directly.
+					Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the
+					<a href="/contact">contact form</a> to confirm before traveling.
 				</p>
+				<p>Exact location details are shared directly. A confirmed one-off session will be posted here.</p>
 			</div>
 		</div>
 	</section>
@@ -165,11 +161,64 @@
 	<!-- Row 4 (spec §3 :88): near-term goals and specific ways to help.
 	     Empty until the operator authors them (see the TODO slots in the
 	     script block). -->
-	<section class="section reveal-armed" use:reveal={{ delay: 70 }} aria-labelledby="goals-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 70 }} id="goals" aria-labelledby="goals-title">
 		<div class="section-heading">
 			<h2 id="goals-title">Near-term goals</h2>
-			<p>Near-term goals and specific ways to help will be posted here.</p>
 		</div>
+
+		{#if publicGoals.length > 0}
+			<!-- Borderless timeline grid (never-cards stands): title, plain
+			     window, one sentence, at most one CTA per row. -->
+			<ol class="goal-list">
+				{#each publicGoals as goal (goal.slug)}
+					<li>
+						<h3>{goal.metadata.title}</h3>
+						{#if goal.metadata.window}
+							<p class="log-meta">{goal.metadata.window}</p>
+						{/if}
+						{#if goal.text}
+							<p>{goal.text}</p>
+						{/if}
+						{#if goal.metadata.cta_label && goal.metadata.cta_href}
+							<p class="goal-cta"><a href={goal.metadata.cta_href}>{goal.metadata.cta_label}</a></p>
+						{/if}
+					</li>
+				{/each}
+			</ol>
+		{:else}
+			<p>Near-term goals and specific ways to help will be posted here.</p>
+		{/if}
+
+		{#if memberBenefits.length > 0 || publicHelpAsks.length > 0}
+			<div class="goal-asides">
+				{#if memberBenefits.length > 0}
+					<div class="goal-aside" id="benefits">
+						<h3>What members get</h3>
+						<p class="muted">Member accounts are not live yet. When membership opens, every member gets:</p>
+						<ul class="plain-list">
+							{#each memberBenefits as benefit (benefit.slug)}
+								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+				{#if publicHelpAsks.length > 0}
+					<div class="goal-aside" id="help">
+						<h3>Ways to help</h3>
+						<ul class="plain-list">
+							{#each publicHelpAsks as ask (ask.slug)}
+								<li>
+									{ask.metadata.title}
+									{#if ask.metadata.cta_label && ask.metadata.cta_href}
+										<a href={ask.metadata.cta_href}>{ask.metadata.cta_label}</a>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</section>
 
 	<!-- Rows 5 and 6 (spec §3 :89-91): the latest log entry, then older

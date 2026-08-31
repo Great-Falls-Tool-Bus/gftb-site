@@ -169,13 +169,17 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		expect(lede).toContain('community-run tool library');
 	});
 
-	test('the hero carries the confirmed Friday hours and local contact CTA', async ({ page }) => {
+	test('the session band carries the confirmed Friday hours and local contact CTA', async ({ page }) => {
+		// Operator ruling 2026-08-31: the recurring Friday window lives in the
+		// public-work-session band, not in the hero status card.
 		await page.goto('/');
-		const status = page.locator('#status');
-		await expect(status).toContainText(
+		const band = page.locator('.next-session');
+		await expect(band).toContainText(
 			'Jess is usually working on the bus Fridays, about 3–5 PM ET. Please use the contact form to confirm before traveling.',
 		);
-		await expect(status.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
+		await expect(band.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
+		await expect(page.locator('#status')).not.toContainText('Fridays');
+		await expect(page.locator('#status p')).toHaveCount(2);
 		await expect(page.locator('#contact a')).toHaveCount(1);
 		await expect(page.locator('#contact a')).toHaveAttribute('href', '/contact');
 	});
