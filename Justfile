@@ -180,11 +180,8 @@ entrypoint-contract:
 workflow-validate:
     cd {{ root }} && actionlint .github/workflows/*.yml
 
-lanes-validate:
-    cd {{ root }} && python3 scripts/validate-lanes.py
-
 repo-manifest-validate:
-    cd {{ root }} && python3 scripts/validate-lanes.py --schema docs/schemas/tinyland-repo-manifest.schema.json --instance tinyland.repo.json
+    cd {{ root }} && python3 scripts/validate-repo-manifest.py
 
 skills-validate:
     cd {{ root }} && python3 scripts/validate-skills.py
@@ -410,7 +407,7 @@ qa-packet-diff baseline candidate *options:
     cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
 
 # CI ENFORCEMENT: ci-templates spoke-ci.yml@v3.1.0 job `flywheel-test`, line 291
-# (`nix develop --command just check`), once per lane in .github/lanes.json.
+# (`nix develop --command just check`).
 # //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
 # (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
 # every pull request through this recipe.

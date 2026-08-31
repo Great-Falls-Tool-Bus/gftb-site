@@ -4,25 +4,28 @@ This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
 
 ## Validation
 
-`.github/workflows/ci.yml` calls the pinned Tinyland spoke workflow. The only
-available GFTB ARC class is `tinyland-nix`, so default, heavy, and KVM inputs
-all resolve to that class. On pull requests, the repo-local `qa-look` job then
-checks out the exact head SHA, runs `just qa-packet`, and uploads its screenshots
-and receipts for the required human LOOK. The stable `merge-gate` status requires
-both the complete reusable workflow and `qa-look` to succeed.
+`.github/workflows/ci.yml` calls the pinned v3 Tinyland spoke workflow. On pull
+requests, the repo-local `qa-look` job then checks out the exact head SHA, runs
+`just qa-packet`, and uploads its screenshots and receipts for the required
+human LOOK. The stable `merge-gate` status requires both the complete reusable
+workflow and `qa-look` to succeed.
 
 Local and CI operations enter through Just. `just check` covers repository
 conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,
 ESLint, Svelte checks, and unit tests. `just build` produces one adapter-static
-artifact through Bazel. `.github/lanes.json` and `tinyland.repo.json` validate
-against their checked-in schemas.
+artifact through Bazel. `.github/lanes.json` is the v4 source action plan: it
+names only real finite Bazel targets and abstract execution capabilities. It
+contains no provider or lifecycle configuration and remains inactive until an
+immutable v4 ci-templates caller is released and pinned.
 
 ## Flywheel
 
-The spoke is shared-cache-backed. `.bazelrc.flywheel` is endpoint-free.
-`BAZEL_REMOTE_CACHE`, optional auth material, and upload authority are supplied
-only by trusted runtime context. A cache hit is not remote-execution proof.
-Container publication is never an RBE target class.
+The current v3 spoke is shared-cache-backed compatibility transport.
+`.bazelrc.flywheel` is endpoint-free; runtime attachment remains outside this
+repository. The v4 plan requests `rbe-linux-x86_64` for `//:build` and
+`//:ci_validation_suite`; it does not select a runner or provider. Until the v4
+caller executes those actions through REAPI, a cache hit is not
+remote-execution proof. Container publication is not an action in the plan.
 
 ## Candidate image
 

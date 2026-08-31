@@ -87,11 +87,13 @@ is not public.
 - Skeleton and Skeleton Svelte are exact-pinned at `5.0.0`, following the
   proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
   Skeleton 4 compatibility shim.
-- GloriousFlywheel is cache-first. Endpoints and credentials come only from
-  the runtime environment. Do not create runners or hard-code cache/executor
-  endpoints.
-- Org ARC jobs use `tinyland-nix`; both reusable-workflow heavy and KVM inputs
-  are explicitly mapped to that available class.
+- `.github/lanes.json` is the source-only v4 action plan: finite Bazel targets
+  plus abstract REAPI capabilities, and nothing about repositories, tenants,
+  providers, runner labels, pools, endpoints, credentials, publication, or
+  lifecycle. The provider resolves capabilities; this consumer never does.
+- The plan is inactive until ci-templates publishes and this repo pins an
+  immutable v4 caller. The current v3 reusable workflow remains the
+  present-tense CI transport, not a fallback or evidence that v4 is live.
 
 ### Which CI job runs which gate
 

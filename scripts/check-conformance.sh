@@ -12,8 +12,7 @@ check() { if eval "$1"; then ok "$2"; else no "$2"; fi; }
 
 echo "GFTB minimal-spoke conformance"
 
-check "python3 scripts/validate-lanes.py >/dev/null" "lanes manifest validates"
-check "python3 scripts/validate-lanes.py --schema docs/schemas/tinyland-repo-manifest.schema.json --instance tinyland.repo.json >/dev/null" "repo manifest validates"
+check "python3 scripts/validate-repo-manifest.py >/dev/null" "repo manifest validates"
 check "python3 scripts/check-inhouse-package-parity.py >/dev/null" "first-party package is Bazel-only"
 check "python3 scripts/validate-skills.py >/dev/null" "repo skills validate"
 
@@ -25,7 +24,6 @@ for input in default_runner_class heavy_runner_class kvm_runner_class; do
 done
 
 image='ghcr.io/great-falls-tool-bus/gftb-site'
-check "jq -e --arg image '$image' '.spoke.image_repository == \$image' .github/lanes.json >/dev/null" "lane metadata names the exact private package"
 check "grep -q '$image' Justfile && grep -q '$image' flake.nix" "publisher and image recipe fix the package identity"
 check "grep -q 'packages: write' .github/workflows/container-ghcr.yml" "candidate publisher has scoped package write authority"
 check "! grep -q 'codex/\\*\\*' .github/workflows/container-ghcr.yml && grep -q 'expected_sha' .github/workflows/container-ghcr.yml" "package writes are main-only or exact-SHA attended dispatch"
