@@ -68,7 +68,7 @@
 			<p>
 				Membership, login, and borrowing access end immediately. For 30 days after exit or removal, you may ask a
 				keyholder to verify your identity and restore your account, mailbox contents, and member-list state intact. After
-				that window the retained data is inaccessible and returning requires a new application. At 90 days, personal
+				that window the retained data is inaccessible and returning requires a new application. At 90 days after exit or removal, personal
 				account data, mailbox contents, and list-subscription records are purged. Finance and audit records, unresolved
 				obligation evidence, and records under a legal hold remain for their separate required periods.
 			</p>
@@ -127,7 +127,7 @@
 				When a remaining retention period is ratified, or the system changes in a way that affects what is collected or
 				who can see it, this page is updated and the update date below changes.
 			</p>
-			<p><em>Last reviewed: 31 August 2026.</em></p>
+			<p><em>Last reviewed: 30 August 2026.</em></p>
 		</div>
 	</article>
 
