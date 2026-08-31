@@ -2,11 +2,9 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 
-	// RATIFIED INTERIM (operator Option A, 2026-08-29): privacy +
-	// retention copy for spec §12 may land while exact retention periods remain
-	// unset. The route stays unlinked: no nav-items.ts entry and no cross-link
-	// from /contact, /apply, or the root page. ADR 0016 still routes numerical
-	// periods to sitting #3; this ruling does not invent or default a number.
+	// Operator-ratified lifecycle values through 30 August 2026. Member and
+	// applicant periods below are set; finance/audit and location-observation
+	// periods remain separately governed. The route stays unlinked.
 </script>
 
 <div class="page-shell">
@@ -20,7 +18,6 @@
 	<article class="log-entry">
 		<header class="log-entry__header">
 			<h1>Privacy and data retention</h1>
-			<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
 			<p>
 				What we collect, why, who can see it, and how long we keep it — for the contact form, membership application,
 				contribution records, and (once it exists) the tool-lending pilot.
@@ -60,10 +57,20 @@
 				and is visible only to the finance role.
 			</p>
 			<p>
-				<strong>Declined or withdrawn applications.</strong>
-				<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
-				How long we keep a declined or withdrawn application is not yet decided. This page will state the exact period once
-				it is set.
+				<strong>Withdrawn, declined, or inactive applications.</strong>
+				We keep profile and verification data for 30 days after withdrawal or decline so you can ask for correction or
+				export, then delete it. An application that never reaches a tour closes after 60 days without applicant activity,
+				after warning attempts, and then follows the same 30-day deletion window. We keep only a minimal non-personal
+				decision or audit receipt when required.
+			</p>
+
+			<h2>When membership ends</h2>
+			<p>
+				Membership, login, and borrowing access end immediately. For 30 days after exit or removal, you may ask a
+				keyholder to verify your identity and restore your account, mailbox contents, and member-list state intact. After
+				that window the retained data is inaccessible and returning requires a new application. At 90 days, personal
+				account data, mailbox contents, and list-subscription records are purged. Finance and audit records, unresolved
+				obligation evidence, and records under a legal hold remain for their separate required periods.
 			</p>
 
 			<h2>Contribution records</h2>
@@ -79,9 +86,9 @@
 			</p>
 			<p>
 				<strong>Finance and audit records.</strong>
-				<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
-				How long finance and audit records are kept — including after a membership ends — is not yet decided. This page will
-				state the exact period once it is set.
+				These records are kept for their separately governed or legally required periods. The member-account periods
+				above do not shorten them; this page will state a numerical finance and audit period when that separate policy is
+				set.
 			</p>
 
 			<h2>Tool-lending pilot (photos and location observations)</h2>
@@ -91,10 +98,14 @@
 				members.
 			</p>
 			<p>
-				<strong>Photos and location observations.</strong>
-				<!-- Option A ratifies the truthful unset-period wording; sitting #3 still owns the exact period. -->
-				How long photos and location observations are kept is not yet decided. This page will state the exact period, and
-				this section will be updated before the pilot's data collection goes live, once it is set.
+				<strong>Photos.</strong>
+				Ordinary condition photos are kept until the checkout or return is closed, plus 90 days. Photos connected to
+				damage or repair are kept until the matter is resolved, plus one year. Catalog photos remain for the lifetime of
+				the tool. A legal hold may require longer retention.
+			</p>
+			<p>
+				<strong>Location observations.</strong>
+				Their separate retention period is not yet set. This section will be updated before the pilot collects them.
 			</p>
 
 			<h2>Who your information is shared with</h2>
@@ -106,17 +117,17 @@
 
 			<h2>Your choices</h2>
 			<p>
-				To ask what information we hold about you, correct it, or request its deletion — subject to the finance/audit
-				records we are required to keep for the period above once it is set — email
+				To ask what information we hold about you, correct it, request an export, or request deletion subject to the
+				retention requirements above, email
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>.
 			</p>
 
 			<h2>Changes to this page</h2>
 			<p>
-				This page describes the system as built. When retention periods are ratified, or the system changes in a way
-				that affects what is collected or who can see it, this page is updated and the update date below changes.
+				When a remaining retention period is ratified, or the system changes in a way that affects what is collected or
+				who can see it, this page is updated and the update date below changes.
 			</p>
-			<p><em>Last reviewed: 29 August 2026.</em></p>
+			<p><em>Last reviewed: 31 August 2026.</em></p>
 		</div>
 	</article>
 
