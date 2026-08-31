@@ -119,17 +119,27 @@ const textPairs: Pair[] = [
 	// --highlight-heading.
 	{ name: 'copy on the yellow livery band', role: '--highlight-contrast', on: 'yellow', minimum: AA },
 	{ name: 'headings and anchors on the yellow livery band', role: '--highlight-heading', on: 'yellow', minimum: AA },
-	// The restored inverted contact panel (gen_board.py:170-179): panel copy,
-	// helper text, links, field errors, the yellow eyebrow, and the
-	// paper-filled controls' own inks.
-	{ name: 'contact panel copy', role: '--inverse-fg', on: 'inversePanel', minimum: AA },
-	{ name: 'contact panel helper text', role: '--inverse-fg-muted', on: 'inversePanel', minimum: AA },
-	{ name: 'contact panel link', role: '--inverse-link', on: 'inversePanel', minimum: AA },
-	{ name: 'contact panel field error', role: '--inverse-danger', on: 'inversePanel', minimum: AA },
-	{ name: 'contact panel eyebrow (--highlight)', role: '--highlight', on: 'inversePanel', minimum: AA },
-	{ name: 'field text on a paper-filled control', role: '--inverse-control-fg', on: 'paper', minimum: AA },
-	{ name: 'accent label on a paper-filled control', role: '--inverse-control-accent', on: 'paper', minimum: AA },
-	{ name: 'error ink on a paper-filled control', role: '--inverse-control-danger', on: 'paper', minimum: AA },
+	// ARCHIVED RUNGS, not shipped paint. The 2026-08-31 flattening removed
+	// every consumer of the --inverse-* group (see .contact-card in
+	// src/app.css); the roles stay declared and stay swept here so a future
+	// re-inversion starts from proven rungs rather than re-deriving them.
+	// Nothing below this marker describes a surface the site currently
+	// paints; the shipped contact surface is the plain-page-ground block
+	// further down.
+	{ name: 'archived inverse panel copy', role: '--inverse-fg', on: 'inversePanel', minimum: AA },
+	{ name: 'archived inverse panel helper text', role: '--inverse-fg-muted', on: 'inversePanel', minimum: AA },
+	{ name: 'archived inverse panel link', role: '--inverse-link', on: 'inversePanel', minimum: AA },
+	{ name: 'archived inverse panel field error', role: '--inverse-danger', on: 'inversePanel', minimum: AA },
+	{ name: 'archived inverse panel eyebrow (--highlight)', role: '--highlight', on: 'inversePanel', minimum: AA },
+	{ name: 'archived paper control field text', role: '--inverse-control-fg', on: 'paper', minimum: AA },
+	{ name: 'archived paper control accent label', role: '--inverse-control-accent', on: 'paper', minimum: AA },
+	{ name: 'archived paper control error ink', role: '--inverse-control-danger', on: 'paper', minimum: AA },
+	// The SHIPPED contact surface since the 2026-08-31 flattening: the form
+	// sits on plain page ground and the fields fill with --panel, so the
+	// field's own text is a pair no other row covers (the footer's --panel
+	// row above is --fg-muted, not --fg).
+	{ name: 'contact field text on its --panel fill', role: '--fg', on: 'panel', minimum: AA },
+	{ name: 'contact helper text on the page', role: '--fg-muted', on: 'page', minimum: AA },
 	// ContributeMenu.svelte (review finding C): the trigger's own label, and
 	// the panel's four text roles.
 	{ name: 'contribute trigger label on its own fill', role: '--accent-contrast', on: 'accentFill', minimum: AA },
@@ -148,20 +158,36 @@ const nonTextPairs: Pair[] = [
 	// fill alone fails on the light page — the regression guard below
 	// records that pair).
 	{ name: 'yellow livery band edge on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	// The restored contact panel (gen_board.py:170-179): the panel's border
-	// against the page, the paper control fill against the panel, the
-	// success rung on paper, and the yellow focus outline drawn on the panel
-	// (gen_board.py:221: 7.77:1 in both schemes).
-	{ name: 'contact panel border on the page', role: '--inverse-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	{ name: 'paper control fill on the panel', role: '--inverse-fg', on: 'inversePanel', minimum: NON_TEXT_RATIO },
+	// The SHIPPED contact surface since the 2026-08-31 flattening. The field
+	// border is the 1.4.11 boundary and it adjoins two grounds: the page
+	// outside and the field's own --panel fill inside, so both are swept.
+	// The invalid-state border swaps that role for --danger, and the focus
+	// ring is pushed clear of the field by outline-offset so it lands on the
+	// page (the same pair the skip-link edge row already proves).
+	{ name: 'contact field border on the page', role: '--accent', on: 'page', minimum: NON_TEXT_RATIO },
+	{ name: 'contact field border on its own fill', role: '--accent', on: 'panel', minimum: NON_TEXT_RATIO },
+	{ name: 'invalid contact field border on the page', role: '--danger', on: 'page', minimum: NON_TEXT_RATIO },
+	{ name: 'invalid contact field border on its own fill', role: '--danger', on: 'panel', minimum: NON_TEXT_RATIO },
+	{ name: 'contact field focus ring on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
+	// ARCHIVED RUNGS, not shipped paint (same marker as the text table): the
+	// panel border against the page, the paper control fill against the
+	// panel, the success rung on paper, and the yellow outline the panel-era
+	// focus ring and notice edge used (gen_board.py:221: 7.77:1 in both
+	// schemes). Nothing here describes a surface the site currently paints.
+	{ name: 'archived inverse panel border on the page', role: '--inverse-edge', on: 'page', minimum: NON_TEXT_RATIO },
 	{
-		name: 'success rung on a paper-filled control',
+		name: 'archived paper control fill on the panel',
+		role: '--inverse-fg',
+		on: 'inversePanel',
+		minimum: NON_TEXT_RATIO,
+	},
+	{
+		name: 'archived success rung on a paper-filled control',
 		role: '--inverse-control-positive',
 		on: 'paper',
 		minimum: NON_TEXT_RATIO,
 	},
-	{ name: 'field focus outline on the panel', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
-	{ name: 'form notice edge on the panel', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
+	{ name: 'archived panel-era yellow outline', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
 	// The mode switch (D01): the accent thumb is the control's 1.4.11
 	// boundary, both against its own track and against the page the switch
 	// sits on (the page pair is the primary-fill row above; this one is the
@@ -269,17 +295,22 @@ describe('the role layer resolves', () => {
 });
 
 describe('the surfaces these pairs assume are the ones the stylesheet paints', () => {
-	it('restores the inverted contact panel and its paper-filled controls', () => {
-		// The ratified role table (gen_board.py:157-180; decisions/0015)
-		// carries the --inverse-* group; PR #25 deleted it on an invalid
-		// interview and addendum B1 restored it. Pinned structurally: the
-		// ratio sweeps only measure roles and cannot notice a consumer being
-		// deleted.
+	it('flattens the contact panel to plain page ground (operator ruling 2026-08-31)', () => {
+		// The ratified role table (gen_board.py:157-180; decisions/0015) still
+		// carries the --inverse-* group. PR #25 deleted it on an invalid
+		// interview and addendum B1 restored it (2026-08-20), but a later
+		// operator ruling ("surfaces are borderless", 2026-08-31) flattened
+		// the panel a second time. The tokens stay declared (still swept by
+		// the ROLES table below) but nothing paints them any more; pinned
+		// structurally so a future re-inversion is a deliberate edit, not a
+		// silent one.
 		expect(appCss).toMatch(/--inverse-panel:\s*var\(--color-primary-900\)/u);
-		expect(appCss).toMatch(/\.contact-card \{[\s\S]*?background: var\(--inverse-panel\);/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?border: 1px solid var\(--inverse-control-accent\);/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: var\(--inverse-fg\);/u);
-		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?color: var\(--inverse-control-fg\);/u);
+		expect(appCss).toMatch(/\.contact-card \{\s*border-radius: 0;\s*\}/u);
+		expect(appCss).not.toMatch(/\.contact-card \{[\s\S]*?background: var\(--inverse-panel\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?border: 1px solid var\(--accent\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: var\(--panel\);/u);
+		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?color: var\(--fg\);/u);
+		expect(appCss).not.toMatch(/\.contact-form input,[\s\S]*?background: var\(--inverse-fg\);/u);
 	});
 
 	it('restores the yellow livery band with its rescue edge and pinned heading ink', () => {
@@ -291,12 +322,16 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		expect(appCss).toMatch(/\.next-session h2 \{[\s\S]*?color: var\(--highlight-heading\);/u);
 	});
 
-	it('keeps the field focus indicator on the panel yellow, and the skip-link on the rescue edge', () => {
-		// On the restored panel the bare yellow IS the ratified indicator
-		// (secondary-300 on primary-900, 7.77:1 — gen_board.py:221). On
-		// paper-side grounds it fails (the regression guard below records the
-		// pair), which is why the skip-link keeps --highlight-edge.
-		expect(appCss).toMatch(/:focus-visible \{\s*outline: 3px solid var\(--highlight\);/u);
+	it('keeps the field focus indicator on the page-ground rescue edge, same as the skip-link', () => {
+		// While the panel stood, the bare yellow WAS the ratified indicator
+		// (secondary-300 on primary-900, 7.77:1, gen_board.py:221). The
+		// 2026-08-31 flattening put the field back on plain page ground, where
+		// the bare fill fails 3:1 (the regression guard below records the
+		// pair), so the field now takes the same --highlight-edge rescue the
+		// skip-link and mode-switch already carry for exactly that reason.
+		expect(appCss).toMatch(
+			/\.contact-form :is\(input, textarea\):focus-visible \{\s*outline: 2px solid var\(--highlight-edge\);/u,
+		);
 		expect(appCss).toMatch(/\.skip-link \{[\s\S]*?border: 1px solid var\(--highlight-edge\);/u);
 	});
 
@@ -446,8 +481,10 @@ for (const scheme of SCHEME_NAMES) {
 			// asks for an indicator that only has to be locatable against
 			// SOMETHING it adjoins. Taking the better of the two is what lets the
 			// dark scheme pass: 1.52:1 against the primary-300 button, 3.98:1
-			// against the page. On the contact panel, where the glow is boxed
-			// between two opaque surfaces, the next test still requires BOTH.
+			// against the page. Since the 2026-08-31 flattening the /contact
+			// submit button is THIS row: it is an ordinary .button on plain
+			// page ground. The next test measures the archived inverse table,
+			// which nothing paints.
 			const grounds = surfaces(scheme);
 			const glow = glowOn(scheme, grounds.page);
 			const best = Math.max(
@@ -457,13 +494,15 @@ for (const scheme of SCHEME_NAMES) {
 			expect(best, `page focus glow measured ${best}:1`).toBeGreaterThanOrEqual(NON_TEXT_RATIO);
 		});
 
-		it('the button focus glow separates from BOTH edges on the contact panel', () => {
-			// The submit button is the PAPER button on the restored inverted
-			// panel (gen_board.py:176-177). Here the glow is boxed between two
-			// opaque surfaces, so both readings are required — this is the very
-			// pair the ratified 56% operating point was chosen on (the glow
-			// rationale above: 3.54:1 against the paper button, 3.50:1 against
-			// the panel; 65% drops the paper side to 2.95:1).
+		it('keeps the archived paper-button glow separating from BOTH inverse edges', () => {
+			// ARCHIVED, not shipped. The 2026-08-31 flattening removed the paper
+			// button and the panel under it (gen_board.py:176-177); the /contact
+			// submit button is now the page-ground row above. This row is kept
+			// because the ratified 56% operating point was CHOSEN on this pair
+			// (the glow rationale above: 3.54:1 against the paper button, 3.50:1
+			// against the panel; 65% drops the paper side to 2.95:1), so a nudge
+			// to the glow that only the boxed case would catch still surfaces
+			// here rather than silently passing the looser page-ground test.
 			const grounds = surfaces(scheme);
 			const glow = glowOn(scheme, grounds.inversePanel);
 			const againstButton = roundRatio(contrastRatio(glow, grounds.paper));
