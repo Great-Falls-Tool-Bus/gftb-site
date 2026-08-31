@@ -2,9 +2,10 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 
-	// Operator-ratified lifecycle values through 30 August 2026. Member and
-	// applicant periods below are set; finance/audit and location-observation
-	// periods remain separately governed. The route stays unlinked.
+	// Operator-ratified lifecycle values through 31 August 2026 (decision 0024
+	// and its Amendment 1). Member, applicant, and archive-account periods
+	// below are set; finance/audit and location-observation periods remain
+	// separately governed. The route stays unlinked.
 </script>
 
 <div class="page-shell">
@@ -71,6 +72,10 @@
 				that window the retained data is inaccessible and returning requires a new application. At 90 days after exit or removal, personal
 				account data, mailbox contents, and list-subscription records are purged. Finance and audit records, unresolved
 				obligation evidence, and records under a legal hold remain for their separate required periods.
+			</p>
+			<p>
+				An account you made yourself on the public list archive is on that same clock: restorable for 30 days after exit
+				or removal, and purged at 90 days.
 			</p>
 
 			<h2>Contribution records</h2>
