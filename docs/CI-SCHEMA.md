@@ -14,8 +14,9 @@ Local and CI operations enter through Just. `just check` covers repository
 conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,
 ESLint, Svelte checks, and unit tests. `just build` produces one adapter-static
 artifact through Bazel. `.github/lanes.json` is the v4 source action plan: it
-names only real finite Bazel targets and abstract execution capabilities. It
-contains no provider or lifecycle configuration and remains inactive until an
+names only real finite Bazel targets and one abstract execution capability per
+action. It contains no provider or lifecycle configuration and remains inactive
+until an
 immutable v4 ci-templates caller is released and pinned.
 
 ## Flywheel

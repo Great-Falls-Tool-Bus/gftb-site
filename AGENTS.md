@@ -88,9 +88,10 @@ is not public.
   proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
   Skeleton 4 compatibility shim.
 - `.github/lanes.json` is the source-only v4 action plan: finite Bazel targets
-  plus abstract REAPI capabilities, and nothing about repositories, tenants,
-  providers, runner labels, pools, endpoints, credentials, publication, or
-  lifecycle. The provider resolves capabilities; this consumer never does.
+  plus exactly one abstract REAPI capability per action, and nothing about
+  repositories, tenants, providers, runner labels, pools, endpoints,
+  credentials, publication, or
+  lifecycle. The provider resolves each capability; this consumer never does.
 - The plan is inactive until ci-templates publishes and this repo pins an
   immutable v4 caller. The current v3 reusable workflow remains the
   present-tense CI transport, not a fallback or evidence that v4 is live.

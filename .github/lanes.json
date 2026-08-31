@@ -4,12 +4,12 @@
 		"validate": {
 			"command": "test",
 			"targets": ["//:ci_validation_suite"],
-			"capabilities": ["rbe-linux-x86_64"]
+			"capability": "rbe-linux-x86_64"
 		},
 		"site-build": {
 			"command": "build",
 			"targets": ["//:build"],
-			"capabilities": ["rbe-linux-x86_64"]
+			"capability": "rbe-linux-x86_64"
 		}
 	}
 }
