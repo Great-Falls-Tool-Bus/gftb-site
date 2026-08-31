@@ -59,19 +59,20 @@
 			</p>
 			<p>
 				<strong>Withdrawn, declined, or inactive applications.</strong>
-				We keep profile and verification data for 30 days after withdrawal or decline so you can ask for correction or
-				export, then delete it. An application that never reaches a tour closes after 60 days without applicant activity,
-				after warning attempts, and then follows the same 30-day deletion window. We keep only a minimal non-personal
-				decision or audit receipt when required.
+				We keep profile and verification data for 30 days after withdrawal or decline so you can ask for correction or export,
+				then delete it. An application that never reaches a tour closes after 60 days without applicant activity, after warning
+				attempts, and then follows the same 30-day deletion window. We keep only a minimal non-personal decision or audit
+				receipt when required.
 			</p>
 
 			<h2>When membership ends</h2>
 			<p>
 				Membership, login, and borrowing access end immediately. For 30 days after exit or removal, you may ask a
-				keyholder to verify your identity and restore your account, mailbox contents, and member-list state intact. After
-				that window the retained data is inaccessible and returning requires a new application. At 90 days after exit or removal, personal
-				account data, mailbox contents, and list-subscription records are purged. Finance and audit records, unresolved
-				obligation evidence, and records under a legal hold remain for their separate required periods.
+				keyholder to verify your identity and restore your account, mailbox contents, and member-list state intact.
+				After that window the retained data is inaccessible and returning requires a new application. At 90 days after
+				exit or removal, personal account data, mailbox contents, and list-subscription records are purged. Finance and
+				audit records, unresolved obligation evidence, and records under a legal hold remain for their separate required
+				periods.
 			</p>
 			<p>
 				An account you made yourself on the public list archive is on that same clock: restorable for 30 days after exit
@@ -91,9 +92,8 @@
 			</p>
 			<p>
 				<strong>Finance and audit records.</strong>
-				These records are kept for their separately governed or legally required periods. The member-account periods
-				above do not shorten them; this page will state a numerical finance and audit period when that separate policy is
-				set.
+				These records are kept for their separately governed or legally required periods. The member-account periods above
+				do not shorten them; this page will state a numerical finance and audit period when that separate policy is set.
 			</p>
 
 			<h2>Tool-lending pilot (photos and location observations)</h2>
@@ -104,9 +104,9 @@
 			</p>
 			<p>
 				<strong>Photos.</strong>
-				Ordinary condition photos are kept until the checkout or return is closed, plus 90 days. Photos connected to
-				damage or repair are kept until the matter is resolved, plus one year. Catalog photos remain for the lifetime of
-				the tool. A legal hold may require longer retention.
+				Ordinary condition photos are kept until the checkout or return is closed, plus 90 days. Photos connected to damage
+				or repair are kept until the matter is resolved, plus one year. Catalog photos remain for the lifetime of the tool.
+				A legal hold may require longer retention.
 			</p>
 			<p>
 				<strong>Location observations.</strong>
