@@ -170,6 +170,18 @@
 		} else {
 			pausedByHover = false;
 			pausedByFocus = false;
+			// A tap-without-swipe or a vertical page-scroll wheel over the
+			// slides parks the machine in its userScroll state: Zag's own
+			// ontouchstart/onwheel (spread onto the list) send USER.SCROLL
+			// after this component's engage-pause has already reached idle,
+			// and since neither gesture ever scrolls the item group, no
+			// SCROLL.END arrives to leave userScroll again. That state
+			// ignores AUTOPLAY.START, so play() alone would silently do
+			// nothing — a Play control that lies. PAGE.SET is handled
+			// globally with target idle, so re-assert the current page
+			// (same index: no scroll, no motion) to walk the machine back
+			// to idle before starting rotation.
+			api.scrollTo(api.page, true);
 			api.play();
 		}
 	}

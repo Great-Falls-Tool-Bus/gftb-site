@@ -125,6 +125,30 @@ test('keyboard focus inside the goals pauses auto-advance', async ({ page }) => 
 	await expect(list).toHaveAttribute('aria-live', 'off');
 });
 
+test('the play control restarts rotation even after wheel engagement parks the machine', async ({ page }) => {
+	await page.goto('/');
+	const list = page.locator('#goals .goal-list');
+	await expect(list).toHaveAttribute('aria-live', 'off');
+
+	// A vertical wheel over the slides is direct engagement: rotation stops
+	// and stays stopped (no courtesy resume when the pointer leaves). Under
+	// the hood this is also the gesture that walks Zag into its userScroll
+	// state with no SCROLL.END ever coming — the item group never scrolled.
+	await list.hover();
+	await page.mouse.wheel(0, 1);
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+	await page.mouse.move(0, 0);
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+
+	// The Play control must genuinely restart rotation from that parked
+	// state (userScroll ignores AUTOPLAY.START; the component re-asserts
+	// the current page to reach idle first) — a Play button may not lie.
+	const region = page.locator('#goals [aria-roledescription="carousel"]');
+	await region.getByRole('button', { name: 'Play auto-advance' }).click();
+	await expect(list).toHaveAttribute('aria-live', 'off');
+	await expect(region.getByRole('button', { name: 'Pause auto-advance' })).toBeVisible();
+});
+
 test('reduced motion never auto-advances; manual navigation still works', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await page.goto('/');
