@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { publicLogs, formatLogDate, summaryDiffersFromTitle } from '$lib/public-logs';
+	import { publicLogs, formatLogDate, summaryDiffersFromTitle, HOME_LOG_COUNT } from '$lib/public-logs';
 	import { publicGoals, publicHelpAsks, memberBenefits } from '$lib/public-goals';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
@@ -17,7 +17,11 @@
 	// their swept text preserved in the comment slots restoration PR-5
 	// recorded).
 
-	const latest = publicLogs[0];
+	// Operator ruling 2026-09-01: latest five minified logs on home —
+	// supersedes the 2026-08-30 single-row scope (the citation form and
+	// never-inline-body clauses stand). Fewer than five published entries
+	// render however many exist.
+	const latestLogs = publicLogs.slice(0, HOME_LOG_COUNT);
 
 	// Near-term goals, help asks, and member benefits render from
 	// src/content/goals/*.md through the drift-checked manifest
@@ -222,28 +226,35 @@
 		{/if}
 	</section>
 
-	<!-- Rows 5 and 6 (spec §3 :89-91): the latest log entry, then older
-	     entries through the paginated /log archive (its pagination is plain
-	     prerendered links — the no-JavaScript path). -->
+	<!-- Rows 5 and 6 (spec §3 :89-91): the latest five log entries, then
+	     older entries through the paginated /log archive (its pagination is
+	     plain prerendered links — the no-JavaScript path). Operator ruling
+	     2026-09-01: latest five minified logs on home supersedes the
+	     one-entry row this comment used to describe. -->
 	<section class="section reveal-armed" use:reveal={{ delay: 140 }} id="log" aria-labelledby="log-title">
 		<div class="section-heading">
 			<h2 id="log-title">Public log</h2>
 		</div>
 
-		{#if latest}
+		{#if latestLogs.length > 0}
 			<!-- Operator ruling 2026-08-30: the home row is a concise citation
 			     (title, date, summary, one read-more link), never the inline
-			     body. The full entry lives on its permalink. -->
-			<article class="log-entry">
-				<header class="log-entry__header">
-					<h3><a href={`/log/${latest.slug}`}>{latest.metadata.title}</a></h3>
-					<p class="log-meta">{formatLogDate(latest.metadata.date)}</p>
-					{#if summaryDiffersFromTitle(latest.metadata)}
-						<p>{latest.metadata.summary}</p>
-					{/if}
-					<p class="log-entry__more"><a href={`/log/${latest.slug}`}>Read the full entry</a></p>
-				</header>
-			</article>
+			     body. The full entry lives on its permalink. Superseded in
+			     scope by operator ruling 2026-09-01: latest five minified logs
+			     on home — up to five citation rows render instead of one; the
+			     citation form and never-inline-body clauses stand. -->
+			{#each latestLogs as entry (entry.slug)}
+				<article class="log-entry">
+					<header class="log-entry__header">
+						<h3><a href={`/log/${entry.slug}`}>{entry.metadata.title}</a></h3>
+						<p class="log-meta">{formatLogDate(entry.metadata.date)}</p>
+						{#if summaryDiffersFromTitle(entry.metadata)}
+							<p>{entry.metadata.summary}</p>
+						{/if}
+						<p class="log-entry__more"><a href={`/log/${entry.slug}`}>Read the full entry</a></p>
+					</header>
+				</article>
+			{/each}
 		{:else}
 			<!-- TODO(jess): the first entry is a published:false draft awaiting
 			     your write-up (addendum B1.2: agent-drafted posts never
