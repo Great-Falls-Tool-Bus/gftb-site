@@ -1176,6 +1176,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: 1.25rem;
 }
 
+/* Operator ruling 2026-09-01: latest five minified logs on home — stacked
+ * citation rows are parted by air alone (margins matching .log-list li + li),
+ * no rules, no cards (the 2026-08-30 borderless/never-cards ruling stands). */
+.log-entry + .log-entry {
+	margin-top: 1.75rem;
+}
+
 .log-entry__body {
 	margin-top: 2rem;
 }
