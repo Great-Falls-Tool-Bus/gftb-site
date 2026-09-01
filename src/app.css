@@ -1205,16 +1205,25 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	text-decoration-thickness: 2px;
 }
 
-/* Near-term goals (operator ruling 2026-08-31): a borderless timeline grid.
+/* Near-term goals (operator ruling 2026-08-31): borderless timeline rows.
  * Same ground, same whitespace separation as the log surfaces; the CTA
- * shares the read-more link treatment. */
+ * shares the read-more link treatment. The rows now live inside the goals
+ * carousel (src/lib/components/GoalCarousel.svelte): at rest — the served
+ * no-JS HTML — .goal-list lays out as the ratified grid below; once
+ * hydration flips .goal-list--enhanced, Zag's inline scroll-snap layout
+ * (grid-auto-flow: column, --slide-item-size, overflow-x: auto on the list
+ * itself) takes over, so the enhanced state declares no competing tracks.
+ * The list is its own horizontal scroller; the document never widens. */
 .goal-list {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-	gap: 1.75rem 2.5rem;
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+
+.goal-list:not(.goal-list--enhanced) {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	gap: 1.75rem 2.5rem;
 }
 
 .goal-list h3 {
@@ -1245,6 +1254,64 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 .goal-cta a:hover,
 .goal-cta a:focus-visible {
 	text-decoration-thickness: 2px;
+}
+
+/* Carousel chrome (goals carousel, D-goals): the control bar mounts only
+ * after hydration. Buttons reuse the ratified secondary-button boundary
+ * (2px --accent border — the proven 1.4.11 pair on page ground) at control
+ * scale, with the sharp-edges radius re-pin Skeleton/UA chrome requires and
+ * the .button focus ring. No transitions are declared anywhere in this
+ * block, so the reduced-motion sweep stays clean by construction. */
+.goal-carousel__controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	margin-top: 1.5rem;
+	font-family: var(--font-sans);
+}
+
+.goal-carousel__button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 2.75rem;
+	padding: 0.35rem 1rem;
+	border: 2px solid var(--accent);
+	border-radius: 0;
+	background: transparent;
+	color: var(--heading);
+	font-family: var(--font-sans);
+	font-size: 0.95rem;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.goal-carousel__button:hover {
+	background: var(--accent);
+	color: var(--accent-contrast);
+}
+
+.goal-carousel__button:focus-visible {
+	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
+}
+
+.goal-carousel__progress {
+	margin: 0;
+	color: var(--fg-muted);
+	font-size: 0.95rem;
+}
+
+/* Reserved for the featured-image slot (GoalCarousel `media` snippet):
+ * media collapses to nothing while no goal ships an image. */
+.goal-media {
+	margin: 0 0 0.75rem;
+}
+
+.goal-media img {
+	display: block;
+	max-width: 100%;
+	height: auto;
 }
 
 .goal-asides {
@@ -1733,6 +1800,23 @@ figcaption {
 	}
 
 	.external-link__mark {
+		display: none !important;
+	}
+
+	/* Paper gets the whole goals timeline, not a scroll viewport: unwind the
+	 * carousel's inline scroll-snap layout back to the resting grid and drop
+	 * the screen-only controls. !important is required — the enhanced layout
+	 * arrives as element-level inline styles from the carousel machine. */
+	.goal-list--enhanced {
+		display: grid !important;
+		grid-auto-flow: row !important;
+		grid-auto-columns: auto !important;
+		grid-template-columns: repeat(2, 1fr) !important;
+		gap: 1.25rem 2rem !important;
+		overflow: visible !important;
+	}
+
+	.goal-carousel__controls {
 		display: none !important;
 	}
 
