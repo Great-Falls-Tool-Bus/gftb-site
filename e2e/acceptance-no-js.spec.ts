@@ -70,10 +70,11 @@ test.describe('JavaScript disabled', () => {
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
 		await page.goto('/');
 		// The nav SSOT's primary items (Log, Contact, GitHub since the operator
-		// ruling of 2026-08-31); the count derives from the SSOT so it cannot drift.
+		// ruling of 2026-08-31, Discussion archive since the operator ruling of
+		// 2026-09-01); the count derives from the SSOT so it cannot drift.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
 		await expect(headerLinks).toHaveCount(primaryNavItems.length);
-		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u]);
+		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u, /^Discussion archive/u]);
 
 		const broken = await page.evaluate(() =>
 			Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="#"], a[href^="/#"]'))

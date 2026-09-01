@@ -48,12 +48,15 @@ export const navItems: NavItem[] = [
 	// public target (gftb-site itself is private; a repo link would 404 for
 	// visitors, review E4).
 	{ label: 'GitHub', href: 'https://github.com/Great-Falls-Tool-Bus', match: [], primary: true, external: true },
-	// Footer-demoted rows. History is the home page's spec §3 row 7 anchor.
-	{ label: 'History', href: '/#history', match: [], footerGroup: 'About' },
-	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
-	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
-	// Public HyperKitty archive UI for discuss@ (operator ask 2026-08-20). The
-	// PRIVATE keyholders@ archive never gets a public link — see
+	// Public HyperKitty archive UI for discuss@ — promoted from the footer to
+	// the header by operator ruling 2026-09-01 (the discuss board is a
+	// top-level nav item; anyone can read, writing requires membership).
+	// Header-only, the GitHub precedent — the footer row moved here rather
+	// than duplicating. The href stays the deep link to the discuss@ list
+	// overview, NOT the /hyperkitty/ root: the deep link is the
+	// Anubis-exempted anonymous read path (TIN-2559), while the root's list
+	// index invites discovery of the private list's 403 surface. The PRIVATE
+	// keyholders@ archive never gets a public link — see
 	// scripts/lib/leak-scan-rules.json's private-list-archive rule.
 	{
 		// LOW-1 (PR #35 review): home and contact both name this destination
@@ -64,9 +67,13 @@ export const navItems: NavItem[] = [
 		label: 'Discussion archive',
 		href: 'https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/',
 		match: [],
-		footerGroup: 'Get involved',
+		primary: true,
 		external: true,
 	},
+	// Footer-demoted rows. History is the home page's spec §3 row 7 anchor.
+	{ label: 'History', href: '/#history', match: [], footerGroup: 'About' },
+	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
+	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
 ];
 
 /** Header bar items — derived, never hand-duplicated. */
