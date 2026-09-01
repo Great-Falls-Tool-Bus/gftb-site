@@ -29,6 +29,11 @@ import { fileURLToPath } from 'node:url';
 
 import { format, resolveConfig } from 'prettier';
 
+import {
+	FEATURED_IMAGE_KEYS,
+	assertFeaturedImageFrontmatter,
+	assertPublishedImageAsset,
+} from './lib/featured-image.mjs';
 import { readLogEntries } from './lib/log-content.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -50,6 +55,13 @@ function renderMetadata(metadata) {
 	if (typeof metadata.updated === 'string') {
 		lines.push(`\t\t\tupdated: ${JSON.stringify(metadata.updated)},`);
 	}
+	// The featured-image group (src/lib/featured-image-schema.ts): emitted
+	// key-by-key so an unknown key can never ride into the manifest.
+	for (const key of FEATURED_IMAGE_KEYS) {
+		if (typeof metadata[key] === 'string') {
+			lines.push(`\t\t\t${key}: ${JSON.stringify(metadata[key])},`);
+		}
+	}
 	return lines.join('\n');
 }
 
@@ -69,6 +81,14 @@ function renderEntry(entry) {
 async function main() {
 	const entries = readLogEntries(LOG_DIR);
 	const published = entries.filter((entry) => entry.metadata.published === true);
+	for (const entry of published) {
+		// Fail closed BEFORE rendering: a malformed group or a published image
+		// with no committed static/ asset breaks this build, and with it
+		// `just log-manifest-check` inside `just check`. Drafts are exempt from
+		// the asset check (their bytes wait in _assets-pending/, 5f11f40 rule).
+		assertFeaturedImageFrontmatter(entry.metadata, entry.file);
+		assertPublishedImageAsset(entry.metadata, entry.file, ROOT);
+	}
 
 	const body =
 		published.length > 0 ? `${published.map(renderEntry).join('\n')}\n` : '\t// No entries are published yet.\n';

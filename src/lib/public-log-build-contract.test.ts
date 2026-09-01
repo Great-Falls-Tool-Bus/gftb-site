@@ -84,6 +84,36 @@ describe('public log frontmatter', () => {
 		);
 		expect(() => assertPublicLogMetadata({ ...validMetadata(), date: '2026-13-01' }, 'fixture')).toThrow(/date/u);
 		expect(() => assertPublicLogMetadata({ ...validMetadata(), tags: [] }, 'fixture')).toThrow(/tags/u);
+		expect(() => assertPublicLogMetadata({ ...validMetadata(), image: '/photos/log/x-1280.jpg' }, 'fixture')).toThrow(
+			/image and image_alt travel together/u,
+		);
+	});
+
+	// The featured-image keys are FLAT scalars by design: this parser (and the
+	// real one in scripts/lib/log-content.mjs) rejects nested maps, so the
+	// group must round-trip as top-level keys and survive the schema intact.
+	it('round-trips flat featured-image frontmatter through the parser and the schema', () => {
+		const fixture = [
+			'---',
+			'date: 2026-09-01',
+			'title: First shelf dry-fit',
+			'summary: The first shelf goes in for a dry fit.',
+			'tags: [build]',
+			'published: false',
+			'image: /photos/log/2026-09-01-first-shelf-1280.jpg',
+			'image_alt: A plywood shelf half-installed in the bus',
+			'image_caption: First shelf dry-fit, September 2026',
+			"image_aspect: '3/2'",
+			'---',
+			'',
+			'<!-- TODO(jess): fixture body -->',
+			'Body.',
+		].join('\n');
+		const metadata = assertPublicLogMetadata(parseFrontmatter(fixture, 'fixture.svx'), 'fixture.svx');
+		expect(metadata.image).toBe('/photos/log/2026-09-01-first-shelf-1280.jpg');
+		expect(metadata.image_alt).toBe('A plywood shelf half-installed in the bus');
+		expect(metadata.image_caption).toBe('First shelf dry-fit, September 2026');
+		expect(metadata.image_aspect).toBe('3/2');
 	});
 
 	// Loader fence (spec §3 :112-116), moved off src/lib/public-logs.ts by the

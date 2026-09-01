@@ -39,7 +39,9 @@ describe('checked-in public log content', () => {
 			if (/^published:\s*false$/mu.test(frontmatter ?? '')) {
 				expect(raw, `${file} draft without a TODO(jess) marker`).toContain('TODO(jess)');
 			}
-			const keys = [...(frontmatter ?? '').matchAll(/^([a-z][a-zA-Z]*):/gmu)].map((match) => match[1]);
+			// Underscores included: the featured-image keys (image_alt, ...) must
+			// be visible to this scan, not silently skipped.
+			const keys = [...(frontmatter ?? '').matchAll(/^([a-z][a-z_]*):/gmu)].map((match) => match[1]);
 			expect(
 				keys.filter((key) => !allowed.has(key)),
 				`${file} unsupported keys`,

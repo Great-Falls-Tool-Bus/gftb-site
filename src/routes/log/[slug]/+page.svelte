@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { publicLogs, formatLogDate } from '$lib/public-logs';
 
@@ -32,6 +33,14 @@
 			<p>{entry.metadata.summary}</p>
 			<p class="log-tags">{entry.metadata.tags.join(' · ')}</p>
 		</header>
+		<!-- Top-of-post hero; renders nothing for imageless entries. -->
+		<FeaturedImage
+			variant="hero"
+			src={entry.metadata.image}
+			alt={entry.metadata.image_alt}
+			caption={entry.metadata.image_caption}
+			aspect={entry.metadata.image_aspect}
+		/>
 		<div class="log-entry__body"><EntryBody /></div>
 	</article>
 
