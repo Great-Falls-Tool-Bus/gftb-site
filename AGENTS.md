@@ -21,7 +21,15 @@ readback, and rollback remain outside this repo.
 Public daily-log frontmatter is exactly:
 
 - required: `date`, `title`, `summary`, `tags`, `published`
-- optional: `updated`
+- optional: `updated`, plus the flat featured-image group `image`,
+  `image_alt`, `image_caption`, `image_aspect` (src/lib/featured-image-schema.ts;
+  the goals frontmatter carries the same group). `image` and `image_alt`
+  travel together; `image` must be a site-relative `static/` path with a
+  leak-scan-classified extension, and a `published: true` entry's image must
+  resolve to a committed asset or the manifest build (and `just check`)
+  fails. A draft's image may name its future `static/` path while the bytes
+  wait in `src/content/log/_assets-pending/<slug>/`; draft alt/caption copy
+  joins the leak-scan denylist.
 
 Every file in `src/content/log/` is public build input. Entries render only
 with `published: true`; a `published: false` file is an operator-pending

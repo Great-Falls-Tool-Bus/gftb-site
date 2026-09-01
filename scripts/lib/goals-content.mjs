@@ -64,6 +64,12 @@ export function distinctiveDraftGoalLiterals(entries) {
 			literals.push(entry.metadata.title);
 		}
 		if (entry.text.length >= MIN_LITERAL_LENGTH) literals.push(entry.text);
+		// Draft featured-image alt/caption copy joins the denylist under the
+		// same length floor, mirroring distinctiveDraftLiterals for logs.
+		for (const key of ['image_alt', 'image_caption']) {
+			const value = entry.metadata[key];
+			if (typeof value === 'string' && value.length >= MIN_LITERAL_LENGTH) literals.push(value);
+		}
 	}
 	return literals;
 }

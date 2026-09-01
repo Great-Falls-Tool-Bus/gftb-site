@@ -10,6 +10,11 @@ import { fileURLToPath } from 'node:url';
 
 import { format, resolveConfig } from 'prettier';
 
+import {
+	FEATURED_IMAGE_KEYS,
+	assertFeaturedImageFrontmatter,
+	assertPublishedImageAsset,
+} from './lib/featured-image.mjs';
 import { readGoalEntries } from './lib/goals-content.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -20,7 +25,17 @@ const KINDS = new Set(['goal', 'help', 'benefit']);
 // Mirrors src/lib/public-goal-schema.ts (the binding contract, exercised by
 // src/lib/public-goal-schema.test.ts over every content file); the generator
 // refuses the same shapes so an invalid file never reaches the manifest.
-const ALLOWED_KEYS = new Set(['kind', 'order', 'title', 'published', 'window', 'cta_label', 'cta_href', 'source']);
+const ALLOWED_KEYS = new Set([
+	'kind',
+	'order',
+	'title',
+	'published',
+	'window',
+	'cta_label',
+	'cta_href',
+	'source',
+	...FEATURED_IMAGE_KEYS,
+]);
 
 function renderEntry(entry) {
 	const m = entry.metadata;
@@ -40,6 +55,10 @@ function renderEntry(entry) {
 	if ((m.cta_label === undefined) !== (m.cta_href === undefined)) {
 		throw new Error(`${entry.file}: cta_label and cta_href travel together`);
 	}
+	// Featured-image group: same fail-closed checks as the schema, plus the
+	// committed-asset check (renderEntry only ever sees published entries).
+	assertFeaturedImageFrontmatter(m, entry.file);
+	assertPublishedImageAsset(m, entry.file, ROOT);
 	const lines = [
 		'\t{',
 		`\t\tslug: ${JSON.stringify(entry.slug)},`,
@@ -52,6 +71,9 @@ function renderEntry(entry) {
 	if (typeof m.cta_label === 'string') {
 		lines.push(`\t\t\tcta_label: ${JSON.stringify(m.cta_label)},`);
 		lines.push(`\t\t\tcta_href: ${JSON.stringify(m.cta_href)},`);
+	}
+	for (const key of FEATURED_IMAGE_KEYS) {
+		if (typeof m[key] === 'string') lines.push(`\t\t\t${key}: ${JSON.stringify(m[key])},`);
 	}
 	lines.push(
 		'\t\t\tpublished: true,',
