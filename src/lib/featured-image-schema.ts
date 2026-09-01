@@ -27,8 +27,13 @@ export interface FeaturedImageMetadata {
 	image_aspect?: string;
 }
 
-/** Site-relative, no scheme, no `..` (checked separately), leak-scan-classified extension. */
-export const IMAGE_SRC_PATTERN = /^\/[\w./-]+\.(?:jpg|jpeg|png|webp|avif|svg)$/u;
+/**
+ * Site-relative, no scheme, no `..` (checked separately), leak-scan-classified
+ * extension. The first segment must start with a word character so a
+ * protocol-relative `//host/x.png` (an external fetch in the browser) can
+ * never satisfy the shape check.
+ */
+export const IMAGE_SRC_PATTERN = /^\/[\w][\w./-]*\.(?:jpg|jpeg|png|webp|avif|svg)$/u;
 
 /** A small CSS aspect-ratio fraction: nonzero numerator and denominator. */
 export const IMAGE_ASPECT_PATTERN = /^[1-9]\d{0,2}\/[1-9]\d{0,2}$/u;

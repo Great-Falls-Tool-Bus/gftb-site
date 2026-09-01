@@ -37,6 +37,9 @@ describe('featured-image contract mirror', () => {
 		// Anything else would make the leak scan exit 2, so the schema refuses it.
 		expect(IMAGE_SRC_PATTERN.test('/photos/log/x.gif')).toBe(false);
 		expect(IMAGE_SRC_PATTERN.test('/photos/log/x.tiff')).toBe(false);
+		// A protocol-relative URL is an external fetch in the browser; the
+		// leading-slash-then-word-character shape refuses it outright.
+		expect(IMAGE_SRC_PATTERN.test('//evil.example/x.png')).toBe(false);
 	});
 });
 

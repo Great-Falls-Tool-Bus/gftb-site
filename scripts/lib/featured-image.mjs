@@ -14,7 +14,7 @@ import path from 'node:path';
 export const FEATURED_IMAGE_KEYS = ['image', 'image_alt', 'image_caption', 'image_aspect'];
 
 /** Mirrors IMAGE_SRC_PATTERN in src/lib/featured-image-schema.ts. */
-export const IMAGE_SRC_PATTERN = /^\/[\w./-]+\.(?:jpg|jpeg|png|webp|avif|svg)$/u;
+export const IMAGE_SRC_PATTERN = /^\/[\w][\w./-]*\.(?:jpg|jpeg|png|webp|avif|svg)$/u;
 
 /** Mirrors IMAGE_ASPECT_PATTERN in src/lib/featured-image-schema.ts. */
 export const IMAGE_ASPECT_PATTERN = /^[1-9]\d{0,2}\/[1-9]\d{0,2}$/u;

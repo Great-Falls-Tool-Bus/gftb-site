@@ -45,6 +45,9 @@ describe('assertPublicGoalMetadata', () => {
 		expect(() =>
 			assertPublicGoalMetadata({ ...valid, image: 'https://example.com/x.jpg', image_alt: 'Shelving stock' }),
 		).toThrow(/site-relative/u);
+		expect(() =>
+			assertPublicGoalMetadata({ ...valid, image: '//evil.example/x.png', image_alt: 'Shelving stock' }),
+		).toThrow(/site-relative/u);
 		expect(() => assertPublicGoalMetadata({ ...valid, image_caption: 'Orphan caption' })).toThrow(
 			/only valid alongside image/u,
 		);

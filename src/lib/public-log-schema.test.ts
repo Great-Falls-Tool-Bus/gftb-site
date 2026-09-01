@@ -55,6 +55,9 @@ describe('public log frontmatter', () => {
 			/site-relative/u,
 		);
 		expect(() => assertPublicLogMetadata({ ...valid, ...alt, image: 'photos/log/x.jpg' })).toThrow(/site-relative/u);
+		expect(() => assertPublicLogMetadata({ ...valid, ...alt, image: '//evil.example/x.png' })).toThrow(
+			/site-relative/u,
+		);
 	});
 
 	it('rejects caption or aspect without an image, malformed aspects, and em dashes in alt text', () => {
