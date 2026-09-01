@@ -102,7 +102,11 @@
  * The one deliberately inverted surface — the purple contact panel and its
  * --inverse-* group — and the yellow livery block are PART of that table
  * (rows :166-179). PR #25 deleted them on an invalid interview; restoration
- * addendum B1 (2026-08-20) is the correction that put them back.
+ * addendum B1 (2026-08-20) is the correction that put them back. A later
+ * operator ruling (2026-08-31, "surfaces are borderless") flattened the
+ * contact panel a second time; see the .contact-card comment near the card
+ * family rules below. The --inverse-* rows stay declared here (still swept
+ * by design-token-contrast.test.ts) but are no longer painted anywhere.
  *
  * Roles resolve to CityLink Skeleton families (src/lib/styles/theme-gftb.css).
  * src/lib/design-token-contrast.test.ts resolves this file's `var()` graph and
@@ -895,50 +899,21 @@ li {
 	border-radius: 0;
 }
 
-/* The purple contact panel, restored (gen_board.py:170-179; addendum B1):
- * the panel inverts in BOTH schemes — primary-900 ground, primary-500 edge —
- * and every ink on it comes from the --inverse-* group. Radius stays an
- * explicit 0 (sharp-edges ruling; the Skeleton `card` @utility collision
- * class documented on the neutral family above applies here too). */
+/* The purple contact panel is FLATTENED (operator ruling 2026-08-31): every
+ * surface is borderless sitewide, whitespace separates them, and
+ * .next-session is the one sanctioned coloured container. This supersedes
+ * the 2026-08-20 restoration (addendum B1, gen_board.py:170-179) that
+ * inverted this panel to primary-900/purple with its own --inverse-* ink
+ * group. The form now sits on plain page ground and picks up the ordinary
+ * roles the h1/h2/h3, `a`, `.muted` and `.external-link__mark` base rules
+ * above already paint every other page surface with, so no per-panel
+ * override is needed. The --inverse-* role group stays declared in :root
+ * (design-token-contrast.test.ts still sweeps it as an unused-but-valid
+ * table) but nothing below paints it any more. Radius stays an explicit 0
+ * (sharp-edges ruling; the Skeleton `card` @utility collision class
+ * documented on the neutral family above applies here too). */
 .contact-card {
 	border-radius: 0;
-	border: 1px solid var(--inverse-edge);
-	background: var(--inverse-panel);
-	color: var(--inverse-fg);
-}
-
-.contact-card h1,
-.contact-card h2,
-.contact-card h3 {
-	color: var(--inverse-fg);
-}
-
-.contact-card a {
-	color: var(--inverse-link);
-}
-
-.contact-card .muted {
-	color: var(--inverse-fg-muted);
-}
-
-/* The [↗] ExternalLink mark declares its own color (D06 BELOW, :1382),
- * which wins over the panel's `.contact-card a` link-color rule for that
- * child span — so the inverted panel needs its own mark override, same
- * pairing as `.contact-card .muted` and `.contact-card a` right above. This
- * rule sits ABOVE the D06 base rule in the file yet still overrides it: the
- * win is on SPECIFICITY (`.contact-card .external-link__mark` is 0,2,0
- * against D06's 0,1,0), not source order — a later, more general rule
- * would not have clawed this back. Caught by e2e/acceptance-contrast.spec.ts
- * when the discuss-archive ExternalLink first landed on this panel
- * (operator ask 2026-08-20/21): --fg-muted (the light-ground default)
- * measured 1.94:1 on --inverse-panel. */
-.contact-card .external-link__mark {
-	color: var(--inverse-fg-muted);
-}
-
-.contact-card .external-link:hover .external-link__mark,
-.contact-card .external-link:focus-visible .external-link__mark {
-	color: var(--inverse-link);
 }
 
 .status-card,
@@ -967,19 +942,23 @@ li {
 	font-weight: 700;
 }
 
-/* Paper-filled controls on the inverted panel (gen_board.py:176-179): the
- * fields fill with paper (--inverse-fg, surface-50) so the fill itself is
- * the WCAG 1.4.11 boundary against primary-900, and the control's own inks
- * come from the --inverse-control-* rungs — primary-900 text, primary-700
- * accent boundary, error-700 errors. Restored by addendum B1 (PR #25 had
- * flattened the fields to transparent page-role boxes). */
+/* Fields on plain page ground (2026-08-31 flattening, see the .contact-card
+ * comment above): the border is now the WCAG 1.4.11 boundary against --bg.
+ * --accent measures 7.13:1 light / 6.06:1 dark against --bg, the same proven
+ * pair as "primary button fill on the page", where --rule, the usual
+ * decorative-edge token, does not clear 3:1 here (1.41:1 light / 2.39:1
+ * dark) and so cannot carry this job. Fill and text ride the ordinary
+ * --panel/--fg roles every other page surface uses. Against the field's own
+ * --panel fill the border reads 7.96:1 light / 5.03:1 dark, and the field
+ * text reads 15.25:1 / 12.66:1 on that fill; design-token-contrast.test.ts
+ * sweeps all three of those pairs by name in both schemes. */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
 	width: 100%;
-	border: 1px solid var(--inverse-control-accent);
-	background: var(--inverse-fg);
-	color: var(--inverse-control-fg);
+	border: 1px solid var(--accent);
+	background: var(--panel);
+	color: var(--fg);
 	font: inherit;
 }
 
@@ -994,14 +973,13 @@ li {
 	padding: 0.75rem;
 }
 
-/* outline-offset pushes the ring off the field and onto the panel, so the
- * ring is measured against the panel ground — and there the bare yellow is
- * the ratified indicator: "focus outline on the contact panel" is
- * secondary-300 on primary-900 at 7.77:1 (gen_board.py:221), in both
- * schemes. (On paper-side grounds the yellow fails and --highlight-edge is
- * the rescue — the skip-link keeps that pairing.) */
+/* Page-ground focus ring (2026-08-31 flattening): the panel-era bare
+ * --highlight yellow read 7.77:1 on primary-900 but fails 3:1 on
+ * paper-side grounds, so this now takes the same rescue edge the skip-link
+ * and mode-switch already carry for exactly that reason (gen_board.py:167 /
+ * palette spec item 4). */
 .contact-form :is(input, textarea):focus-visible {
-	outline: 3px solid var(--highlight);
+	outline: 2px solid var(--highlight-edge);
 	outline-offset: 2px;
 }
 
@@ -1010,20 +988,12 @@ li {
 	margin-top: 0.5rem;
 }
 
-/* The paper submit button on the panel (gen_board.py:176-177 and the 56%
- * glow rationale's own wording, "the paper button"): paper fill, primary-700
- * label — 7.96:1 text on paper, and the fill itself is the 1.4.11 boundary
- * against primary-900. */
-.contact-card .button {
-	border-color: var(--inverse-fg);
-	background: var(--inverse-fg);
-	color: var(--inverse-control-accent);
-}
-
-/* Errors on the paper-filled controls carry the ratified error-700 rung
- * (gen_board.py:178). */
+/* Errors on the fields carry the ordinary --danger rung now (error-700
+ * light / error-300 dark), the same role .field-error uses below. As a
+ * boundary it reads 7.47:1 light / 5.89:1 dark on --bg, swept by name in
+ * design-token-contrast.test.ts. */
 .contact-form :is(input, textarea)[aria-invalid='true'] {
-	border-color: var(--inverse-control-danger);
+	border-color: var(--danger);
 }
 
 .contact-form .button:disabled {
@@ -1037,27 +1007,26 @@ li {
 	font-size: 0.86rem;
 }
 
-/* Helper text and field errors sit on the panel ground: the ratified
- * "contact panel helper text" (primary-100) and "contact panel field error"
- * (error-100) pairs, gen_board.py:217-219. */
+/* Helper text and field errors on plain page ground (2026-08-31): the same
+ * --fg-muted / --danger roles every other page surface uses. */
 .form-help {
-	color: var(--inverse-fg-muted);
+	color: var(--fg-muted);
 }
 
 .field-error {
-	color: var(--inverse-danger);
+	color: var(--danger);
 }
 
-/* Notices on the panel: the edge bar is the ratified panel eyebrow/outline
- * yellow (secondary-300 on primary-900, 7.77:1 non-text); error text keeps
- * the panel's error-100 ink. */
+/* Notices on plain page ground (2026-08-31): the edge bar takes the rescue
+ * edge (bare --highlight fails 3:1 on paper-side grounds; see the focus
+ * ring comment above), and error text takes the ordinary --danger rung. */
 .form-notice {
-	border-left: 0.4rem solid var(--highlight);
+	border-left: 0.4rem solid var(--highlight-edge);
 	padding: 1rem;
 }
 
 .form-notice--error {
-	color: var(--inverse-danger);
+	color: var(--danger);
 }
 
 .text-button {
@@ -1536,8 +1505,8 @@ figcaption {
 	line-height: 1.45;
 }
 
-/* Layout only — the panel's restored inverse paint lives with the card
- * family rules above (gen_board.py:170-179). */
+/* Layout only. The panel paint was removed by the 2026-08-31 flattening;
+ * see the .contact-card comment with the card family rules above. */
 .contact-card {
 	display: grid;
 	gap: 1.5rem;

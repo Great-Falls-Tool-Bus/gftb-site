@@ -10,7 +10,10 @@
 	// compose as the deliberate manual fallback (spec §3 contact relay
 	// :118-127 and §10). The root page's row 8 links here.
 	//
-	// The panel is the restored purple inversion (gen_board.py:170-179).
+	// The panel was the restored purple inversion (gen_board.py:170-179);
+	// a 2026-08-31 operator ruling flattened it to plain page ground
+	// (surfaces are borderless sitewide). See the .contact-card comment
+	// in src/app.css.
 </script>
 
 <div class="page-shell">
