@@ -58,3 +58,21 @@ requests. See `NOTICE` for the concise distribution notice.
 - Protocol/reference: ALTCHA v3.2.0
 - License: MIT
 - Upstream: <https://altcha.org>
+
+## Bus photographs
+
+- Files: `static/photos/goals/bus-side-bikes-1280.webp`,
+  `static/photos/goals/bus-interior-seats-1280.webp`,
+  `static/photos/goals/bus-interior-cleared-1280.webp`,
+  `static/photos/goals/bus-on-lawn-1280.webp`,
+  `static/photos/log/2026-08-11-how-tools-will-move-1280.webp`
+- Author: Jess Sullivan (operator-shot), August 2026
+- Rights: project-owned photographs
+
+Published renditions are 1280w downscales of the metadata-stripped 2000w webp
+masters (themselves encoded from the phone originals with `cwebp -metadata
+none`). Reproduction per file: `sips -s format png` to a PNG intermediate,
+then `cwebp -q 72 -m 6 -resize 1280 0 -metadata none`. Each published file was
+verified metadata-free with `webpmux -info` (no EXIF, XMP, or ICC chunks).
+The phone originals (HEIC) are never published without an EXIF/colorspace
+audit; the source masters live off-repo on operator storage.

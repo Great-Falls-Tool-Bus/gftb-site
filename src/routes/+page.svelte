@@ -179,7 +179,21 @@
 			     a reduced-motion-honest auto-advance. See
 			     src/lib/components/GoalCarousel.svelte for the whole contract,
 			     including the optional featured-image slot. -->
-			<GoalCarousel goals={publicGoals} labelledby="goals-title" />
+			<GoalCarousel goals={publicGoals} labelledby="goals-title">
+				{#snippet media(goal)}
+					{#if goal.metadata.image}
+						<figure class="goal-media">
+							<img
+								src={goal.metadata.image}
+								alt={goal.metadata.image_alt ?? ''}
+								loading="lazy"
+								decoding="async"
+								style:aspect-ratio={goal.metadata.image_aspect}
+							/>
+						</figure>
+					{/if}
+				{/snippet}
+			</GoalCarousel>
 		{:else}
 			<p>Near-term goals and specific ways to help will be posted here.</p>
 		{/if}
