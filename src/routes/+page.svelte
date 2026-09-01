@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { publicLogs, formatLogDate, summaryDiffersFromTitle } from '$lib/public-logs';
 	import { publicGoals, publicHelpAsks, memberBenefits } from '$lib/public-goals';
+	import GoalCarousel from '$lib/components/GoalCarousel.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
@@ -167,24 +168,14 @@
 		</div>
 
 		{#if publicGoals.length > 0}
-			<!-- Borderless timeline grid (never-cards stands): title, plain
-			     window, one sentence, at most one CTA per row. -->
-			<ol class="goal-list" role="list">
-				{#each publicGoals as goal (goal.slug)}
-					<li>
-						<h3>{goal.metadata.title}</h3>
-						{#if goal.metadata.window}
-							<p class="log-meta">{goal.metadata.window}</p>
-						{/if}
-						{#if goal.text}
-							<p>{goal.text}</p>
-						{/if}
-						{#if goal.metadata.cta_label && goal.metadata.cta_href}
-							<p class="goal-cta"><a href={goal.metadata.cta_href}>{goal.metadata.cta_label}</a></p>
-						{/if}
-					</li>
-				{/each}
-			</ol>
+			<!-- The borderless timeline rows (never-cards stands: title, plain
+			     window, one sentence, at most one CTA per row) now cycle as an
+			     accessible carousel. Without JavaScript the served HTML is the
+			     same resting grid as before; hydration adds paging, controls and
+			     a reduced-motion-honest auto-advance. See
+			     src/lib/components/GoalCarousel.svelte for the whole contract,
+			     including the optional featured-image slot. -->
+			<GoalCarousel goals={publicGoals} labelledby="goals-title" />
 		{:else}
 			<p>Near-term goals and specific ways to help will be posted here.</p>
 		{/if}

@@ -6,6 +6,13 @@ import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-g
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub
 // joins the header; the AX footer row is retired.
+//
+// The goals list now cycles as an accessible carousel
+// (src/lib/components/GoalCarousel.svelte). Every pre-carousel pin below
+// still holds — the OL/role=list markup, the row count and order, the
+// never-cards sweep, the CTA hrefs — because every slide stays in the DOM;
+// the carousel-specific rows (region semantics, controls, pause honesty,
+// reduced-motion stillness, no-JS degradation) follow after them.
 
 test('near-term goals render from the manifest as an ordered, borderless list, soonest first', async ({ page }) => {
 	await page.goto('/');
@@ -44,6 +51,120 @@ test('member benefits and help asks render with their CTAs', async ({ page }) =>
 	for (const link of await page.locator('#help a, #goals .goal-cta a').all()) {
 		await expect(link).toHaveAttribute('href', '/contact');
 	}
+});
+
+test('the goals cycle inside an accessible carousel region with working controls', async ({ page }) => {
+	await page.goto('/');
+	const region = page.locator('#goals [aria-roledescription="carousel"]');
+	await expect(region).toHaveAttribute('role', 'region');
+	// The region is named by the section's own heading.
+	await expect(region).toHaveAttribute('aria-labelledby', 'goals-title');
+
+	const list = page.locator('#goals .goal-list');
+	// Every goal title stays in the DOM while the carousel cycles — slides
+	// are paged by scroll position, never mounted and unmounted.
+	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
+
+	// Auto-advance is running on load, and the live region is honest about
+	// it: "off" while cycling (Zag flips it to "polite" whenever paused).
+	await expect(list).toHaveAttribute('aria-live', 'off');
+
+	// Visible prev/next and a pause/play control.
+	const prev = region.getByRole('button', { name: 'Previous goal' });
+	const next = region.getByRole('button', { name: 'Next goal' });
+	await expect(prev).toBeVisible();
+	await expect(next).toBeVisible();
+	await expect(region.getByRole('button', { name: 'Pause auto-advance' })).toBeVisible();
+
+	// Stop rotation first so the manual-navigation assertions are
+	// deterministic, then prove the toggle is honest in both directions.
+	await region.getByRole('button', { name: 'Pause auto-advance' }).click();
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+
+	await next.click();
+	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+	await prev.click();
+	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeLessThan(1);
+
+	await region.getByRole('button', { name: 'Play auto-advance' }).click();
+	await expect(list).toHaveAttribute('aria-live', 'off');
+	await region.getByRole('button', { name: 'Pause auto-advance' }).click();
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+});
+
+test('hovering the goals pauses auto-advance and leaving resumes it', async ({ page }) => {
+	await page.goto('/');
+	const list = page.locator('#goals .goal-list');
+	await expect(list).toHaveAttribute('aria-live', 'off');
+
+	await list.hover();
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+
+	// Longer than the 7s auto-advance interval: the scroller must not move
+	// while the pointer rests on it.
+	const before = await list.evaluate((el) => el.scrollLeft);
+	await page.waitForTimeout(8000);
+	expect(await list.evaluate((el) => el.scrollLeft)).toBe(before);
+
+	// Pointer leaves — the courtesy pause lifts.
+	await page.mouse.move(0, 0);
+	await expect(list).toHaveAttribute('aria-live', 'off');
+});
+
+test('keyboard focus inside the goals pauses auto-advance', async ({ page }) => {
+	await page.goto('/');
+	const list = page.locator('#goals .goal-list');
+	await expect(list).toHaveAttribute('aria-live', 'off');
+
+	const cta = page.locator('#goals .goal-cta a').first();
+	await cta.focus();
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+
+	// Focus moves on, the courtesy pause lifts.
+	await cta.blur();
+	await expect(list).toHaveAttribute('aria-live', 'off');
+});
+
+test('reduced motion never auto-advances; manual navigation still works', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto('/');
+	const list = page.locator('#goals .goal-list');
+
+	// The machine is created without autoplay: the live region reports the
+	// paused state and the rotation control is not offered at all — there
+	// is no rotation to control under reduced motion.
+	await expect(list).toHaveAttribute('aria-live', 'polite');
+	await expect(page.locator('#goals').getByRole('button', { name: /auto-advance/u })).toHaveCount(0);
+
+	// Longer than the auto-advance interval: nothing moves on its own.
+	expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
+	await page.waitForTimeout(8000);
+	expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
+
+	// Manual prev/next still work (with instant, non-smooth scrolls).
+	const region = page.locator('#goals [aria-roledescription="carousel"]');
+	await region.getByRole('button', { name: 'Next goal' }).click();
+	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+	await region.getByRole('button', { name: 'Previous goal' }).click();
+	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeLessThan(1);
+});
+
+test.describe('without JavaScript', () => {
+	test.use({ javaScriptEnabled: false });
+
+	test('the served HTML degrades to the resting goals grid with no dead chrome', async ({ page }) => {
+		await page.goto('/');
+		const list = page.locator('#goals .goal-list');
+		await expect(list.locator('> li')).toHaveCount(publicGoals.length);
+		// No carousel chrome in the static document: no inert buttons, no
+		// scroll-snap inline layout on the list, no hidden slides.
+		await expect(page.locator('#goals button')).toHaveCount(0);
+		await expect(list).not.toHaveAttribute('style', /./u);
+		await expect(page.locator('#goals [aria-hidden="true"]')).toHaveCount(0);
+		// The resting layout is the ratified borderless grid, not a scroller.
+		expect(await list.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
+		expect(await list.evaluate((el) => getComputedStyle(el).overflowX)).toBe('visible');
+	});
 });
 
 test('the session band carries one spelling of the Friday hours', async ({ page }) => {
