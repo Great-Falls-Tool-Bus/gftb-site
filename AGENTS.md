@@ -93,6 +93,24 @@ is not public.
 - Org ARC jobs use `tinyland-nix`; both reusable-workflow heavy and KVM inputs
   are explicitly mapped to that available class.
 
+### Remote-only execution (operator ruling 2026-09-01)
+
+Heavy toolchain execution — Bazel/bazelisk, pnpm installs, preview servers,
+Playwright, gitleaks, actionlint, the QA packet — is remote-only. Every heavy
+recipe refuses off-runner via `scripts/remote-only-guard.sh` (stderr
+`<recipe>: REFUSE — ...`, exit 3; never warn-and-continue). The guard passes
+only where the Actions runner agent itself sets `GITHUB_ACTIONS=true` and
+`RUNNER_ENVIRONMENT` is not `github-hosted`: GF v4 is fail-closed with no
+local-execution fallback, and the REAPI action, not the runner, is the unit
+of compute (R243). The route to evidence is push-and-read: `gh pr checks`,
+`gh run view`, `gh run watch`. Ratified local exceptions in this repo: none.
+`deps-lock` and `flake-lock` stay attended operator lockfile-maintenance
+ceremonies, not build lanes. The local convenience recipes for typecheck,
+lint, format, unit tests, coverage, sbom, sync, analyze, and Bazel graph
+queries were removed with the same ruling; their underlying targets
+(`//:svelte_check_test`, `//:lint_suite`, `//:unit_tests`, ...) still run
+remotely inside the CI validation suites.
+
 ### Which CI job runs which gate
 
 CI is `tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v3.1.0`. Every
@@ -131,8 +149,10 @@ The repository tip contains only live carriers. When a path becomes obsolete:
 2. Rewire those live consumers to the chosen replacement.
 3. Delete the superseded Markdown, script, generated copy, JSON, fixture, and
    workflow in the same change. Git history is the recovery mechanism.
-4. Run `just source-map-check`, `just endpoint-check`, `just secrets-scan-dir`,
-   `just conformance`, `just check`, and `just build` before landing.
+4. Prove `just source-map-check`, `just endpoint-check`,
+   `just secrets-scan-dir`, `just conformance`, `just check`, and `just build`
+   green before landing — on hosted CI (push the branch, read
+   `gh pr checks`); the guarded recipes refuse locally.
 
 Do not keep historical evidence directories, research notes, examples, public
 agent artifacts, or unused scaffolding “just in case.” Do not delete a schema

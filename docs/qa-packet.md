@@ -10,6 +10,13 @@ just qa-packet            # captures on port 3355
 just qa-packet 3411       # captures on a port you choose
 ```
 
+**Remote-only (operator ruling 2026-09-01):** `qa-packet`, `qa-packet-diff`,
+and every other heavy recipe refuse to run off-runner via
+`scripts/remote-only-guard.sh` (exit 3). The `qa-look` job is the packet
+producer: it runs this recipe at the exact PR head and uploads
+`qa-packet/<head-sha>/` as a workflow artifact — download that carrier
+instead of capturing locally.
+
 Pick a free port. Lanes commonly hold 3000 (the Playwright CI port), 3111, 3199
 and 3277, and the recipe deliberately refuses to reuse whatever is already
 listening: an evidence packet of somebody else's build is worse than no packet.

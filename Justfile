@@ -8,19 +8,16 @@ _default:
     @just --list --unsorted
 
 setup:
+    @bash scripts/remote-only-guard.sh setup
     cd {{ root }} && pnpm install --frozen-lockfile
 
+# operator ceremony; not a build lane
 deps-lock:
     cd {{ root }} && pnpm install --lockfile-only
 
+# operator ceremony; not a build lane
 flake-lock:
     cd {{ root }} && nix flake lock
-
-dev:
-    cd {{ root }} && bazelisk run //:dev
-
-dev-open:
-    cd {{ root }} && bazelisk run //:dev -- --open
 
 # CI ENFORCEMENT: run by ci-templates spoke-ci.yml@v3.1.0 job `flywheel-build`,
 # step "Static site build" (line 266-267: `nix develop --command just build`),
@@ -34,58 +31,36 @@ dev-open:
 # Materialization is publish-once: the destination must be absent, and any
 # existing output or transaction residue fails closed and remains untouched.
 build:
+    @bash scripts/remote-only-guard.sh build
     cd {{ root }} && bazelisk build //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
     cd {{ root }} && {{ just_executable() }} leak-scan build
 
 build-ci:
+    @bash scripts/remote-only-guard.sh build-ci
     cd {{ root }} && bazelisk build --config=ci-cached --remote_cache="${BAZEL_REMOTE_CACHE:-}" --remote_download_outputs=toplevel //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
     cd {{ root }} && {{ just_executable() }} leak-scan build
 
 preview port="4173": build
+    @bash scripts/remote-only-guard.sh preview
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 
 # Release the build JVM before Chromium starts inside the bounded ARC runner.
 preview-e2e port="4173": build
+    @bash scripts/remote-only-guard.sh preview-e2e
     cd {{ root }} && bazelisk shutdown
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 
 preview-only port="4173":
+    @bash scripts/remote-only-guard.sh preview-only
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 
 clean:
     rm -rf {{ root }}/build {{ root }}/.svelte-kit {{ root }}/.bundle-stats
 
-typecheck:
-    cd {{ root }} && bazelisk test //:svelte_check_test
-
-typecheck-watch:
-    cd {{ root }} && bazelisk run //:svelte_check_bin -- --watch
-
-lint:
-    cd {{ root }} && bazelisk test //:lint_suite
-
-format: format-nix
-    cd {{ root }} && pnpm exec prettier --write .
-
-format-nix:
-    cd {{ root }} && nixfmt flake.nix
-
-format-check: format-check-nix
-    cd {{ root }} && bazelisk test //:prettier_check_test
-
-format-check-nix:
-    cd {{ root }} && nixfmt --check flake.nix
-
-test-unit:
-    cd {{ root }} && bazelisk test //:unit_tests
-
-test-coverage:
-    cd {{ root }} && bazelisk build //:unit_test_coverage
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/coverage --destination coverage --required-path index.html
-
 test-e2e:
+    @bash scripts/remote-only-guard.sh test-e2e
     cd {{ root }} && if command -v nix >/dev/null 2>&1; then \
       nix develop .#playwright --command just _playwright-run; \
     else \
@@ -93,6 +68,7 @@ test-e2e:
     fi
 
 playwright-ensure:
+    @bash scripts/remote-only-guard.sh playwright-ensure
     cd {{ root }} && pnpm exec playwright install chromium
     cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
       command -v auto-patchelf >/dev/null; \
@@ -115,9 +91,11 @@ playwright-ensure:
     fi
 
 _playwright-run: playwright-ensure
+    @bash scripts/remote-only-guard.sh _playwright-run
     cd {{ root }} && just _playwright-test
 
 _playwright-test:
+    @bash scripts/remote-only-guard.sh _playwright-test
     cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
       test -r "${FONTCONFIG_FILE:?Playwright Linux requires the Nix font contract}"; \
       family="$(fc-match --format='%{family}' sans-serif)"; \
@@ -127,9 +105,11 @@ _playwright-test:
     cd {{ root }} && env -u LD_LIBRARY_PATH pnpm exec playwright test
 
 secrets-scan-dir:
+    @bash scripts/remote-only-guard.sh secrets-scan-dir
     cd {{ root }} && gitleaks dir --config .gitleaks.toml --redact --verbose .
 
 secrets-scan:
+    @bash scripts/remote-only-guard.sh secrets-scan
     cd {{ root }} && gitleaks git --config .gitleaks.toml --redact --verbose .
 
 endpoint-check:
@@ -175,9 +155,11 @@ goals-manifest-check: goals-manifest-build
     @echo "goals-manifest-check: manifest is current"
 
 entrypoint-contract:
+    @bash scripts/remote-only-guard.sh entrypoint-contract
     cd {{ root }} && python3 scripts/test-bazel-cutover-contracts.py
 
 workflow-validate:
+    @bash scripts/remote-only-guard.sh workflow-validate
     cd {{ root }} && actionlint .github/workflows/*.yml
 
 lanes-validate:
@@ -287,6 +269,7 @@ qr-verify:
 # the Bazel output in place. No second tree is materialized or cleaned.
 # Wired into `check`/`check-ci` so it runs per PR.
 leak-scan-stamped:
+    @bash scripts/remote-only-guard.sh leak-scan-stamped
     cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
     cd {{ root }} && grep -q "deadbee" bazel-bin/build/index.html
     cd {{ root }} && {{ just_executable() }} leak-scan bazel-bin/build
@@ -318,6 +301,7 @@ qa-packet port="3355":
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{ root }}
+    bash scripts/remote-only-guard.sh qa-packet
     receipts_parent="${TMPDIR:-/tmp}"
     case "$receipts_parent" in
       /*) ;;
@@ -397,6 +381,7 @@ qa-packet port="3355":
     fi
 
 _qa-packet-e2e port json: playwright-ensure
+    @bash scripts/remote-only-guard.sh _qa-packet-e2e
     cd {{ root }} && env -u LD_LIBRARY_PATH QA_PACKET_BASE_URL="http://127.0.0.1:{{ port }}" \
       PLAYWRIGHT_JSON_OUTPUT_NAME="{{ json }}" \
       pnpm exec playwright test --config playwright.qa-packet.config.ts --reporter=json
@@ -407,6 +392,7 @@ _qa-packet-e2e port json: playwright-ensure
 # existing diff. The comparison runs inside the same pinned Chromium rather than
 # pulling `pixelmatch`/`pngjs` into package.json; see scripts/qa-packet-diff.mjs.
 qa-packet-diff baseline candidate *options:
+    @bash scripts/remote-only-guard.sh qa-packet-diff
     cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
 
 # CI ENFORCEMENT: ci-templates spoke-ci.yml@v3.1.0 job `flywheel-test`, line 291
@@ -415,10 +401,12 @@ qa-packet-diff baseline candidate *options:
 # (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
 # every pull request through this recipe.
 check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+    @bash scripts/remote-only-guard.sh check
     cd {{ root }} && bazelisk test //:local_validation_suite
     @echo "All checks passed."
 
 check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+    @bash scripts/remote-only-guard.sh check-ci
     cd {{ root }} && bazelisk test --config=ci //:local_validation_suite
     @echo "All CI artifact checks passed."
 
@@ -428,14 +416,6 @@ check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check sou
 # its own scanned fresh build through `preview-e2e`; materializing `build` first
 # would violate the publish-once output contract.
 ci: check test-e2e
-
-sbom out_dir="build/sbom":
-    cd {{ root }} && mkdir -p "{{ out_dir }}" && version="$(jq -r '.version' package.json)" && \
-      syft scan dir:. --source-name gftb-site --source-version "$version" \
-        --exclude './.git/**' --exclude './.direnv/**' --exclude './node_modules/**' \
-        --exclude './build/**' --exclude './.svelte-kit/**' --exclude './bazel-*' \
-        -o cyclonedx-json="{{ out_dir }}/gftb-site.cyclonedx.json" \
-        -o spdx-json="{{ out_dir }}/gftb-site.spdx.json"
 
 flywheel-enroll *args:
     cd {{ root }} && bash scripts/flywheel-enroll.sh {{ args }}
@@ -450,12 +430,15 @@ cache-contract-strict:
     cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE="$(jq -r '.enrollment.substrateMode' tinyland.repo.json)" GF_BAZEL_RUNNER_LABELS="${GF_BAZEL_RUNNER_LABELS:-tinyland-nix}" bash scripts/cache-attachment-contract.sh --strict
 
 flywheel-build target="//:build":
+    @bash scripts/remote-only-guard.sh flywheel-build
     cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh build {{ target }}
 
 flywheel-test target="//:ci_validation_suite":
+    @bash scripts/remote-only-guard.sh flywheel-test
     cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh test {{ target }}
 
 flywheel-fetch target="//...":
+    @bash scripts/remote-only-guard.sh flywheel-fetch
     cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh fetch {{ target }}
 
 # Cache-first Bazel test pass over the flywheel-eligible gates. //:unit_tests is
@@ -463,12 +446,15 @@ flywheel-fetch target="//...":
 # `flywheel-eligible` in BUILD.bazel (so it is cache-eligible under
 # --config=ci-cached exactly like the other three).
 flywheel-check *targets="//:eslint_test //:prettier_check_test //:svelte_check_test //:unit_tests":
+    @bash scripts/remote-only-guard.sh flywheel-check
     cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE=shared-cache-backed GF_BAZEL_REMOTE_UPLOAD=false BAZEL_REMOTE_EXECUTOR= bash scripts/gloriousflywheel-bazel.sh test --config=ci-cached {{ targets }}
 
 bundle target="//:deployment_bundle":
+    @bash scripts/remote-only-guard.sh bundle
     cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh build {{ target }}
 
 container-image-context:
+    @bash scripts/remote-only-guard.sh container-image-context
     cd {{ root }} && bazelisk build //:container_image_context
 
 # Linux-only, daemonless candidate publication. Builds through the canonical
@@ -477,6 +463,7 @@ container-image-publish: build container-image-context
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{ root }}
+    bash scripts/remote-only-guard.sh container-image-publish
     [[ "$(uname -s)" == "Linux" ]] || { echo "container-image-publish requires the Linux tinyland-nix carrier" >&2; exit 2; }
     : "${GHCR_USER:?GHCR_USER is required}"
     : "${GHCR_TOKEN:?GHCR_TOKEN is required}"
@@ -489,23 +476,8 @@ container-image-publish: build container-image-context
     nix run --impure .#image.copyToRegistry -- --dest-creds "${GHCR_USER}:${GHCR_TOKEN}"
     echo "published ${IMAGE_REF}:sha-${BUILD_COMMIT_SHA} (resolve and consume by digest)"
 
-sync:
-    cd {{ root }} && bazelisk build //:sveltekit_types
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/.svelte-kit --destination .svelte-kit --required-path tsconfig.json
-
-analyze:
-    cd {{ root }} && bazelisk build //:analyze
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build-analyze --destination build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/.bundle-stats --destination .bundle-stats --required-path stats.html
-
 qr-generate:
     cd {{ root }} && mkdir -p static/qr && qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output=static/qr/greatfallstoolbus-apex.svg "https://greatfallstoolbus.org/"
-
-bazel-graph:
-    cd {{ root }} && bazelisk mod graph
-
-bazel-query target="//:ci_validation_suite":
-    cd {{ root }} && bazelisk query "{{ target }}"
 
 info:
     @echo "Site: greatfallstoolbus.org"
