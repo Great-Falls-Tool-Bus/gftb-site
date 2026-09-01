@@ -97,19 +97,24 @@ is not public.
   cache-only, hosted, or runner-label fallback. This source carrier stays Draft
   until the consumer overlay is admitted, the GitHub App supplies the reviewed
   lifecycle, and the compiled dispatcher produces a real remote-execution
-  receipt.
+  receipt. The existing exact-head `qa-look` packet remains a transitional
+  review consequence, not execution authority; Binding/v4
+  `PullRequestEnvironment/v1` retires it once the shared controller can provide
+  and reap a routable exact-head environment.
 
 ### Which CI job runs which gate
 
-CI calls
-`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@7bed869a977485074621ef464723a43b55ee3502`.
+CI calls the signed immutable release commit
+`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@37da689ef5836576502fa72711cb022d04375f24`
+(the commit named by signed tag object
+`5e03915658fee00696140fa932f9ba6d58f197f2`).
 Each job selects one checked-in action name; the reusable workflow invokes the
 compiled GF client and nothing else.
 
 | Caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |
 | `validate` | `validate` | `test //:ci_validation_suite` |
-| `site-build` | `site-build` | `build //:build` |
+| `site-build` | `site-build` | `build //:deployment_bundle` |
 
 `just ci` remains a local developer convenience. It is not CI evidence and is
 never an execution fallback for either v4 action.

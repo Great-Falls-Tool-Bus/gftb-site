@@ -8,7 +8,7 @@
 		},
 		"site-build": {
 			"command": "build",
-			"targets": ["//:build"],
+			"targets": ["//:deployment_bundle"],
 			"capability": "rbe-linux-x86_64"
 		}
 	}
