@@ -12,17 +12,12 @@ check() { if eval "$1"; then ok "$2"; else no "$2"; fi; }
 
 echo "GFTB minimal-spoke conformance"
 
-check "python3 scripts/validate-repo-manifest.py >/dev/null" "repo manifest validates"
+check "python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.schema.json >/dev/null" "repo manifest validates"
 check "python3 scripts/check-inhouse-package-parity.py >/dev/null" "first-party package is Bazel-only"
 check "python3 scripts/validate-skills.py >/dev/null" "repo skills validate"
 
 check "grep -q 'adapter-static' svelte.config.js && ! grep -q 'adapter-node' package.json svelte.config.js" "adapter-static is the only adapter"
 check "jq -e '.devDependencies[\"@skeletonlabs/skeleton\"] == \"5.0.0\" and .devDependencies[\"@skeletonlabs/skeleton-svelte\"] == \"5.0.0\"' package.json >/dev/null" "Skeleton 5 pair is exact-pinned"
-check "grep -q 'spoke-ci.yml@v3.1.0' .github/workflows/ci.yml" "CI template is pinned"
-for input in default_runner_class heavy_runner_class kvm_runner_class; do
-  check "grep -q \"${input}: tinyland-nix\" .github/workflows/ci.yml" "${input} maps to tinyland-nix"
-done
-
 image='ghcr.io/great-falls-tool-bus/gftb-site'
 check "grep -q '$image' Justfile && grep -q '$image' flake.nix" "publisher and image recipe fix the package identity"
 check "grep -q 'packages: write' .github/workflows/container-ghcr.yml" "candidate publisher has scoped package write authority"
@@ -35,7 +30,7 @@ check "test ! -e .github/workflows/deploy-pages.yml && ! grep -RqlE --exclude=ch
 check "grep -q 'name = \"deployment_bundle\"' BUILD.bazel && grep -q 'name = \"container_image_context\"' BUILD.bazel" "Bazel exposes bundle and image-context targets"
 check "grep -q 'container-image-publish: build container-image-context' Justfile" "publisher enters through Just and the Bazel context"
 check "test -f .gitleaks.toml && grep -q 'gitleaks dir' Justfile && grep -q 'gitleaks git' Justfile && grep -q 'gitleaks' flake.nix" "secret scanning is reproducible"
-check "test -f .bazelrc.flywheel && ! grep -qE '(remote_cache|remote_executor)=((grpc|https?)://)' .bazelrc .bazelrc.flywheel" "Bazel configuration contains no endpoint"
+check "! grep -qE '(remote_cache|remote_executor)=((grpc|https?)://)' .bazelrc" "Bazel configuration contains no endpoint"
 
 # TIN-3914: this org's CI runs only on the GF cache-fronted ARC fleet. No job
 # this repository owns may name a GitHub-hosted label at any runs-on nesting.

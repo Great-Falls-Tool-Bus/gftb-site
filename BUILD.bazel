@@ -206,7 +206,7 @@ js_run_binary(
     out_dirs = ["build"],
     patch_node_fs = False,
     stamp = 1,
-    tags = ["flywheel-eligible", "sveltekit-app-build"],
+    tags = ["sveltekit-app-build"],
     tool = ":vite_build_bin",
     visibility = ["//visibility:public"],
 )
@@ -243,7 +243,7 @@ js_test(
     data = [":app_workspace", "scripts/bazel/prepare-sveltekit-types.mjs"] + UNIT_TEST_NPM_PACKAGES,
     args = ["--workspace", "$(rootpath :app_workspace)", "run", "--reporter=verbose", "--config", "vitest.config.ts"],
     entry_point = "scripts/bazel/run-vitest.mjs",
-    tags = ["flywheel-eligible", "sveltekit-unit-tests", "vitest"],
+    tags = ["sveltekit-unit-tests", "vitest"],
     visibility = ["//visibility:public"],
 )
 
@@ -288,21 +288,10 @@ py_test(
         "MODULE.bazel",
         "flake.nix",
     ],
-    tags = ["flywheel-eligible"],
 )
 
 test_suite(
     name = "ci_validation_suite",
-    tests = [":bazel_output_contract_test", ":svelte_check_test", ":unit_tests"],
-)
-
-test_suite(
-    name = "lint_suite",
-    tests = [":eslint_test", ":prettier_check_test"],
-)
-
-test_suite(
-    name = "local_validation_suite",
     tests = [
         ":bazel_output_contract_test",
         ":eslint_test",
@@ -312,11 +301,16 @@ test_suite(
     ],
 )
 
+test_suite(
+    name = "lint_suite",
+    tests = [":eslint_test", ":prettier_check_test"],
+)
+
 pkg_tar(
     name = "deployment_bundle",
     srcs = [":build"],
     extension = "tar.gz",
-    tags = ["deployment-bundle-packaging", "flywheel-eligible"],
+    tags = ["deployment-bundle-packaging"],
     visibility = ["//visibility:public"],
 )
 
@@ -326,7 +320,7 @@ pkg_tar(
     name = "container_image_context",
     srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "svelte.config.js"],
     extension = "tar",
-    tags = ["container-image-and-push", "gloriousflywheel-cache-only", "no-remote-exec"],
+    tags = ["container-image-and-push", "no-remote-exec"],
     visibility = ["//visibility:public"],
 )
 

@@ -22,10 +22,9 @@ dev:
 dev-open:
     cd {{ root }} && bazelisk run //:dev -- --open
 
-# CI ENFORCEMENT: run by ci-templates spoke-ci.yml@v3.1.0 job `flywheel-build`,
-# step "Static site build" (line 266-267: `nix develop --command just build`),
-# and again by job `playwright` (line 375: `just test-e2e` -> playwright.config.ts
-# webServer -> `just preview-e2e` -> `build`).
+# Local/operator materialization of the same //:build target named by the v4
+# action plan. CI invokes that target through the compiled GF action client;
+# this recipe is not a CI fallback or remote-execution authority.
 #
 # leak-scan is the LAST step on purpose: it can only run against a materialized
 # artefact, and a published tree that has never been scanned must not be
@@ -35,11 +34,6 @@ dev-open:
 # existing output or transaction residue fails closed and remains untouched.
 build:
     cd {{ root }} && bazelisk build //:build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
-    cd {{ root }} && {{ just_executable() }} leak-scan build
-
-build-ci:
-    cd {{ root }} && bazelisk build --config=ci-cached --remote_cache="${BAZEL_REMOTE_CACHE:-}" --remote_download_outputs=toplevel //:build
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
     cd {{ root }} && {{ just_executable() }} leak-scan build
 
@@ -135,7 +129,7 @@ secrets-scan:
 endpoint-check:
     @cd {{ root }} && if grep -RInE '(grpc|grpcs)://|https?://[^[:space:]"]*(bazel-cache|reapi)|10\.[0-9]+\.[0-9]+\.[0-9]+' \
       --exclude-dir=.git --exclude-dir=.direnv --exclude-dir=node_modules --exclude='*.lock' \
-      .bazelrc .bazelrc.flywheel .github/workflows BUILD.bazel MODULE.bazel flake.nix 2>/dev/null; then \
+      .bazelrc .github/workflows BUILD.bazel MODULE.bazel flake.nix 2>/dev/null; then \
       echo "endpoint-check: forbidden endpoint literal found" >&2; exit 1; \
     else echo "endpoint-check: no cache, executor, or private-network endpoint literals"; fi
 
@@ -181,7 +175,7 @@ workflow-validate:
     cd {{ root }} && actionlint .github/workflows/*.yml
 
 repo-manifest-validate:
-    cd {{ root }} && python3 scripts/validate-repo-manifest.py
+    cd {{ root }} && python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.schema.json
 
 skills-validate:
     cd {{ root }} && python3 scripts/validate-skills.py
@@ -192,16 +186,12 @@ inhouse-package-parity:
 conformance:
     cd {{ root }} && bash scripts/check-conformance.sh
 
-flywheel-enrollment-contract-check:
-    cd {{ root }} && bash scripts/flywheel-enrollment-contract-test.sh
-
 # Byte-reproducibility proof for the printed apex QR: regenerate the code from
 # the canonical URL and compare it to the committed artefact. The unit suite
 # decodes the same file; this proves the generator still produces those bytes.
 #
-# CI ENFORCEMENT: reached through `just check`, run by ci-templates
-# spoke-ci.yml@v3.1.0 job `flywheel-test`, step at line 291
-# (`nix develop --command just check`), which lists qr-verify as a dependency.
+# Local validation consequence of the same repository tree consumed by
+# //:ci_validation_suite. The v4 dispatcher does not shell out to Just.
 #
 # The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
 # BOTH sides before comparing. It records the encoder build, not the symbol, so a
@@ -264,9 +254,8 @@ qr-verify:
 # runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
 # exercises, so the gate and its tests are one implementation, not two.
 #
-# CI ENFORCEMENT: run as the last step of `just build` (see the comment there),
-# which ci-templates spoke-ci.yml@v3.1.0 executes in job `flywheel-build`
-# (line 267) and, transitively, in job `playwright` (line 375).
+# Local/operator artifact validation. The v4 build action executes //:build
+# directly; a local materialization is not remote-execution evidence.
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
@@ -406,24 +395,17 @@ _qa-packet-e2e port json: playwright-ensure
 qa-packet-diff baseline candidate *options:
     cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
 
-# CI ENFORCEMENT: ci-templates spoke-ci.yml@v3.1.0 job `flywheel-test`, line 291
-# (`nix develop --command just check`).
-# //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
-# (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
-# every pull request through this recipe.
-check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
-    cd {{ root }} && bazelisk test //:local_validation_suite
+# Local repository gate. CI's finite v4 `validate` action is
+# //:ci_validation_suite; it never falls back to this shell aggregate.
+check: secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+    cd {{ root }} && bazelisk test //:ci_validation_suite
     @echo "All checks passed."
 
-check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
-    cd {{ root }} && bazelisk test --config=ci //:local_validation_suite
+check-ci: secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+    cd {{ root }} && bazelisk test --config=ci //:ci_validation_suite
     @echo "All CI artifact checks passed."
 
-# Local convenience aggregate. NOTE: no ci-templates job invokes `just ci` — the
-# template calls `just setup`, `just build`, `just check` and `just test-e2e`
-# individually — so nothing may be enforced ONLY from here. `test-e2e` performs
-# its own scanned fresh build through `preview-e2e`; materializing `build` first
-# would violate the publish-once output contract.
+# Local convenience aggregate. The v4 dispatcher does not invoke it.
 ci: check test-e2e
 
 sbom out_dir="build/sbom":
@@ -434,37 +416,6 @@ sbom out_dir="build/sbom":
         -o cyclonedx-json="{{ out_dir }}/gftb-site.cyclonedx.json" \
         -o spdx-json="{{ out_dir }}/gftb-site.spdx.json"
 
-flywheel-enroll *args:
-    cd {{ root }} && bash scripts/flywheel-enroll.sh {{ args }}
-
-flywheel-doctor:
-    cd {{ root }} && bash scripts/flywheel-doctor.sh
-
-flywheel-verify:
-    cd {{ root }} && bash scripts/flywheel-verify.sh
-
-cache-contract-strict:
-    cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE="$(jq -r '.enrollment.substrateMode' tinyland.repo.json)" GF_BAZEL_RUNNER_LABELS="${GF_BAZEL_RUNNER_LABELS:-tinyland-nix}" bash scripts/cache-attachment-contract.sh --strict
-
-flywheel-build target="//:build":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh build {{ target }}
-
-flywheel-test target="//:ci_validation_suite":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh test {{ target }}
-
-flywheel-fetch target="//...":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh fetch {{ target }}
-
-# Cache-first Bazel test pass over the flywheel-eligible gates. //:unit_tests is
-# in the default set because it carries the acceptance suite and is tagged
-# `flywheel-eligible` in BUILD.bazel (so it is cache-eligible under
-# --config=ci-cached exactly like the other three).
-flywheel-check *targets="//:eslint_test //:prettier_check_test //:svelte_check_test //:unit_tests":
-    cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE=shared-cache-backed GF_BAZEL_REMOTE_UPLOAD=false BAZEL_REMOTE_EXECUTOR= bash scripts/gloriousflywheel-bazel.sh test --config=ci-cached {{ targets }}
-
-bundle target="//:deployment_bundle":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh build {{ target }}
-
 container-image-context:
     cd {{ root }} && bazelisk build //:container_image_context
 
@@ -474,7 +425,7 @@ container-image-publish: build container-image-context
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{ root }}
-    [[ "$(uname -s)" == "Linux" ]] || { echo "container-image-publish requires the Linux tinyland-nix carrier" >&2; exit 2; }
+    [[ "$(uname -s)" == "Linux" ]] || { echo "container-image-publish requires Linux" >&2; exit 2; }
     : "${GHCR_USER:?GHCR_USER is required}"
     : "${GHCR_TOKEN:?GHCR_TOKEN is required}"
     export BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}"

@@ -4,29 +4,28 @@ This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
 
 ## Validation
 
-`.github/workflows/ci.yml` calls the pinned v3 Tinyland spoke workflow. On pull
-requests, the repo-local `qa-look` job then checks out the exact head SHA, runs
-`just qa-packet`, and uploads its screenshots and receipts for the required
-human LOOK. The stable `merge-gate` status requires both the complete reusable
-workflow and `qa-look` to succeed.
+`.github/workflows/ci.yml` is a thin v4 caller. It dispatches exactly the two
+actions in `.github/lanes.json` through the exact released ci-templates source at
+`7bed869a977485074621ef464723a43b55ee3502`. It contains no runner, provider,
+endpoint, cache mode, tenant, credential, local-execution, or fallback choice.
 
-Local and CI operations enter through Just. `just check` covers repository
+Local developer operations enter through Just. `just check` covers repository
 conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,
 ESLint, Svelte checks, and unit tests. `just build` produces one adapter-static
-artifact through Bazel. `.github/lanes.json` is the v4 source action plan: it
+artifact through Bazel. Those local recipes are not CI or v4 evidence.
+`.github/lanes.json` is the v4 source action plan: it
 names only real finite Bazel targets and one abstract execution capability per
-action. It contains no provider or lifecycle configuration and remains inactive
-until an
-immutable v4 ci-templates caller is released and pinned.
+action. It contains no provider or lifecycle configuration.
 
 ## Flywheel
 
-The current v3 spoke is shared-cache-backed compatibility transport.
-`.bazelrc.flywheel` is endpoint-free; runtime attachment remains outside this
-repository. The v4 plan requests `rbe-linux-x86_64` for `//:build` and
-`//:ci_validation_suite`; it does not select a runner or provider. Until the v4
-caller executes those actions through REAPI, a cache hit is not
-remote-execution proof. Container publication is not an action in the plan.
+The v4 plan requests `rbe-linux-x86_64` for `//:build` and
+`//:ci_validation_suite`; it does not select a runner or provider. The adopting
+organization's `-infra` overlay owns its consumer demand declaration. GF core
+owns types, verification, resolution, and scheduling, but no GFTB instance.
+Provider supply and placement remain opaque to this repository. Until the v4
+caller executes these actions through REAPI, this carrier proves source shape
+only. Container publication is not an action in the plan.
 
 ## Candidate image
 

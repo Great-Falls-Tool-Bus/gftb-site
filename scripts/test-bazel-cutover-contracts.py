@@ -471,7 +471,7 @@ class RepositoryContractTests(unittest.TestCase):
 
     def test_build_and_checks_enter_bazel(self) -> None:
         self.assertIn("bazelisk build //:build", recipe(self.justfile, "build"))
-        self.assertIn("bazelisk test //:local_validation_suite", recipe(self.justfile, "check"))
+        self.assertIn("bazelisk test //:ci_validation_suite", recipe(self.justfile, "check"))
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
         self.assertIn('name = "container_image_context"', self.build)
@@ -479,7 +479,6 @@ class RepositoryContractTests(unittest.TestCase):
     def test_live_build_check_and_qa_recipes_never_recursively_clean(self) -> None:
         live_recipes = (
             "build",
-            "build-ci",
             "preview",
             "preview-e2e",
             "preview-only",
@@ -568,11 +567,6 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("@sveltejs/adapter-static", deps)
         self.assertNotIn("@sveltejs/adapter-node", deps)
         self.assertIn("adapter-static", (ROOT / "svelte.config.js").read_text())
-
-    def test_ci_routes_every_required_class(self) -> None:
-        self.assertIn("spoke-ci.yml@v3.1.0", self.ci)
-        for input_name in ("default_runner_class", "heavy_runner_class", "kvm_runner_class"):
-            self.assertIn(f"{input_name}: tinyland-nix", self.ci)
 
     def test_publisher_is_immutable_and_non_deploying(self) -> None:
         identity = "ghcr.io/great-falls-tool-bus/gftb-site"

@@ -7,7 +7,6 @@
 		"schema_version",
 		"repo",
 		"taxonomy",
-		"enrollment",
 		"contracts",
 		"boundaries",
 		"authorities",
@@ -41,17 +40,6 @@
 					"items": { "enum": ["org-wide-repo-contract", "bazel-package-cache-rbe", "static-spoke"] },
 					"contains": { "const": "static-spoke" }
 				}
-			}
-		},
-		"enrollment": {
-			"type": "object",
-			"additionalProperties": false,
-			"required": ["forgeScope", "operatorOverlay", "executionPool", "substrateMode"],
-			"properties": {
-				"forgeScope": { "const": "Great-Falls-Tool-Bus" },
-				"operatorOverlay": { "type": "string", "minLength": 1 },
-				"executionPool": { "const": "tinyland-nix" },
-				"substrateMode": { "const": "shared-cache-backed" }
 			}
 		},
 		"contracts": {

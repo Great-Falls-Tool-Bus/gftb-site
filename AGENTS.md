@@ -92,27 +92,27 @@ is not public.
   repositories, tenants, providers, runner labels, pools, endpoints,
   credentials, publication, or
   lifecycle. The provider resolves each capability; this consumer never does.
-- The plan is inactive until ci-templates publishes and this repo pins an
-  immutable v4 caller. The current v3 reusable workflow remains the
-  present-tense CI transport, not a fallback or evidence that v4 is live.
+- `.github/workflows/ci.yml` contains only two thin calls to the released v4
+  ci-templates source: `validate` and `site-build`. There is no v3, local,
+  cache-only, hosted, or runner-label fallback. This source carrier stays Draft
+  until the consumer overlay is admitted, the GitHub App supplies the reviewed
+  lifecycle, and the compiled dispatcher produces a real remote-execution
+  receipt.
 
 ### Which CI job runs which gate
 
-CI is `tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v3.1.0`. Every
-gate below is named with the job and line that executes it, so a gate can never
-again be described as enforced when nothing runs it:
+CI calls
+`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@7bed869a977485074621ef464723a43b55ee3502`.
+Each job selects one checked-in action name; the reusable workflow invokes the
+compiled GF client and nothing else.
 
-| Gate | spoke-ci.yml job | Line |
+| Caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |
-| `just check` — conformance, endpoint, secrets, entrypoint, `qr-verify`, and `//:local_validation_suite` (which carries `//:unit_tests`, the acceptance unit gates) | `flywheel-test` | 291 |
-| `just build` — Bazel static build, then `just leak-scan build` | `flywheel-build` | 267 |
-| `just build` again, transitively, as the Playwright web server | `playwright` | 375 |
-| `just test-e2e` — the browser acceptance suite | `playwright` | 375 |
-| `bazelisk mod graph`, `bazelisk build //:node_modules` | `bazel-graph` | 307, 311 |
-| gitleaks over full history | `secrets-scan` | 115 |
+| `validate` | `validate` | `test //:ci_validation_suite` |
+| `site-build` | `site-build` | `build //:build` |
 
-`just ci` is a local convenience aggregate. **No template job invokes it**, so
-nothing may be enforced only from there.
+`just ci` remains a local developer convenience. It is not CI evidence and is
+never an execution fallback for either v4 action.
 
 ## Deployment and package safety
 

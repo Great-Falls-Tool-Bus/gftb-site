@@ -13,12 +13,6 @@
 		"spawned_repo_role": "static-spoke",
 		"layers": ["org-wide-repo-contract", "bazel-package-cache-rbe", "static-spoke"]
 	},
-	"enrollment": {
-		"forgeScope": "Great-Falls-Tool-Bus",
-		"operatorOverlay": "great-falls-tool-bus-infra",
-		"executionPool": "tinyland-nix",
-		"substrateMode": "shared-cache-backed"
-	},
 	"contracts": {
 		"agent_contract": "AGENTS.md",
 		"just": "Justfile",
