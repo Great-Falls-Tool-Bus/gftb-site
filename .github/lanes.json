@@ -1,15 +1,20 @@
 {
-	"schema_version": 2,
+	"schema_version": 3,
 	"actions": {
 		"validate": {
 			"command": "test",
 			"targets": ["//:ci_validation_suite"],
-			"capability": "rbe-linux-x86_64"
+			"capability": "rbe-linux-x86_64",
+			"result": { "mode": "status-only" }
 		},
 		"site-build": {
 			"command": "build",
 			"targets": ["//:deployment_bundle"],
-			"capability": "rbe-linux-x86_64"
+			"capability": "rbe-linux-x86_64",
+			"result": {
+				"mode": "export-regular-files",
+				"output_groups": ["default"]
+			}
 		}
 	}
 }

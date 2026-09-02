@@ -17,16 +17,17 @@ concurrency:
 # TIN-4251: this repository declares finite Bazel actions; it does not choose
 # runners, providers, endpoints, credentials, instances, or execution pools.
 # ci-templates owns the thin GitHub-to-GF dispatcher. This source pin is the
-# released v4 caller from tinyland-inc/ci-templates#157. The consumer carrier
-# remains Draft until its overlay is admitted and the v4 runtime is proved.
+# immutable schema-3 release from tinyland-inc/ci-templates#161. The consumer
+# carrier remains Draft until its overlay is admitted and the v4 runtime is
+# proved.
 jobs:
   validate:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@37da689ef5836576502fa72711cb022d04375f24
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@0067a1f0e16012ea91d0602b7d185e534774cadb # v5.0.0
     with:
       action_name: validate
 
   site-build:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@37da689ef5836576502fa72711cb022d04375f24
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@0067a1f0e16012ea91d0602b7d185e534774cadb # v5.0.0
     with:
       action_name: site-build
 

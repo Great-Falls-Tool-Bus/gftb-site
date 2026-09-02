@@ -95,11 +95,14 @@ is not public.
 - Skeleton and Skeleton Svelte are exact-pinned at `5.0.0`, following the
   proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
   Skeleton 4 compatibility shim.
-- `.github/lanes.json` is the source-only v4 action plan: finite Bazel targets
-  plus exactly one abstract REAPI capability per action, and nothing about
-  repositories, tenants, providers, runner labels, pools, endpoints,
-  credentials, publication, or
+- `.github/lanes.json` is the source-only ActionPlan/v4 schema-3 plan: finite
+  Bazel targets, one abstract REAPI capability demand, and one closed result
+  disposition per action. It says nothing about repositories, tenants,
+  providers, runner labels, pools, endpoints, credentials, publication, or
   lifecycle. The provider resolves each capability; this consumer never does.
+  `validate` is status-only. `site-build` requests the exact regular files in
+  `//:deployment_bundle`'s `default` output group through
+  `ActionOutputSet/v1`; the workflow does not rediscover them.
 - `.github/workflows/ci.yml` contains only two thin calls to the released v4
   ci-templates source: `validate` and `site-build`. There is no v3, local,
   cache-only, hosted, or runner-label fallback. This source carrier stays Draft
@@ -112,10 +115,10 @@ is not public.
 
 ### Which CI job runs which gate
 
-CI calls the signed immutable release commit
-`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@37da689ef5836576502fa72711cb022d04375f24`
-(the commit named by signed tag object
-`5e03915658fee00696140fa932f9ba6d58f197f2`).
+CI calls the protected-main commit of the signed immutable schema-3 release:
+`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@0067a1f0e16012ea91d0602b7d185e534774cadb`.
+Signed `v5.0.0` tag object `977f5bdf38404a405477fb939b7f2ba0c9a1358e`
+peels to that exact commit.
 Each job selects one checked-in action name; the reusable workflow invokes the
 compiled GF client and nothing else.
 

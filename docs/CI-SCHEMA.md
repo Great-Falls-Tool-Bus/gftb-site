@@ -6,26 +6,32 @@ This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
 
 `.github/workflows/ci.yml` is a thin v4 caller. It dispatches exactly the two
 actions in `.github/lanes.json` through the exact released ci-templates source at
-`7bed869a977485074621ef464723a43b55ee3502`. It contains no runner, provider,
-endpoint, cache mode, tenant, credential, local-execution, or fallback choice.
+`0067a1f0e16012ea91d0602b7d185e534774cadb` (signed immutable release
+`v5.0.0`). It contains no runner, provider, endpoint, cache mode, tenant,
+credential, local-execution, or fallback choice.
 
 Local developer operations enter through Just. `just check` covers repository
 conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,
 ESLint, Svelte checks, and unit tests. `just build` produces one adapter-static
 artifact through Bazel. Those local recipes are not CI or v4 evidence.
-`.github/lanes.json` is the v4 source action plan: it
-names only real finite Bazel targets and one abstract execution capability per
-action. It contains no provider or lifecycle configuration.
+`.github/lanes.json` is the ActionPlan/v4 schema-3 source plan. It names only
+real finite Bazel targets, one abstract execution capability, and one closed
+result disposition per action. It contains no provider or lifecycle
+configuration.
 
 ## Flywheel
 
-The v4 plan requests `rbe-linux-x86_64` for `//:build` and
-`//:ci_validation_suite`; it does not select a runner or provider. The adopting
-organization's `-infra` overlay owns its consumer demand declaration. GF core
-owns types, verification, resolution, and scheduling, but no GFTB instance.
-Provider supply and placement remain opaque to this repository. Until the v4
-caller executes these actions through REAPI, this carrier proves source shape
-only. Container publication is not an action in the plan.
+The v4 plan requests `rbe-linux-x86_64` for `//:ci_validation_suite` and
+`//:deployment_bundle`; it does not select a runner or provider. `validate` is
+status-only. `site-build` declares that the regular files in the deployment
+bundle's `default` output group are exported as one bounded
+`ActionOutputSet/v1`; neither the workflow nor this repository rediscovers
+outputs. The adopting organization's `-infra` overlay owns its consumer demand
+declaration. GF core owns types, verification, resolution, and scheduling, but
+no GFTB instance. Provider supply and placement remain opaque to this
+repository. Until the v4 caller executes these actions through REAPI, this
+carrier proves source shape only. Container publication is not an action in
+the plan.
 
 ## Candidate image
 
