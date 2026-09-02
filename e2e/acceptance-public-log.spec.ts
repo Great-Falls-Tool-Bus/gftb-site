@@ -58,6 +58,24 @@ for (const entry of published) {
 	});
 }
 
+test('imageless entries render no featured-image markup on /log', async ({ page }) => {
+	// The featured-image frontmatter group is live (FeaturedImage.svelte),
+	// but no published entry carries an image yet: the honest empty state is
+	// NOTHING — no <img>, no <figure>, no reserved box, on any archive row.
+	// When the first published entry gains an `image`, replace these zeros
+	// with pins on that row's thumb (src, alt, sharp corners) and add its
+	// asset to the static-carrier check below.
+	await page.goto('/log');
+	await expect(page.locator('.log-list li')).toHaveCount(published.length);
+	await expect(page.locator('.log-list img')).toHaveCount(0);
+	await expect(page.locator('.featured-image')).toHaveCount(0);
+});
+
+test('imageless permalinks render no hero between header and body', async ({ page }) => {
+	await page.goto(`/log/${published[0].slug}`);
+	await expect(page.locator('.log-entry .featured-image')).toHaveCount(0);
+});
+
 test('the approved public diagrams are served from the static carrier', async ({ request }) => {
 	for (const name of [
 		'inventory-custody-flow.svg',

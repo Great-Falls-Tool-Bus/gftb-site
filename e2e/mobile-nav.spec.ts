@@ -123,9 +123,11 @@ test('contact helper and validation text remain readable on the contact card', a
 	await page.goto('/contact');
 	await page.getByRole('button', { name: 'Send to keyholders' }).click();
 
-	// The flat card's fill is translucent (color-mix … 88%, transparent), so
-	// the computed backgrounds are composited down to the opaque colour a
-	// person actually sees before measuring, the way acceptance-contrast does.
+	// The 2026-08-31 flattening left .contact-card with no fill of its own, so
+	// the ground this resolves to is now the page itself. The composite walk
+	// stays anyway: it reads whatever IS painted rather than assuming, which is
+	// exactly what let it keep measuring the truth across the panel era, the
+	// translucent-card era and now. Same method acceptance-contrast uses.
 	const layers = await page.locator('.form-help').evaluate((element) => {
 		const stack: string[] = [];
 		let node: Element | null = element;

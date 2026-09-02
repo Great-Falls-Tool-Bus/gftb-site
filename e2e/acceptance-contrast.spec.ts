@@ -192,7 +192,10 @@ for (const scheme of ['light', 'dark'] as const) {
 			for (const [name, path] of [
 				['the landing view', '/'],
 				['the log archive', '/log'],
-				['the contact page (restored inverted panel)', '/contact'],
+				// Panel flattened to plain page ground, operator ruling 2026-08-31
+				// ("surfaces are borderless"); the label just tracked the panel's
+				// prior state and carries no assertion of its own.
+				['the contact page', '/contact'],
 			] as const) {
 				test(`text contrast holds across ${name}`, async ({ page, baseURL }) => {
 					await openPage(page, baseURL, path);
@@ -294,12 +297,13 @@ for (const scheme of ['light', 'dark'] as const) {
 					'the focused submit button paints no indicator at all',
 				).toBe(false);
 
-				// What THIS test measures: the submit button sits on the flat contact
-				// card (the purple inversion was flattened by operator ruling
-				// 2026-08-19), so the ring adjoins the button's accent fill on one
-				// side and the card on the other.
+				// What THIS test measures: the submit button sits on plain page
+				// ground since the 2026-08-31 flattening (operator ruling: surfaces
+				// are borderless), which superseded the 2026-08-20 purple
+				// restoration (addendum B1), so the ring adjoins the button's accent
+				// fill on one side and the page on the other.
 				//
-				// The ring is drawn on the card, so composite it there first, then
+				// The ring is drawn on that ground, so composite it there first, then
 				// take the better of the two edges. max() rather than both is a
 				// REINTERPRETATION of the TIN-3855 gate, which required 3:1 against
 				// the control unconditionally: SC 1.4.11 (technique G195) asks a focus

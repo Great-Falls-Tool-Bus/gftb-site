@@ -32,6 +32,14 @@ export interface PublicLog {
 /** Older entries per archive page (spec :90-91 pagination, no-JS path). */
 export const LOG_PAGE_SIZE = 10;
 
+/**
+ * Operator ruling 2026-09-01: latest five minified logs on home. The home
+ * section slices this many entries off the newest-first list; fewer
+ * published entries render however many exist. Page and e2e specs share
+ * this constant so the count cannot drift.
+ */
+export const HOME_LOG_COUNT = 5;
+
 /** One date formatter for every log surface (home row, archive, permalink). */
 export const formatLogDate = (value: string): string =>
 	new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));

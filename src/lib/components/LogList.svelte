@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
 	import { formatLogDate, summaryDiffersFromTitle, type PublicLog } from '$lib/public-logs';
 
 	// The archive list row: a plain list, NO cards, plain-text badges
@@ -17,6 +18,15 @@
 <ul class="log-list">
 	{#each entries as entry (entry.slug)}
 		<li>
+			<!-- Renders nothing for imageless entries. No caption on the row:
+			     the thumb is a card-free affordance above title+meta; the
+			     caption belongs to the permalink hero. -->
+			<FeaturedImage
+				variant="thumb"
+				src={entry.metadata.image}
+				alt={entry.metadata.image_alt}
+				aspect={entry.metadata.image_aspect}
+			/>
 			<h3><a href={`/log/${entry.slug}`}>{entry.metadata.title}</a></h3>
 			<p class="log-meta">
 				{formatLogDate(entry.metadata.date)}{#if entry.metadata.updated}

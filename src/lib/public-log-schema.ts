@@ -1,7 +1,9 @@
-export const PUBLIC_LOG_REQUIRED_KEYS = ['date', 'title', 'summary', 'tags', 'published'] as const;
-export const PUBLIC_LOG_OPTIONAL_KEYS = ['updated'] as const;
+import { FEATURED_IMAGE_KEYS, assertFeaturedImageMetadata, type FeaturedImageMetadata } from './featured-image-schema';
 
-export interface PublicLogMetadata {
+export const PUBLIC_LOG_REQUIRED_KEYS = ['date', 'title', 'summary', 'tags', 'published'] as const;
+export const PUBLIC_LOG_OPTIONAL_KEYS = ['updated', ...FEATURED_IMAGE_KEYS] as const;
+
+export interface PublicLogMetadata extends FeaturedImageMetadata {
 	date: string;
 	title: string;
 	summary: string;
@@ -65,6 +67,7 @@ export function assertPublicLogMetadata(input: unknown, source = 'public log'): 
 	if (typeof record.updated === 'string' && record.updated < record.date) {
 		throw new Error(`${source}: updated cannot predate date`);
 	}
+	assertFeaturedImageMetadata(record, source);
 
 	return record as unknown as PublicLogMetadata;
 }

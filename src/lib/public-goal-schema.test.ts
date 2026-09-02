@@ -38,6 +38,56 @@ describe('assertPublicGoalMetadata', () => {
 		expect(() => assertPublicGoalMetadata({ ...valid, title: 'Form the club — soon' })).toThrow(/em dash/u);
 	});
 
+	it('carries the featured-image group under the same fail-closed rules as the log schema', () => {
+		expect(() => assertPublicGoalMetadata({ ...valid, image: '/photos/goals/shelves-1280.jpg' })).toThrow(
+			/image and image_alt travel together/u,
+		);
+		expect(() =>
+			assertPublicGoalMetadata({ ...valid, image: 'https://example.com/x.jpg', image_alt: 'Shelving stock' }),
+		).toThrow(/site-relative/u);
+		expect(() =>
+			assertPublicGoalMetadata({ ...valid, image: '//evil.example/x.png', image_alt: 'Shelving stock' }),
+		).toThrow(/site-relative/u);
+		expect(() => assertPublicGoalMetadata({ ...valid, image_caption: 'Orphan caption' })).toThrow(
+			/only valid alongside image/u,
+		);
+		expect(() =>
+			assertPublicGoalMetadata({
+				...valid,
+				image: '/photos/goals/shelves-1280.jpg',
+				image_alt: 'Shelving stock — piled',
+			}),
+		).toThrow(/em dash/u);
+		const withImage = {
+			...valid,
+			image: '/photos/goals/shelves-1280.jpg',
+			image_alt: 'Shelving stock piled by the bus door',
+			image_aspect: '16/9',
+		};
+		expect(assertPublicGoalMetadata(withImage).image).toBe('/photos/goals/shelves-1280.jpg');
+	});
+
+	it('folds draft featured-image copy into the leak denylist under the length floor', () => {
+		const literals = distinctiveDraftGoalLiterals([
+			{
+				file: 'z.md',
+				slug: 'z',
+				sourcePath: 'src/content/goals/z.md',
+				metadata: {
+					kind: 'goal',
+					title: 'Draft shelving goal',
+					published: false,
+					image: '/photos/goals/z-1280.jpg',
+					image_alt: 'Shelving stock piled by the bus door',
+					image_caption: 'Cut.',
+				},
+				text: '',
+			},
+		]);
+		// The alt clears the 20-char floor; the short caption stays out.
+		expect(literals).toEqual(['Draft shelving goal', 'Shelving stock piled by the bus door']);
+	});
+
 	it('validates every file in src/content/goals', () => {
 		const dir = path.resolve(__dirname, '../content/goals');
 		const files = readdirSync(dir).filter((file) => file.endsWith('.md'));

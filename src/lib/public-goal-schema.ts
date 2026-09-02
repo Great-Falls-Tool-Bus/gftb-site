@@ -3,14 +3,16 @@
 // (`kind: help`, an ask with a CTA) and member benefits (`kind: benefit`, a
 // bullet). Operator-authored 2026-08-31; rows render from files, never from
 // baked prose (spec §3 row 4). Mirrors public-log-schema.ts.
+import { FEATURED_IMAGE_KEYS, assertFeaturedImageMetadata, type FeaturedImageMetadata } from './featured-image-schema';
+
 export const PUBLIC_GOAL_KINDS = ['goal', 'help', 'benefit'] as const;
 export type PublicGoalKind = (typeof PUBLIC_GOAL_KINDS)[number];
 
 export const PUBLIC_GOAL_REQUIRED_KEYS = ['kind', 'order', 'title', 'published'] as const;
 /** `source` is internal provenance: read at build time, never emitted to the manifest. */
-export const PUBLIC_GOAL_OPTIONAL_KEYS = ['window', 'cta_label', 'cta_href', 'source'] as const;
+export const PUBLIC_GOAL_OPTIONAL_KEYS = ['window', 'cta_label', 'cta_href', 'source', ...FEATURED_IMAGE_KEYS] as const;
 
-export interface PublicGoalMetadata {
+export interface PublicGoalMetadata extends FeaturedImageMetadata {
 	kind: PublicGoalKind;
 	order: number;
 	title: string;
@@ -68,5 +70,6 @@ export function assertPublicGoalMetadata(input: unknown, source = 'public goal')
 	if (/—/u.test(`${record.title} ${record.window ?? ''} ${record.cta_label ?? ''}`)) {
 		throw new Error(`${source}: no em dashes in public copy`);
 	}
+	assertFeaturedImageMetadata(record, source);
 	return { ...(record as Omit<PublicGoalMetadata, 'order'>), order } as PublicGoalMetadata;
 }

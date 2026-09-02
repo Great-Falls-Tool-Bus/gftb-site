@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { primaryNavItems } from '../src/lib/nav-items';
+import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
 import { CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 
 // Acceptance row (§3): core content works with JavaScript disabled, and the
@@ -30,23 +31,35 @@ test.describe('JavaScript disabled', () => {
 	});
 
 	test('the public log row and archive render their real state from the static build', async ({ page }) => {
-		// Addendum B1.2: the homepage renders the newest of the four reviewed
-		// entries and the archive renders the complete approved batch from the
+		// Addendum B1.2 rendered the newest reviewed entry alone; operator
+		// ruling 2026-09-01: latest five minified logs on home — the homepage
+		// now renders min(5, published) citation rows, newest first, and the
+		// archive still renders the complete approved batch from the
 		// prerendered artifact. The remaining published:false draft must not
-		// leak into either surface.
+		// leak into either surface. Counts and ordering derive from the
+		// manifest-driven loader so they cannot drift as entries publish.
+		const expectedRows = publicLogs.slice(0, HOME_LOG_COUNT);
 		await page.goto('/');
-		const latest = page.locator('.log-entry');
-		await expect(latest).toHaveCount(1);
-		const latestLink = latest.locator('h3 a');
-		await expect(latestLink).toHaveText('We laugh, we graph, we diagramming the system');
-		await expect(latestLink).toHaveAttribute('href', '/log/2026-08-14-the-system-in-diagrams');
-		// Operator ruling 2026-08-30: the home row is a citation with a
-		// read-more link and ships no body media (the space ruling).
-		await expect(latest.getByRole('link', { name: 'Read the full entry' })).toHaveAttribute(
-			'href',
-			'/log/2026-08-14-the-system-in-diagrams',
-		);
-		await expect(latest.locator('img')).toHaveCount(0);
+		const rows = page.locator('.log-entry');
+		await expect(rows).toHaveCount(Math.min(HOME_LOG_COUNT, publicLogs.length));
+		for (const [index, entry] of expectedRows.entries()) {
+			const row = rows.nth(index);
+			const titleLink = row.locator('h3 a');
+			await expect(titleLink).toHaveText(entry.metadata.title);
+			await expect(titleLink).toHaveAttribute('href', `/log/${entry.slug}`);
+			// Operator ruling 2026-08-30: each home row is a citation with a
+			// read-more link (scope superseded 2026-09-01: five rows, not one;
+			// the citation form stands).
+			await expect(row.getByRole('link', { name: 'Read the full entry' })).toHaveAttribute(
+				'href',
+				`/log/${entry.slug}`,
+			);
+			// Each title renders exactly once on the homepage.
+			await expect(page.getByRole('heading', { level: 3, name: entry.metadata.title, exact: true })).toHaveCount(1);
+		}
+		// The space ruling (2026-08-30): citation rows ship no body media —
+		// asserted across every home row.
+		await expect(rows.locator('img')).toHaveCount(0);
 
 		await page.goto('/log');
 		await expect(page.locator('.log-list li')).toHaveCount(4);
@@ -57,10 +70,11 @@ test.describe('JavaScript disabled', () => {
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
 		await page.goto('/');
 		// The nav SSOT's primary items (Log, Contact, GitHub since the operator
-		// ruling of 2026-08-31); the count derives from the SSOT so it cannot drift.
+		// ruling of 2026-08-31, Discussion archive since the operator ruling of
+		// 2026-09-01); the count derives from the SSOT so it cannot drift.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
 		await expect(headerLinks).toHaveCount(primaryNavItems.length);
-		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u]);
+		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u, /^Discussion archive/u]);
 
 		const broken = await page.evaluate(() =>
 			Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="#"], a[href^="/#"]'))

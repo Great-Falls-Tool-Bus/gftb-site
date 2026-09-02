@@ -163,6 +163,14 @@ export function distinctiveDraftLiterals(entries) {
 		}
 		const bodyPhrase = firstBodyPhrase(entry.body);
 		if (bodyPhrase.length > 0) literals.push(bodyPhrase);
+		// Featured-image prose subfields are draft copy too: a leaked draft
+		// alt or caption red-lines the build the same way title/summary do.
+		// The body-phrase length floor applies — a short generic alt ("The
+		// bus.") is too collision-prone to be a safe denylist literal.
+		for (const key of ['image_alt', 'image_caption']) {
+			const value = entry.metadata[key];
+			if (typeof value === 'string' && value.length >= MIN_BODY_PHRASE_LENGTH) literals.push(value);
+		}
 	}
 	return literals;
 }
