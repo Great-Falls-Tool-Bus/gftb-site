@@ -75,9 +75,9 @@ is not public.
   per-image pixel diffs and a `DIFF.md`. `INDEX.md` and `manifest.json` are
   leak-scanned with the same rules as the published build. The output is fixed
   under `qa-packet/<40-lowercase-hex-sha>`; arbitrary output roots are rejected
-  and an existing packet is never deleted or replaced. Pull requests run
-  `qa-packet` in the exact-head `qa-look` job and upload that packet for human
-  review; `qa-packet-diff` accepts only two fixed packet roots and derives a
+  and an existing packet is never deleted or replaced. This is an optional
+  developer/reviewer aid, never CI evidence, a preview, or a merge gate.
+  `qa-packet-diff` accepts only two fixed packet roots and derives a
   non-replacing output under `qa-packet/diff/`. Operator guide:
   `docs/qa-packet.md`.
 - `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
@@ -104,14 +104,13 @@ is not public.
   `//:deployment_bundle`'s `default` output group through
   `ActionOutputSet/v1`; the workflow does not rediscover them.
 - `.github/workflows/ci.yml` contains only two thin calls to the released v4
-  ci-templates source: `validate` and `site-build`. There is no v3, local,
-  cache-only, hosted, or runner-label fallback. This source carrier stays Draft
-  until the consumer overlay is admitted, the GitHub App supplies the reviewed
-  lifecycle, and the compiled dispatcher produces a real remote-execution
-  receipt. The existing exact-head `qa-look` packet remains a transitional
-  review consequence, not execution authority; Binding/v4
-  `PullRequestEnvironment/v1` retires it once the shared controller can provide
-  and reap a routable exact-head environment.
+  ci-templates source, `validate` and `site-build`, plus a status-only wrapper
+  that reruns no repository work. There is no v3, local, cache-only, hosted, or
+  runner-label fallback. This source carrier stays Draft until the consumer
+  overlay is admitted, the GitHub App supplies the reviewed lifecycle, and the
+  compiled dispatcher produces a real remote-execution receipt. Binding/v4
+  `PullRequestEnvironment/v1` is the only exact-head preview and LOOK carrier;
+  the shared controller creates and reaps it.
 
 ### Which CI job runs which gate
 

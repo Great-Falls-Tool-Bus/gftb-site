@@ -282,11 +282,10 @@ leak-scan build_dir="build":
 
 # Repeatable QA evidence packet for one build, ready to paste into a review.
 #
-# PR CI GATE: the repo-local `qa-look` job invokes this recipe at the exact
-# pull-request head and uploads `qa-packet/<sha>/` for the human LOOK. The
-# directory remains git-ignored. The recipe has no recursive deletion: output
-# is fixed to `qa-packet/<sha>` and an existing packet fails closed. This is also
-# the reviewer/operator entrypoint, and it deliberately re-runs the gates
+# OPTIONAL REVIEW AID: this recipe is never CI evidence, a preview, or a merge
+# gate. The directory remains git-ignored. The recipe has no recursive deletion:
+# output is fixed to `qa-packet/<sha>` and an existing packet fails closed. It
+# deliberately re-runs the gates
 # rather than trusting a green tick from an earlier tree — the receipt in
 # INDEX.md has to describe the SAME bytes the screenshots were taken of.
 #
@@ -294,9 +293,9 @@ leak-scan build_dir="build":
 # the four repo gates, then Bazel is shut down and `preview-only` serves those
 # already-built bytes on ITS OWN port. Playwright CI keeps `preview-e2e: build`
 # for its fresh job. The acceptance suite is pointed at the QA preview through
-# playwright.qa-packet.config.ts, so this recipe never competes for the CI port
-# and never silently rebuilds or reuses another lane's server.
-# playwright.config.ts, which CI reads, is untouched.
+# playwright.qa-packet.config.ts, so this recipe never competes for the normal
+# acceptance port and never silently rebuilds or reuses another lane's server.
+# playwright.config.ts is untouched.
 #
 # A failing acceptance suite does not abort the capture — a packet that shows
 # what a regression looks like is the point — but the recipe still exits non-zero.

@@ -1,9 +1,10 @@
 # QA evidence packet
 
-`just qa-packet` produces the evidence a reviewer reads instead of re-running
-the acceptance suite by hand: every prerendered route photographed at the
-acceptance widths (spec §3), plus a receipt saying what the gates reported for
-exactly those bytes. Pull requests run the same recipe in the `qa-look` job and upload `qa-packet/<head-sha>/` as the exact-head human-review carrier.
+`just qa-packet` is an optional local review aid: every prerendered route
+photographed at the acceptance widths (spec §3), plus a receipt saying what the
+gates reported for exactly those bytes. It is never CI evidence, a preview, or
+a merge gate. Binding/v4 `PullRequestEnvironment/v1`, created and reaped by the
+shared controller, is the exact-head browser LOOK carrier.
 
 ```bash
 just qa-packet            # captures on port 3355
@@ -26,7 +27,9 @@ listening: an evidence packet of somebody else's build is worse than no packet.
 4. The browser acceptance suite against that preview, through
    `playwright.qa-packet.config.ts`. That file is a thin variant of
    `playwright.config.ts` with the web server removed and the base URL taken
-   from the environment. **`playwright.config.ts` itself is never touched**; the PR-only `qa-look` job invokes this dedicated packet recipe after the reusable CI succeeds.
+   from the environment. **`playwright.config.ts` itself is never touched**;
+   this dedicated packet recipe is invoked only when a reviewer chooses to
+   generate the supplemental packet.
 5. `scripts/qa-packet.mjs` — the screenshots, `manifest.json` and `INDEX.md`.
 6. Teardown. The recipe kills only the preview it started.
 
