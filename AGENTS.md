@@ -63,10 +63,12 @@ is not public.
   conformance, leak-scan-stamped — then runs `//:local_validation_suite`
   (bazel-output contract, eslint, prettier, svelte-check, unit tests).
 - `just conformance` validates the live minimal-spoke contract.
-- `just qr-verify` regenerates the printed apex QR and proves the committed
-  SVG matches, ignoring only the `<!-- Created with qrencode X.Y.Z -->`
-  provenance line so an encoder patch bump is not a false failure. The unit
-  suite separately decodes the payload.
+- `just qr-verify` cross-checks the pinned payload URL against
+  `package.json`'s `homepage`, then regenerates the printed apex QR with the
+  pinned qrencode invocation and byte-compares the committed SVG, stripping
+  only the exact `<!-- Created with qrencode X.Y.Z ... -->` provenance
+  comment so an encoder patch bump is not a false failure. Independent decode
+  verification is a manual scan, per the recipe's failure guidance.
 - `just qa-packet [port]` produces the reviewable QA evidence packet for one
   build under `qa-packet/<sha>/` (git-ignored): every prerendered route at the
   spec §3 widths, in both colour schemes, at 200% zoom, with reduced motion, and
