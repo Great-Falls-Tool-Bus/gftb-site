@@ -13,8 +13,11 @@
 	//
 	// Plain and borderless, never a card, sharp corners (operator rulings
 	// B1.2 + 2026-08-30; e2e/acceptance-sharp-edges.spec.ts sweeps /log).
-	// The home carousel and latest-5 lanes consume this same API later; the
-	// home page itself is deliberately untouched by this component's lane.
+	// Consumers: the /log archive rows (thumb), the /log/<slug> permalink
+	// (hero), and — since the 2026-09-01 batch's deferred home-integration
+	// item — the home latest-5 citation rows (thumb). The home goals
+	// carousel consumes the same frontmatter group through its own designed
+	// `media` snippet (GoalCarousel.svelte) rather than this component.
 	interface Props {
 		src?: string;
 		alt?: string;
