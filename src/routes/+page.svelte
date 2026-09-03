@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { publicLogs, formatLogDate, summaryDiffersFromTitle, HOME_LOG_COUNT } from '$lib/public-logs';
 	import { publicGoals, publicHelpAsks, memberBenefits } from '$lib/public-goals';
+	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
 	import GoalCarousel from '$lib/components/GoalCarousel.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
@@ -177,8 +178,19 @@
 			     accessible carousel. Without JavaScript the served HTML is the
 			     same resting grid as before; hydration adds paging, controls and
 			     a reduced-motion-honest auto-advance. See
-			     src/lib/components/GoalCarousel.svelte for the whole contract,
-			     including the optional featured-image slot. -->
+			     src/lib/components/GoalCarousel.svelte for the whole contract.
+
+			     The curated-photo change already on main mounted the carousel's
+			     designed `media` snippet. This change preserves that markup and
+			     adds its fixed crop-box styling plus manifest-bound acceptance
+			     coverage. It still consumes ONLY the schema's frontmatter group
+			     (src/lib/featured-image-schema.ts) — no new semantics — and is
+			     graceful in absence: an imageless goal renders no figure and no
+			     reserved box. The .goal-media crop box (app.css) fixes the media
+			     height from CSS before any bytes arrive, so lazy-loading cannot
+			     shift layout and the carousel's one-slide-tall mobile budget
+			     holds; a goal's own image_aspect overrides the default crop
+			     inline. -->
 			<GoalCarousel goals={publicGoals} labelledby="goals-title">
 				{#snippet media(goal)}
 					{#if goal.metadata.image}
@@ -250,6 +262,22 @@
 			     citation form and never-inline-body clauses stand. -->
 			{#each latestLogs as entry (entry.slug)}
 				<article class="log-entry">
+					<!-- Featured-image home integration (deferred item of the
+					     2026-09-01 batch): an entry that ships the frontmatter
+					     image group gets the same small archive-row thumb the
+					     /log rows render — the card-free affordance above
+					     title+meta, never the inline body (the citation form and
+					     never-inline-body clauses stand; a thumbnail is entry
+					     metadata, not body). The 2026-08-11 row currently renders
+					     its manifest image; imageless entries render NOTHING — no
+					     markup and no reserved box. The thumb's fixed CSS crop box
+					     means a lazy-loading image cannot shift the rows below it. -->
+					<FeaturedImage
+						variant="thumb"
+						src={entry.metadata.image}
+						alt={entry.metadata.image_alt}
+						aspect={entry.metadata.image_aspect}
+					/>
 					<header class="log-entry__header">
 						<h3><a href={`/log/${entry.slug}`}>{entry.metadata.title}</a></h3>
 						<p class="log-meta">{formatLogDate(entry.metadata.date)}</p>

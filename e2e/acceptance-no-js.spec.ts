@@ -67,10 +67,30 @@ test.describe('JavaScript disabled', () => {
 			);
 			// Each title renders exactly once on the homepage.
 			await expect(page.getByRole('heading', { level: 3, name: entry.metadata.title, exact: true })).toHaveCount(1);
+			// Featured-image home integration (the 2026-09-01 batch's deferred
+			// item) evolves the 2026-08-30 no-body-media pin: an entry that
+			// ships the frontmatter image group renders exactly that archive
+			// thumb and alt text; an imageless entry still ships NO media markup.
+			// The citation form and never-inline-body clauses stand — the
+			// thumb is entry metadata, and every expectation derives from the
+			// manifest so this pin stays honest as entries gain or lose images.
+			const media = row.locator('.featured-image--thumb');
+			if (entry.metadata.image) {
+				const expectedAlt = entry.metadata.image_alt ?? '';
+				expect(expectedAlt).not.toBe('');
+				await expect(media).toHaveCount(1);
+				const image = media.locator('img');
+				await expect(image).toHaveCount(1);
+				await expect(image).toHaveAttribute('src', entry.metadata.image);
+				await expect(image).toHaveAttribute('alt', expectedAlt);
+			} else {
+				await expect(media).toHaveCount(0);
+				await expect(row.locator('img')).toHaveCount(0);
+			}
 		}
-		// The space ruling (2026-08-30): citation rows ship no body media —
-		// asserted across every home row.
-		await expect(rows.locator('img')).toHaveCount(0);
+		await expect(rows.locator('img')).toHaveCount(
+			expectedRows.filter((entry) => entry.metadata.image !== undefined).length,
+		);
 
 		await page.goto('/log');
 		await expect(page.locator('.log-list li')).toHaveCount(4);

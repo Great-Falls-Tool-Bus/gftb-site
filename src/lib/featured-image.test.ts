@@ -104,18 +104,34 @@ describe('featured-image render surfaces', () => {
 		expect(appCss).toMatch(/\.featured-image--thumb img \{\n\taspect-ratio: 3 \/ 2;/u);
 		expect(appCss).toMatch(/\.featured-image img \{[^}]*max-width: 100%;/u);
 		expect(appCss).toMatch(/\.featured-image img \{[^}]*border-radius: 0;/u);
+		// The carousel media slot's crop box carries the same contract: the
+		// default aspect and the mobile height cap size the box from CSS alone
+		// (no CLS, one-slide-tall budget), cover-cropped, sharp-cornered.
+		expect(appCss).toMatch(/\.goal-media img \{[^}]*aspect-ratio: 3 \/ 2;/u);
+		expect(appCss).toMatch(/\.goal-media img \{[^}]*max-height: /u);
+		expect(appCss).toMatch(/\.goal-media img \{[^}]*object-fit: cover;/u);
+		expect(appCss).toMatch(/\.goal-media img \{[^}]*border-radius: 0;/u);
 	});
 
-	it('renders through the component on the /log rows and the permalink hero, and nowhere on home', () => {
+	it('renders through the component on the /log rows, the permalink hero, and the home latest-5 rows', () => {
 		const logList = readFileSync(path.join(repoRoot, 'src/lib/components/LogList.svelte'), 'utf8');
 		expect(logList).toContain('<FeaturedImage');
 		expect(logList).toContain('variant="thumb"');
 		const permalink = readFileSync(path.join(repoRoot, 'src/routes/log/[slug]/+page.svelte'), 'utf8');
 		expect(permalink).toContain('<FeaturedImage');
 		expect(permalink).toContain('variant="hero"');
-		// The home page belongs to the carousel and latest-5 lanes; this lane
-		// only exposes the component API they will consume.
+		// Home integration (the 2026-09-01 batch's deferred item): the
+		// latest-5 citation rows reuse the archive thumb — same component,
+		// same variant, so the two surfaces cannot drift apart — and the
+		// goals carousel mounts its own designed `media` snippet. Both
+		// consume ONLY the schema's frontmatter group; the empty state stays
+		// honest because the component and the snippet's {#if} both render
+		// nothing for an imageless entry.
 		const home = readFileSync(path.join(repoRoot, 'src/routes/+page.svelte'), 'utf8');
-		expect(home).not.toContain('FeaturedImage');
+		expect(home).toContain('<FeaturedImage');
+		expect(home).toContain('variant="thumb"');
+		expect(home).toContain('{#snippet media(goal)}');
+		expect(home).toContain('class="goal-media"');
+		expect(home).toContain('{#if goal.metadata.image}');
 	});
 });
