@@ -19,14 +19,18 @@ listening: an evidence packet of somebody else's build is worse than no packet.
 1. `just build` — Bazel static build, materialize, and the `leak-scan` gate over
    the built tree. The packet is evidence for **this** artefact, so the artefact
    is produced first.
-2. `just check` — the four repo gates (eslint, prettier, svelte-check, the unit
-   suite).
+2. `just check` — the eleven chained repo gates
+   (flywheel-enrollment-contract-check, secrets-scan-dir, endpoint-check,
+   source-map-check, log-manifest-check, goals-manifest-check,
+   entrypoint-contract, workflow-validate, qr-verify, conformance,
+   leak-scan-stamped) plus `//:local_validation_suite` (the bazel-output
+   contract, eslint, prettier, svelte-check and the unit suite).
 3. `just preview-e2e <port>` in the background — the same preview machinery
    Playwright uses in CI, on the port you gave it.
 4. The browser acceptance suite against that preview, through
    `playwright.qa-packet.config.ts`. That file is a thin variant of
    `playwright.config.ts` with the web server removed and the base URL taken
-   from the environment. **`playwright.config.ts` itself is never touched**; the PR-only `qa-look` job invokes this dedicated packet recipe after the reusable CI succeeds.
+   from the environment. **`playwright.config.ts` itself is never touched**; the PR-only `qa-look` job invokes this dedicated packet recipe after the required CI jobs succeed.
 5. `scripts/qa-packet.mjs` — the screenshots, `manifest.json` and `INDEX.md`.
 6. Teardown. The recipe kills only the preview it started.
 
