@@ -56,6 +56,18 @@ async function horizontalOverflow(page: Page) {
 			// the carousel's own controls. At rest (no JS) the class is
 			// absent and the goals grid is swept like everything else.
 			.filter((element) => !element.closest('.goal-list--enhanced'))
+			// The brand-vectors background is a sanctioned CLIPPED layer (the
+			// same precedent as the scroll region above, for painting instead
+			// of scrolling). TinyVectors draws its blob world through a square
+			// viewBox with preserveAspectRatio="slice" cover behaviour, so on
+			// any non-square viewport the SVG geometry's layout rects extend
+			// past the viewport edges BY DESIGN while `.brand-vectors-bg`'s
+			// `overflow: clip` guarantees none of it paints or scrolls. The
+			// layer is `position: fixed` (it cannot contribute to
+			// document.scrollWidth, which the assertion below still proves)
+			// and `pointer-events: none` with no interactive content (so the
+			// clipped-controls sweep still covers everything it ever did).
+			.filter((element) => !element.closest('.brand-vectors-bg'))
 			.map((element) => ({ tag: element.tagName, right: element.getBoundingClientRect().right }))
 			.filter((entry) => entry.right > window.innerWidth + 1)
 			.slice(0, 5),

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { TinyVectors } from '@tummycrypt/tinyvectors';
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
@@ -12,6 +13,16 @@
 	import '../app.css';
 
 	let { children } = $props();
+
+	// TinyVectors mounts on browser idle, not during hydration. Mounting the
+	// blob layer inside the first hydration pass measurably delayed the
+	// page's progressive enhancements (the goals carousel's `enhanced` flip,
+	// the contact widget's onload challenge fetch) enough that the acceptance
+	// suite's post-domcontentloaded samples caught the page mid-enhancement.
+	// The blobs are pure decoration with no focusables and no network
+	// traffic, so deferring them to idle restores the pre-blob enhancement
+	// timeline while changing nothing the visitor can interact with.
+	let brandVectorsReady = $state(false);
 
 	onMount(() => {
 		// Hydrate the theme store from localStorage so the mode switch
@@ -25,6 +36,19 @@
 		// succeeded, so `use:reveal` will run and no forced un-hide is needed.
 		const w = window as unknown as { __gftbRevealFailsafe?: ReturnType<typeof setTimeout> };
 		if (w.__gftbRevealFailsafe) clearTimeout(w.__gftbRevealFailsafe);
+
+		// Idle deferral for the brand-vectors layer (see the state's comment).
+		// Safari still ships no requestIdleCallback, so fall back to a macrotask.
+		if (typeof window.requestIdleCallback === 'function') {
+			const idleHandle = window.requestIdleCallback(() => {
+				brandVectorsReady = true;
+			});
+			return () => window.cancelIdleCallback(idleHandle);
+		}
+		const timeoutHandle = setTimeout(() => {
+			brandVectorsReady = true;
+		}, 0);
+		return () => clearTimeout(timeoutHandle);
 	});
 
 	// Header + footer structure is the demo site's +layout.svelte shape
@@ -99,6 +123,31 @@
      /contact, and the prerendered /404), so there is no per-page footer
      hack. -->
 <div class="app-shell">
+	<!-- TinyVectors warm Tinyland background — the same brand-blob layer the
+	     members site ships in its own +layout.svelte, restored to the apex at
+	     the tinyvectors 0.3.7 idle-drift floor. Gated on brandVectorsReady
+	     (browser idle, see the script comment) rather than `browser`: the
+	     component drives window/navigator APIs and Svelte effects that crash
+	     under SSR anyway, and every apex route prerenders. Fixed
+	     full-viewport, below content (.brand-vectors-bg in app.css), low
+	     opacity, behind the hero's own isolated backdrop stack. v0.3.7 makes
+	     idle drift/bounce the desktop default and honors
+	     prefers-reduced-motion internally, so this call site adds NO motion
+	     logic — config only. On iOS Safari the devicemotion enhancement stays
+	     dormant (0.3.7 never listens without a user-gesture permission grant
+	     this minimal surface does not offer). -->
+	{#if brandVectorsReady}
+		<div class="brand-vectors-bg" aria-hidden="true" data-testid="brand-vectors-bg">
+			<TinyVectors
+				theme="custom"
+				colors={['#cb6738', '#d99d6a', '#a14a52', '#6b4f3a', '#3d6b8c']}
+				opacity={0.1}
+				blobCount={5}
+				enableScrollPhysics={true}
+				enableDeviceMotion={true}
+			/>
+		</div>
+	{/if}
 	<a class="skip-link" href="#main-content">Skip to content</a>
 
 	<header class="site-header">
