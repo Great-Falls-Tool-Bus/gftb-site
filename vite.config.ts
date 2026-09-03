@@ -1,7 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { accessibilityPlugin } from '@tummycrypt/vite-plugin-a11y';
-import { defineConfig, type PluginOption } from 'vite';
+import { defineConfig, type Plugin, type PluginOption } from 'vite';
 import pkg from './package.json';
 
 // Stamped Bazel build actions set BUILD_COMMIT_SHA from their stable-status
@@ -37,7 +37,7 @@ if (analyzeRequested) {
 			template: 'treemap',
 			gzipSize: true,
 			brotliSize: true,
-		}) as unknown as Plugin,
+		}) as Plugin,
 	);
 }
 
