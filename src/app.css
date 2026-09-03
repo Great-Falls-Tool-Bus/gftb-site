@@ -278,6 +278,19 @@ body {
 	pointer-events: none;
 }
 
+/* Reduced motion: TinyVectors freezes its physics internally
+ * (respectReducedMotion default), but its container ships an inline
+ * `transition: opacity 0.8s` fade-in unconditionally. The page's
+ * reduced-motion contract is ZERO declared transition time
+ * (e2e/acceptance-motion-keyboard.spec.ts sweeps every element), so kill the
+ * declaration here — !important is required to beat the element-level inline
+ * style, exactly the .goal-list--enhanced print precedent. */
+@media (prefers-reduced-motion: reduce) {
+	.brand-vectors-bg * {
+		transition: none !important;
+	}
+}
+
 a {
 	color: var(--link);
 }

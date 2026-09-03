@@ -242,7 +242,13 @@ copy_to_directory(
     srcs = [
         ":app_srcs",
         ":sveltekit_types",
+        # The supply-chain seams src/lib/brand-vectors-motion-contract.test.ts
+        # and src/lib/house-stack-contract.test.ts read from the workspace
+        # root: the bazel_dep pin, the immutable registry pin, and the lock
+        # entry that binds them together.
+        ".bazelrc",
         "MODULE.bazel",
+        "MODULE.bazel.lock",
     ],
     hardlink = "off",
     root_paths = ["."],
