@@ -159,6 +159,16 @@ or script while any live entrypoint still references it.
 - Sync and scan open PRs before starting a lane. File fences win.
 - Preserve unrelated dirty worktree changes.
 - Use signed commits; never add AI attribution.
+- Operator surfacing (operator-derived 2026-09-03; SSD rulings addendum (e)):
+  ratifications, agendas, todos, and review items reach the operator in
+  exactly one of two forms — decisions via the interview feature
+  (AskUserQuestion decision briefs); read/LOOK items opened in the operator's
+  Chrome as tabs. Never prose status lists with shell-command fallbacks;
+  never GUI `open` (fleet guard). Printing via printstack remains the
+  annotation route. The claude-in-chrome prohibition is scoped to agent
+  browsing/QA (gstack supersedes there); operator-attended LOOK tab-opening
+  is the sanctioned exception. SSOT: `prompts-enqueue`
+  `context/house-active-dialog-cadence.md`.
 - This repo stays private until an explicit visibility decision.
 
 ## Licenses and assets
