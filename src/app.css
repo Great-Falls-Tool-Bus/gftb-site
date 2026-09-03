@@ -260,6 +260,24 @@ body {
 	flex: 1 1 auto;
 }
 
+/* ===== Brand-vectors background (TinyVectors) =====
+ * Full-viewport host for the members-site brand-blob layer (mounted once in
+ * +layout.svelte, browser-only). Deliberately OUTSIDE the semantic --z-*
+ * ladder for the same reason as .hero__media: this is a below-content layer,
+ * not a UI tier. .app-shell (position: relative, z-index auto) creates no
+ * stacking context, so z-index: -1 stacks against the root context — the
+ * blobs paint ABOVE the body's --wash gradient but UNDER every in-flow
+ * surface, and the hero band's own `isolation: isolate` backdrop stack is
+ * untouched. `clip` (not `hidden`) mirrors the html overflow-x guard: no
+ * scroll container, nothing can widen the page. */
+.brand-vectors-bg {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	overflow: clip;
+	pointer-events: none;
+}
+
 a {
 	color: var(--link);
 }
@@ -1806,7 +1824,8 @@ figcaption {
 	.site-header,
 	.site-footer,
 	.skip-link,
-	.hero__media {
+	.hero__media,
+	.brand-vectors-bg {
 		display: none !important;
 	}
 

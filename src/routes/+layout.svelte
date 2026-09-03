@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
+	import { TinyVectors } from '@tummycrypt/tinyvectors';
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
@@ -99,6 +101,29 @@
      /contact, and the prerendered /404), so there is no per-page footer
      hack. -->
 <div class="app-shell">
+	<!-- TinyVectors warm Tinyland background — the same brand-blob layer the
+	     members site ships (greatfallstoolbus.org +layout.svelte, tinyvectors
+	     0.3.7 / PR #228 era), restored to the apex. Browser-only: the
+	     component drives window/navigator APIs and Svelte effects that crash
+	     under SSR, and every apex route prerenders. Fixed full-viewport,
+	     below content (.brand-vectors-bg in app.css), low opacity, behind the
+	     hero's own isolated backdrop stack. v0.3.7 makes idle drift/bounce
+	     the desktop default and honors prefers-reduced-motion internally, so
+	     this call site adds NO motion logic — config only. On iOS Safari the
+	     devicemotion enhancement stays dormant (0.3.7 never listens without a
+	     user-gesture permission grant this minimal surface does not offer). -->
+	{#if browser}
+		<div class="brand-vectors-bg" aria-hidden="true" data-testid="brand-vectors-bg">
+			<TinyVectors
+				theme="custom"
+				colors={['#cb6738', '#d99d6a', '#a14a52', '#6b4f3a', '#3d6b8c']}
+				opacity={0.1}
+				blobCount={5}
+				enableScrollPhysics={true}
+				enableDeviceMotion={true}
+			/>
+		</div>
+	{/if}
 	<a class="skip-link" href="#main-content">Skip to content</a>
 
 	<header class="site-header">
