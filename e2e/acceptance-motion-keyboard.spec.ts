@@ -1,21 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
-import { installExternalGuard, stubChallenge, stubContactEndpoint } from './support/network';
+import { expect, test } from './support/fixtures';
+import { stubContactEndpoint } from './support/network';
 
 // Acceptance rows (§3): prefers-reduced-motion is respected (no non-essential
 // animation), and the page is fully keyboard operable with a visible, ordered
 // focus path.
 
-async function openPage(page: Page, baseURL: string | undefined, path = '/') {
-	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
-	await stubChallenge(page);
-	await page.goto(path);
-	await page.waitForLoadState('domcontentloaded');
-}
-
 test.describe('prefers-reduced-motion', () => {
-	test('no element declares a transition, animation, or smooth scroll', async ({ page, baseURL }) => {
+	test('no element declares a transition, animation, or smooth scroll', async ({ page, guardedPage }) => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await openPage(page, baseURL);
+		await guardedPage();
 
 		const moving = await page.evaluate(() => {
 			const offenders: Array<{ selector: string; property: string; value: string }> = [];
@@ -44,9 +37,9 @@ test.describe('prefers-reduced-motion', () => {
 		expect(moving, 'elements still animating under prefers-reduced-motion').toEqual([]);
 	});
 
-	test('nothing is animating on the compositor after load', async ({ page, baseURL }) => {
+	test('nothing is animating on the compositor after load', async ({ page, guardedPage }) => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await openPage(page, baseURL);
+		await guardedPage();
 		await page.waitForLoadState('networkidle');
 		const running = await page.evaluate(() =>
 			document
@@ -57,11 +50,11 @@ test.describe('prefers-reduced-motion', () => {
 		expect(running, 'running animations under prefers-reduced-motion').toEqual([]);
 	});
 
-	test('anchor navigation still lands on its target with motion reduced', async ({ page, baseURL }) => {
+	test('anchor navigation still lands on its target with motion reduced', async ({ page, guardedPage }) => {
 		// The contact CTA is a page link now (B1.4); the footer's History link
 		// is the surviving same-page anchor this row exercises.
 		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await openPage(page, baseURL);
+		await guardedPage();
 		await page.getByRole('link', { name: 'History', exact: true }).click();
 		await expect(page).toHaveURL(/#history$/u);
 		const settled = await page.locator('#history').evaluate((element) => element.getBoundingClientRect().top);
@@ -70,17 +63,20 @@ test.describe('prefers-reduced-motion', () => {
 		expect(Math.abs(settled)).toBeLessThan(120);
 	});
 
-	test('the default (no preference) rendering keeps smooth scrolling as the enhancement', async ({ page, baseURL }) => {
+	test('the default (no preference) rendering keeps smooth scrolling as the enhancement', async ({
+		page,
+		guardedPage,
+	}) => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
-		await openPage(page, baseURL);
+		await guardedPage();
 		const behavior = await page.locator('html').evaluate((element) => getComputedStyle(element).scrollBehavior);
 		expect(behavior, 'smooth scrolling is the thing reduced-motion turns off').toBe('smooth');
 	});
 });
 
 test.describe('keyboard operability', () => {
-	test('tab order follows document order and reaches every control', async ({ page, baseURL }) => {
-		await openPage(page, baseURL);
+	test('tab order follows document order and reaches every control', async ({ page, guardedPage }) => {
+		await guardedPage();
 
 		const expected = await page.evaluate(() => {
 			const focusable = Array.from(
@@ -113,16 +109,16 @@ test.describe('keyboard operability', () => {
 		expect(visited, 'visited focus order').toEqual(expected);
 	});
 
-	test('the honeypot is unreachable by keyboard', async ({ page, baseURL }) => {
-		await openPage(page, baseURL, '/contact');
+	test('the honeypot is unreachable by keyboard', async ({ page, guardedPage }) => {
+		await guardedPage('/contact');
 		const honeypot = page.locator('#contact-website');
 		await expect(honeypot).toHaveAttribute('tabindex', '-1');
 		await expect(page.locator('.honeypot')).toHaveAttribute('aria-hidden', 'true');
 		await expect(honeypot).toHaveAttribute('autocomplete', 'off');
 	});
 
-	test('every focused control shows a visible indicator', async ({ page, baseURL }) => {
-		await openPage(page, baseURL);
+	test('every focused control shows a visible indicator', async ({ page, guardedPage }) => {
+		await guardedPage();
 		await page.waitForLoadState('networkidle');
 
 		const invisible = await page.evaluate(async () => {
@@ -188,15 +184,15 @@ test.describe('keyboard operability', () => {
 		expect(invisible, 'controls with no perceivable focus indicator').toEqual([]);
 	});
 
-	test('the contact form can be completed and submitted without a pointer', async ({ page, baseURL }) => {
+	test('the contact form can be completed and submitted without a pointer', async ({ page, guardedPage }) => {
 		// Submitted, not just typed into: the acceptance row is that a keyboard-only
 		// visitor can actually send the form, so this drives Tab/Enter all the way
 		// to the POST and asserts the endpoint received it.
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
-		await stubChallenge(page);
+		await guardedPage('/contact');
+		// Registered after the prologue's catch-all guard so it takes precedence
+		// for the contact URL; the endpoint is only reached on submit, well after
+		// load, so registering it post-goto changes nothing observable.
 		const capture = await stubContactEndpoint(page);
-		await page.goto('/contact');
-		await page.waitForLoadState('domcontentloaded');
 
 		const message = 'I would like to help with the waterproofing session.';
 		await page.locator('#contact-name').focus();
@@ -233,8 +229,8 @@ test.describe('keyboard operability', () => {
 		});
 	});
 
-	test('validation errors move focus to the first field that needs attention', async ({ page, baseURL }) => {
-		await openPage(page, baseURL, '/contact');
+	test('validation errors move focus to the first field that needs attention', async ({ page, guardedPage }) => {
+		await guardedPage('/contact');
 		await page.getByRole('button', { name: 'Send to keyholders' }).click();
 		await expect(page.locator('#contact-name')).toBeFocused();
 		await expect(page.locator('#contact-name')).toHaveAttribute('aria-invalid', 'true');

@@ -51,9 +51,10 @@
 			     decode and always-encode-the-apex acceptance (spec §3:129-142;
 			     0014:88-89) are satisfied with zero runtime JS, and the
 			     committed SVG is byte-identity-gated against a fresh qrencode
-			     run (`just qr-verify`) plus a decode unit test — a runtime
-			     component would trade a proven artifact for a client
-			     dependency. -->
+			     run (`just qr-verify`, which also cross-checks the pinned
+			     payload against package.json's homepage; independent decode
+			     verification is a manual scan) — a runtime component would
+			     trade a proven artifact for a client dependency. -->
 			<img
 				class="qr"
 				src="/qr/greatfallstoolbus-apex.svg"

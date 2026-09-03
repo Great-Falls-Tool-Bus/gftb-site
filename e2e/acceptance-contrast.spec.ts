@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test, type GuardedGoto } from './support/fixtures';
 import {
 	LARGE_TEXT_AA_RATIO,
 	NON_TEXT_RATIO,
@@ -10,7 +11,6 @@ import {
 	roundRatio,
 	type Rgb,
 } from '../scripts/lib/color-contrast.mjs';
-import { installExternalGuard, stubChallenge } from './support/network';
 
 // Acceptance rows (§3): AA text contrast, and WCAG 1.4.11 3:1 non-text contrast
 // for filled buttons and controls against their surface.
@@ -80,11 +80,8 @@ function resolveBackground(layers: string[]): Rgb {
 	return result;
 }
 
-async function openPage(page: Page, baseURL: string | undefined, path = '/') {
-	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
-	await stubChallenge(page);
-	await page.goto(path);
-	await page.waitForLoadState('domcontentloaded');
+async function openPage(page: Page, guardedPage: GuardedGoto, path = '/') {
+	await guardedPage(path);
 	// Disarm the scroll-reveal start state (D04): below-fold sections start
 	// at opacity 0 until they intersect, and this spec's visibility filter
 	// would silently drop them from the sweep. Contrast is about paint, not
@@ -197,8 +194,8 @@ for (const scheme of ['light', 'dark'] as const) {
 				// prior state and carries no assertion of its own.
 				['the contact page', '/contact'],
 			] as const) {
-				test(`text contrast holds across ${name}`, async ({ page, baseURL }) => {
-					await openPage(page, baseURL, path);
+				test(`text contrast holds across ${name}`, async ({ page, guardedPage }) => {
+					await openPage(page, guardedPage, path);
 					const samples = await collectTextSamples(page);
 					expect(samples.length, 'text-bearing elements sampled').toBeGreaterThan(20);
 
@@ -222,8 +219,8 @@ for (const scheme of ['light', 'dark'] as const) {
 				});
 			}
 
-			test('validation and error text stays readable once it appears', async ({ page, baseURL }) => {
-				await openPage(page, baseURL, '/contact');
+			test('validation and error text stays readable once it appears', async ({ page, guardedPage }) => {
+				await openPage(page, guardedPage, '/contact');
 				await page.getByRole('button', { name: 'Send to keyholders' }).click();
 				await expect(page.locator('.field-error').first()).toBeVisible();
 
@@ -242,8 +239,8 @@ for (const scheme of ['light', 'dark'] as const) {
 		});
 
 		test.describe('WCAG 1.4.11 — filled controls stand out from their surface', () => {
-			test('every filled control reaches 3:1 against the surface it sits on', async ({ page, baseURL }) => {
-				await openPage(page, baseURL, '/contact');
+			test('every filled control reaches 3:1 against the surface it sits on', async ({ page, guardedPage }) => {
+				await openPage(page, guardedPage, '/contact');
 				const samples = await collectControlSamples(page);
 				expect(samples.length, 'controls sampled').toBeGreaterThan(3);
 
@@ -262,8 +259,8 @@ for (const scheme of ['light', 'dark'] as const) {
 				expect(failures, 'controls below 3:1 against their surface').toEqual([]);
 			});
 
-			test('the focus indicator is distinguishable from the control it rings', async ({ page, baseURL }) => {
-				await openPage(page, baseURL, '/contact');
+			test('the focus indicator is distinguishable from the control it rings', async ({ page, guardedPage }) => {
+				await openPage(page, guardedPage, '/contact');
 				// Reach the button by keyboard: :focus-visible is what paints the ring,
 				// and a scripted focus() does not reliably match it.
 				await page.locator('#contact-message').focus();

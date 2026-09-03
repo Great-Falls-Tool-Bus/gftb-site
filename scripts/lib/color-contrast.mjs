@@ -121,9 +121,9 @@ function linearToSrgb255(value) {
 }
 
 /**
- * Ottosson OKLab to sRGB. This is the same transform `src/lib/theme/palette.test.ts`
- * uses to prove the palette's documented hexes, restated here because the test
- * suite and this module must not depend on each other.
+ * Ottosson OKLab to sRGB. This is the single copy of the transform:
+ * `src/lib/theme/palette.test.ts` proves the palette's documented hexes
+ * through `parseCssColor`/`formatRgb` rather than restating the matrix.
  *
  * Needed because Chromium serialises a computed `oklch()`/`color-mix(in oklab, ...)`
  * colour *as* `oklch(...)`/`oklab(...)` rather than converting it to `rgb()`.

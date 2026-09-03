@@ -70,8 +70,8 @@ filegroup(
             "src/**",
             "static/**",
             "scripts/bazel/**/*.mjs",
-            # Acceptance-test-only modules the unit suite imports (leak scanner,
-            # QR decoder, WCAG colour maths). They live outside src/lib so
+            # Acceptance-test-only modules the unit suite imports (leak scanner
+            # and WCAG colour maths). They live outside src/lib so
             # shipped code cannot reach them, but //:unit_tests must.
             "scripts/lib/**/*.mjs",
             "scripts/lib/**/*.test.mts",
