@@ -57,8 +57,11 @@ is not public.
 - `just build` produces the adapter-static site under `build/` through Bazel,
   then leak-scans it (see below). A published tree that has never been scanned
   is not publishable.
-- `just check` runs secret, endpoint, printed-QR, conformance, entrypoint,
-  formatting, typecheck, and unit-test gates.
+- `just check` chains eleven repo gates — flywheel-enrollment-contract-check,
+  secrets-scan-dir, endpoint-check, source-map-check, log-manifest-check,
+  goals-manifest-check, entrypoint-contract, workflow-validate, qr-verify,
+  conformance, leak-scan-stamped — then runs `//:local_validation_suite`
+  (bazel-output contract, eslint, prettier, svelte-check, unit tests).
 - `just conformance` validates the live minimal-spoke contract.
 - `just qr-verify` regenerates the printed apex QR and proves the committed
   SVG matches, ignoring only the `<!-- Created with qrencode X.Y.Z -->`
@@ -178,7 +181,10 @@ Decisions are decided-by-default: search these before writing "open question".
 - Demo site = design decisions in code: `greatfallstoolbus.org` repo @ main —
   commits #87, #90, #94; `src/lib/motion.svelte.ts`, `src/lib/nav-items.ts`,
   `src/app.css`, `src/lib/data/cells.ts`, `src/routes/contact/`. Port, never
-  reinvent.
+  reinvent. CORRECTION (2026-09-03): `src/lib/data/cells.ts` and
+  `src/routes/contact/` no longer exist on that repo's main (deleted in its
+  commit 23d9513); this repo's own `src/routes/contact/` and its tests are now
+  the contact-surface truth. The three surviving pointers stand.
 - Linear: initiative "Great Falls Tool Bus — Launch" + document "GFTB launch
   operating map" (milestone spine, SLAs, WIP rule live THERE). Read issue
   descriptions AND comment threads.
