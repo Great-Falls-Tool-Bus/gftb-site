@@ -58,14 +58,15 @@
 		labelledby: string;
 		/**
 		 * OPTIONAL FEATURED-IMAGE SLOT. Renders at the top of every slide,
-		 * receiving that slide's goal. Absent, slides collapse to today's
-		 * text-only rows. When goal frontmatter grows image/image_alt keys
-		 * (schema lane), mount it from the page as:
+		 * receiving that slide's goal. Reusable callers may omit it for
+		 * text-only rows; the home page currently mounts it from the shared
+		 * goal image metadata as:
 		 *
 		 *   {#snippet media(goal)}
 		 *     {#if goal.metadata.image}
 		 *       <figure class="goal-media">
-		 *         <img src={goal.metadata.image} alt={goal.metadata.image_alt ?? ''} loading="lazy" />
+		 *         <img src={goal.metadata.image} alt={goal.metadata.image_alt ?? ''}
+		 *           loading="lazy" decoding="async" style:aspect-ratio={goal.metadata.image_aspect} />
 		 *       </figure>
 		 *     {/if}
 		 *   {/snippet}
