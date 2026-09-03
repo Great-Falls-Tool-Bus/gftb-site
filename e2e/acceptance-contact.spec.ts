@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test, type GuardedGoto } from './support/fixtures';
 import {
 	CONTACT_URL,
 	FORM_ORIGIN,
@@ -24,13 +25,12 @@ const VALID = {
 	message: 'I can bring a 9/16-inch impact and help with the seat removal.',
 };
 
-async function openContact(page: Page, baseURL: string | undefined, options: ContactStubOptions = {}) {
-	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
-	await stubChallenge(page);
-	const capture = await stubContactEndpoint(page, options);
-	await page.goto('/contact');
-	await page.waitForLoadState('domcontentloaded');
-	return capture;
+async function openContact(page: Page, guardedPage: GuardedGoto, options: ContactStubOptions = {}) {
+	await guardedPage('/contact');
+	// Registered after the prologue's catch-all guard so it takes precedence for
+	// the contact URL; the endpoint is only reached on submit, well after load,
+	// so registering it post-goto changes nothing observable.
+	return stubContactEndpoint(page, options);
 }
 
 async function fillValidForm(page: Page, overrides: Partial<typeof VALID> = {}) {
@@ -44,8 +44,12 @@ async function fillValidForm(page: Page, overrides: Partial<typeof VALID> = {}) 
 const submit = (page: Page) => page.getByRole('button', { name: 'Send to keyholders' }).click();
 
 test.describe('exact-origin CORS on the form endpoint', () => {
-	test('posts to exactly one endpoint, over https, with the page origin attached', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('posts to exactly one endpoint, over https, with the page origin attached', async ({
+		page,
+		guardedPage,
+		baseUrl,
+	}) => {
+		const capture = await openContact(page, guardedPage);
 		const requests: string[] = [];
 		page.on('request', (request) => {
 			if (request.url().startsWith(FORM_ORIGIN)) requests.push(`${request.method()} ${request.url()}`);
@@ -56,7 +60,7 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 		await expect(page.getByRole('status')).toContainText('Your note has been sent');
 
 		expect(capture.headers).toHaveLength(1);
-		expect(capture.headers[0].origin).toBe(new URL(baseURL ?? 'http://localhost:3000').origin);
+		expect(capture.headers[0].origin).toBe(new URL(baseUrl).origin);
 		// `content-type: application/json` is what makes this a non-simple request,
 		// so a real browser preflights it and the endpoint's exact-origin policy is
 		// enforced on the preflight. Playwright serves fulfilled routes without
@@ -66,8 +70,8 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 		expect(requests.filter((entry) => entry.endsWith('/api/contact'))).toContain(`POST ${CONTACT_URL}`);
 	});
 
-	test('a response addressed to a different origin is rejected by the browser', async ({ page, baseURL }) => {
-		await openContact(page, baseURL, { allowOrigin: 'https://not-this-page.example' });
+	test('a response addressed to a different origin is rejected by the browser', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage, { allowOrigin: 'https://not-this-page.example' });
 		await fillValidForm(page);
 		await submit(page);
 		await expect(page.getByRole('alert')).toContainText('We could not reach the contact service.');
@@ -79,8 +83,8 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 	// That case is covered by the live-endpoint block instead.
 	test.skip('a response with no allow-origin header at all is rejected', () => {});
 
-	test('the endpoint host is pinned in source, not derived from the page', async ({ page, baseURL }) => {
-		await openContact(page, baseURL);
+	test('the endpoint host is pinned in source, not derived from the page', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage);
 		const action = await page.locator('form.contact-form').getAttribute('action');
 		expect(action).toBe(CONTACT_URL);
 		expect(new URL(action ?? '').protocol).toBe('https:');
@@ -89,8 +93,8 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 });
 
 test.describe('challenge and honeypot enforcement', () => {
-	test('a solved ALTCHA proof rides along with the submission', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('a solved ALTCHA proof rides along with the submission', async ({ page, guardedPage }) => {
+		const capture = await openContact(page, guardedPage);
 		await expect(page.locator('altcha-widget')).toBeVisible();
 		await fillValidForm(page);
 		await expect
@@ -110,8 +114,8 @@ test.describe('challenge and honeypot enforcement', () => {
 		expect(proof.signature).toHaveLength(64);
 	});
 
-	test('an unavailable challenge service does not block a human', async ({ page, baseURL }) => {
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+	test('an unavailable challenge service does not block a human', async ({ page, baseUrl }) => {
+		await installExternalGuard(page, baseUrl);
 		await stubChallenge(page, { error: 'unavailable' }, 503);
 		const capture = await stubContactEndpoint(page);
 		await page.goto('/contact');
@@ -124,8 +128,8 @@ test.describe('challenge and honeypot enforcement', () => {
 		expect(capture.payloads[0].altcha).toBeUndefined();
 	});
 
-	test('a filled honeypot is absorbed silently and never reaches the endpoint', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('a filled honeypot is absorbed silently and never reaches the endpoint', async ({ page, guardedPage }) => {
+		const capture = await openContact(page, guardedPage);
 		await fillValidForm(page);
 		await page.locator('#contact-website').fill('https://spam.example', { force: true });
 		await submit(page);
@@ -134,8 +138,8 @@ test.describe('challenge and honeypot enforcement', () => {
 		expect(capture.payloads, 'honeypot submissions must not be forwarded').toEqual([]);
 	});
 
-	test('the honeypot field ships empty and hidden from assistive technology', async ({ page, baseURL }) => {
-		await openContact(page, baseURL);
+	test('the honeypot field ships empty and hidden from assistive technology', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage);
 		await expect(page.locator('.honeypot')).toHaveAttribute('aria-hidden', 'true');
 		await expect(page.locator('#contact-website')).toHaveValue('');
 		const offscreen = await page.locator('.honeypot').evaluate((element) => element.getBoundingClientRect().right);
@@ -144,8 +148,8 @@ test.describe('challenge and honeypot enforcement', () => {
 });
 
 test.describe('input bounds and rate limiting', () => {
-	test('an empty submission is stopped before any request is made', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('an empty submission is stopped before any request is made', async ({ page, guardedPage }) => {
+		const capture = await openContact(page, guardedPage);
 		await submit(page);
 		await expect(page.locator('.field-error')).toHaveCount(3);
 		await expect(page.locator('#contact-name-error')).toContainText('Tell us who you are.');
@@ -154,8 +158,8 @@ test.describe('input bounds and rate limiting', () => {
 		expect(capture.payloads).toEqual([]);
 	});
 
-	test('a malformed address and a too-short message are both caught locally', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('a malformed address and a too-short message are both caught locally', async ({ page, guardedPage }) => {
+		const capture = await openContact(page, guardedPage);
 		await fillValidForm(page, { email: 'ada@invalid', message: 'too short' });
 		await submit(page);
 		await expect(page.locator('#contact-email-error')).toContainText('does not look right');
@@ -163,23 +167,23 @@ test.describe('input bounds and rate limiting', () => {
 		expect(capture.payloads).toEqual([]);
 	});
 
-	test('whitespace is trimmed so bounds are measured on real content', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('whitespace is trimmed so bounds are measured on real content', async ({ page, guardedPage }) => {
+		const capture = await openContact(page, guardedPage);
 		await fillValidForm(page, { name: `  ${VALID.name}  `, email: `  ${VALID.email} ` });
 		await submit(page);
 		await expect(page.getByRole('status')).toBeVisible();
 		expect(capture.payloads[0]).toMatchObject({ name: VALID.name, email: VALID.email, message: VALID.message });
 	});
 
-	test('an oversized message is refused by the endpoint and reported, not swallowed', async ({ page, baseURL }) => {
-		await openContact(page, baseURL, { status: 413 });
+	test('an oversized message is refused by the endpoint and reported, not swallowed', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage, { status: 413 });
 		await fillValidForm(page, { message: 'x'.repeat(20_000) });
 		await submit(page);
 		await expect(page.getByRole('alert')).toContainText('We could not reach the contact service.');
 	});
 
-	test('a rate-limited submission surfaces the fallback instead of a silent failure', async ({ page, baseURL }) => {
-		await openContact(page, baseURL, { status: 429, body: { error: 'slow down' } });
+	test('a rate-limited submission surfaces the fallback instead of a silent failure', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage, { status: 429, body: { error: 'slow down' } });
 		await fillValidForm(page);
 		await submit(page);
 
@@ -191,8 +195,8 @@ test.describe('input bounds and rate limiting', () => {
 });
 
 test.describe('retry and endpoint-down fallback', () => {
-	test('retry keeps everything the person already typed', async ({ page, baseURL }) => {
-		await openContact(page, baseURL, { status: 429 });
+	test('retry keeps everything the person already typed', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage, { status: 429 });
 		await fillValidForm(page);
 		await submit(page);
 		await expect(page.getByRole('alert')).toBeVisible();
@@ -205,8 +209,8 @@ test.describe('retry and endpoint-down fallback', () => {
 		await expect(page.getByRole('button', { name: 'Send to keyholders' })).toBeEnabled();
 	});
 
-	test('an endpoint that is down shows the email fallback carrying the same note', async ({ page, baseURL }) => {
-		await openContact(page, baseURL, { abort: true });
+	test('an endpoint that is down shows the email fallback carrying the same note', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage, { abort: true });
 		await fillValidForm(page);
 		await submit(page);
 
@@ -220,8 +224,8 @@ test.describe('retry and endpoint-down fallback', () => {
 		expect(mailto.searchParams.get('body')).toContain(VALID.message);
 	});
 
-	test('a second attempt after a transient failure succeeds', async ({ page, baseURL }) => {
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+	test('a second attempt after a transient failure succeeds', async ({ page, baseUrl }) => {
+		await installExternalGuard(page, baseUrl);
 		await stubChallenge(page);
 		let attempt = 0;
 		await page.route(CONTACT_URL, async (route) => {
@@ -265,8 +269,8 @@ test.describe('retry and endpoint-down fallback', () => {
 });
 
 test.describe('delivery canary', () => {
-	test('the submitted body matches the delivery contract exactly', async ({ page, baseURL }) => {
-		const capture = await openContact(page, baseURL);
+	test('the submitted body matches the delivery contract exactly', async ({ page, guardedPage }) => {
+		const capture = await openContact(page, guardedPage);
 		await fillValidForm(page);
 		await expect
 			.poll(async () => page.locator('altcha-widget').evaluate((element) => (element as { state?: string }).state))
@@ -284,8 +288,8 @@ test.describe('delivery canary', () => {
 		expect(capture.headers[0]['content-type']).toBe('application/json');
 	});
 
-	test('the success notice is announced, not just drawn', async ({ page, baseURL }) => {
-		await openContact(page, baseURL);
+	test('the success notice is announced, not just drawn', async ({ page, guardedPage }) => {
+		await openContact(page, guardedPage);
 		await fillValidForm(page);
 		await submit(page);
 		const notice = page.getByRole('status');

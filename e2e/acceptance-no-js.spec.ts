@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/fixtures';
 
 import { primaryNavItems } from '../src/lib/nav-items';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
@@ -122,7 +122,7 @@ test.describe('JavaScript disabled', () => {
 });
 
 test.describe('JavaScript enabled', () => {
-	test('the page loads with a clean console', async ({ page, baseURL }) => {
+	test('the page loads with a clean console', async ({ page, baseUrl }) => {
 		const consoleErrors: string[] = [];
 		const pageErrors: string[] = [];
 		page.on('console', (message) => {
@@ -132,7 +132,7 @@ test.describe('JavaScript enabled', () => {
 		});
 		page.on('pageerror', (error) => pageErrors.push(error.message));
 
-		const guard = await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		const guard = await installExternalGuard(page, baseUrl);
 		await stubChallenge(page);
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -143,10 +143,10 @@ test.describe('JavaScript enabled', () => {
 		for (const url of guard.attempted) expect(url.startsWith(FORM_ORIGIN)).toBe(true);
 	});
 
-	test('no request leaves the page for an unexpected origin', async ({ page, baseURL }) => {
+	test('no request leaves the page for an unexpected origin', async ({ page, baseUrl }) => {
 		const requested: string[] = [];
 		page.on('request', (request) => requested.push(request.url()));
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		await installExternalGuard(page, baseUrl);
 		await stubChallenge(page);
 
 		// The root page talks to nobody: the form (and its ALTCHA challenge
@@ -154,7 +154,7 @@ test.describe('JavaScript enabled', () => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		const rootOrigins = new Set(requested.map((url) => new URL(url).origin));
-		rootOrigins.delete(new URL(baseURL ?? 'http://localhost:3000').origin);
+		rootOrigins.delete(new URL(baseUrl).origin);
 		expect([...rootOrigins]).toEqual([]);
 
 		// The contact page may talk to exactly the form origin.
@@ -162,7 +162,7 @@ test.describe('JavaScript enabled', () => {
 		await page.goto('/contact');
 		await page.waitForLoadState('networkidle');
 		const contactOrigins = new Set(requested.map((url) => new URL(url).origin));
-		contactOrigins.delete(new URL(baseURL ?? 'http://localhost:3000').origin);
+		contactOrigins.delete(new URL(baseUrl).origin);
 		expect([...contactOrigins]).toEqual([FORM_ORIGIN]);
 	});
 });

@@ -254,10 +254,9 @@ qr-verify:
          --type=SVG --svg-path --level=H --margin=2 --size=4 in both recipes.
       3. If the difference is intended, regenerate and RE-PROVE the artefact:
            just qr-generate
-           bazelisk test //:unit_tests --test_output=all --test_filter='printed apex QR'
-         then update QR_SHA256 in src/lib/qr-code.test.ts to the new hash deliberately.
-         Do not update the golden hash without a decode that still yields the apex URL:
-         nobody can proofread a printed QR code by eye.
+           just qr-verify
+         then scan the regenerated code with a real reader and confirm it still
+         yields the apex URL: nobody can proofread a printed QR code by eye.
     GUIDANCE
       exit 1
     fi
@@ -412,7 +411,7 @@ qa-packet-diff baseline candidate *options:
 # CI ENFORCEMENT: ci-templates spoke-ci.yml@v3.1.0 job `flywheel-test`, line 291
 # (`nix develop --command just check`), once per lane in .github/lanes.json.
 # //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
-# (design-token-contrast, qr-code, leak-scan, public-log-build-contract) run on
+# (design-token-contrast, leak-scan, public-log-build-contract) run on
 # every pull request through this recipe.
 check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test //:local_validation_suite

@@ -1,8 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
-import { installExternalGuard, stubChallenge } from './support/network';
+import type { Page } from '@playwright/test';
+import { expect, test, type GuardedGoto } from './support/fixtures';
 
-// Acceptance row (§3): the page works at 320, 375, 768 and 1280 CSS pixels and
-// at 200% zoom, with no horizontal scroll and no clipped controls.
+// Acceptance row (§3): the page works at 320, 375, 390, 430, 768, 1280 and
+// 1440 CSS pixels and at 200% zoom, with no horizontal scroll and no clipped
+// controls. The 390/430/1440 rows absorb the breakpoint set of the retired
+// overflow.spec.ts (ported from the previous apex's verified breakpoints).
 //
 // Zoom is exercised by halving the viewport rather than by driving browser
 // chrome: at 200% zoom the layout viewport is exactly half the device width in
@@ -14,8 +16,11 @@ import { installExternalGuard, stubChallenge } from './support/network';
 const widths = [
 	{ label: '320 (reflow floor)', width: 320 },
 	{ label: '375 (small phone)', width: 375 },
+	{ label: '390 (mobile small)', width: 390 },
+	{ label: '430 (mobile large)', width: 430 },
 	{ label: '768 (tablet)', width: 768 },
 	{ label: '1280 (desktop)', width: 1280 },
+	{ label: '1440 (wide desktop)', width: 1440 },
 ];
 
 // One source of truth: the physical device width. The layout viewport a browser
@@ -31,12 +36,9 @@ const zoomCases = [1280, 768, 640].map((physicalWidth) => ({
 const INTERACTIVE =
 	'a[href], button, input:not([type=hidden]), textarea, select, summary, [tabindex]:not([tabindex="-1"])';
 
-async function openPage(page: Page, baseURL: string | undefined, width: number) {
-	await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
-	await stubChallenge(page);
+async function openPage(page: Page, guardedPage: GuardedGoto, width: number) {
 	await page.setViewportSize({ width, height: 900 });
-	await page.goto('/');
-	await page.waitForLoadState('domcontentloaded');
+	await guardedPage('/');
 }
 
 async function horizontalOverflow(page: Page) {
@@ -96,29 +98,29 @@ async function clippedControls(page: Page, selector: string) {
 }
 
 for (const { label, width } of widths) {
-	test(`home page reflows without horizontal scroll at ${label}`, async ({ page, baseURL }) => {
-		await openPage(page, baseURL, width);
+	test(`home page reflows without horizontal scroll at ${label}`, async ({ page, guardedPage }) => {
+		await openPage(page, guardedPage, width);
 		const overflow = await horizontalOverflow(page);
 		expect(overflow.widest, `elements overflowing at ${label}`).toEqual([]);
 		expect(overflow.scrollWidth, `document overflow at ${label}`).toBeLessThanOrEqual(overflow.innerWidth + 1);
 	});
 
-	test(`every control stays on screen and hittable at ${label}`, async ({ page, baseURL }) => {
-		await openPage(page, baseURL, width);
+	test(`every control stays on screen and hittable at ${label}`, async ({ page, guardedPage }) => {
+		await openPage(page, guardedPage, width);
 		expect(await clippedControls(page, INTERACTIVE), `clipped controls at ${label}`).toEqual([]);
 	});
 }
 
 for (const { label, width } of zoomCases) {
-	test(`home page reflows without horizontal scroll at ${label}`, async ({ page, baseURL }) => {
-		await openPage(page, baseURL, width);
+	test(`home page reflows without horizontal scroll at ${label}`, async ({ page, guardedPage }) => {
+		await openPage(page, guardedPage, width);
 		const overflow = await horizontalOverflow(page);
 		expect(overflow.widest, `elements overflowing at ${label}`).toEqual([]);
 		expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth + 1);
 	});
 
-	test(`every control stays on screen and hittable at ${label}`, async ({ page, baseURL }) => {
-		await openPage(page, baseURL, width);
+	test(`every control stays on screen and hittable at ${label}`, async ({ page, guardedPage }) => {
+		await openPage(page, guardedPage, width);
 		expect(await clippedControls(page, INTERACTIVE), `clipped controls at ${label}`).toEqual([]);
 	});
 }
@@ -130,8 +132,8 @@ for (const { label, width } of zoomCases) {
  * target. Asserting the bare 24x24 rectangle instead would fail the header nav
  * for a spacing reason the specification explicitly permits.
  */
-test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ page, baseURL }) => {
-	await openPage(page, baseURL, 375);
+test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ page, guardedPage }) => {
+	await openPage(page, guardedPage, 375);
 	const offenders = await page.evaluate((interactive) => {
 		const targets = Array.from(document.querySelectorAll<HTMLElement>(interactive))
 			// Exactly the mode-switch input (the clipped 1px a11y channel) is
@@ -198,10 +200,10 @@ test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ pag
  * two-column widths are included so a future fix cannot trade the phone bug for
  * a desktop one.
  */
-test('the photo credit never overlaps the history copy', async ({ page, baseURL }) => {
+test('the photo credit never overlaps the history copy', async ({ page, guardedPage }) => {
 	const collisions: Array<{ width: number; overlapX: number; overlapY: number }> = [];
 	for (const width of [320, 375, 414, 480, 600, 768, 1280]) {
-		await openPage(page, baseURL, width);
+		await openPage(page, guardedPage, width);
 		await page.locator('.history-card').scrollIntoViewIfNeeded();
 		const overlap = await page.evaluate(() => {
 			const caption = document.querySelector('.history-card figcaption');
@@ -240,10 +242,10 @@ test('the photo credit never overlaps the history copy', async ({ page, baseURL 
  * evaluate so nothing can move between reads.
  */
 for (const scheme of ['light', 'dark'] as const) {
-	test(`the photo credit stays visible and hittable at desktop widths (${scheme})`, async ({ page, baseURL }) => {
+	test(`the photo credit stays visible and hittable at desktop widths (${scheme})`, async ({ page, guardedPage }) => {
 		await page.emulateMedia({ colorScheme: scheme });
 		for (const width of [768, 1024, 1440]) {
-			await openPage(page, baseURL, width);
+			await openPage(page, guardedPage, width);
 			const state = await page.evaluate(() => {
 				const caption = document.querySelector('.history-card figcaption');
 				const card = document.querySelector('.history-card');
@@ -277,8 +279,8 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 }
 
-test('the image that dominates the page cannot force a horizontal scrollbar', async ({ page, baseURL }) => {
-	await openPage(page, baseURL, 320);
+test('the image that dominates the page cannot force a horizontal scrollbar', async ({ page, guardedPage }) => {
+	await openPage(page, guardedPage, 320);
 	const overflowing = await page.evaluate(() =>
 		Array.from(document.images)
 			.filter((image) => image.getBoundingClientRect().width > window.innerWidth + 1)
