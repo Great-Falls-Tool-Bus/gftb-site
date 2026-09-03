@@ -22,9 +22,9 @@ dev:
 dev-open:
     cd {{ root }} && bazelisk run //:dev -- --open
 
-# Local/operator materialization of the same //:build target named by the v4
-# action plan. CI invokes that target through the compiled GF action client;
-# this recipe is not a CI fallback or remote-execution authority.
+# Local/operator materialization of the same //:build graph that backs the v4
+# ActionPlan. The action fabric executes the finite plan through the compiled
+# client; this recipe is not a CI or execution fallback.
 #
 # leak-scan is the LAST step on purpose: it can only run against a materialized
 # artefact, and a published tree that has never been scanned must not be
@@ -187,16 +187,20 @@ conformance:
     cd {{ root }} && bash scripts/check-conformance.sh
 
 # Byte-reproducibility proof for the printed apex QR: regenerate the code from
-# the canonical URL and compare it to the committed artefact. The unit suite
-# decodes the same file; this proves the generator still produces those bytes.
+# the canonical URL and compare it to the committed artefact. The pinned URL is
+# first cross-checked against package.json's `homepage` — the independent pin
+# the retired decode test held — so a payload typo needs a coordinated edit in
+# two files to pass. Independent DECODE verification is a manual scan, per the
+# failure guidance below.
 #
-# Local validation consequence of the same repository tree consumed by
-# //:ci_validation_suite. The v4 dispatcher does not shell out to Just.
+# Local consequence of the same source tree consumed by the finite v4 actions.
 #
 # The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
 # BOTH sides before comparing. It records the encoder build, not the symbol, so a
 # nixpkgs patch bump of qrencode would otherwise break this gate for every
-# developer with an opaque `cmp: differ: byte N`. Every module, dimension and
+# developer with an opaque `cmp: differ: byte N`. The strip is anchored to the
+# exact comment shape (only the version digits may vary): anything else on that
+# line survives into the byte-compare and fails it. Every module, dimension and
 # path command is still compared exactly.
 qr-verify:
     #!/usr/bin/env bash
@@ -220,8 +224,14 @@ qr-verify:
       rmdir -- "$tmp"
     }
     trap cleanup EXIT
-    qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "https://greatfallstoolbus.org/"
-    strip_provenance='/^<!-- Created with qrencode /d'
+    pinned_url="https://greatfallstoolbus.org/"
+    homepage="$(python3 -c 'import json; print(json.load(open("package.json"))["homepage"])')"
+    if [[ "${homepage}/" != "$pinned_url" ]]; then
+      echo "qr-verify: pinned payload URL ($pinned_url) does not match package.json homepage ($homepage) — the two pins must agree" >&2
+      exit 1
+    fi
+    qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "$pinned_url"
+    strip_provenance='\|^<!-- Created with qrencode [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]* (https://fukuchi\.org/works/qrencode/index\.html) -->$|d'
     sed "$strip_provenance" "$committed" >"$tmp/committed.stripped"
     sed "$strip_provenance" "$tmp/apex.svg" >"$tmp/fresh.stripped"
     if ! diff -u "$tmp/committed.stripped" "$tmp/fresh.stripped" >"$tmp/diff"; then
@@ -241,10 +251,9 @@ qr-verify:
          --type=SVG --svg-path --level=H --margin=2 --size=4 in both recipes.
       3. If the difference is intended, regenerate and RE-PROVE the artefact:
            just qr-generate
-           bazelisk test //:unit_tests --test_output=all --test_filter='printed apex QR'
-         then update QR_SHA256 in src/lib/qr-code.test.ts to the new hash deliberately.
-         Do not update the golden hash without a decode that still yields the apex URL:
-         nobody can proofread a printed QR code by eye.
+           just qr-verify
+         then scan the regenerated code with a real reader and confirm it still
+         yields the apex URL: nobody can proofread a printed QR code by eye.
     GUIDANCE
       exit 1
     fi
@@ -254,8 +263,8 @@ qr-verify:
 # runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
 # exercises, so the gate and its tests are one implementation, not two.
 #
-# Local/operator artifact validation. The v4 build action executes //:build
-# directly; a local materialization is not remote-execution evidence.
+# Local artifact validation. The v4 build action requests
+# //:deployment_bundle directly through the compiled client.
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
@@ -280,122 +289,8 @@ leak-scan-stamped:
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
-# Repeatable QA evidence packet for one build, ready to paste into a review.
-#
-# OPTIONAL REVIEW AID: this recipe is never CI evidence, a preview, or a merge
-# gate. The directory remains git-ignored. The recipe has no recursive deletion:
-# output is fixed to `qa-packet/<sha>` and an existing packet fails closed. It
-# deliberately re-runs the gates
-# rather than trusting a green tick from an earlier tree — the receipt in
-# INDEX.md has to describe the SAME bytes the screenshots were taken of.
-#
-# Order matters: `build` materializes and leak-scans the artefact, `check` runs
-# the four repo gates, then Bazel is shut down and `preview-only` serves those
-# already-built bytes on ITS OWN port. Playwright CI keeps `preview-e2e: build`
-# for its fresh job. The acceptance suite is pointed at the QA preview through
-# playwright.qa-packet.config.ts, so this recipe never competes for the normal
-# acceptance port and never silently rebuilds or reuses another lane's server.
-# playwright.config.ts is untouched.
-#
-# A failing acceptance suite does not abort the capture — a packet that shows
-# what a regression looks like is the point — but the recipe still exits non-zero.
-qa-packet port="3355":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd {{ root }}
-    receipts_parent="${TMPDIR:-/tmp}"
-    case "$receipts_parent" in
-      /*) ;;
-      *) echo "qa-packet: TMPDIR must be absolute" >&2; exit 1 ;;
-    esac
-    receipts="$(mktemp -d "${receipts_parent%/}/gftb-qa-receipts.XXXXXXXX")"
-    [[ -n "$receipts" && -d "$receipts" ]] || {
-      echo "qa-packet: mktemp did not create a receipts directory" >&2
-      exit 1
-    }
-    receipts_parent="$(dirname "$receipts")"
-    preview_pid=""
-    kill_tree() {
-      local pid="$1" child
-      for child in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$child"; done
-      kill "$pid" 2>/dev/null || true
-    }
-    cleanup() {
-      if [[ -n "$preview_pid" ]]; then
-        kill_tree "$preview_pid"
-        wait "$preview_pid" 2>/dev/null || true
-      fi
-      if [[ -z "$receipts" || ! -d "$receipts" || "$(dirname "$receipts")" != "$receipts_parent" || "$(basename "$receipts")" != gftb-qa-receipts.* ]]; then
-        echo "qa-packet: refusing unsafe receipts cleanup target" >&2
-        return 1
-      fi
-      rm -f -- "$receipts/build.log" "$receipts/check.log" "$receipts/preview.log" "$receipts/e2e.json"
-      rmdir -- "$receipts"
-    }
-    trap cleanup EXIT
-
-    # A build failure aborts: there is no artefact to photograph. A gate failure
-    # does not — a packet showing what the failure looks like is the point.
-    {{ just_executable() }} build 2>&1 | tee "$receipts/build.log"
-    check_status=0
-    {{ just_executable() }} check 2>&1 | tee "$receipts/check.log" || check_status=$?
-
-    bazelisk shutdown
-    {{ just_executable() }} preview-only {{ port }} >"$receipts/preview.log" 2>&1 &
-    preview_pid=$!
-    for attempt in $(seq 1 300); do
-      if (exec 3<>/dev/tcp/127.0.0.1/{{ port }}) 2>/dev/null; then break; fi
-      if ! kill -0 "$preview_pid" 2>/dev/null; then
-        echo "qa-packet: the preview exited before it started listening on {{ port }}" >&2
-        cat "$receipts/preview.log" >&2
-        exit 1
-      fi
-      sleep 1
-      if [[ "$attempt" == "300" ]]; then
-        echo "qa-packet: the preview never started listening on {{ port }}" >&2
-        exit 1
-      fi
-    done
-
-    e2e_status=0
-    if command -v nix >/dev/null 2>&1; then
-      nix develop .#playwright --command {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
-    else
-      {{ just_executable() }} _qa-packet-e2e {{ port }} "$receipts/e2e.json" || e2e_status=$?
-    fi
-
-    capture_args=(
-      --port {{ port }}
-      --build-log "$receipts/build.log"
-      --check-log "$receipts/check.log"
-      --e2e-json "$receipts/e2e.json"
-    )
-    if command -v nix >/dev/null 2>&1; then
-      nix develop .#playwright --command node scripts/qa-packet.mjs "${capture_args[@]}"
-    else
-      node scripts/qa-packet.mjs "${capture_args[@]}"
-    fi
-
-    if [[ "$check_status" != "0" || "$e2e_status" != "0" ]]; then
-      echo "qa-packet: the packet was captured, but a gate failed (check exit $check_status, acceptance suite exit $e2e_status)" >&2
-      exit 1
-    fi
-
-_qa-packet-e2e port json: playwright-ensure
-    cd {{ root }} && env -u LD_LIBRARY_PATH QA_PACKET_BASE_URL="http://127.0.0.1:{{ port }}" \
-      PLAYWRIGHT_JSON_OUTPUT_NAME="{{ json }}" \
-      pnpm exec playwright test --config playwright.qa-packet.config.ts --reporter=json
-
-# Per-image pixel diff between two packets produced by `just qa-packet`.
-# Both arguments must be exact `qa-packet/<40hex>` directories in this
-# checkout. Output is fixed under `qa-packet/diff/` and never replaces an
-# existing diff. The comparison runs inside the same pinned Chromium rather than
-# pulling `pixelmatch`/`pngjs` into package.json; see scripts/qa-packet-diff.mjs.
-qa-packet-diff baseline candidate *options:
-    cd {{ root }} && node scripts/qa-packet-diff.mjs {{ baseline }} {{ candidate }} {{ options }}
-
-# Local repository gate. CI's finite v4 `validate` action is
-# //:ci_validation_suite; it never falls back to this shell aggregate.
+# Local repository gate. CI's finite v4 `validate` action executes
+# //:ci_validation_suite directly and never falls back to this aggregate.
 check: secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
     cd {{ root }} && bazelisk test //:ci_validation_suite
     @echo "All checks passed."

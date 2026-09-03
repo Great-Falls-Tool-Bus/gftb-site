@@ -58,22 +58,44 @@ for (const entry of published) {
 	});
 }
 
-test('imageless entries render no featured-image markup on /log', async ({ page }) => {
-	// The featured-image frontmatter group is live (FeaturedImage.svelte),
-	// but no published entry carries an image yet: the honest empty state is
-	// NOTHING — no <img>, no <figure>, no reserved box, on any archive row.
-	// When the first published entry gains an `image`, replace these zeros
-	// with pins on that row's thumb (src, alt, sharp corners) and add its
-	// asset to the static-carrier check below.
+const imagedEntry = {
+	slug: '2026-08-11-how-tools-will-move',
+	src: '/photos/log/2026-08-11-how-tools-will-move-1280.webp',
+	alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
+} as const;
+
+test('only the imaged entry renders featured-image markup on /log', async ({ page }) => {
+	// The first published entry with an `image` (2026-08-11, curation
+	// 2026-09-01): its archive row pins src, alt and sharp corners. Every
+	// other row keeps the honest empty state — no <img>, no <figure>, no
+	// reserved box — so the zeros survive as an exactly-one count.
 	await page.goto('/log');
 	await expect(page.locator('.log-list li')).toHaveCount(published.length);
-	await expect(page.locator('.log-list img')).toHaveCount(0);
-	await expect(page.locator('.featured-image')).toHaveCount(0);
+	await expect(page.locator('.log-list img')).toHaveCount(1);
+	await expect(page.locator('.featured-image')).toHaveCount(1);
+	const row = page.locator('.log-list li', { has: page.locator(`a[href="/log/${imagedEntry.slug}"]`) });
+	const thumb = row.locator('.featured-image img');
+	await expect(thumb).toHaveAttribute('src', imagedEntry.src);
+	await expect(thumb).toHaveAttribute('alt', imagedEntry.alt);
+	await expect(thumb).toHaveCSS('border-radius', '0px');
+});
+
+test('the imaged permalink renders its hero between header and body', async ({ page }) => {
+	await page.goto(`/log/${imagedEntry.slug}`);
+	const hero = page.locator('.log-entry .featured-image img');
+	await expect(hero).toHaveAttribute('src', imagedEntry.src);
+	await expect(hero).toHaveAttribute('alt', imagedEntry.alt);
 });
 
 test('imageless permalinks render no hero between header and body', async ({ page }) => {
 	await page.goto(`/log/${published[0].slug}`);
 	await expect(page.locator('.log-entry .featured-image')).toHaveCount(0);
+});
+
+test('the featured log photo is served from the static carrier', async ({ request }) => {
+	const response = await request.get(imagedEntry.src);
+	expect(response.status()).toBe(200);
+	expect(response.headers()['content-type']).toContain('image/webp');
 });
 
 test('the approved public diagrams are served from the static carrier', async ({ request }) => {

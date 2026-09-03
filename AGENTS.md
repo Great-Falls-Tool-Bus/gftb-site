@@ -57,29 +57,29 @@ is not public.
 - `just build` produces the adapter-static site under `build/` through Bazel,
   then leak-scans it (see below). A published tree that has never been scanned
   is not publishable.
-- `just check` runs secret, endpoint, printed-QR, conformance, entrypoint,
-  formatting, typecheck, and unit-test gates.
+- `just check` chains ten repo gates — secrets-scan-dir, endpoint-check,
+  source-map-check, log-manifest-check,
+  goals-manifest-check, entrypoint-contract, workflow-validate, qr-verify,
+  conformance, leak-scan-stamped — then runs `//:ci_validation_suite`
+  (hermetic secret scan, bazel-output contract, eslint, prettier, svelte-check,
+  and unit tests).
 - `just conformance` validates the live minimal-spoke contract.
-- `just qr-verify` regenerates the printed apex QR and proves the committed
-  SVG matches, ignoring only the `<!-- Created with qrencode X.Y.Z -->`
-  provenance line so an encoder patch bump is not a false failure. The unit
-  suite separately decodes the payload.
-- `just qa-packet [port]` produces the reviewable QA evidence packet for one
-  build under `qa-packet/<sha>/` (git-ignored): every prerendered route at the
-  spec §3 widths, in both colour schemes, at 200% zoom, with reduced motion, and
-  with keyboard focus on the primary call to action and the contact submit, plus
-  an `INDEX.md` receipt of what `build`, `check`, the unit suite, the browser
-  acceptance suite and `leak-scan` reported for those bytes. It runs the gates
-  itself and stands up its own preview on its own port, so a packet always
-  describes one tree. `just qa-packet-diff <baseline> <candidate>` produces
-  per-image pixel diffs and a `DIFF.md`. `INDEX.md` and `manifest.json` are
-  leak-scanned with the same rules as the published build. The output is fixed
-  under `qa-packet/<40-lowercase-hex-sha>`; arbitrary output roots are rejected
-  and an existing packet is never deleted or replaced. This is an optional
-  developer/reviewer aid, never CI evidence, a preview, or a merge gate.
-  `qa-packet-diff` accepts only two fixed packet roots and derives a
-  non-replacing output under `qa-packet/diff/`. Operator guide:
-  `docs/qa-packet.md`.
+- `just qr-verify` cross-checks the pinned payload URL against
+  `package.json`'s `homepage`, then regenerates the printed apex QR with the
+  pinned qrencode invocation and byte-compares the committed SVG, stripping
+  only the exact `<!-- Created with qrencode X.Y.Z ... -->` provenance
+  comment so an encoder patch bump is not a false failure. Independent decode
+  verification is a manual scan, per the recipe's failure guidance.
+- CORRECTION (2026-09-03, operator ruling): the former `just qa-packet` /
+  `qa-packet-diff` recipes and the PR `qa-look` CI job were excised. They were
+  an evidence-packet capture pipeline (screenshot matrix + receipt uploaded as
+  a CI artifact), not a LOOK — no routable QA environment ever existed in that
+  flow. The name `qa-look` is reserved for the PullRequestEnvironment/v1
+  consumer flow: a routable, tailnet-only, reapable, exact-head QA environment
+  per pull request plus the operator LOOK ("the pr-N lane IS the QA
+  evidence"). See `docs/qa-look.md`. The browser acceptance suite
+  (`just test-e2e`, `preview-e2e`, `playwright.config.ts`, `e2e/`) is
+  unaffected.
 - `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
   built artefact. `scripts/check-build-output.mjs` is a thin runner over
   `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`
@@ -99,27 +99,23 @@ is not public.
   Bazel targets, one abstract REAPI capability demand, and one closed result
   disposition per action. It says nothing about repositories, tenants,
   providers, runner labels, pools, endpoints, credentials, publication, or
-  lifecycle. The provider resolves each capability; this consumer never does.
-  `validate` is status-only. `site-build` requests the exact regular files in
-  `//:deployment_bundle`'s `default` output group through
-  `ActionOutputSet/v1`; the workflow does not rediscover them.
-- `.github/workflows/ci.yml` contains only two thin calls to the released v4
-  ci-templates source, `validate` and `site-build`, plus a status-only wrapper
-  that reruns no repository work. There is no v3, local, cache-only, hosted, or
-  runner-label fallback. This source carrier stays Draft until the consumer
-  overlay is admitted, the GitHub App supplies the reviewed lifecycle, and the
-  compiled dispatcher produces a real remote-execution receipt. Binding/v4
-  `PullRequestEnvironment/v1` is the only exact-head preview and LOOK carrier;
-  the shared controller creates and reaps it.
+  lifecycle. `validate` is status-only. `site-build` requests the exact regular
+  files in `//:deployment_bundle`'s `default` output group through
+  `ActionOutputSet/v1`; the application workflow does not rediscover them.
+- `.github/workflows/ci.yml` contains only the two thin calls to immutable
+  ci-templates `v5.1.0`. The adopting organization installs its own App,
+  controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
+  not enumerate or select them. There is no v3, local, cache-only, hosted,
+  direct-endpoint, or repository-specific runner fallback.
 
 ### Which CI job runs which gate
 
-CI calls the protected-main commit of the signed immutable schema-3 release:
-`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@0067a1f0e16012ea91d0602b7d185e534774cadb`.
-Signed `v5.0.0` tag object `977f5bdf38404a405477fb939b7f2ba0c9a1358e`
-peels to that exact commit.
-Each job selects one checked-in action name; the reusable workflow invokes the
-compiled GF client and nothing else.
+CI calls the signed immutable schema-3 source
+`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f`.
+Signed tag object `9cea2460b01358bf6462e853b8ff38358f263638`
+(`v5.1.0`) peels to that exact commit. Each job selects one checked-in action
+name; the reusable workflow checks out the exact source and invokes the
+compiled GF client once.
 
 | Caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |
@@ -188,7 +184,10 @@ Decisions are decided-by-default: search these before writing "open question".
 - Demo site = design decisions in code: `greatfallstoolbus.org` repo @ main —
   commits #87, #90, #94; `src/lib/motion.svelte.ts`, `src/lib/nav-items.ts`,
   `src/app.css`, `src/lib/data/cells.ts`, `src/routes/contact/`. Port, never
-  reinvent.
+  reinvent. CORRECTION (2026-09-03): `src/lib/data/cells.ts` and
+  `src/routes/contact/` no longer exist on that repo's main (deleted in its
+  commit 23d9513); this repo's own `src/routes/contact/` and its tests are now
+  the contact-surface truth. The three surviving pointers stand.
 - Linear: initiative "Great Falls Tool Bus — Launch" + document "GFTB launch
   operating map" (milestone spine, SLAs, WIP rule live THERE). Read issue
   descriptions AND comment threads.

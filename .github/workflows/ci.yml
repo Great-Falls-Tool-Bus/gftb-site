@@ -14,35 +14,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# TIN-4251: this repository declares finite Bazel actions; it does not choose
-# runners, providers, endpoints, credentials, instances, or execution pools.
-# ci-templates owns the thin GitHub-to-GF dispatcher. This source pin is the
-# immutable schema-3 release from tinyland-inc/ci-templates#161. The consumer
-# carrier remains Draft until its overlay is admitted and the v4 runtime is
-# proved.
+# TIN-4251: the application repository declares two finite Bazel actions. The
+# immutable ci-templates edge submits each action; it does not select a
+# provider, endpoint, credential, execution pool, or repository-specific
+# runner. The adopting organization supplies the generic gf-v4-dispatch edge.
 jobs:
   validate:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@0067a1f0e16012ea91d0602b7d185e534774cadb # v5.0.0
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
     with:
       action_name: validate
 
   site-build:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@0067a1f0e16012ea91d0602b7d185e534774cadb # v5.0.0
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
     with:
       action_name: site-build
-
-  merge-gate:
-    name: merge-gate
-    if: always()
-    needs: [validate, site-build]
-    runs-on: tinyland-nix
-    timeout-minutes: 5
-    steps:
-      - name: Require both v4 actions
-        env:
-          VALIDATE_RESULT: ${{ needs.validate.result }}
-          SITE_BUILD_RESULT: ${{ needs.site-build.result }}
-        run: |
-          set -euo pipefail
-          test "${VALIDATE_RESULT}" = success
-          test "${SITE_BUILD_RESULT}" = success

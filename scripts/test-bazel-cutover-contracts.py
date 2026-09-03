@@ -476,7 +476,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "deployment_bundle"', self.build)
         self.assertIn('name = "container_image_context"', self.build)
 
-    def test_live_build_check_and_qa_recipes_never_recursively_clean(self) -> None:
+    def test_live_build_and_check_recipes_never_recursively_clean(self) -> None:
         live_recipes = (
             "build",
             "preview",
@@ -488,8 +488,6 @@ class RepositoryContractTests(unittest.TestCase):
             "qr-verify",
             "leak-scan-stamped",
             "leak-scan",
-            "qa-packet",
-            "_qa-packet-e2e",
             "check",
             "check-ci",
             "ci",
@@ -522,11 +520,6 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("bazelisk shutdown", preview)
         self.assertLess(preview.index("bazelisk shutdown"), preview.index("scripts/bazel_output.py preview"))
         self.assertIn("just preview-e2e ${port}", self.playwright)
-        qa_packet = recipe(self.justfile, "qa-packet")
-        self.assertIn("bazelisk shutdown", qa_packet)
-        self.assertIn("preview-only {{ port }}", qa_packet)
-        self.assertNotIn("preview-e2e {{ port }}", qa_packet)
-        self.assertLess(qa_packet.index("bazelisk shutdown"), qa_packet.index("preview-only {{ port }}"))
         self.assertEqual(recipe(self.justfile, "ci").splitlines()[0], "ci: check test-e2e")
 
     def test_playwright_uses_its_locked_browser(self) -> None:

@@ -24,11 +24,11 @@ producer-owned consumer registry to enroll GFTB.
 ## CI shape
 
 `.github/workflows/ci.yml` contains one thin reusable-workflow call per action
-name. The released reusable workflow invokes `gf-action-client run`; this Draft
-is not evidence that the client is installed, an owner overlay is admitted, or
-an action executed remotely. Those missing authorities fail closed. Do not add
-a v3, hosted, local, cache-only, DinD, wrapper, or shell-based execution
-alternative.
+name. The released reusable workflow invokes `gf-action-client run`; source
+presence alone is not evidence that the client is installed, an owner overlay
+is admitted, or an action executed remotely. Those missing authorities fail
+closed. Do not add a v3, hosted, local, cache-only, DinD, wrapper, or
+shell-based execution alternative.
 
 Local `just` recipes are developer tools only. Their success is not v4, cache,
 or remote-execution evidence.

@@ -1342,16 +1342,31 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	font-size: 0.95rem;
 }
 
-/* Reserved for the featured-image slot (GoalCarousel `media` snippet):
- * media collapses to nothing while no goal ships an image. */
+/* The featured-image slot (GoalCarousel `media` snippet), mounted from the
+ * home page since the 2026-09-01 batch's deferred home-integration item:
+ * media still collapses to nothing for an imageless goal — no reserved box.
+ * When a goal ships the frontmatter image group, the img is a fixed crop box
+ * in the thumb's spirit: the 3/2 default aspect (a goal's own image_aspect
+ * overrides inline, from the page) and the max-height cap size the box from
+ * CSS alone, BEFORE any bytes load, so a lazy image can never shift a slide
+ * (no CLS) and a tall aspect cannot blow the carousel's one-slide-tall
+ * mobile height budget. object-fit keeps the crop honest instead of
+ * distorting; border/radius restated for the never-cards + sharp-edges
+ * rulings. */
 .goal-media {
 	margin: 0 0 0.75rem;
 }
 
 .goal-media img {
 	display: block;
+	width: 100%;
 	max-width: 100%;
 	height: auto;
+	max-height: 16rem;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+	border: 0;
+	border-radius: 0;
 }
 
 .goal-asides {

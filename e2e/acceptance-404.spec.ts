@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/fixtures';
 import { installExternalGuard } from './support/network';
 
 // Acceptance row (§3): a missing path is answered with a real, branded body —
@@ -27,10 +27,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const MISSING_PATHS = ['/nope', '/tools', '/cells', '/keyholders', '/a/b/c.html', '/log/not-a-post'];
 
 test.describe('a missing path', () => {
-	test('answers 404 with a real body, with scripts disabled', async ({ browser, baseURL }) => {
+	test('answers 404 with a real body, with scripts disabled', async ({ browser, baseUrl }) => {
 		const context = await browser.newContext({ javaScriptEnabled: false });
 		const page = await context.newPage();
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		await installExternalGuard(page, baseUrl);
 
 		for (const missing of MISSING_PATHS) {
 			const response = await page.goto(missing);
@@ -49,8 +49,8 @@ test.describe('a missing path', () => {
 		await context.close();
 	});
 
-	test('renders identically with scripts enabled', async ({ page, baseURL }) => {
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+	test('renders identically with scripts enabled', async ({ page, baseUrl }) => {
+		await installExternalGuard(page, baseUrl);
 		const response = await page.goto('/nope');
 		expect(response?.status()).toBe(404);
 		await expect(page.getByRole('heading', { name: 'That page is not here.', level: 1 })).toBeVisible();
@@ -58,8 +58,8 @@ test.describe('a missing path', () => {
 		expect(await page.title()).toBe('Page not found · Great Falls Tool Bus');
 	});
 
-	test('is kept out of the index and claims no canonical URL', async ({ page, baseURL }) => {
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+	test('is kept out of the index and claims no canonical URL', async ({ page, baseUrl }) => {
+		await installExternalGuard(page, baseUrl);
 		await page.goto('/nope');
 
 		// The layout renders SEOHead for every route, so the assertion is that
@@ -77,8 +77,8 @@ test.describe('a missing path', () => {
 		await expect(page.locator('meta[property="og:url"]')).toHaveCount(0);
 	});
 
-	test('does not shadow anything the site actually serves', async ({ page, baseURL }) => {
-		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+	test('does not shadow anything the site actually serves', async ({ page, baseUrl }) => {
+		await installExternalGuard(page, baseUrl);
 
 		for (const [servedPath, expectedType] of [
 			['/', 'text/html'],

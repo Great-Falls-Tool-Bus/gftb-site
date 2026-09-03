@@ -5,10 +5,12 @@ This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
 ## Validation
 
 `.github/workflows/ci.yml` is a thin v4 caller. It dispatches exactly the two
-actions in `.github/lanes.json` through the exact released ci-templates source at
-`0067a1f0e16012ea91d0602b7d185e534774cadb` (signed immutable release
-`v5.0.0`). It contains no runner, provider, endpoint, cache mode, tenant,
-credential, local-execution, or fallback choice.
+actions in `.github/lanes.json` through ci-templates commit
+`32e39ced0008edf4564ebeb173a5e8fbf069e28f` (signed immutable release
+`v5.1.0`). It contains no runner, provider, endpoint, cache mode, tenant,
+credential, local-execution, or fallback choice. The generic
+`gf-v4-dispatch` edge is provisioned by the adopting organization, not selected
+by this repository.
 
 Local developer operations enter through Just. `just check` covers repository
 conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,
