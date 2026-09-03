@@ -69,22 +69,16 @@ is not public.
   only the exact `<!-- Created with qrencode X.Y.Z ... -->` provenance
   comment so an encoder patch bump is not a false failure. Independent decode
   verification is a manual scan, per the recipe's failure guidance.
-- `just qa-packet [port]` produces the reviewable QA evidence packet for one
-  build under `qa-packet/<sha>/` (git-ignored): every prerendered route at the
-  spec §3 widths, in both colour schemes, at 200% zoom, with reduced motion, and
-  with keyboard focus on the primary call to action and the contact submit, plus
-  an `INDEX.md` receipt of what `build`, `check`, the unit suite, the browser
-  acceptance suite and `leak-scan` reported for those bytes. It runs the gates
-  itself and stands up its own preview on its own port, so a packet always
-  describes one tree. `just qa-packet-diff <baseline> <candidate>` produces
-  per-image pixel diffs and a `DIFF.md`. `INDEX.md` and `manifest.json` are
-  leak-scanned with the same rules as the published build. The output is fixed
-  under `qa-packet/<40-lowercase-hex-sha>`; arbitrary output roots are rejected
-  and an existing packet is never deleted or replaced. Pull requests run
-  `qa-packet` in the exact-head `qa-look` job and upload that packet for human
-  review; `qa-packet-diff` accepts only two fixed packet roots and derives a
-  non-replacing output under `qa-packet/diff/`. Operator guide:
-  `docs/qa-packet.md`.
+- CORRECTION (2026-09-03, operator ruling): the former `just qa-packet` /
+  `qa-packet-diff` recipes and the PR `qa-look` CI job were excised. They were
+  an evidence-packet capture pipeline (screenshot matrix + receipt uploaded as
+  a CI artifact), not a LOOK — no routable QA environment ever existed in that
+  flow. The name `qa-look` is reserved for the PullRequestEnvironment/v1
+  consumer flow: a routable, tailnet-only, reapable, exact-head QA environment
+  per pull request plus the operator LOOK ("the pr-N lane IS the QA
+  evidence"). See `docs/qa-look.md`. The browser acceptance suite
+  (`just test-e2e`, `preview-e2e`, `playwright.config.ts`, `e2e/`) is
+  unaffected.
 - `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
   built artefact. `scripts/check-build-output.mjs` is a thin runner over
   `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`
