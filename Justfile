@@ -199,8 +199,11 @@ flywheel-enrollment-contract-check:
     cd {{ root }} && bash scripts/flywheel-enrollment-contract-test.sh
 
 # Byte-reproducibility proof for the printed apex QR: regenerate the code from
-# the canonical URL and compare it to the committed artefact. The unit suite
-# decodes the same file; this proves the generator still produces those bytes.
+# the canonical URL and compare it to the committed artefact. The pinned URL is
+# first cross-checked against package.json's `homepage` — the independent pin
+# the retired decode test held — so a payload typo needs a coordinated edit in
+# two files to pass. Independent DECODE verification is a manual scan, per the
+# failure guidance below.
 #
 # CI ENFORCEMENT: reached through `just check`, run by ci-templates
 # spoke-ci.yml@v3.1.0 job `flywheel-test`, step at line 291
@@ -209,7 +212,9 @@ flywheel-enrollment-contract-check:
 # The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
 # BOTH sides before comparing. It records the encoder build, not the symbol, so a
 # nixpkgs patch bump of qrencode would otherwise break this gate for every
-# developer with an opaque `cmp: differ: byte N`. Every module, dimension and
+# developer with an opaque `cmp: differ: byte N`. The strip is anchored to the
+# exact comment shape (only the version digits may vary): anything else on that
+# line survives into the byte-compare and fails it. Every module, dimension and
 # path command is still compared exactly.
 qr-verify:
     #!/usr/bin/env bash
@@ -233,8 +238,14 @@ qr-verify:
       rmdir -- "$tmp"
     }
     trap cleanup EXIT
-    qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "https://greatfallstoolbus.org/"
-    strip_provenance='/^<!-- Created with qrencode /d'
+    pinned_url="https://greatfallstoolbus.org/"
+    homepage="$(python3 -c 'import json; print(json.load(open("package.json"))["homepage"])')"
+    if [[ "${homepage}/" != "$pinned_url" ]]; then
+      echo "qr-verify: pinned payload URL ($pinned_url) does not match package.json homepage ($homepage) — the two pins must agree" >&2
+      exit 1
+    fi
+    qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output="$tmp/apex.svg" "$pinned_url"
+    strip_provenance='\|^<!-- Created with qrencode [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]* (https://fukuchi\.org/works/qrencode/index\.html) -->$|d'
     sed "$strip_provenance" "$committed" >"$tmp/committed.stripped"
     sed "$strip_provenance" "$tmp/apex.svg" >"$tmp/fresh.stripped"
     if ! diff -u "$tmp/committed.stripped" "$tmp/fresh.stripped" >"$tmp/diff"; then
