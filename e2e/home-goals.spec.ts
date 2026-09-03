@@ -28,13 +28,24 @@ test('near-term goals render from the manifest as an ordered, borderless list, s
 	await expect(rows.first().locator('h3')).toHaveText('Form the club');
 	await expect(page.locator('#goals')).toContainText('Sunday, September 20, 2026');
 	// Featured-image home integration (the 2026-09-01 batch's deferred item):
-	// a goal that ships the frontmatter image group renders its image in the
-	// carousel's designed media slot, above the title; an imageless goal
-	// renders NO figure and no reserved box (graceful absence). The count
-	// derives from the manifest so the pin stays honest as goals gain or
-	// lose images.
+	// a goal that ships the frontmatter image group renders that exact image
+	// and alt text in the carousel's designed media slot, above the title;
+	// an imageless goal renders NO figure and no reserved box (graceful
+	// absence). Every expectation derives from the manifest so the pin stays
+	// honest as goals gain or lose images.
 	for (const [index, goal] of publicGoals.entries()) {
-		await expect(rows.nth(index).locator('.goal-media img')).toHaveCount(goal.metadata.image ? 1 : 0);
+		const media = rows.nth(index).locator('.goal-media');
+		if (goal.metadata.image) {
+			const expectedAlt = goal.metadata.image_alt ?? '';
+			expect(expectedAlt).not.toBe('');
+			await expect(media).toHaveCount(1);
+			const image = media.locator('img');
+			await expect(image).toHaveCount(1);
+			await expect(image).toHaveAttribute('src', goal.metadata.image);
+			await expect(image).toHaveAttribute('alt', expectedAlt);
+		} else {
+			await expect(media).toHaveCount(0);
+		}
 	}
 	// Never-cards (2026-08-30): no border on any side of any row, no fill.
 	const boxes = await rows.evaluateAll((els) =>

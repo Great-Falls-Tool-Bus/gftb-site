@@ -180,17 +180,17 @@
 			     a reduced-motion-honest auto-advance. See
 			     src/lib/components/GoalCarousel.svelte for the whole contract.
 
-			     The carousel's designed featured-image slot (its documented
-			     `media` snippet) is mounted below, per the deferred
-			     home-integration item of the 2026-09-01 featured-image batch.
-			     It consumes ONLY the schema's frontmatter group
+			     The curated-photo change already on main mounted the carousel's
+			     designed `media` snippet. This change preserves that markup and
+			     adds its fixed crop-box styling plus manifest-bound acceptance
+			     coverage. It still consumes ONLY the schema's frontmatter group
 			     (src/lib/featured-image-schema.ts) — no new semantics — and is
 			     graceful in absence: an imageless goal renders no figure and no
-			     reserved box. The .goal-media crop box (app.css) fixes the
-			     media height from CSS before any bytes arrive, so lazy-loading
-			     cannot shift layout and the carousel's one-slide-tall mobile
-			     budget holds; a goal's own image_aspect overrides the default
-			     crop inline. -->
+			     reserved box. The .goal-media crop box (app.css) fixes the media
+			     height from CSS before any bytes arrive, so lazy-loading cannot
+			     shift layout and the carousel's one-slide-tall mobile budget
+			     holds; a goal's own image_aspect overrides the default crop
+			     inline. -->
 			<GoalCarousel goals={publicGoals} labelledby="goals-title">
 				{#snippet media(goal)}
 					{#if goal.metadata.image}
@@ -268,11 +268,10 @@
 					     /log rows render — the card-free affordance above
 					     title+meta, never the inline body (the citation form and
 					     never-inline-body clauses stand; a thumbnail is entry
-					     metadata, not body). Imageless entries render NOTHING —
-					     no markup, no reserved box — so today's rows are
-					     byte-identical to yesterday's. The thumb's fixed CSS
-					     crop box means a lazy-loading image cannot shift the
-					     rows below it. -->
+					     metadata, not body). The 2026-08-11 row currently renders
+					     its manifest image; imageless entries render NOTHING — no
+					     markup and no reserved box. The thumb's fixed CSS crop box
+					     means a lazy-loading image cannot shift the rows below it. -->
 					<FeaturedImage
 						variant="thumb"
 						src={entry.metadata.image}
