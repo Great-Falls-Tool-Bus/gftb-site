@@ -6,10 +6,10 @@ This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
 
 `.github/workflows/ci.yml` calls the pinned Tinyland spoke workflow. The only
 available GFTB ARC class is `tinyland-nix`, so default, heavy, and KVM inputs
-all resolve to that class. On pull requests, the repo-local `qa-look` job then
-checks out the exact head SHA, runs `just qa-packet`, and uploads its screenshots
-and receipts for the required human LOOK. The stable `merge-gate` status requires
-both the complete reusable workflow and `qa-look` to succeed.
+all resolve to that class. The stable `merge-gate` status requires the complete
+reusable workflow to succeed. (2026-09-03: the former repo-local `qa-look`
+evidence-packet job was excised by operator ruling; the name is reserved for
+the PullRequestEnvironment/v1 LOOK flow — see `docs/qa-look.md`.)
 
 Local and CI operations enter through Just. `just check` covers repository
 conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,

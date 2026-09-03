@@ -82,13 +82,9 @@ filegroup(
         ".npmrc",
         "package.json",
         "playwright.config.ts",
-        "playwright.qa-packet.config.ts",
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
-        # qa-packet-paths.test.mts audits both destructive-capability runners.
-        "scripts/qa-packet-diff.mjs",
-        "scripts/qa-packet.mjs",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -128,7 +124,6 @@ filegroup(
         "eslint.config.ts",
         "package.json",
         "playwright.config.ts",
-        "playwright.qa-packet.config.ts",
         "pnpm-workspace.yaml",
         "svelte.config.js",
         "tinyland.repo.json",
@@ -181,7 +176,6 @@ filegroup(
         "multitool.lock.json",
         "package.json",
         "playwright.config.ts",
-        "playwright.qa-packet.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
