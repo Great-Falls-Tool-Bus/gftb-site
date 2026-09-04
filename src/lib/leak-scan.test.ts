@@ -21,9 +21,9 @@ import {
 import { distinctiveDraftLiterals, readLogEntries } from '../../scripts/lib/log-content.mjs';
 
 // Acceptance row: nothing private reaches the published artefact. The rules are
-// proven here against synthetic material; `just leak-scan` runs the same rules
-// over build/ (see scripts/check-build-output.mjs), which is the variant that
-// needs a real build and therefore cannot live in the unit suite.
+// proven here against synthetic material; `//:scanned_build` runs the same
+// rules over a copied real build (see scripts/check-build-output.mjs), which is
+// the variant that cannot live in the unit suite.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -150,7 +150,7 @@ describe('leak-scan detections', () => {
 		// repository pointer, the SourceLink affordance), and no sha length
 		// escapes a path-segment ban. Local builds stamp 'unknown' and render
 		// no provenance line at all, so these rows plus the `just
-		// leak-scan-stamped` gate are what keep the stamped artifact honest.
+		// //:scanned_build and leak-scan-stamped gates keep the stamped artifact honest.
 		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/commit/deadbee')).toContain(
 			'internal-tracker-reference',
 		);
@@ -208,7 +208,7 @@ describe('leak-scan detections', () => {
 });
 
 describe('leak-scan over the checked-in public inputs', () => {
-	// The published artefact is gated by `just leak-scan`; this proves the same
+	// The published artefact is gated by `//:scanned_build`; this proves the same
 	// rules already hold for the reviewed sources that produce it.
 	const publicRoots = ['src/routes', 'src/content', 'src/lib/components', 'static'];
 	const textExtensions = new Set(['.html', '.svelte', '.svx', '.svg', '.txt', '.xml', '.css', '.ts', '.js']);
@@ -256,10 +256,10 @@ describe('leak-scan over the checked-in public inputs', () => {
 // prose. The fix (src/lib/generated/log-manifest.ts,
 // scripts/build-log-manifest.mjs) excludes unpublished entries at
 // generation time, outside Vite's module graph entirely. This does not
-// re-run a real `vite build` (the leak-scan-stamped Justfile recipe already
-// does that, for the reason its own comment gives: it needs a real build and
-// so cannot live in the unit suite) — it proves the DETECTION mechanism
-// scripts/check-build-output.mjs now always runs against build/ would catch
+// re-run a real `vite build` (`//:scanned_build` does that, for the reason its
+// own comment gives: it needs a real build and so cannot live in the unit
+// suite) — it proves the DETECTION mechanism that
+// scripts/check-build-output.mjs runs against the copied build would catch
 // a regression, against a synthetic "leaked chunk" shaped exactly like the
 // review's grep proof.
 describe('content-train B1: unpublished drafts never reach a build artefact', () => {
@@ -288,8 +288,8 @@ describe('content-train B1: unpublished drafts never reach a build artefact', ()
 	});
 
 	it('scripts/check-build-output.mjs always folds draft literals into the denylist, unconditionally', () => {
-		// Belt and braces over the wiring: this is what makes `just build` and
-		// `just leak-scan-stamped` (both real-artefact gates) enforce the row
+		// Belt and braces over the wiring: this is what makes `//:scanned_build`
+		// and `just leak-scan-stamped` (both real-artefact gates) enforce the row
 		// above on the actual build/ directory, without an operator having to
 		// remember to set GFTB_LEAK_SCAN_DENY.
 		const runner = readFileSync(path.join(repoRoot, 'scripts/check-build-output.mjs'), 'utf8');

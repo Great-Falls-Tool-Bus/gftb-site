@@ -3,7 +3,7 @@
 // pattern (scripts/build-log-manifest.mjs) applied to the home page's
 // near-term goals, help asks, and member benefits. The internal `source`
 // provenance key is dropped here so it never reaches the bundle.
-// `just goals-manifest-check` runs this then `git diff --exit-code`.
+// `//:goals_manifest_drift_test` runs this generator read-only with `--check`.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,11 +15,13 @@ import {
 	assertFeaturedImageFrontmatter,
 	assertPublishedImageAsset,
 } from './lib/featured-image.mjs';
+import { generatedFileCheckMode, writeOrCheckGeneratedFile } from './lib/generated-file.mjs';
 import { readGoalEntries } from './lib/goals-content.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const GOALS_DIR = path.join(ROOT, 'src', 'content', 'goals');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'goals-manifest.ts');
+const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));
 
 const KINDS = new Set(['goal', 'help', 'benefit']);
 // Mirrors src/lib/public-goal-schema.ts (the binding contract, exercised by
@@ -111,8 +113,10 @@ ${body}];
 `;
 	const prettierOptions = (await resolveConfig(OUT_FILE)) ?? {};
 	const formatted = await format(content, { ...prettierOptions, filepath: OUT_FILE });
-	await fs.mkdir(path.dirname(OUT_FILE), { recursive: true });
-	await fs.writeFile(OUT_FILE, formatted);
+	await writeOrCheckGeneratedFile(OUT_FILE, formatted, {
+		check: CHECK_ONLY,
+		label: 'goals-manifest-check',
+	});
 	console.log(
 		`goals-manifest-build: ${published.length} published of ${entries.length} goal entr${entries.length === 1 ? 'y' : 'ies'} -> src/lib/generated/goals-manifest.ts`,
 	);

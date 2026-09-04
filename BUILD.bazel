@@ -8,7 +8,7 @@ load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("//:gitleaks_test.bzl", "gitleaks_test")
+load("//:gitleaks_test.bzl", "actionlint_test", "gitleaks_test")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -220,6 +220,27 @@ gitleaks_test(
     config = ".gitleaks.toml",
 )
 
+# Workflow syntax is part of the protected v4 source contract. Keep actionlint
+# inside the finite test graph with a checksummed multitool binary instead of
+# depending on a runner-installed executable.
+filegroup(
+    name = "workflow_validation_srcs",
+    srcs = glob(
+        [
+            ".github/workflows/*.yaml",
+            ".github/workflows/*.yml",
+        ],
+        allow_empty = False,
+    ),
+)
+
+actionlint_test(
+    name = "workflow_validation_test",
+    config = ".github/actionlint.yaml",
+    srcs = [":workflow_validation_srcs"],
+    timeout = "short",
+)
+
 js_binary(
     name = "sveltekit_sync_bin",
     data = APP_NPM_PACKAGES,
@@ -296,6 +317,29 @@ js_run_binary(
     visibility = ["//visibility:public"],
 )
 
+# Publication is allowed to consume only this copied-and-scanned TreeArtifact.
+# The copy and leak scan happen in one Bazel action: a scan failure produces no
+# output, so //:deployment_bundle cannot package an unscanned //:build tree.
+js_binary(
+    name = "leak_scan_build_bin",
+    data = [":app_srcs"],
+    entry_point = "scripts/check-build-output.mjs",
+)
+
+js_run_binary(
+    name = "scanned_build",
+    args = [
+        "$(rootpath :build)",
+        "--copy-to",
+        "scanned-build",
+    ],
+    out_dirs = ["scanned-build"],
+    patch_node_fs = False,
+    srcs = [":build"],
+    tool = ":leak_scan_build_bin",
+    visibility = ["//visibility:public"],
+)
+
 js_run_binary(
     name = "analyze",
     args = [
@@ -356,6 +400,48 @@ js_run_binary(
     tool = ":vitest_coverage_bin",
 )
 
+# Generated source manifests are checked read-only inside the Bazel sandbox.
+# Each test executes the same generator used by its Just build recipe and
+# compares the deterministic bytes to the committed output.
+js_test(
+    name = "source_map_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        "tinyland.repo.json",
+    ],
+    entry_point = "scripts/build-source-map.mjs",
+    timeout = "short",
+)
+
+js_test(
+    name = "log_manifest_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        ".prettierrc",
+        ":node_modules/prettier",
+        ":node_modules/prettier-plugin-svelte",
+        ":node_modules/svelte",
+    ],
+    entry_point = "scripts/build-log-manifest.mjs",
+    timeout = "short",
+)
+
+js_test(
+    name = "goals_manifest_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        ".prettierrc",
+        ":node_modules/prettier",
+        ":node_modules/prettier-plugin-svelte",
+        ":node_modules/svelte",
+    ],
+    entry_point = "scripts/build-goals-manifest.mjs",
+    timeout = "short",
+)
+
 py_test(
     name = "bazel_output_contract_test",
     srcs = [
@@ -365,13 +451,20 @@ py_test(
     main = "scripts/test-bazel-cutover-contracts.py",
     imports = ["scripts"],
     data = [
-        ":app_srcs",
+        ":current_source_secret_scan_srcs",
+        ".github/lanes.json",
         ".github/workflows/ci.yml",
         ".github/workflows/container-ghcr.yml",
         "BUILD.bazel",
         "Justfile",
         "MODULE.bazel",
+        "docs/schemas/tinyland-repo-manifest.v2.schema.json",
         "flake.nix",
+        "package.json",
+        "scripts/check-inhouse-package-parity.py",
+        "scripts/validate-skills.py",
+        "static/qr/greatfallstoolbus-apex.svg",
+        "tinyland.repo.json",
     ],
 )
 
@@ -422,9 +515,13 @@ test_suite(
         ":bazel_output_contract_test",
         ":current_source_secret_scan_test",
         ":eslint_test",
+        ":goals_manifest_drift_test",
+        ":log_manifest_drift_test",
         ":prettier_check_test",
+        ":source_map_drift_test",
         ":svelte_check_test",
         ":unit_tests",
+        ":workflow_validation_test",
     ],
 )
 
@@ -435,8 +532,10 @@ test_suite(
 
 pkg_tar(
     name = "deployment_bundle",
-    srcs = [":build"],
     extension = "tar.gz",
+    package_dir = "build",
+    srcs = [":scanned_build"],
+    strip_prefix = "scanned-build",
     tags = ["deployment-bundle-packaging"],
     visibility = ["//visibility:public"],
 )

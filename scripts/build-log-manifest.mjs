@@ -21,8 +21,8 @@
 // level instead, e.g. a generated include list".
 //
 // Output is deterministic (file order, tab-indented, trailing newline).
-// `just log-manifest-check` runs this then `git diff --exit-code`, mirroring
-// scripts/build-source-map.mjs, so drift fails CI the same way.
+// `//:log_manifest_drift_test` runs this generator read-only with `--check`,
+// mirroring scripts/build-source-map.mjs.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,11 +34,13 @@ import {
 	assertFeaturedImageFrontmatter,
 	assertPublishedImageAsset,
 } from './lib/featured-image.mjs';
+import { generatedFileCheckMode, writeOrCheckGeneratedFile } from './lib/generated-file.mjs';
 import { readLogEntries } from './lib/log-content.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const LOG_DIR = path.join(ROOT, 'src', 'content', 'log');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'log-manifest.ts');
+const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));
 
 function tsStringArray(values) {
 	return `[${values.map((value) => JSON.stringify(value)).join(', ')}]`;
@@ -119,8 +121,10 @@ ${body}];
 	const prettierOptions = (await resolveConfig(OUT_FILE)) ?? {};
 	const formattedContent = await format(content, { ...prettierOptions, filepath: OUT_FILE });
 
-	await fs.mkdir(path.dirname(OUT_FILE), { recursive: true });
-	await fs.writeFile(OUT_FILE, formattedContent);
+	await writeOrCheckGeneratedFile(OUT_FILE, formattedContent, {
+		check: CHECK_ONLY,
+		label: 'log-manifest-check',
+	});
 
 	console.log(
 		`log-manifest-build: ${published.length} published of ${entries.length} log entr${entries.length === 1 ? 'y' : 'ies'} -> src/lib/generated/log-manifest.ts`,

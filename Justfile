@@ -22,20 +22,18 @@ dev:
 dev-open:
     cd {{ root }} && bazelisk run //:dev -- --open
 
-# Local/operator materialization of the same //:build graph that backs the v4
-# ActionPlan. The action fabric executes the finite plan through the compiled
-# client; this recipe is not a CI or execution fallback.
+# Local/operator materialization of the same fail-closed //:scanned_build graph
+# packaged by //:deployment_bundle. The action fabric executes the finite plan
+# through the compiled client; this recipe is not a CI or execution fallback.
 #
-# leak-scan is the LAST step on purpose: it can only run against a materialized
-# artefact, and a published tree that has never been scanned must not be
-# publishable. Wiring it here (rather than into `just ci`, which no template job
-# invokes) is what makes the gate actually execute on a pull request.
+# //:scanned_build copies //:build and leak-scans that copy in one Bazel action.
+# A failed scan yields no declared output, so an unscanned build cannot reach
+# this recipe or the owner publication transaction.
 # Materialization is publish-once: the destination must be absent, and any
 # existing output or transaction residue fails closed and remains untouched.
 build:
-    cd {{ root }} && bazelisk build //:build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
-    cd {{ root }} && {{ just_executable() }} leak-scan build
+    cd {{ root }} && bazelisk build //:scanned_build
+    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/scanned-build --destination build
 
 preview port="4173": build
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
@@ -140,10 +138,8 @@ endpoint-check:
 source-map-build:
     cd {{ root }} && node scripts/build-source-map.mjs
 
-source-map-check: source-map-build
-    @cd {{ root }} && git diff --exit-code -- src/lib/generated/source-map.json || { echo "source-map-check: src/lib/generated/source-map.json drifted; commit the regenerated map" >&2; exit 1; }
-    @cd {{ root }} && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
-    @echo "source-map-check: map is current; no agent surfaces"
+source-map-check:
+    cd {{ root }} && bazelisk test //:source_map_drift_test
 
 # Derive src/lib/generated/log-manifest.ts from src/content/log/*.svx —
 # PUBLISHED entries only (B1 fix, PR #33 review: an eager glob over every
@@ -154,9 +150,8 @@ source-map-check: source-map-build
 log-manifest-build:
     cd {{ root }} && node scripts/build-log-manifest.mjs
 
-log-manifest-check: log-manifest-build
-    @cd {{ root }} && git diff --exit-code -- src/lib/generated/log-manifest.ts || { echo "log-manifest-check: src/lib/generated/log-manifest.ts drifted; commit the regenerated manifest" >&2; exit 1; }
-    @echo "log-manifest-check: manifest is current"
+log-manifest-check:
+    cd {{ root }} && bazelisk test //:log_manifest_drift_test
 
 # Derive src/lib/generated/goals-manifest.ts from src/content/goals/*.md,
 # PUBLISHED entries only: the log-manifest pattern for the home page's
@@ -164,18 +159,17 @@ log-manifest-check: log-manifest-build
 goals-manifest-build:
     cd {{ root }} && node scripts/build-goals-manifest.mjs
 
-goals-manifest-check: goals-manifest-build
-    @cd {{ root }} && git diff --exit-code -- src/lib/generated/goals-manifest.ts || { echo "goals-manifest-check: src/lib/generated/goals-manifest.ts drifted; commit the regenerated manifest" >&2; exit 1; }
-    @echo "goals-manifest-check: manifest is current"
+goals-manifest-check:
+    cd {{ root }} && bazelisk test //:goals_manifest_drift_test
 
 entrypoint-contract:
-    cd {{ root }} && python3 scripts/test-bazel-cutover-contracts.py
+    cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
 workflow-validate:
-    cd {{ root }} && actionlint .github/workflows/*.yml
+    cd {{ root }} && bazelisk test //:workflow_validation_test
 
 repo-manifest-validate:
-    cd {{ root }} && python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.v2.schema.json
+    cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
 skills-validate:
     cd {{ root }} && python3 scripts/validate-skills.py
@@ -184,7 +178,7 @@ inhouse-package-parity:
     cd {{ root }} && python3 scripts/check-inhouse-package-parity.py
 
 conformance:
-    cd {{ root }} && bash scripts/check-conformance.sh
+    cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
 # Byte-reproducibility proof for the printed apex QR: regenerate the code from
 # the canonical URL and compare it to the committed artefact. The pinned URL is
@@ -194,6 +188,9 @@ conformance:
 # failure guidance below.
 #
 # Local consequence of the same source tree consumed by the finite v4 actions.
+# The protected suite pins the operator-approved SVG bytes, payload, and
+# parameters cacheably; this recipe additionally reproduces the bytes with
+# qrencode for a maintainer changing the approved artifact.
 #
 # The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
 # BOTH sides before comparing. It records the encoder build, not the symbol, so a
@@ -263,8 +260,8 @@ qr-verify:
 # runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
 # exercises, so the gate and its tests are one implementation, not two.
 #
-# Local artifact validation. The v4 build action requests
-# //:deployment_bundle directly through the compiled client.
+# Local artifact validation. The v4 build action requests //:deployment_bundle,
+# which can package only //:scanned_build, through the compiled client.
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
@@ -274,28 +271,27 @@ qr-verify:
 # stamps the literal 'unknown', so the footer provenance branch never renders
 # and the ordinary artifact scan cannot see what a PUBLISH-lane build emits:
 # .github/workflows/container-ghcr.yml sets BUILD_COMMIT_SHA, and its `build`
-# dependency ends in leak-scan — so a stamped-only finding red-lines the OCI
-# lane on the next push to main while every PR gate stays green. This recipe
-# closes that blind spot: build with a FIXED fake sha (constant on purpose —
+# dependency materializes //:scanned_build — so a stamped-only finding
+# red-lines the OCI lane. This recipe closes that blind spot: build with a FIXED
+# fake sha (constant on purpose —
 # the stamped stable-status is identical across runs, so caches still hit
 # when sources are unchanged), prove the stamp actually rendered, and scan
-# the Bazel output in place. No second tree is materialized or cleaned.
-# Wired into `check`/`check-ci` so it runs per PR.
+# the scanned Bazel output in place. No second tree is materialized or cleaned.
 leak-scan-stamped:
-    cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
-    cd {{ root }} && grep -q "deadbee" bazel-bin/build/index.html
-    cd {{ root }} && {{ just_executable() }} leak-scan bazel-bin/build
+    cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:scanned_build
+    cd {{ root }} && grep -q "deadbee" bazel-bin/scanned-build/index.html
 
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
-# Local repository gate. CI's finite v4 `validate` action executes
-# //:ci_validation_suite directly and never falls back to this aggregate.
-check: secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+# Local entrypoint for the exact cacheable suite selected by the protected v4
+# `validate` action. //:deployment_bundle independently enforces the scanned
+# artifact boundary selected by `site-build`.
+check:
     cd {{ root }} && bazelisk test //:ci_validation_suite
     @echo "All checks passed."
 
-check-ci: secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
+check-ci:
     cd {{ root }} && bazelisk test --config=ci //:ci_validation_suite
     @echo "All CI artifact checks passed."
 

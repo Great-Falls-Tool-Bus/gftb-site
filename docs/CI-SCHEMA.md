@@ -12,10 +12,13 @@ credential, local-execution, or fallback choice. The generic
 `gf-v4-dispatch` edge is provisioned by the adopting organization, not selected
 by this repository.
 
-Local developer operations enter through Just. `just check` covers repository
-conformance, secret and endpoint scans, build-entrypoint contracts, Prettier,
-ESLint, Svelte checks, and unit tests. `just build` produces one adapter-static
-artifact through Bazel. Those local recipes are not CI or v4 evidence.
+Local developer operations enter through Just. `just check` selects the exact
+cacheable `//:ci_validation_suite` used by v4: schema/conformance and immutable
+caller contracts, current-source Gitleaks, generated source/log/goal manifest
+drift checks, checksummed actionlint, Prettier, ESLint, Svelte checks, and unit
+tests. `just build` materializes `//:scanned_build`, the one adapter-static
+artifact copied and leak-scanned in a single Bazel action. Those local recipes
+are not CI or v4 evidence.
 `.github/lanes.json` is the ActionPlan/v4 schema-3 source plan. It names only
 real finite Bazel targets, one abstract execution capability, and one closed
 result disposition per action. It contains no provider or lifecycle
@@ -24,7 +27,10 @@ configuration.
 `tinyland.repo.json` is the schema-v2 consumer declaration. It identifies the
 consumer-owned `Great-Falls-Tool-Bus/great-falls-tool-bus-infra` overlay and
 the microsite's finite contact POST, but no provider supply, runner, endpoint,
-placement, binding status, or execution fallback.
+placement, binding status, or execution fallback. Its schema bytes are pinned
+to signed `tinyland-inc/site.scaffold` PR #163 head
+`0abc7f9e93bf4b84c7550684c38fbf822eab7cd0` (SHA-256
+`9f60d0934e23f1f2437faade24630249b77c303b00d92cf372d1a4fc5252d83c`).
 
 ## Flywheel
 
@@ -33,12 +39,13 @@ The v4 plan requests `rbe-linux-x86_64` for `//:ci_validation_suite` and
 status-only. `site-build` declares that the regular files in the deployment
 bundle's `default` output group are exported as one bounded
 `ActionOutputSet/v1`; neither the workflow nor this repository rediscovers
-outputs. The adopting organization's `-infra` overlay owns its consumer demand
-declaration. GF core owns types, verification, resolution, and scheduling, but
-no GFTB instance. Provider supply and placement remain opaque to this
-repository. Until the v4 caller executes these actions through REAPI, this
-carrier proves source shape only. Container publication is not an action in
-the plan.
+outputs. `//:deployment_bundle` depends only on `//:scanned_build`, so a leak
+scan failure produces no exportable bundle for GF-I09. The adopting
+organization's `-infra` overlay owns its consumer demand declaration. GF core
+owns types, verification, resolution, and scheduling, but no GFTB instance.
+Provider supply and placement remain opaque to this repository. Until the v4
+caller executes these actions through REAPI, this carrier proves source shape
+only. Container publication is not an action in the plan.
 
 ## Candidate image
 

@@ -17,14 +17,14 @@
 // affordance, and NO org/repo string is hardcoded in any component (it flows
 // from tinyland.repo.json / package.json).
 //
-// Output is deterministic (sorted route keys, tab-indented, trailing
-// newline). `just source-map-check` runs this then `git diff --exit-code`,
-// so drift fails CI.
+// Output is deterministic (sorted route keys, tab-indented, trailing newline).
+// `//:source_map_drift_test` runs this generator read-only with `--check`.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readLogEntries } from './lib/log-content.mjs';
+import { generatedFileCheckMode, writeOrCheckGeneratedFile } from './lib/generated-file.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ROUTES_DIR = path.join(ROOT, 'src', 'routes');
@@ -32,6 +32,7 @@ const LOG_DIR = path.join(ROOT, 'src', 'content', 'log');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'source-map.json');
 
 const DEFAULT_BRANCH = 'main';
+const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));
 
 async function readJson(file) {
 	try {
@@ -122,8 +123,10 @@ async function main() {
 	};
 
 	const content = `${JSON.stringify(doc, null, '\t')}\n`;
-	await fs.mkdir(path.dirname(OUT_FILE), { recursive: true });
-	await fs.writeFile(OUT_FILE, content);
+	await writeOrCheckGeneratedFile(OUT_FILE, content, {
+		check: CHECK_ONLY,
+		label: 'source-map-check',
+	});
 
 	console.log(
 		`source-map-build: mapped ${Object.keys(sortedRoutes).length} route(s) -> src/lib/generated/source-map.json`,

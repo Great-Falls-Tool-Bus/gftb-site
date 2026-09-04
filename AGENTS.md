@@ -54,16 +54,16 @@ is not public.
 - Use `just <recipe>` for every operation. Do not invoke pnpm, Vite, or Bazel
   directly outside the Justfile.
 - Enter through `nix develop` / direnv. CI runs Just inside Nix.
-- `just build` produces the adapter-static site under `build/` through Bazel,
-  then leak-scans it (see below). A published tree that has never been scanned
-  is not publishable.
-- `just check` chains ten repo gates — secrets-scan-dir, endpoint-check,
-  source-map-check, log-manifest-check,
-  goals-manifest-check, entrypoint-contract, workflow-validate, qr-verify,
-  conformance, leak-scan-stamped — then runs `//:ci_validation_suite`
-  (hermetic secret scan, bazel-output contract, eslint, prettier, svelte-check,
-  and unit tests).
-- `just conformance` validates the live minimal-spoke contract.
+- `just build` materializes `//:scanned_build`: the adapter-static `//:build`
+  output copied and leak-scanned inside one Bazel action. A scan failure yields
+  no declared output, and `//:deployment_bundle` can package only that scanned
+  TreeArtifact. A published tree that has never been scanned is not publishable.
+- `just check` executes the same cacheable `//:ci_validation_suite` selected by
+  the protected v4 `validate` action. It registers the schema/conformance and
+  immutable-caller contract, current-source Gitleaks, generated source/log/goal
+  manifest drift checks, hermetic actionlint, ESLint, Prettier, Svelte checks,
+  and unit tests. Local Just output is never v4 evidence.
+- `just conformance` enters the registered `//:bazel_output_contract_test`.
 - `just qr-verify` cross-checks the pinned payload URL against
   `package.json`'s `homepage`, then regenerates the printed apex QR with the
   pinned qrencode invocation and byte-compares the committed SVG, stripping
@@ -102,6 +102,7 @@ is not public.
   lifecycle. `validate` is status-only. `site-build` requests the exact regular
   files in `//:deployment_bundle`'s `default` output group through
   `ActionOutputSet/v1`; the application workflow does not rediscover them.
+  That bundle depends on `//:scanned_build`, never directly on `//:build`.
 - `.github/workflows/ci.yml` contains only the two thin calls to immutable
   ci-templates `v5.1.0`. The adopting organization installs its own App,
   controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
@@ -109,10 +110,11 @@ is not public.
   direct-endpoint, or repository-specific runner fallback.
 - `tinyland.repo.json` is the schema-v2 consumer instance. It names only this
   forge identity and the consumer-owned `great-falls-tool-bus-infra` overlay;
-  the house schema is vendored byte-for-byte from the signed `site.scaffold`
-  v4 carrier at `2a2dc335d688cf0eec3ddc3e9c8742c977ec85d6`. It contains no
-  execution pool, binding state, provider, runner, endpoint, placement, or
-  fallback field.
+  the house schema is vendored byte-for-byte from signed `site.scaffold` PR
+  #163 head `0abc7f9e93bf4b84c7550684c38fbf822eab7cd0`, SHA-256
+  `9f60d0934e23f1f2437faade24630249b77c303b00d92cf372d1a4fc5252d83c`.
+  It contains no execution pool, binding state, provider, runner, endpoint,
+  placement, or fallback field.
 
 ### Which CI job runs which gate
 
