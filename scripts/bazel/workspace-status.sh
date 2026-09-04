@@ -20,19 +20,25 @@ fi
 # (src/lib/build-info.ts, the old apex #140 port). There is deliberately no
 # `git rev-parse` fallback: a convenience identity here would become public
 # bytes in the footer.
-commit_sha="${BUILD_COMMIT_SHA:-${GITHUB_SHA:-}}"
-commit_sha="${commit_sha:-unknown}"
-if [[ "${commit_sha}" != "unknown" && ! "${commit_sha}" =~ ^[0-9a-fA-F]{7,64}$ ]]; then
+source_sha="${BUILD_COMMIT_SHA:-${GITHUB_SHA:-}}"
+source_sha="${source_sha:-unknown}"
+if [[ "${source_sha}" != "unknown" && ! "${source_sha}" =~ ^[0-9a-fA-F]{7,64}$ ]]; then
   echo "build commit must be a hexadecimal revision or 'unknown'" >&2
   exit 1
 fi
+source_sha="${source_sha,,}"
 
 # Truncated to 7 chars HERE, at the source, before Vite can inline anything:
 # the leak-scan gate rejects any 40-hex string in the shipped artifact, so
 # the full form never crosses the stamp at all.
-if [[ "${commit_sha}" != "unknown" ]]; then
-  commit_sha="${commit_sha:0:7}"
+commit_sha="${source_sha}"
+if [[ "${source_sha}" != "unknown" ]]; then
+  commit_sha="${source_sha:0:7}"
 fi
 
 printf 'STABLE_BUILD_BASE_PATH %s\n' "${base_path:-__EMPTY__}"
 printf 'STABLE_BUILD_COMMIT_SHA %s\n' "${commit_sha}"
+# The full identity is consumed only by //:deployment_source_marker after the
+# public build has passed its leak scan. GF-I09 requires exactly 40 lowercase
+# hex characters before the qualified application layer can materialize.
+printf 'STABLE_BUILD_SOURCE_SHA %s\n' "${source_sha}"

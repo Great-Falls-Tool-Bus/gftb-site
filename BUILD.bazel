@@ -9,6 +9,7 @@ load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//:gitleaks_test.bzl", "actionlint_test", "gitleaks_test")
+load("//:deployment_layer.bzl", "source_marker")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -169,6 +170,7 @@ filegroup(
         ".prettierrc",
         "AGENTS.md",
         "BUILD.bazel",
+        "Caddyfile",
         "CLAUDE.md",
         "Justfile",
         "LICENSE",
@@ -178,6 +180,7 @@ filegroup(
         "NOTICE",
         "README.md",
         "SECURITY.md",
+        "deployment_layer.bzl",
         "eslint.config.ts",
         "flake.lock",
         "flake.nix",
@@ -527,13 +530,36 @@ test_suite(
     tests = [":eslint_test", ":prettier_check_test"],
 )
 
+source_marker(
+    name = "deployment_source_marker",
+)
+
+# GF-I09 consumes this exact, uncompressed OCI application layer. The public
+# site bytes can enter only through //:scanned_build; Caddy configuration and
+# the exact source marker are first-party configuration added after that scan.
 pkg_tar(
     name = "deployment_bundle",
-    extension = "tar.gz",
-    package_dir = "build",
-    srcs = [":scanned_build"],
-    strip_prefix = "scanned-build",
+    allow_duplicates_from_deps = False,
+    allow_duplicates_with_different_content = False,
+    empty_dirs = ["tmp"],
+    extension = "tar",
+    modes = {
+        "etc/caddy/Caddyfile": "0444",
+        "srv/health.sha": "0444",
+        "tmp": "1777",
+    },
+    remap_paths = {
+        "Caddyfile": "etc/caddy/Caddyfile",
+        "health.sha": "srv/health.sha",
+        "scanned-build": "srv",
+    },
+    srcs = [
+        ":deployment_source_marker",
+        ":scanned_build",
+        "Caddyfile",
+    ],
     tags = ["deployment-bundle-packaging"],
+    package_dir = "/",
     visibility = ["//visibility:public"],
 )
 
@@ -541,7 +567,15 @@ pkg_tar(
 # mutation stay local to the trusted GitHub runner and never use remote exec.
 pkg_tar(
     name = "container_image_context",
-    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "svelte.config.js"],
+    srcs = [
+        ":deployment_bundle",
+        "Caddyfile",
+        "flake.lock",
+        "flake.nix",
+        "package.json",
+        "pnpm-lock.yaml",
+        "svelte.config.js",
+    ],
     extension = "tar",
     tags = ["container-image-and-push", "no-remote-exec"],
     visibility = ["//visibility:public"],

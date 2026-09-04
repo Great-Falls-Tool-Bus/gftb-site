@@ -1,0 +1,45 @@
+{
+	admin off
+	persist_config off
+}
+
+:3000 {
+	root * /srv
+	encode zstd gzip
+	respond /health "ok" 200
+	respond /healthz "ok" 200
+
+	# Hashed Vite assets are content-addressed. Everything else must
+	# revalidate, and its request validators are removed before file_server
+	# sees the deterministic layer mtime. This prevents a frozen validator
+	# from pinning an older HTML generation indefinitely.
+	@hashed_immutable path /_app/immutable/*
+	@not_hashed_immutable not path /_app/immutable/*
+
+	header @hashed_immutable Cache-Control "public, max-age=31536000, immutable"
+	header @not_hashed_immutable {
+		Cache-Control "no-cache"
+		-Last-Modified
+		-Etag
+	}
+
+	request_header @not_hashed_immutable -If-Modified-Since
+	request_header @not_hashed_immutable -If-None-Match
+	request_header @not_hashed_immutable -If-Unmodified-Since
+	request_header @not_hashed_immutable -If-Match
+
+	file_server
+
+	# Serve the prerendered error document while preserving the original
+	# status. Reset cache headers so a miss under the immutable prefix cannot
+	# poison that URL for a year.
+	handle_errors {
+		header Cache-Control "no-cache"
+		header -Last-Modified
+		header -Etag
+		rewrite * /404.html
+		file_server {
+			status {err.status_code}
+		}
+	}
+}

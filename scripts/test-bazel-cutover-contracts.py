@@ -494,6 +494,9 @@ class RepositoryContractTests(unittest.TestCase):
         )
         cls.publisher = (ROOT / ".github/workflows/container-ghcr.yml").read_text()
         cls.flake = (ROOT / "flake.nix").read_text()
+        cls.caddyfile = (ROOT / "Caddyfile").read_text()
+        cls.deployment_layer = (ROOT / "deployment_layer.bzl").read_text()
+        cls.workspace_status = (ROOT / "scripts/bazel/workspace-status.sh").read_text()
         cls.playwright = (ROOT / "playwright.config.ts").read_text()
         cls.agents = (ROOT / "AGENTS.md").read_text()
 
@@ -510,7 +513,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('name = "deployment_bundle"', self.build)
         self.assertIn('name = "container_image_context"', self.build)
 
-    def test_deployment_bundle_can_only_package_the_scanned_tree(self) -> None:
+    def test_deployment_bundle_is_the_exact_scanned_application_layer(self) -> None:
         scanned = bazel_target(self.build, "scanned_build")
         self.assertIn('srcs = [":build"]', scanned)
         self.assertIn('tool = ":leak_scan_build_bin"', scanned)
@@ -518,13 +521,22 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('out_dirs = ["scanned-build"]', scanned)
 
         deployment_bundle = bazel_target(self.build, "deployment_bundle")
-        self.assertIn('srcs = [":scanned_build"]', deployment_bundle)
-        self.assertIn('strip_prefix = "scanned-build"', deployment_bundle)
-        self.assertIn('package_dir = "build"', deployment_bundle)
+        self.assertIn('":scanned_build"', deployment_bundle)
+        self.assertIn('":deployment_source_marker"', deployment_bundle)
+        self.assertIn('"Caddyfile"', deployment_bundle)
+        self.assertIn('"scanned-build": "srv"', deployment_bundle)
+        self.assertIn('"health.sha": "srv/health.sha"', deployment_bundle)
+        self.assertIn('empty_dirs = ["tmp"]', deployment_bundle)
+        self.assertIn('"etc/caddy/Caddyfile": "0444"', deployment_bundle)
+        self.assertIn('"srv/health.sha": "0444"', deployment_bundle)
+        self.assertIn('"tmp": "1777"', deployment_bundle)
+        self.assertIn('extension = "tar"', deployment_bundle)
+        self.assertNotIn("tar.gz", deployment_bundle)
         self.assertNotIn('srcs = [":build"]', deployment_bundle)
 
         container_context = bazel_target(self.build, "container_image_context")
-        self.assertIn('srcs = [":deployment_bundle"', container_context)
+        self.assertIn('":deployment_bundle"', container_context)
+        self.assertIn('"Caddyfile"', container_context)
 
         scan_runner = (ROOT / "scripts/check-build-output.mjs").read_text(encoding="utf-8")
         self.assertIn("cpSync(buildDirectory, outputDirectory", scan_runner)
@@ -871,6 +883,13 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertNotIn(":latest", combined)
         self.assertFalse((ROOT / ".github/workflows/deploy-pages.yml").exists())
 
+    def test_runtime_base_is_factored_without_changing_the_candidate_root(self) -> None:
+        self.assertIn("runtimeRoot = pkgs.buildEnv", self.flake)
+        self.assertIn("runtimeBaseImage = n2c.buildImage", self.flake)
+        self.assertIn("copyToRoot = runtimeRoot", self.flake)
+        self.assertIn('packages."runtime-base-image" = runtimeBaseImage', self.flake)
+        self.assertIn('packages."runtime-root" = runtimeRoot', self.flake)
+
     def test_publisher_root_carrier_configures_hermetic_python(self) -> None:
         self.assertIn('bazel_dep(name = "rules_python", version = "1.0.0")', self.module)
         self.assertIn(
@@ -890,10 +909,15 @@ class RepositoryContractTests(unittest.TestCase):
         # 0555 mode onto $out/srv, so the marker write needs the directory reopened.
         self.assertIn('chmod u+w "$out/srv"', self.flake)
         self.assertLess(self.flake.index('chmod u+w "$out/srv"'), self.flake.index("> \"$out/srv/health.sha\""))
-        self.assertIn("admin off", self.flake)
-        self.assertIn("persist_config off", self.flake)
-        self.assertIn('respond /health "ok" 200', self.flake)
-        self.assertIn("file_server", self.flake)
+        self.assertIn("caddyfile = ./Caddyfile", self.flake)
+        self.assertNotIn('pkgs.writeText "Caddyfile"', self.flake)
+        self.assertIn("STABLE_BUILD_SOURCE_SHA", self.workspace_status)
+        self.assertIn("STABLE_BUILD_SOURCE_SHA", self.deployment_layer)
+        self.assertIn("exactly 40 lowercase hex characters", self.deployment_layer)
+        self.assertIn("admin off", self.caddyfile)
+        self.assertIn("persist_config off", self.caddyfile)
+        self.assertIn('respond /health "ok" 200', self.caddyfile)
+        self.assertIn("file_server", self.caddyfile)
 
     def test_missing_paths_are_answered_with_the_prerendered_404_body(self) -> None:
         """Pin the two hand-written implementations of the same behaviour together.
@@ -906,14 +930,14 @@ class RepositoryContractTests(unittest.TestCase):
         what Playwright and a local curl measure. If either is edited away the
         other keeps the gate green, so both are asserted here.
         """
-        self.assertIn("handle_errors {", self.flake)
-        self.assertIn("rewrite * /404.html", self.flake)
+        self.assertIn("handle_errors {", self.caddyfile)
+        self.assertIn("rewrite * /404.html", self.caddyfile)
         # Without this the fallback is served with `file_server`'s own 200, and
         # every missing path becomes a soft 404.
-        self.assertIn("status {err.status_code}", self.flake)
+        self.assertIn("status {err.status_code}", self.caddyfile)
         # The health probes are plain `respond` directives and must keep
         # answering ahead of the error handler.
-        self.assertLess(self.flake.index('respond /healthz "ok" 200'), self.flake.index("handle_errors {"))
+        self.assertLess(self.caddyfile.index('respond /healthz "ok" 200'), self.caddyfile.index("handle_errors {"))
 
         preview = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
         self.assertIn("def send_error(", preview)

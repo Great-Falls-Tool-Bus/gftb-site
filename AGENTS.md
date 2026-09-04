@@ -56,8 +56,9 @@ is not public.
 - Enter through `nix develop` / direnv. CI runs Just inside Nix.
 - `just build` materializes `//:scanned_build`: the adapter-static `//:build`
   output copied and leak-scanned inside one Bazel action. A scan failure yields
-  no declared output, and `//:deployment_bundle` can package only that scanned
-  TreeArtifact. A published tree that has never been scanned is not publishable.
+  no declared output. `//:deployment_bundle` packages that scanned TreeArtifact
+  at `/srv` with only the reviewed first-party `Caddyfile`, exact source marker,
+  and `/tmp` mode alongside it. Unscanned public site bytes are not publishable.
 - `just check` executes the same cacheable `//:ci_validation_suite` selected by
   the protected v4 `validate` action. It registers the schema/conformance and
   immutable-caller contract, current-source Gitleaks, generated source/log/goal
@@ -102,7 +103,8 @@ is not public.
   lifecycle. `validate` is status-only. `site-build` requests the exact regular
   files in `//:deployment_bundle`'s `default` output group through
   `ActionOutputSet/v1`; the application workflow does not rediscover them.
-  That bundle depends on `//:scanned_build`, never directly on `//:build`.
+  The public `/srv` subtree depends on `//:scanned_build`, never directly on
+  `//:build`; the other three members are fixed deployment configuration.
 - `.github/workflows/ci.yml` contains only the two thin calls to immutable
   ci-templates `v5.1.0`. The adopting organization installs its own App,
   controller, overlay, and generic `gf-v4-dispatch` edge; this repository does

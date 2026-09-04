@@ -307,7 +307,9 @@ sbom out_dir="build/sbom":
         -o spdx-json="{{ out_dir }}/gftb-site.spdx.json"
 
 container-image-context:
-    cd {{ root }} && bazelisk build //:container_image_context
+    cd {{ root }} && source_sha="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" && \
+      { [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "BUILD_COMMIT_SHA must be 40 lowercase hex characters" >&2; exit 2; }; } && \
+      BUILD_COMMIT_SHA="$source_sha" bazelisk build //:container_image_context
 
 # Linux-only, daemonless candidate publication. Builds through the canonical
 # Bazel entrypoint, then packages the materialized static artifact with Nix.

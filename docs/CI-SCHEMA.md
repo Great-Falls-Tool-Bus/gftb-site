@@ -39,8 +39,10 @@ The v4 plan requests `rbe-linux-x86_64` for `//:ci_validation_suite` and
 status-only. `site-build` declares that the regular files in the deployment
 bundle's `default` output group are exported as one bounded
 `ActionOutputSet/v1`; neither the workflow nor this repository rediscovers
-outputs. `//:deployment_bundle` depends only on `//:scanned_build`, so a leak
-scan failure produces no exportable bundle for GF-I09. The adopting
+outputs. `//:deployment_bundle` takes its public `/srv` subtree only from
+`//:scanned_build`, so a leak-scan failure produces no exportable public site
+for GF-I09. The bundle adds only the reviewed first-party `Caddyfile`, exact
+source marker, and `/tmp` mode required by the runtime contract. The adopting
 organization's `-infra` overlay owns its consumer demand declaration. GF core
 owns types, verification, resolution, and scheduling, but no GFTB instance.
 Provider supply and placement remain opaque to this repository. Until the v4
