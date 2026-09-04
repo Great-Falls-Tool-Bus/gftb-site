@@ -226,10 +226,7 @@ gitleaks_test(
 filegroup(
     name = "workflow_validation_srcs",
     srcs = glob(
-        [
-            ".github/workflows/*.yaml",
-            ".github/workflows/*.yml",
-        ],
+        [".github/workflows/*.yml"],
         allow_empty = False,
     ),
 )

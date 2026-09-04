@@ -13,8 +13,11 @@ next, how to help, and publishes a small reviewed build log.
   `forms.latoolb.us` API, with an email fallback. This repo owns neither service.
 - Daily logs are checked-in `.svx` documents. Their frontmatter is limited to
   `date`, `title`, `summary`, `tags`, `published`, and optional `updated`.
-  Every file in `src/content/log/` must set `published: true`; drafts stay out
-  of the public build input directory.
+  Entries with `published: true` enter the generated public manifest. An
+  operator-pending `published: false` draft may remain in `src/content/log/`;
+  the manifest excludes it and the built-output leak scan verifies that its
+  content did not ship. Drafts are still scanned and must contain no private
+  text.
 - Internal tracker IDs, PRs, SHAs, repo pointers, and private locations never
   appear in public logs.
 
