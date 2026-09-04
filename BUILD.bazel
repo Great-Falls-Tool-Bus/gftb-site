@@ -18,6 +18,15 @@ npm_link_package(
     src = "@tummycrypt_vite_plugin_a11y//:pkg",
 )
 
+# Bazel is likewise the only carrier for the TinyVectors brand background
+# (Bazel-only ingestion; scripts/check-inhouse-package-parity.py enforces
+# the bazel_dep + npm_link_package pairing and the absence of any npm
+# specifier).
+npm_link_package(
+    name = "node_modules/@tummycrypt/tinyvectors",
+    src = "@tummycrypt_tinyvectors//:pkg",
+)
+
 APP_NPM_PACKAGES = [
     ":node_modules/@fontsource-variable/fira-code",
     ":node_modules/@fontsource-variable/fraunces",
@@ -37,6 +46,7 @@ APP_NPM_PACKAGES = [
     ":node_modules/tailwindcss",
     ":node_modules/typescript",
     ":node_modules/vite",
+    ":node_modules/@tummycrypt/tinyvectors",
     ":node_modules/@tummycrypt/vite-plugin-a11y",
 ]
 
@@ -228,7 +238,13 @@ copy_to_directory(
     srcs = [
         ":app_srcs",
         ":sveltekit_types",
+        # The supply-chain seams src/lib/brand-vectors-motion-contract.test.ts
+        # and src/lib/house-stack-contract.test.ts read from the workspace
+        # root: the bazel_dep pin, the immutable registry pin, and the lock
+        # entry that binds them together.
+        ".bazelrc",
         "MODULE.bazel",
+        "MODULE.bazel.lock",
     ],
     hardlink = "off",
     root_paths = ["."],

@@ -116,7 +116,16 @@
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	font-synthesis: none;
 	color: var(--fg);
-	background: var(--bg);
+	/* DELIBERATELY NO background here. The root element must stay
+	 * background-free so `body`'s wash+ground background propagates to the
+	 * CANVAS (CSS Backgrounds 3 §2.11.2) — that is what lets the negative-z
+	 * .brand-vectors-bg layer paint ABOVE the page ground yet UNDER every
+	 * in-flow surface. A background on :root defeats the propagation: body's
+	 * opaque background then paints on body's own box, which stacks over
+	 * every negative-z positioned layer, and the brand blobs render fully
+	 * occluded (PR #62 round-3 root cause). The pixels are unchanged either
+	 * way — the propagated background is painted from the same tokens.
+	 * brand-vectors-motion-contract.test.ts pins this contract. */
 
 	--bg: var(--color-surface-100);
 	--panel: var(--color-surface-50);
@@ -222,6 +231,9 @@ html {
 body {
 	margin: 0;
 	min-width: 320px;
+	/* This is the CANVAS background: :root deliberately declares none (see
+	 * the role block above), so this propagates to the canvas and paints
+	 * below every negative-z layer — the seam .brand-vectors-bg depends on. */
 	background: linear-gradient(180deg, var(--wash), transparent 22rem), var(--bg);
 	color: var(--fg);
 	/* Demo base body rhythm (demo src/app.css:104-113): 18px with generous
@@ -258,6 +270,42 @@ body {
 
 .site-main {
 	flex: 1 1 auto;
+}
+
+/* ===== Brand-vectors background (TinyVectors) =====
+ * Full-viewport host for the members-site brand-blob layer (mounted once in
+ * +layout.svelte, browser-only). Deliberately OUTSIDE the semantic --z-*
+ * ladder for the same reason as .hero__media: this is a below-content layer,
+ * not a UI tier. .app-shell (position: relative, z-index auto) creates no
+ * stacking context, so z-index: -1 stacks against the root context. The
+ * layering contract that makes -1 actually visible: :root declares NO
+ * background, so body's wash+ground background propagates to the CANVAS and
+ * paints below this layer, while every in-flow surface paints above it (a
+ * root background would flip that — body's background would then stack over
+ * all negative-z layers and occlude the blobs completely; see the :root
+ * role-block comment and brand-vectors-motion-contract.test.ts). The hero
+ * band's own `isolation: isolate` backdrop stack is untouched. `clip` (not
+ * `hidden`) mirrors the html overflow-x guard: no scroll container, nothing
+ * can widen the page. */
+.brand-vectors-bg {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	overflow: clip;
+	pointer-events: none;
+}
+
+/* Reduced motion: TinyVectors freezes its physics internally
+ * (respectReducedMotion default), but its container ships an inline
+ * `transition: opacity 0.8s` fade-in unconditionally. The page's
+ * reduced-motion contract is ZERO declared transition time
+ * (e2e/acceptance-motion-keyboard.spec.ts sweeps every element), so kill the
+ * declaration here — !important is required to beat the element-level inline
+ * style, exactly the .goal-list--enhanced print precedent. */
+@media (prefers-reduced-motion: reduce) {
+	.brand-vectors-bg * {
+		transition: none !important;
+	}
 }
 
 a {
@@ -1821,7 +1869,8 @@ figcaption {
 	.site-header,
 	.site-footer,
 	.skip-link,
-	.hero__media {
+	.hero__media,
+	.brand-vectors-bg {
 		display: none !important;
 	}
 

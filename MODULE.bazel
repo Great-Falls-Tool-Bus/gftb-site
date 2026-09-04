@@ -22,6 +22,12 @@ bazel_dep(name = "aspect_rules_ts", version = "3.8.4")
 # First-party Vite plugin, graph-linked in BUILD.bazel rather than through npm.
 bazel_dep(name = "tummycrypt_vite_plugin_a11y", version = "0.2.4")
 
+# First-party brand-blob background (TinyVectors), graph-linked in BUILD.bazel
+# rather than through npm. 0.3.7 is the idle-drift floor: the first release
+# whose physics loop cruises the blobs on every idle desktop by default
+# (src/lib/brand-vectors-motion-contract.test.ts pins it).
+bazel_dep(name = "tummycrypt_tinyvectors", version = "0.3.7")
+
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     python_version = "3.11",
