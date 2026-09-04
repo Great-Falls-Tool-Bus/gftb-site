@@ -107,6 +107,12 @@ is not public.
   controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
   not enumerate or select them. There is no v3, local, cache-only, hosted,
   direct-endpoint, or repository-specific runner fallback.
+- `tinyland.repo.json` is the schema-v2 consumer instance. It names only this
+  forge identity and the consumer-owned `great-falls-tool-bus-infra` overlay;
+  the house schema is vendored byte-for-byte from the signed `site.scaffold`
+  v4 carrier at `2a2dc335d688cf0eec3ddc3e9c8742c977ec85d6`. It contains no
+  execution pool, binding state, provider, runner, endpoint, placement, or
+  fallback field.
 
 ### Which CI job runs which gate
 

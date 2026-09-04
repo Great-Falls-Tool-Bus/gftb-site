@@ -21,6 +21,11 @@ real finite Bazel targets, one abstract execution capability, and one closed
 result disposition per action. It contains no provider or lifecycle
 configuration.
 
+`tinyland.repo.json` is the schema-v2 consumer declaration. It identifies the
+consumer-owned `Great-Falls-Tool-Bus/great-falls-tool-bus-infra` overlay and
+the microsite's finite contact POST, but no provider supply, runner, endpoint,
+placement, binding status, or execution fallback.
+
 ## Flywheel
 
 The v4 plan requests `rbe-linux-x86_64` for `//:ci_validation_suite` and

@@ -175,7 +175,7 @@ workflow-validate:
     cd {{ root }} && actionlint .github/workflows/*.yml
 
 repo-manifest-validate:
-    cd {{ root }} && python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.schema.json
+    cd {{ root }} && python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.v2.schema.json
 
 skills-validate:
     cd {{ root }} && python3 scripts/validate-skills.py

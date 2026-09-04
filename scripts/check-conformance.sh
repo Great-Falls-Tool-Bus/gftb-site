@@ -12,7 +12,7 @@ check() { if eval "$1"; then ok "$2"; else no "$2"; fi; }
 
 echo "GFTB minimal-spoke conformance"
 
-check "python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.schema.json >/dev/null" "repo manifest validates"
+check "python3 -m jsonschema --instance tinyland.repo.json docs/schemas/tinyland-repo-manifest.v2.schema.json >/dev/null" "schema-v2 consumer manifest validates"
 check "python3 scripts/check-inhouse-package-parity.py >/dev/null" "first-party package is Bazel-only"
 check "python3 scripts/validate-skills.py >/dev/null" "repo skills validate"
 
