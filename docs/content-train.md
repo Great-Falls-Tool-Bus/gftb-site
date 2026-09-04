@@ -83,8 +83,9 @@ title, summary, or body is never an import statement anywhere the client
 bundle can reach. It can sit in the content tree, reviewed and merged,
 without ever being live.
 
-`just log-manifest-check` (wired into `just check`) regenerates the
-manifest and diffs it against the committed copy, and it is deliberately
+`just log-manifest-check` (wired into `just check`) runs the generator read-only
+inside its registered Bazel test and compares it to the committed copy. It is
+deliberately
 asymmetric: a new draft that never got a manifest entry is safe (there is
 nothing for it to leak), but a manifest that still lists an entry after it
 flips back to `published: false` fails the check loudly, because that is

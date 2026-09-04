@@ -1,27 +1,41 @@
 ---
 name: tinyland-flywheel-bazel
-description: Maintain the GFTB cache-first Bazel and GloriousFlywheel graph. Use for BUILD.bazel, MODULE.bazel, Bazel rc files, Flywheel wrappers, CI runner inputs, target tags, deployment bundles, or the static OCI context.
+description: Maintain the GFTB v4 Bazel action plan and its remotely executable targets. Use when editing BUILD.bazel, MODULE.bazel, .github/lanes.json, or the thin ci-templates v4 caller; not for provider placement, endpoints, runners, tenant registration, or local cache wrappers.
 ---
 
-# GFTB Flywheel Bazel
+# GFTB v4 Bazel actions
 
-Read `AGENTS.md`, `docs/CI-SCHEMA.md`, `Justfile`, both Bazel rc files, and the
-Flywheel wrapper before editing. Use `just <recipe>` for every operation.
+Read `AGENTS.md`, `docs/CI-SCHEMA.md`, `.github/lanes.json`, and the Bazel
+targets named by the plan before editing.
 
-Cache and executor endpoints, auth headers, and upload authority are runtime
-inputs only. Flywheel commands fail closed without a valid profile and remote
-cache. Cache hits are not remote-execution proof. PR cache uploads stay off.
+## Boundary
 
-Only proved, hermetic classes receive `flywheel-eligible`: the SvelteKit build,
-unit tests, and deterministic deployment bundle. Browser smoke remains
-candidate-only. Dev servers and image assembly/push are never executor
-eligible. The `container_image_context` target must use
-`gloriousflywheel-cache-only` plus `no-remote-exec` and omit
-`flywheel-eligible`.
+- The app repository owns finite Bazel actions and their abstract Core.dhall
+  capability requirements.
+- The GFTB `-infra` overlay owns GFTB's consumer demand declaration.
+- GF core owns types, verification, resolution, and scheduling, but no GFTB
+  instance.
+- Provider supply and placement are opaque to both consumer repositories.
 
-The only GFTB ARC runner label is `tinyland-nix`; default, heavy, and KVM CI
-inputs all map to it. Do not create a new runner class.
+Never add runner labels, pools, nodes, endpoints, credentials, instance names,
+or lifecycle/publication policy to `.github/lanes.json`. Never edit a
+producer-owned consumer registry to enroll GFTB.
 
-After graph edits run `just inhouse-package-parity`, `just bazel-graph`,
-`just conformance`, and `just check`. Run wrapper-mediated remote proofs only
-when their runtime profile is available; do not claim raw local Bazel as RBE.
+## CI shape
+
+`.github/workflows/ci.yml` contains one thin reusable-workflow call per action
+name. The released reusable workflow invokes `gf-action-client run`; source
+presence alone is not evidence that the client is installed, an owner overlay
+is admitted, or an action executed remotely. Those missing authorities fail
+closed. Do not add a v3, hosted, local, cache-only, DinD, wrapper, or
+shell-based execution alternative.
+
+Local `just` recipes are developer tools only. Their success is not v4, cache,
+or remote-execution evidence.
+
+## Graph changes
+
+Keep action targets finite, workspace-local, and remotely executable. Image
+publication, browser sessions, developer servers, cluster apply, and other
+side effects do not belong in the action plan. Validate through registered
+Just/Bazel entrypoints; do not add a guard script to defend the plan.

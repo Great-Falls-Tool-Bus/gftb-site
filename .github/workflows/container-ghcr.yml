@@ -19,6 +19,13 @@ on:
       - 'Justfile'
       - 'flake.nix'
       - 'flake.lock'
+      - 'gitleaks_test.bzl'
+      - 'multitool.lock.json'
+      - 'scripts/build-goals-manifest.mjs'
+      - 'scripts/build-log-manifest.mjs'
+      - 'scripts/build-source-map.mjs'
+      - 'scripts/check-build-output.mjs'
+      - 'scripts/lib/**'
       - 'scripts/test-bazel-cutover-contracts.py'
 
 concurrency:

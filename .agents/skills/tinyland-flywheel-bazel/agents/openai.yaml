@@ -1,4 +1,4 @@
 interface:
-  display_name: 'Tinyland Flywheel Bazel'
-  short_description: 'Cache-first Bazel and RBE for Tinyland repos'
-  default_prompt: 'Use $tinyland-flywheel-bazel to wire a Tinyland repo for cache-first Bazel and Flywheel RBE.'
+  display_name: "Tinyland Flywheel Bazel"
+  short_description: "Maintain provider-neutral v4 Bazel actions"
+  default_prompt: "Use $tinyland-flywheel-bazel to update this repo's v4 Bazel action plan without adding provider or fallback configuration."

@@ -18,5 +18,6 @@ smallest live script plus a Just recipe or Bazel target. After rewiring all live
 references, delete superseded notes, evidence, generated copies, schemas,
 scripts, and workflows; Git history is recovery.
 
-Completion requires `just --list`, manifest/lane validation, the endpoint and
-source-map absence checks, gitleaks, conformance, relevant tests, and the build.
+Completion requires the registered `just check` and relevant build entrypoints.
+The schema-3 ActionPlan is validated by the immutable GF client as part of the
+fail-closed v4 submission; do not recreate that grammar in this repository.

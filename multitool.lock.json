@@ -19,5 +19,25 @@
         "cpu": "arm64"
       }
     ]
+  },
+  "actionlint": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz",
+        "file": "actionlint",
+        "sha256": "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_darwin_arm64.tar.gz",
+        "file": "actionlint",
+        "sha256": "2693315b9093aeacb4ebd91a993fea54fc215057bf0da2659056b4bc033873db",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
   }
 }

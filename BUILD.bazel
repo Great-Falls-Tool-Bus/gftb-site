@@ -8,7 +8,7 @@ load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("//:gitleaks_test.bzl", "gitleaks_test")
+load("//:gitleaks_test.bzl", "actionlint_test", "gitleaks_test")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -157,7 +157,6 @@ filegroup(
     srcs = [
         ".bazelignore",
         ".bazelrc",
-        ".bazelrc.flywheel",
         ".bazelversion",
         ".editorconfig",
         ".envrc",
@@ -211,17 +210,32 @@ filegroup(
     ),
 )
 
-# INERT today (TIN-4251 v4 prep): tagged `manual` and deliberately in NO test
-# suite — gf-action-client is not in the runner image yet, so nothing can
-# execute this target in current CI. Promote it into the validate ActionPlan
-# when the v4 fabric executes (TIN-4251); the runner-side `ci / secrets-scan`
-# job remains authoritative until then.
+# The v4 validate action carries the secret scan inside the same finite Bazel
+# action graph. It uses a hermetic, platform-pinned gitleaks binary and needs no
+# second runner job or repository-local lifecycle wrapper.
 gitleaks_test(
     name = "current_source_secret_scan_test",
     timeout = "short",
     srcs = [":current_source_secret_scan_srcs"],
     config = ".gitleaks.toml",
-    tags = ["manual"],
+)
+
+# Workflow syntax is part of the protected v4 source contract. Keep actionlint
+# inside the finite test graph with a checksummed multitool binary instead of
+# depending on a runner-installed executable.
+filegroup(
+    name = "workflow_validation_srcs",
+    srcs = glob(
+        [".github/workflows/*.yml"],
+        allow_empty = False,
+    ),
+)
+
+actionlint_test(
+    name = "workflow_validation_test",
+    config = ".github/actionlint.yaml",
+    srcs = [":workflow_validation_srcs"],
+    timeout = "short",
 )
 
 js_binary(
@@ -295,8 +309,31 @@ js_run_binary(
     out_dirs = ["build"],
     patch_node_fs = False,
     stamp = 1,
-    tags = ["flywheel-eligible", "sveltekit-app-build"],
+    tags = ["sveltekit-app-build"],
     tool = ":vite_build_bin",
+    visibility = ["//visibility:public"],
+)
+
+# Publication is allowed to consume only this copied-and-scanned TreeArtifact.
+# The copy and leak scan happen in one Bazel action: a scan failure produces no
+# output, so //:deployment_bundle cannot package an unscanned //:build tree.
+js_binary(
+    name = "leak_scan_build_bin",
+    data = [":app_srcs"],
+    entry_point = "scripts/check-build-output.mjs",
+)
+
+js_run_binary(
+    name = "scanned_build",
+    args = [
+        "$(rootpath :build)",
+        "--copy-to",
+        "scanned-build",
+    ],
+    out_dirs = ["scanned-build"],
+    patch_node_fs = False,
+    srcs = [":build"],
+    tool = ":leak_scan_build_bin",
     visibility = ["//visibility:public"],
 )
 
@@ -332,7 +369,7 @@ js_test(
     data = [":app_workspace", "scripts/bazel/prepare-sveltekit-types.mjs"] + UNIT_TEST_NPM_PACKAGES,
     args = ["--workspace", "$(rootpath :app_workspace)", "run", "--reporter=verbose", "--config", "vitest.config.ts"],
     entry_point = "scripts/bazel/run-vitest.mjs",
-    tags = ["flywheel-eligible", "sveltekit-unit-tests", "vitest"],
+    tags = ["sveltekit-unit-tests", "vitest"],
     visibility = ["//visibility:public"],
 )
 
@@ -360,6 +397,48 @@ js_run_binary(
     tool = ":vitest_coverage_bin",
 )
 
+# Generated source manifests are checked read-only inside the Bazel sandbox.
+# Each test executes the same generator used by its Just build recipe and
+# compares the deterministic bytes to the committed output.
+js_test(
+    name = "source_map_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        "tinyland.repo.json",
+    ],
+    entry_point = "scripts/build-source-map.mjs",
+    timeout = "short",
+)
+
+js_test(
+    name = "log_manifest_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        ".prettierrc",
+        ":node_modules/prettier",
+        ":node_modules/prettier-plugin-svelte",
+        ":node_modules/svelte",
+    ],
+    entry_point = "scripts/build-log-manifest.mjs",
+    timeout = "short",
+)
+
+js_test(
+    name = "goals_manifest_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        ".prettierrc",
+        ":node_modules/prettier",
+        ":node_modules/prettier-plugin-svelte",
+        ":node_modules/svelte",
+    ],
+    entry_point = "scripts/build-goals-manifest.mjs",
+    timeout = "short",
+)
+
 py_test(
     name = "bazel_output_contract_test",
     srcs = [
@@ -369,15 +448,21 @@ py_test(
     main = "scripts/test-bazel-cutover-contracts.py",
     imports = ["scripts"],
     data = [
-        ":app_srcs",
+        ":current_source_secret_scan_srcs",
+        ".github/lanes.json",
         ".github/workflows/ci.yml",
         ".github/workflows/container-ghcr.yml",
         "BUILD.bazel",
         "Justfile",
         "MODULE.bazel",
+        "docs/schemas/tinyland-repo-manifest.v2.schema.json",
         "flake.nix",
+        "package.json",
+        "scripts/check-inhouse-package-parity.py",
+        "scripts/validate-skills.py",
+        "static/qr/greatfallstoolbus-apex.svg",
+        "tinyland.repo.json",
     ],
-    tags = ["flywheel-eligible"],
 )
 
 # Chromium loopback smoke over the declared //:build output, per
@@ -389,11 +474,10 @@ py_test(
 # scratch and no action-time browser download (MODULE.bazel pins
 # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD at npm lifecycle time).
 #
-# INERT today (TIN-4251 v4 prep): `manual` keeps every suite, wildcard, and
-# current CI lane from selecting it — gf-action-client is not in the runner
-# image (G1) and the org tenant overlay is not admitted (G2). Promotion path:
-# a third lanes.json action `e2e` selecting this target once the tenant
-# binding lands.
+# This browser candidate is deliberately outside the two-action v4 plan.
+# `manual` keeps suites and wildcards from selecting it until a browser-capable
+# action and result lifecycle are ratified; it is not a local fallback for PRE
+# or LOOK.
 #
 # GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=1: //:build is stamped (stamp = 1) and
 # the footer provenance line renders only when the stamp carries a real commit
@@ -424,7 +508,18 @@ js_test(
 
 test_suite(
     name = "ci_validation_suite",
-    tests = [":bazel_output_contract_test", ":svelte_check_test", ":unit_tests"],
+    tests = [
+        ":bazel_output_contract_test",
+        ":current_source_secret_scan_test",
+        ":eslint_test",
+        ":goals_manifest_drift_test",
+        ":log_manifest_drift_test",
+        ":prettier_check_test",
+        ":source_map_drift_test",
+        ":svelte_check_test",
+        ":unit_tests",
+        ":workflow_validation_test",
+    ],
 )
 
 test_suite(
@@ -432,22 +527,13 @@ test_suite(
     tests = [":eslint_test", ":prettier_check_test"],
 )
 
-test_suite(
-    name = "local_validation_suite",
-    tests = [
-        ":bazel_output_contract_test",
-        ":eslint_test",
-        ":prettier_check_test",
-        ":svelte_check_test",
-        ":unit_tests",
-    ],
-)
-
 pkg_tar(
     name = "deployment_bundle",
-    srcs = [":build"],
     extension = "tar.gz",
-    tags = ["deployment-bundle-packaging", "flywheel-eligible"],
+    package_dir = "build",
+    srcs = [":scanned_build"],
+    strip_prefix = "scanned-build",
+    tags = ["deployment-bundle-packaging"],
     visibility = ["//visibility:public"],
 )
 
@@ -457,7 +543,7 @@ pkg_tar(
     name = "container_image_context",
     srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "svelte.config.js"],
     extension = "tar",
-    tags = ["container-image-and-push", "gloriousflywheel-cache-only", "no-remote-exec"],
+    tags = ["container-image-and-push", "no-remote-exec"],
     visibility = ["//visibility:public"],
 )
 

@@ -5,44 +5,26 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
-  statuses: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# TIN-4251: the application repository declares two finite Bazel actions. The
+# immutable ci-templates edge submits each action; it does not select a
+# provider, endpoint, credential, execution pool, or repository-specific
+# runner. The adopting organization supplies the generic gf-v4-dispatch edge.
 jobs:
-  ci:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci.yml@v3.1.0
+  validate:
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
     with:
-      node_version: '22'
-      pnpm_version: '10.13.1'
-      flywheel_config: flywheel
-      cache_backed: true
-      playwright_enabled: true
-      lanes_path: .github/lanes.json
-      default_runner_class: tinyland-nix
-      heavy_runner_class: tinyland-nix
-      kvm_runner_class: tinyland-nix
-    secrets: inherit
+      action_name: validate
 
-  merge-gate:
-    name: merge-gate
-    if: always()
-    needs: [ci]
-    # TIN-3914: no GitHub-hosted runners in this org. `tinyland-nix` is served
-    # here by the `great-falls-tool-bus-nix` ARC scale set; this repository is
-    # on the `great-falls-tool-bus-infra` runner-group roster (TIN-3902).
-    runs-on: tinyland-nix
-    timeout-minutes: 5
-    steps:
-      - name: Require complete reusable CI
-        env:
-          REUSABLE_CI_RESULT: ${{ needs.ci.result }}
-        run: |
-          set -euo pipefail
-          test "${REUSABLE_CI_RESULT}" = success
+  site-build:
+    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
+    with:
+      action_name: site-build

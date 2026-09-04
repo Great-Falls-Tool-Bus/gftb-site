@@ -1,23 +1,36 @@
 {
-	"$schema": "./docs/schemas/tinyland-repo-manifest.schema.json",
-	"schema_version": 1,
-	"scaffold_tag": "28934488bcc40519eead43ca25e35ea04d89b13a",
+	"$schema": "./docs/schemas/tinyland-repo-manifest.v2.schema.json",
+	"schema_version": 2,
+	"scaffold_origin": {
+		"repository": "tinyland-inc/site.scaffold",
+		"commit_sha": "28934488bcc40519eead43ca25e35ea04d89b13a"
+	},
 	"repo": {
 		"name": "gftb-site",
 		"github": "Great-Falls-Tool-Bus/gftb-site",
 		"domain": "greatfallstoolbus.org",
-		"description": "Public static microsite and reviewed daily log for the Great Falls Tool Bus."
+		"description": "Public static microsite and reviewed daily log for the Great Falls Tool Bus.",
+		"defaultBranch": "main"
 	},
 	"taxonomy": {
 		"primary_role": "static-spoke",
-		"spawned_repo_role": "static-spoke",
 		"layers": ["org-wide-repo-contract", "bazel-package-cache-rbe", "static-spoke"]
 	},
 	"enrollment": {
 		"forgeScope": "Great-Falls-Tool-Bus",
-		"operatorOverlay": "great-falls-tool-bus-infra",
-		"executionPool": "tinyland-nix",
-		"substrateMode": "shared-cache-backed"
+		"organizationOverlay": "Great-Falls-Tool-Bus/great-falls-tool-bus-infra",
+		"organizationOverlayRole": "organization-execution-overlay",
+		"organizationOverlayComposition": "distinct"
+	},
+	"runtime_network": {
+		"declarations": [
+			{
+				"purpose": "contact-submit",
+				"module": "src/lib/components/ContactForm.svelte",
+				"url": "https://forms.latoolb.us/api/contact",
+				"method": "POST"
+			}
+		]
 	},
 	"contracts": {
 		"agent_contract": "AGENTS.md",
@@ -36,12 +49,20 @@
 		"owns_static_projection_ingest": false,
 		"owns_gitops_apply": false,
 		"owns_cloudflare_mutation": false,
-		"owns_bazel_module_authority": false
+		"owns_bazel_module_authority": false,
+		"owns_application_pins": false,
+		"owns_application_state": false,
+		"owns_secret_declarations": false,
+		"owns_application_workloads": false,
+		"owns_application_zone_dns": false,
+		"owns_application_mail_policy": false,
+		"owns_application_database": false,
+		"owns_forge_app_installations": false,
+		"owns_org_grants": false
 	},
 	"authorities": {
 		"content_authority": "Great-Falls-Tool-Bus/gftb-site reviewed public SVX",
 		"ci_templates": "tinyland-inc/ci-templates",
-		"cache_rbe_authority": "tinyland-inc/GloriousFlywheel",
 		"package_registry": "tinyland-inc/bazel-registry"
 	},
 	"supply_chain": {

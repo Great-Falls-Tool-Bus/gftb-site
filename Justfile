@@ -22,26 +22,18 @@ dev:
 dev-open:
     cd {{ root }} && bazelisk run //:dev -- --open
 
-# CI ENFORCEMENT: run by ci-templates spoke-ci.yml@v3.1.0 job `flywheel-build`,
-# step "Static site build" (line 266-267: `nix develop --command just build`),
-# and again by job `playwright` (line 375: `just test-e2e` -> playwright.config.ts
-# webServer -> `just preview-e2e` -> `build`).
+# Local/operator materialization of the same fail-closed //:scanned_build graph
+# packaged by //:deployment_bundle. The action fabric executes the finite plan
+# through the compiled client; this recipe is not a CI or execution fallback.
 #
-# leak-scan is the LAST step on purpose: it can only run against a materialized
-# artefact, and a published tree that has never been scanned must not be
-# publishable. Wiring it here (rather than into `just ci`, which no template job
-# invokes) is what makes the gate actually execute on a pull request.
+# //:scanned_build copies //:build and leak-scans that copy in one Bazel action.
+# A failed scan yields no declared output, so an unscanned build cannot reach
+# this recipe or the owner publication transaction.
 # Materialization is publish-once: the destination must be absent, and any
 # existing output or transaction residue fails closed and remains untouched.
 build:
-    cd {{ root }} && bazelisk build //:build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
-    cd {{ root }} && {{ just_executable() }} leak-scan build
-
-build-ci:
-    cd {{ root }} && bazelisk build --config=ci-cached --remote_cache="${BAZEL_REMOTE_CACHE:-}" --remote_download_outputs=toplevel //:build
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/build --destination build
-    cd {{ root }} && {{ just_executable() }} leak-scan build
+    cd {{ root }} && bazelisk build //:scanned_build
+    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/scanned-build --destination build
 
 preview port="4173": build
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
@@ -135,7 +127,7 @@ secrets-scan:
 endpoint-check:
     @cd {{ root }} && if grep -RInE '(grpc|grpcs)://|https?://[^[:space:]"]*(bazel-cache|reapi)|10\.[0-9]+\.[0-9]+\.[0-9]+' \
       --exclude-dir=.git --exclude-dir=.direnv --exclude-dir=node_modules --exclude='*.lock' \
-      .bazelrc .bazelrc.flywheel .github/workflows BUILD.bazel MODULE.bazel flake.nix 2>/dev/null; then \
+      .bazelrc .github/workflows BUILD.bazel MODULE.bazel flake.nix 2>/dev/null; then \
       echo "endpoint-check: forbidden endpoint literal found" >&2; exit 1; \
     else echo "endpoint-check: no cache, executor, or private-network endpoint literals"; fi
 
@@ -146,10 +138,8 @@ endpoint-check:
 source-map-build:
     cd {{ root }} && node scripts/build-source-map.mjs
 
-source-map-check: source-map-build
-    @cd {{ root }} && git diff --exit-code -- src/lib/generated/source-map.json || { echo "source-map-check: src/lib/generated/source-map.json drifted; commit the regenerated map" >&2; exit 1; }
-    @cd {{ root }} && test ! -d src/routes/agent && test ! -e static/llms.txt && test ! -e static/agent-map.md
-    @echo "source-map-check: map is current; no agent surfaces"
+source-map-check:
+    cd {{ root }} && bazelisk test //:source_map_drift_test
 
 # Derive src/lib/generated/log-manifest.ts from src/content/log/*.svx —
 # PUBLISHED entries only (B1 fix, PR #33 review: an eager glob over every
@@ -160,9 +150,8 @@ source-map-check: source-map-build
 log-manifest-build:
     cd {{ root }} && node scripts/build-log-manifest.mjs
 
-log-manifest-check: log-manifest-build
-    @cd {{ root }} && git diff --exit-code -- src/lib/generated/log-manifest.ts || { echo "log-manifest-check: src/lib/generated/log-manifest.ts drifted; commit the regenerated manifest" >&2; exit 1; }
-    @echo "log-manifest-check: manifest is current"
+log-manifest-check:
+    cd {{ root }} && bazelisk test //:log_manifest_drift_test
 
 # Derive src/lib/generated/goals-manifest.ts from src/content/goals/*.md,
 # PUBLISHED entries only: the log-manifest pattern for the home page's
@@ -170,21 +159,17 @@ log-manifest-check: log-manifest-build
 goals-manifest-build:
     cd {{ root }} && node scripts/build-goals-manifest.mjs
 
-goals-manifest-check: goals-manifest-build
-    @cd {{ root }} && git diff --exit-code -- src/lib/generated/goals-manifest.ts || { echo "goals-manifest-check: src/lib/generated/goals-manifest.ts drifted; commit the regenerated manifest" >&2; exit 1; }
-    @echo "goals-manifest-check: manifest is current"
+goals-manifest-check:
+    cd {{ root }} && bazelisk test //:goals_manifest_drift_test
 
 entrypoint-contract:
-    cd {{ root }} && python3 scripts/test-bazel-cutover-contracts.py
+    cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
 workflow-validate:
-    cd {{ root }} && actionlint .github/workflows/*.yml
-
-lanes-validate:
-    cd {{ root }} && python3 scripts/validate-lanes.py
+    cd {{ root }} && bazelisk test //:workflow_validation_test
 
 repo-manifest-validate:
-    cd {{ root }} && python3 scripts/validate-lanes.py --schema docs/schemas/tinyland-repo-manifest.schema.json --instance tinyland.repo.json
+    cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
 skills-validate:
     cd {{ root }} && python3 scripts/validate-skills.py
@@ -193,10 +178,7 @@ inhouse-package-parity:
     cd {{ root }} && python3 scripts/check-inhouse-package-parity.py
 
 conformance:
-    cd {{ root }} && bash scripts/check-conformance.sh
-
-flywheel-enrollment-contract-check:
-    cd {{ root }} && bash scripts/flywheel-enrollment-contract-test.sh
+    cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
 # Byte-reproducibility proof for the printed apex QR: regenerate the code from
 # the canonical URL and compare it to the committed artefact. The pinned URL is
@@ -205,9 +187,10 @@ flywheel-enrollment-contract-check:
 # two files to pass. Independent DECODE verification is a manual scan, per the
 # failure guidance below.
 #
-# CI ENFORCEMENT: reached through `just check`, run by ci-templates
-# spoke-ci.yml@v3.1.0 job `flywheel-test`, step at line 291
-# (`nix develop --command just check`), which lists qr-verify as a dependency.
+# Local consequence of the same source tree consumed by the finite v4 actions.
+# The protected suite pins the operator-approved SVG bytes, payload, and
+# parameters cacheably; this recipe additionally reproduces the bytes with
+# qrencode for a maintainer changing the approved artifact.
 #
 # The `<!-- Created with qrencode X.Y.Z ... -->` provenance line is stripped from
 # BOTH sides before comparing. It records the encoder build, not the symbol, so a
@@ -277,9 +260,8 @@ qr-verify:
 # runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
 # exercises, so the gate and its tests are one implementation, not two.
 #
-# CI ENFORCEMENT: run as the last step of `just build` (see the comment there),
-# which ci-templates spoke-ci.yml@v3.1.0 executes in job `flywheel-build`
-# (line 267) and, transitively, in job `playwright` (line 375).
+# Local artifact validation. The v4 build action requests //:deployment_bundle,
+# which can package only //:scanned_build, through the compiled client.
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
@@ -289,39 +271,31 @@ qr-verify:
 # stamps the literal 'unknown', so the footer provenance branch never renders
 # and the ordinary artifact scan cannot see what a PUBLISH-lane build emits:
 # .github/workflows/container-ghcr.yml sets BUILD_COMMIT_SHA, and its `build`
-# dependency ends in leak-scan — so a stamped-only finding red-lines the OCI
-# lane on the next push to main while every PR gate stays green. This recipe
-# closes that blind spot: build with a FIXED fake sha (constant on purpose —
+# dependency materializes //:scanned_build — so a stamped-only finding
+# red-lines the OCI lane. This recipe closes that blind spot: build with a FIXED
+# fake sha (constant on purpose —
 # the stamped stable-status is identical across runs, so caches still hit
 # when sources are unchanged), prove the stamp actually rendered, and scan
-# the Bazel output in place. No second tree is materialized or cleaned.
-# Wired into `check`/`check-ci` so it runs per PR.
+# the scanned Bazel output in place. No second tree is materialized or cleaned.
 leak-scan-stamped:
-    cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:build
-    cd {{ root }} && grep -q "deadbee" bazel-bin/build/index.html
-    cd {{ root }} && {{ just_executable() }} leak-scan bazel-bin/build
+    cd {{ root }} && BUILD_COMMIT_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef bazelisk build //:scanned_build
+    cd {{ root }} && grep -q "deadbee" bazel-bin/scanned-build/index.html
 
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
-# CI ENFORCEMENT: ci-templates spoke-ci.yml@v3.1.0 job `flywheel-test`, line 291
-# (`nix develop --command just check`), once per lane in .github/lanes.json.
-# //:local_validation_suite carries //:unit_tests, so the acceptance unit gates
-# (design-token-contrast, leak-scan, public-log-build-contract) run on
-# every pull request through this recipe.
-check: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
-    cd {{ root }} && bazelisk test //:local_validation_suite
+# Local entrypoint for the exact cacheable suite selected by the protected v4
+# `validate` action. //:deployment_bundle independently enforces the scanned
+# artifact boundary selected by `site-build`.
+check:
+    cd {{ root }} && bazelisk test //:ci_validation_suite
     @echo "All checks passed."
 
-check-ci: flywheel-enrollment-contract-check secrets-scan-dir endpoint-check source-map-check log-manifest-check goals-manifest-check entrypoint-contract workflow-validate qr-verify conformance leak-scan-stamped
-    cd {{ root }} && bazelisk test --config=ci //:local_validation_suite
+check-ci:
+    cd {{ root }} && bazelisk test --config=ci //:ci_validation_suite
     @echo "All CI artifact checks passed."
 
-# Local convenience aggregate. NOTE: no ci-templates job invokes `just ci` — the
-# template calls `just setup`, `just build`, `just check` and `just test-e2e`
-# individually — so nothing may be enforced ONLY from here. `test-e2e` performs
-# its own scanned fresh build through `preview-e2e`; materializing `build` first
-# would violate the publish-once output contract.
+# Local convenience aggregate. The v4 dispatcher does not invoke it.
 ci: check test-e2e
 
 sbom out_dir="build/sbom":
@@ -332,37 +306,6 @@ sbom out_dir="build/sbom":
         -o cyclonedx-json="{{ out_dir }}/gftb-site.cyclonedx.json" \
         -o spdx-json="{{ out_dir }}/gftb-site.spdx.json"
 
-flywheel-enroll *args:
-    cd {{ root }} && bash scripts/flywheel-enroll.sh {{ args }}
-
-flywheel-doctor:
-    cd {{ root }} && bash scripts/flywheel-doctor.sh
-
-flywheel-verify:
-    cd {{ root }} && bash scripts/flywheel-verify.sh
-
-cache-contract-strict:
-    cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE="$(jq -r '.enrollment.substrateMode' tinyland.repo.json)" GF_BAZEL_RUNNER_LABELS="${GF_BAZEL_RUNNER_LABELS:-tinyland-nix}" bash scripts/cache-attachment-contract.sh --strict
-
-flywheel-build target="//:build":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh build {{ target }}
-
-flywheel-test target="//:ci_validation_suite":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh test {{ target }}
-
-flywheel-fetch target="//...":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh fetch {{ target }}
-
-# Cache-first Bazel test pass over the flywheel-eligible gates. //:unit_tests is
-# in the default set because it carries the acceptance suite and is tagged
-# `flywheel-eligible` in BUILD.bazel (so it is cache-eligible under
-# --config=ci-cached exactly like the other three).
-flywheel-check *targets="//:eslint_test //:prettier_check_test //:svelte_check_test //:unit_tests":
-    cd {{ root }} && GF_BAZEL_SUBSTRATE_MODE=shared-cache-backed GF_BAZEL_REMOTE_UPLOAD=false BAZEL_REMOTE_EXECUTOR= bash scripts/gloriousflywheel-bazel.sh test --config=ci-cached {{ targets }}
-
-bundle target="//:deployment_bundle":
-    cd {{ root }} && bash scripts/gloriousflywheel-bazel.sh build {{ target }}
-
 container-image-context:
     cd {{ root }} && bazelisk build //:container_image_context
 
@@ -372,7 +315,7 @@ container-image-publish: build container-image-context
     #!/usr/bin/env bash
     set -euo pipefail
     cd {{ root }}
-    [[ "$(uname -s)" == "Linux" ]] || { echo "container-image-publish requires the Linux tinyland-nix carrier" >&2; exit 2; }
+    [[ "$(uname -s)" == "Linux" ]] || { echo "container-image-publish requires Linux" >&2; exit 2; }
     : "${GHCR_USER:?GHCR_USER is required}"
     : "${GHCR_TOKEN:?GHCR_TOKEN is required}"
     export BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}"

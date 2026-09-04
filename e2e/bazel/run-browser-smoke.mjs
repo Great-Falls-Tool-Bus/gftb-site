@@ -1,4 +1,4 @@
-// Chromium loopback smoke over the Bazel-declared site build (TIN-4251 v4 prep).
+// Chromium loopback smoke candidate over the Bazel-declared site build.
 //
 // Shape follows GloriousFlywheel's browser-RBE candidate template
 // (examples/web-rbe/run-static-browser-smoke.mjs + the browser-rbe-candidate

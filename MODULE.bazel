@@ -11,9 +11,9 @@ bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
-# rules_pkg pulls the hermetic rules_python interpreter; the publish lane runs
-# on the tinyland-nix carrier as root, and only the root module may lift the
-# rules_python root-user refusal (see rules_python#713).
+# rules_pkg pulls the hermetic rules_python interpreter; the publisher's
+# isolated Linux environment runs as root, and only the root module may lift
+# the rules_python root-user refusal (see rules_python#713).
 bazel_dep(name = "rules_python", version = "1.0.0")
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
 bazel_dep(name = "aspect_rules_js", version = "2.9.1")
@@ -58,10 +58,10 @@ npm.npm_translate_lock(
 )
 use_repo(npm, "npm")
 
-# Hermetic current-source secret scan for the v4 validate ActionPlan
-# (TIN-4251), ported from greatfallstoolbus.org: rules_multitool pins the
-# gitleaks binary per platform in multitool.lock.json, and gitleaks_test.bzl
-# runs it over the declared source capsule inside the test action.
+# Hermetic source validators for the v4 validate ActionPlan (TIN-4251), ported
+# from the house Bazel pattern: rules_multitool pins Gitleaks and actionlint per
+# platform in multitool.lock.json, and gitleaks_test.bzl binds each binary to a
+# declared source capsule inside its cacheable test action.
 multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
 multitool.hub(lockfile = "//:multitool.lock.json")
 use_repo(multitool, "multitool")

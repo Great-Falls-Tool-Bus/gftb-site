@@ -5,8 +5,8 @@
  * kubeconfig fragments, or private personal names appear in the built output".
  *
  * This module is plain ESM on purpose. `scripts/check-build-output.mjs` (the
- * gate `just leak-scan` runs, which now also runs as the last step of
- * `just build`) imports it directly with no transpile step, and
+ * gate `just leak-scan` runs and `//:scanned_build` binds directly before
+ * `//:deployment_bundle`) imports it with no transpile step, and
  * `src/lib/leak-scan.test.ts` imports the same file under vitest. There is no
  * second copy of the scanning logic to drift from, which is what an earlier
  * revision of this gate got wrong.
