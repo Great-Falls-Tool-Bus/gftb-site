@@ -138,6 +138,35 @@
             "/lib"
           ];
         };
+        runtimeConfig = {
+          Entrypoint = [
+            "/bin/dumb-init"
+            "--"
+          ];
+          Cmd = [
+            "/bin/caddy"
+            "run"
+            "--config"
+            "/etc/caddy/Caddyfile"
+            "--adapter"
+            "caddyfile"
+          ];
+          User = "65532:65532";
+          WorkingDir = "/srv";
+          ExposedPorts = {
+            "3000/tcp" = { };
+          };
+          Env = [
+            "HOME=/tmp"
+            "XDG_CONFIG_HOME=/tmp"
+            "XDG_DATA_HOME=/tmp"
+            "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
+          ];
+          Labels = {
+            "org.opencontainers.image.source" = "https://github.com/Great-Falls-Tool-Bus/gftb-site";
+            "org.opencontainers.image.description" = "Great Falls Tool Bus static runtime";
+          };
+        };
         appLayer = n2c.buildLayer {
           copyToRoot = pkgs.runCommand "gftb-static-site" { } ''
             mkdir -p "$out/srv" "$out/etc/caddy" "$out/tmp"
@@ -157,6 +186,7 @@
         runtimeBaseImage = n2c.buildImage {
           name = imageName;
           copyToRoot = runtimeRoot;
+          config = runtimeConfig;
         };
         image = n2c.buildImage {
           name = imageName;
@@ -164,36 +194,11 @@
           inherit created;
           copyToRoot = runtimeRoot;
           layers = [ appLayer ];
-          config = {
-            Entrypoint = [
-              "/bin/dumb-init"
-              "--"
-            ];
-            Cmd = [
-              "/bin/caddy"
-              "run"
-              "--config"
-              "/etc/caddy/Caddyfile"
-              "--adapter"
-              "caddyfile"
-            ];
-            User = "65532:65532";
-            WorkingDir = "/srv";
-            ExposedPorts = {
-              "3000/tcp" = { };
-            };
-            Env = [
-              "HOME=/tmp"
-              "XDG_CONFIG_HOME=/tmp"
-              "XDG_DATA_HOME=/tmp"
-              "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
-            ];
-            Labels = {
-              "org.opencontainers.image.source" = "https://github.com/Great-Falls-Tool-Bus/gftb-site";
+          config = runtimeConfig // {
+            Labels = runtimeConfig.Labels // {
               "org.opencontainers.image.revision" = commitSha;
               "org.opencontainers.image.ref.name" = commitRef;
               "org.opencontainers.image.created" = created;
-              "org.opencontainers.image.description" = "Great Falls Tool Bus static candidate";
             };
           };
         };
