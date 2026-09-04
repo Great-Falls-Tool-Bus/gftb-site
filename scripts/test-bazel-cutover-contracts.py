@@ -528,6 +528,10 @@ class RepositoryContractTests(unittest.TestCase):
 
         scan_runner = (ROOT / "scripts/check-build-output.mjs").read_text(encoding="utf-8")
         self.assertIn("cpSync(buildDirectory, outputDirectory", scan_runner)
+        self.assertIn("lstatSync(outputDirectory)", scan_runner)
+        self.assertIn("outputStats.isSymbolicLink()", scan_runner)
+        self.assertIn("readdirSync(outputDirectory).length > 0", scan_runner)
+        self.assertNotIn("outputDirectory === buildDirectory || existsSync(outputDirectory)", scan_runner)
         self.assertIn("scanDirectory = outputDirectory", scan_runner)
         self.assertIn("scanBuildDirectory(scanDirectory", scan_runner)
         self.assertLess(

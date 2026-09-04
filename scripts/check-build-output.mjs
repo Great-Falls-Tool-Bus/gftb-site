@@ -30,7 +30,7 @@
  * the scan succeeds; //:deployment_bundle consumes that fail-closed boundary.
  */
 
-import { cpSync, existsSync, statSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -60,9 +60,16 @@ if (options.copyTo !== null) {
 		process.exit(2);
 	}
 	const outputDirectory = path.resolve(process.cwd(), options.copyTo);
-	if (outputDirectory === buildDirectory || existsSync(outputDirectory)) {
+	if (outputDirectory === buildDirectory) {
 		console.error(`leak-scan: refusing existing or aliased action output: ${outputDirectory}`);
 		process.exit(2);
+	}
+	if (existsSync(outputDirectory)) {
+		const outputStats = lstatSync(outputDirectory);
+		if (outputStats.isSymbolicLink() || !outputStats.isDirectory() || readdirSync(outputDirectory).length > 0) {
+			console.error(`leak-scan: refusing existing or aliased action output: ${outputDirectory}`);
+			process.exit(2);
+		}
 	}
 	cpSync(buildDirectory, outputDirectory, {
 		recursive: true,
