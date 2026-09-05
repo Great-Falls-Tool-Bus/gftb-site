@@ -4,7 +4,8 @@
 
 This private repository builds the public static site at
 `greatfallstoolbus.org`. It owns reviewed public page copy, build-time `.svx`
-daily logs, the static build graph, and a candidate OCI publisher.
+daily logs, the static build graph, a qualified application layer, and its
+source-independent runtime-base definition.
 
 It owns no member records, auth, payments, mail administration, private
 content, DNS, Cloudflare state, cluster state, or GitOps apply authority. The
@@ -51,20 +52,24 @@ is not public.
 
 ## Entrypoints and stack
 
-- Use `just <recipe>` for every operation. Do not invoke pnpm, Vite, or Bazel
-  directly outside the Justfile.
-- Enter through `nix develop` / direnv. CI runs Just inside Nix.
-- `just build` materializes `//:scanned_build`: the adapter-static `//:build`
-  output copied and leak-scanned inside one Bazel action. A scan failure yields
-  no declared output. `//:deployment_bundle` packages that scanned TreeArtifact
+- Use `just <recipe>` for every operation. Builds and checks call the
+  image-custodied `gf-action-client`; never run Bazel, Vite, or tests locally
+  as an execution fallback. Nix supplies source-editing tools, not admission.
+- `just build` selects `site-build` and writes the qualified result into a new
+  absolute directory (default `.gf-site-build-result` in this checkout).
+  Supply another new absolute directory for another export; the client never
+  overwrites an existing result. It does not materialize an unqualified local
+  `build/` tree. `//:deployment_bundle` packages the leak-scanned TreeArtifact
   at `/srv` with only the reviewed first-party `Caddyfile`, exact source marker,
   and `/tmp` mode alongside it. Unscanned public site bytes are not publishable.
-- `just check` executes the same cacheable `//:ci_validation_suite` selected by
-  the protected v4 `validate` action. It registers the schema/conformance and
-  immutable-caller contract, current-source Gitleaks, generated source/log/goal
-  manifest drift checks, hermetic actionlint, ESLint, Prettier, Svelte checks,
-  and unit tests. Local Just output is never v4 evidence.
-- `just conformance` enters the registered `//:bazel_output_contract_test`.
+- `just check` selects the same v4 `validate` action as CI. Its cacheable
+  `//:ci_validation_suite` registers the schema/conformance and immutable-caller
+  contract, current-source Gitleaks, generated source/log/goal manifest drift
+  checks, hermetic actionlint, ESLint, Prettier, Svelte checks, and unit tests.
+  The source SHA comes from the exact checkout; the client owns identity
+  verification and refuses missing v4 authority.
+- `just conformance`, `test-unit`, `typecheck`, `lint`, and the other check
+  aliases select that same suite, not independent local jobs.
 - `just qr-verify` cross-checks the pinned payload URL against
   `package.json`'s `homepage`, then regenerates the printed apex QR with the
   pinned qrencode invocation and byte-compares the committed SVG, stripping
@@ -78,16 +83,16 @@ is not public.
   flow. The name `qa-look` is reserved for the PullRequestEnvironment/v1
   consumer flow: a routable, tailnet-only, reapable, exact-head QA environment
   per pull request plus the operator LOOK ("the pr-N lane IS the QA
-  evidence"). See `docs/qa-look.md`. The browser acceptance suite
-  (`just test-e2e`, `preview-e2e`, `playwright.config.ts`, `e2e/`) is
-  unaffected.
-- `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
-  built artefact. `scripts/check-build-output.mjs` is a thin runner over
+  evidence"). See `docs/qa-look.md`. Browser test source in `e2e/` remains
+  parked outside the two-action plan. Its former local launcher, preview
+  server, and toolchain are removed; there is no browser action or LOOK proof
+  to claim from them.
+- `just leak-scan` selects `site-build`, whose build graph runs the rules in
+  `scripts/lib/leak-scan-rules.json`. `scripts/check-build-output.mjs` is a thin runner over
   `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`
   exercises: one implementation, tested once. It fails closed — a missing or
   empty directory, or a file whose extension is in neither `TEXT_EXTENSIONS`
-  nor `SKIP_EXTENSIONS`, is a failure, not a pass. Set `GFTB_LEAK_SCAN_DENY`
-  to add operator-held literals; never commit them.
+  nor `SKIP_EXTENSIONS`, is a failure, not a pass.
 - `scripts/lib/*` is acceptance-test-only and deliberately outside `src/lib`:
   the leak ruleset carries credential-detection regexes and must never be
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from
@@ -132,15 +137,16 @@ compiled GF client once.
 | `validate` | `validate` | `test //:ci_validation_suite` |
 | `site-build` | `site-build` | `build //:deployment_bundle` |
 
-`just ci` remains a local developer convenience. It is not CI evidence and is
-never an execution fallback for either v4 action.
+`just ci` selects both declared remote actions. There is no local browser,
+analysis, coverage, or candidate-publication recipe outside this plan.
 
 ## Deployment and package safety
 
-`.github/workflows/container-ghcr.yml` may publish only the immutable candidate
-tag for its exact commit. It has no production dispatch and no infra, DNS, or
-edge credentials. GitHub Pages workflows are forbidden. A merge, green CI, or
-successful package push is not served-site proof.
+The GF-I09 publisher owns qualified application publication after the export
+action. This repository has no separate candidate workflow or local Nix
+application-image constructor. It owns neither production dispatch nor infra,
+DNS, or edge credentials. GitHub Pages workflows are forbidden. A merge,
+green CI, or successful package push is not served-site proof.
 
 Source stays private. The operator release lane may make only the reviewed web
 image package public after publication, then must prove anonymous manifest and

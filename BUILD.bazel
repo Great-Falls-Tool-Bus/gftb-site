@@ -92,7 +92,6 @@ filegroup(
     ) + [
         ".npmrc",
         "package.json",
-        "playwright.config.ts",
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
@@ -134,7 +133,6 @@ filegroup(
         ".prettierrc",
         "eslint.config.ts",
         "package.json",
-        "playwright.config.ts",
         "pnpm-workspace.yaml",
         "svelte.config.js",
         "tinyland.repo.json",
@@ -187,7 +185,6 @@ filegroup(
         "gitleaks_test.bzl",
         "multitool.lock.json",
         "package.json",
-        "playwright.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -236,7 +233,6 @@ filegroup(
 
 actionlint_test(
     name = "workflow_validation_test",
-    config = ".github/actionlint.yaml",
     srcs = [":workflow_validation_srcs"],
     timeout = "short",
 )
@@ -271,13 +267,6 @@ copy_to_directory(
     root_paths = ["."],
 )
 
-js_binary(
-    name = "svelte_check_bin",
-    data = TYPECHECK_NPM_PACKAGES,
-    entry_point = "scripts/bazel/run-svelte-check.mjs",
-    tags = ["manual", "no-remote-exec"],
-)
-
 js_test(
     name = "svelte_check_test",
     data = [":app_srcs", ":sveltekit_types"] + TYPECHECK_NPM_PACKAGES,
@@ -307,11 +296,18 @@ js_binary(
 
 js_run_binary(
     name = "build",
-    args = ["--workspace", "$(rootpath :app_workspace)", "--output-dir", "build"],
-    srcs = [":app_workspace"],
+    args = [
+        "--workspace",
+        "$(rootpath :app_workspace)",
+        "--source-marker",
+        "$(rootpath :deployment_source_marker)",
+        "--output-dir",
+        "build",
+    ],
+    srcs = [":app_workspace", ":deployment_source_marker"],
     out_dirs = ["build"],
     patch_node_fs = False,
-    stamp = 1,
+    stamp = 0,
     tags = ["sveltekit-app-build"],
     tool = ":vite_build_bin",
     visibility = ["//visibility:public"],
@@ -345,25 +341,19 @@ js_run_binary(
     args = [
         "--workspace",
         "$(rootpath :app_workspace)",
+        "--source-marker",
+        "$(rootpath :deployment_source_marker)",
         "--output-dir",
         "build-analyze",
         "--analyze",
         "--analyze-output",
         ".bundle-stats/stats.html",
     ],
-    srcs = [":app_workspace"],
+    srcs = [":app_workspace", ":deployment_source_marker"],
     out_dirs = ["build-analyze", ".bundle-stats"],
     patch_node_fs = False,
-    stamp = 1,
+    stamp = 0,
     tool = ":vite_build_bin",
-    visibility = ["//visibility:public"],
-)
-
-js_binary(
-    name = "dev",
-    data = APP_NPM_PACKAGES,
-    entry_point = "scripts/bazel/run-vite-dev.mjs",
-    tags = ["manual", "no-remote-exec"],
     visibility = ["//visibility:public"],
 )
 
@@ -454,7 +444,6 @@ py_test(
         ":current_source_secret_scan_srcs",
         ".github/lanes.json",
         ".github/workflows/ci.yml",
-        ".github/workflows/container-ghcr.yml",
         "BUILD.bazel",
         "Justfile",
         "MODULE.bazel",
@@ -482,12 +471,10 @@ py_test(
 # action and result lifecycle are ratified; it is not a local fallback for PRE
 # or LOOK.
 #
-# GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=1: //:build is stamped (stamp = 1) and
-# the footer provenance line renders only when the stamp carries a real commit
-# identity (BUILD_COMMIT_SHA / GITHUB_SHA — CI and fabric invocations); an
-# identity-less local run fails that leg by design (the footer's own
-# degrade-to-nothing contract), or relax it with
-# --test_env=GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=0.
+# GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=1: //:build consumes only the exact source
+# marker projected from the GF-bound BUILD_EMBED_LABEL, not whole status files.
+# Missing or malformed identity fails the build; disabling the browser assertion
+# cannot bypass that build boundary.
 js_test(
     name = "browser_smoke_test",
     data = [
@@ -563,29 +550,10 @@ pkg_tar(
     visibility = ["//visibility:public"],
 )
 
-# The publisher consumes this cacheable context, but image assembly and registry
-# mutation stay local to the trusted GitHub runner and never use remote exec.
-pkg_tar(
-    name = "container_image_context",
-    srcs = [
-        ":deployment_bundle",
-        "Caddyfile",
-        "flake.lock",
-        "flake.nix",
-        "package.json",
-        "pnpm-lock.yaml",
-        "svelte.config.js",
-    ],
-    extension = "tar",
-    tags = ["container-image-and-push", "no-remote-exec"],
-    visibility = ["//visibility:public"],
-)
-
 exports_files(
     [
         "MODULE.bazel",
         "package.json",
-        "playwright.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "scripts/bazel/prepare-sveltekit-types.mjs",
@@ -593,8 +561,6 @@ exports_files(
         "scripts/bazel/run-sveltekit-sync.mjs",
         "scripts/bazel/run-vitest.mjs",
         "scripts/bazel/run-vite-build.mjs",
-        "scripts/bazel/run-vite-dev.mjs",
-        "scripts/bazel/workspace-status.sh",
         "svelte.config.js",
         "tsconfig.json",
         "vite.config.ts",

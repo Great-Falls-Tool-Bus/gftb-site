@@ -24,8 +24,8 @@
  * review proved a draft's full prose shipping in build/_app/immutable/
  * chunks; the fix (src/lib/generated/log-manifest.ts, B1) should make that
  * structurally impossible, but this makes it a build-breaking finding, not
- * an assumption, on the exact artefact `just build` and `just
- * leak-scan-stamped` scan. In `--copy-to <output>` mode it copies the input
+ * an assumption, on the exact artefact the remote site-build action scans.
+ * In `--copy-to <output>` mode it copies the input
  * TreeArtifact, scans the copy, and exposes that declared directory only when
  * the scan succeeds; //:deployment_bundle consumes that fail-closed boundary.
  */

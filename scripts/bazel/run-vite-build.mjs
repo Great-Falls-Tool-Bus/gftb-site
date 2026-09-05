@@ -17,13 +17,14 @@ import { dirname, join, resolve } from 'node:path';
 const require = createRequire(import.meta.url);
 const viteCli = resolve(dirname(require.resolve('vite/package.json')), 'bin/vite.js');
 const options = parseOptions(process.argv.slice(2));
-const metadata = readBuildMetadata();
+const metadata = readBuildMetadata(options.sourceMarker);
 const actionRoot = process.cwd();
 const { cleanup, workspace } = prepareBuildWorkspace(options.workspace);
 
 const childEnvironment = {
 	...process.env,
-	BASE_PATH: metadata.basePath,
+	// The deployment bundle serves the site at its origin root; no ambient prefix.
+	BASE_PATH: '',
 	BUILD_COMMIT_SHA: metadata.commitSha,
 	BUILD_OUTPUT_DIR: resolve(actionRoot, options.outputDir),
 };
@@ -119,6 +120,7 @@ function parseOptions(args) {
 		analyze: false,
 		analyzeOutput: '.bundle-stats/stats.html',
 		outputDir: 'build',
+		sourceMarker: undefined,
 		workspace: undefined,
 	};
 	for (let index = 0; index < args.length; index += 1) {
@@ -135,11 +137,15 @@ function parseOptions(args) {
 			case '--workspace':
 				options.workspace = requireValue(args, ++index, '--workspace');
 				break;
+			case '--source-marker':
+				options.sourceMarker = requireValue(args, ++index, '--source-marker');
+				break;
 			default:
 				throw new Error(`unknown build runner option: ${args[index]}`);
 		}
 	}
 	if (!options.workspace) throw new Error('--workspace is required');
+	if (!options.sourceMarker) throw new Error('--source-marker is required');
 	return options;
 }
 
@@ -148,24 +154,14 @@ function requireValue(args, index, option) {
 	return args[index];
 }
 
-function readBuildMetadata() {
-	const statusPath = process.env.BAZEL_STABLE_STATUS_FILE;
-	if (!statusPath) {
-		throw new Error('BAZEL_STABLE_STATUS_FILE is required; //:build and //:analyze must be stamped');
-	}
-	const declaredStatusPath = resolve(process.env.JS_BINARY__EXECROOT ?? process.cwd(), statusPath);
-	const values = new Map();
-	for (const line of readFileSync(declaredStatusPath, 'utf8').split(/\r?\n/)) {
-		const separator = line.indexOf(' ');
-		if (separator > 0) values.set(line.slice(0, separator), line.slice(separator + 1));
-	}
-	const encodedBasePath = values.get('STABLE_BUILD_BASE_PATH');
-	const commitSha = values.get('STABLE_BUILD_COMMIT_SHA');
-	if (encodedBasePath === undefined || !commitSha) {
-		throw new Error(`build metadata keys are missing from ${declaredStatusPath}`);
+function readBuildMetadata(sourceMarker) {
+	const markerPath = resolve(process.env.JS_BINARY__EXECROOT ?? process.cwd(), sourceMarker);
+	const sourceSha = readFileSync(markerPath, 'utf8');
+	if (sourceSha.length !== 40 || !/^[0-9a-f]{40}$/.test(sourceSha)) {
+		throw new Error('source marker must be exactly 40 lowercase hex characters');
 	}
 	return {
-		basePath: encodedBasePath === '__EMPTY__' ? '' : encodedBasePath,
-		commitSha,
+		// Caddy serves the full marker at /health.sha; page bundles use its prefix.
+		commitSha: sourceSha.slice(0, 7),
 	};
 }

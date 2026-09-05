@@ -196,7 +196,7 @@
 				     name (AGENTS.md sanctions exactly one repository pointer, the
 				     SourceLink affordance) — no sha length escapes a path-segment
 				     ban, and a stamped `just build` fails on the href. The
-				     leak-scan-stamped gate and src/lib/leak-scan.test.ts pin this;
+				     remote site-build gate and src/lib/leak-scan.test.ts pin this;
 				     the link half of D10 is a recorded residual behind an operator
 				     ruling that would widen the sanctioned exception. -->
 				{#if buildShaShort}

@@ -72,10 +72,7 @@ def _actionlint_test_impl(ctx):
             "set -eu",
             'readonly source_root="${TEST_SRCDIR:?}/${TEST_WORKSPACE:?}"',
             'readonly actionlint="${TEST_SRCDIR:?}/' + actionlint_path + '"',
-            'exec "${actionlint}" -config-file "${source_root}/' +
-            ctx.file.config.short_path +
-            '" ' +
-            " ".join(workflow_paths),
+            'exec "${actionlint}" ' + " ".join(workflow_paths),
             "",
         ]),
         is_executable = True,
@@ -83,10 +80,7 @@ def _actionlint_test_impl(ctx):
     )
 
     runfiles = ctx.runfiles(
-        files = ctx.files.srcs + [
-            ctx.file.config,
-            ctx.executable._actionlint,
-        ],
+        files = ctx.files.srcs + [ctx.executable._actionlint],
     )
     runfiles = runfiles.merge(ctx.attr._actionlint[DefaultInfo].default_runfiles)
 
@@ -100,10 +94,6 @@ actionlint_test = rule(
     attrs = {
         "srcs": attr.label_list(
             allow_files = True,
-            mandatory = True,
-        ),
-        "config": attr.label(
-            allow_single_file = True,
             mandatory = True,
         ),
         "_actionlint": attr.label(

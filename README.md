@@ -29,18 +29,24 @@ finite build and test graph. This repo carries an explicit Skeleton 5.0.0
 exception based on the proven `jesssullivan.github.io` Svelte 5 pattern.
 
 ```bash
-direnv allow
-just setup
 just check
 just build
 ```
 
-`just build` materializes the deployable static site under `build/`.
+Both commands call the image-custodied GF client using this checkout's exact
+source SHA and checked-in ActionPlan. Missing client, identity, App, overlay,
+or remote execution authority fails closed; there is no local build/test path.
+`just build` writes qualified-result audit files naming the exact CAS-backed
+deployment bundle into a new `.gf-site-build-result/` directory. Those files
+do not materialize the bundle or confer publication authority. Pass a different
+new absolute result directory for another export; existing results are not
+overwritten.
 
-`just container-image-publish` is a Linux CI-only entrypoint that publishes the
-same static artifact as an immutable
-`ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>` candidate. It
-does not deploy or select the image for production.
+The GF-I09 publisher, not an application-repository workflow or local Nix
+build, composes and publishes the qualified layer with the runtime base.
+Publication does not itself select or deploy the image for production.
+`just setup` and the Nix shell remain source-editing conveniences, not
+prerequisites for remote execution or substitutes for its authority.
 
 The source repository remains private. After review, the operator release lane
 may make only this public web image package anonymous-readable and must prove a

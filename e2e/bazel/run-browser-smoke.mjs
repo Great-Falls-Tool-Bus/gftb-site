@@ -103,9 +103,8 @@ try {
 		const provenanceCount = await page.locator(provenanceSelector).count();
 		if (provenanceCount === 0) {
 			throw new Error(
-				`footer build-sha provenance element (${provenanceSelector}) is absent — the //:build stamp carried no ` +
-					'commit identity (BUILD_COMMIT_SHA / GITHUB_SHA). Fabric and CI invocations stamp a real sha; for an ' +
-					'identity-less local run relax with --test_env=GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=0.',
+				`footer build-sha provenance element (${provenanceSelector}) is absent — the //:build source marker carried no ` +
+					'commit identity. The marker projects the GF-bound BUILD_EMBED_LABEL for the accepted source SHA.',
 			);
 		}
 	}

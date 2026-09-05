@@ -150,7 +150,7 @@ describe('leak-scan detections', () => {
 		// repository pointer, the SourceLink affordance), and no sha length
 		// escapes a path-segment ban. Local builds stamp 'unknown' and render
 		// no provenance line at all, so these rows plus the `just
-		// //:scanned_build and leak-scan-stamped gates keep the stamped artifact honest.
+		// //:scanned_build and remote site-build gates keep the stamped artifact honest.
 		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/commit/deadbee')).toContain(
 			'internal-tracker-reference',
 		);
@@ -289,7 +289,7 @@ describe('content-train B1: unpublished drafts never reach a build artefact', ()
 
 	it('scripts/check-build-output.mjs always folds draft literals into the denylist, unconditionally', () => {
 		// Belt and braces over the wiring: this is what makes `//:scanned_build`
-		// and `just leak-scan-stamped` (both real-artefact gates) enforce the row
+		// and `just remote site-build` (both real-artefact gates) enforce the row
 		// above on the actual build/ directory, without an operator having to
 		// remember to set GFTB_LEAK_SCAN_DENY.
 		const runner = readFileSync(path.join(repoRoot, 'scripts/check-build-output.mjs'), 'utf8');
