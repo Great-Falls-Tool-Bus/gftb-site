@@ -280,6 +280,69 @@ test('keyboard focus inside the list pauses the wipers and reveals the focused n
 	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
 });
 
+test('focus during an outbound wipe keeps the selected note visible after that sweep ends', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'High');
+	const region = pane(page);
+	// Catch a real CSS animation start and focus in that same browser turn;
+	// separate test-driver calls could miss the short outbound stroke.
+	const observed = await region.evaluate(
+		(el) =>
+			new Promise<{
+				index: number;
+				state: string | null;
+				stroke: string | null;
+				opacity: string;
+				sweepMs: number;
+			}>((resolve, reject) => {
+				const arm = el.querySelector('.wiper-arm--left');
+				if (!arm) return reject(new Error('the wiper arm is missing'));
+				const timer = setTimeout(() => {
+					arm.removeEventListener('animationstart', onStart);
+					reject(new Error('no outbound wiper animation started'));
+				}, 10_000);
+				function onStart(event: Event) {
+					if (event.target !== arm || (event as AnimationEvent).animationName !== 'wiper-sweep') return;
+					clearTimeout(timer);
+					arm?.removeEventListener('animationstart', onStart);
+					const rows = Array.from(el.querySelectorAll<HTMLElement>('.goal-list > li'));
+					const index = rows.findIndex((row) => !row.classList.contains('is-current'));
+					const row = rows[index];
+					const edit = row?.querySelector<HTMLAnchorElement>('.goal-edit a');
+					if (!row || !edit) return reject(new Error('an off-page note Edit link is missing'));
+					const before = {
+						index,
+						state: el.getAttribute('data-state'),
+						stroke: el.getAttribute('data-stroke'),
+						opacity: getComputedStyle(row).opacity,
+						sweepMs: 2 * Number.parseFloat(getComputedStyle(el).getPropertyValue('--wiper-stroke')),
+					};
+					edit.focus();
+					resolve(before);
+				}
+				arm.addEventListener('animationstart', onStart);
+			}),
+	);
+	expect(observed).toMatchObject({ state: 'wiping', stroke: 'out', opacity: '0' });
+	expect(observed.sweepMs).toBeGreaterThan(0);
+	const focusedRow = page.locator('#goals .goal-list > li').nth(observed.index);
+	const edit = focusedRow.locator('.goal-edit a');
+	await expect(edit).toBeFocused();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	await expect(region).toHaveAttribute('data-page', String(Math.floor(observed.index / 3)));
+	await expect(focusedRow).toHaveClass(/is-current/u);
+	await expect(focusedRow).toHaveCSS('transition-duration', '0s');
+	await expect(focusedRow).toHaveCSS('opacity', '1');
+	// Past both the cancelled sweep and its timer failsafe, neither can
+	// advance the page while the same link retains keyboard focus.
+	await page.waitForTimeout(observed.sweepMs + 500);
+	await expect(edit).toBeFocused();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	await expect(region).toHaveAttribute('data-page', String(Math.floor(observed.index / 3)));
+	await expect(focusedRow).toHaveCSS('opacity', '1');
+});
+
 test('every note carries an Edit link to its own source and the pane links the collection', async ({ page }) => {
 	await page.goto('/');
 	const rows = page.locator('#goals .goal-list > li');
@@ -330,15 +393,20 @@ test('paper gets every note and none of the dash', async ({ page }) => {
 	await page.goto('/');
 	await pointerAway(page);
 	await expect(pane(page)).toHaveClass(/wiper--paged/u);
+	// Hold only the blades when the real dwell starts an outbound sweep;
+	// row opacity transitions continue normally and must reach zero first.
+	await page.addStyleTag({ content: '.wiper-arm { animation-play-state: paused !important; }' });
+	await expect(pane(page)).toHaveAttribute('data-stroke', 'out', { timeout: 10_000 });
+	await expect(page.locator('#goals li.is-current').first()).toHaveCSS('opacity', '0');
 	await page.emulateMedia({ media: 'print' });
 	const rows = page.locator('#goals .goal-list > li');
 	const shown = await rows.evaluateAll((els) =>
 		els.map((el) => {
 			const style = getComputedStyle(el);
-			return [style.display !== 'none', style.opacity];
+			return [style.display !== 'none', style.opacity, style.transitionDuration];
 		}),
 	);
-	expect(shown).toEqual(publicGoals.map(() => [true, '1']));
+	expect(shown).toEqual(publicGoals.map(() => [true, '1', '0s']));
 	for (const selector of ['.wiper-controls', '.wiper-arms', '.goal-edit']) {
 		for (const el of await page.locator(`#goals ${selector}`).all()) {
 			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
@@ -359,6 +427,60 @@ test('the pane never widens the page on a narrow phone', async ({ page }) => {
 	expect(overflow.document).toBeLessThanOrEqual(0);
 	expect(overflow.section).toBeLessThanOrEqual(0);
 });
+
+for (const mode of ['off', 'reduced', 'no-js'] as const) {
+	test.describe(`320px resting grid: ${mode}`, () => {
+		test.use({
+			viewport: { width: 320, height: 700 },
+			reducedMotion: mode === 'reduced' ? 'reduce' : 'no-preference',
+			javaScriptEnabled: mode !== 'no-js',
+		});
+
+		test('keeps every row and its links inside the pane without clipping', async ({ page }) => {
+			await page.goto('/');
+			const region = pane(page);
+			if (mode === 'off') await region.getByRole('switch', { name: 'Wipers' }).click();
+			await expect(region).toHaveAttribute('data-state', 'off');
+			const list = page.locator('#goals .goal-list');
+			await expect(list).not.toHaveClass(/wiper-list--paged/u);
+			await expect(list.locator('> li')).toHaveCount(publicGoals.length);
+			await expect(list.locator('.goal-edit a')).toHaveCount(publicGoals.length);
+			for (const row of await list.locator('> li').all()) await expect(row).toHaveCSS('opacity', '1');
+
+			const geometry = await region.evaluate((el) => {
+				const bounds = (node: Element) => {
+					const { left, right, width } = node.getBoundingClientRect();
+					return { left, right, width };
+				};
+				const list = el.querySelector('.goal-list')!;
+				const rect = el.getBoundingClientRect();
+				const style = getComputedStyle(el);
+				return {
+					list: bounds(list),
+					rows: Array.from(list.children, bounds),
+					controls: Array.from(el.querySelectorAll('.goal-list a, .wiper-controls button, .source-link a'), bounds),
+					paneLeft: rect.left + Number.parseFloat(style.borderLeftWidth),
+					paneRight: rect.right - Number.parseFloat(style.borderRightWidth),
+					overflow: document.documentElement.scrollWidth - window.innerWidth,
+				};
+			});
+			expect(geometry.list.width).toBeGreaterThan(0);
+			expect(geometry.rows).toHaveLength(publicGoals.length);
+			for (const row of geometry.rows) {
+				expect(row.width).toBeGreaterThan(0);
+				expect(row.left).toBeGreaterThanOrEqual(geometry.list.left - 1);
+				expect(row.right).toBeLessThanOrEqual(geometry.list.right + 1);
+			}
+			expect(geometry.controls.length).toBeGreaterThan(publicGoals.length);
+			for (const control of geometry.controls) {
+				expect(control.width).toBeGreaterThan(0);
+				expect(control.left).toBeGreaterThanOrEqual(geometry.paneLeft - 1);
+				expect(control.right).toBeLessThanOrEqual(geometry.paneRight + 1);
+			}
+			expect(geometry.overflow).toBeLessThanOrEqual(0);
+		});
+	});
+}
 
 const AA = 4.5;
 const LARGE = 3;

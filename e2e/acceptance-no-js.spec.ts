@@ -3,7 +3,7 @@ import { expect, test } from './support/fixtures';
 
 import { primaryNavItems } from '../src/lib/nav-items';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
-import { CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
+import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 
 async function unresolvedHomeHashes(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
@@ -185,7 +185,11 @@ test.describe('JavaScript enabled', () => {
 
 		// The contact page may talk to exactly the form origin.
 		requested.length = 0;
-		await page.goto('/contact');
+		// Idle can precede hydration and its auto=onload challenge fetch.
+		const challenge = page.waitForRequest(
+			(request) => request.url() === CHALLENGE_URL && request.method() === 'GET',
+		);
+		await Promise.all([challenge, page.goto('/contact')]);
 		await page.waitForLoadState('networkidle');
 		const contactOrigins = new Set(requested.map((url) => new URL(url).origin));
 		contactOrigins.delete(new URL(baseUrl).origin);

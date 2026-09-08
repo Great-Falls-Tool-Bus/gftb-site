@@ -71,6 +71,10 @@ export class WiperCycle {
 
 	/** Focus-follow: show the page holding `index` at once, with no wipe. */
 	reveal(index: number, pageSize: number): void {
+		// Abandon the sweep before selecting the focused page. Calling finish()
+		// would advance an outbound wipe; late sweep events must instead be inert.
+		this.phase = 'dwell';
+		this.activeSweepMs = 0;
 		this.page = Math.floor(index / Math.max(pageSize, 1));
 	}
 

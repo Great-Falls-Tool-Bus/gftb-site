@@ -159,7 +159,9 @@ describe('the wiper rotator source contract', () => {
 		expect(appCss).toMatch(/\.wiper-list--paged > li \{[^}]*grid-row: 1;/u);
 		expect(appCss).toMatch(/\.wiper-list--paged > li \{[^}]*opacity: 0;/u);
 		expect(appCss).toMatch(/\.wiper-list--paged > li\.is-current \{[^}]*opacity: 1;/u);
-		// The resting grid the served HTML lays out as (never-cards, unchanged numbers).
-		expect(appCss).toMatch(/\.goal-list \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(17rem, 1fr\)\);/u);
+		// The resting grid keeps its preferred width but shrinks inside a narrow pane.
+		expect(appCss).toMatch(
+			/\.goal-list \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(min\(17rem, 100%\), 1fr\)\);/u,
+		);
 	});
 });

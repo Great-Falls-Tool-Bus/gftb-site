@@ -44,8 +44,9 @@
 	//   $effect whose teardown IS the pause;
 	// - rotation pauses while the pointer (mouse, touch or pen) is over the
 	//   pane, while focus is inside the list, and while the document is
-	//   hidden; each of those resumes when it ends. A sweep already in
-	//   flight always finishes (a blade never freezes across the text);
+	//   hidden; each of those resumes when it ends. Pointer/visibility pauses
+	//   let an in-flight sweep finish. Focus-follow cancels it immediately so
+	//   the focused note is visible and cannot turn away beneath the keyboard;
 	// - Off (the stalk's first detent, or the switch) is the resting grid of
 	//   every item, immediately. It is also the rollback surface;
 	// - the status line is aria-live="off" while rotating and "polite" when
@@ -149,12 +150,12 @@
 	// the list. The controls are outside the list on purpose, so someone
 	// operating the stalk can watch the speed change.
 	function onListFocusIn(event: FocusEvent) {
+		cycle.focus = true;
 		const row = (event.target as Element | null)?.closest('li');
 		if (row && listEl) {
 			const index = Array.prototype.indexOf.call(listEl.children, row);
 			if (index >= 0) cycle.reveal(index, pageSize);
 		}
-		cycle.focus = true;
 	}
 
 	function onListFocusOut(event: FocusEvent) {

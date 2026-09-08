@@ -1306,7 +1306,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	padding: 0;
 	list-style: none;
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
 	gap: 1.75rem 2.5rem;
 }
 
@@ -2238,6 +2238,7 @@ figcaption {
 		grid-row: auto !important;
 		grid-column: auto !important;
 		opacity: 1 !important;
+		transition: none !important;
 	}
 
 	.wiper::before,
