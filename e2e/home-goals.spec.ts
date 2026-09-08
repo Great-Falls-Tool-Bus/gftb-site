@@ -1,4 +1,16 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
+
+// The same generated map SourceLink and NotesAndGoals read (a JSON import
+// needs an import attribute under Playwright's loader; read it directly).
+const sourceMap = JSON.parse(
+	readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/lib/generated/source-map.json'), 'utf8'),
+) as { repoUrl: string; branch: string };
 
 import { publishedGoalEntries } from '../src/lib/generated/goals-manifest';
 import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-goals';
@@ -7,14 +19,16 @@ import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-g
 // benefits render from src/content/goals via the generated manifest; GitHub
 // joins the header; the AX footer row is retired.
 //
-// The goals list now cycles as an accessible carousel
-// (src/lib/components/GoalCarousel.svelte). Every pre-carousel pin below
-// still holds — the OL/role=list markup, the row count and order, the
-// never-cards sweep, the CTA hrefs — because every slide stays in the DOM;
-// the carousel-specific rows (region semantics, controls, pause honesty,
-// reduced-motion stillness, no-JS degradation) follow after them.
+// Operator rulings 2026-09-08: the section is "Notes & Goals" and the rows
+// ride the wiper rotator (src/lib/components/WiperRotator.svelte, goals
+// consumer NotesAndGoals.svelte). Every pre-rotator pin below still holds
+// (the OL/role=list markup, the row count and order, the never-cards sweep,
+// the CTA hrefs) because every row stays in the DOM in every state; the
+// rotator-specific rows (two controls, pause honesty, focus-follow, the
+// stalk, edit links, reduced-motion stillness, print, glass contrast, no-JS
+// degradation) follow after them.
 
-test('near-term goals render from the manifest as an ordered, borderless list, soonest first', async ({ page }) => {
+test('the notes render from the manifest as an ordered, borderless list, soonest first', async ({ page }) => {
 	await page.goto('/');
 	const list = page.locator('#goals .goal-list');
 	expect(await list.evaluate((el) => el.tagName)).toBe('OL');
@@ -73,141 +87,332 @@ test('member benefits and help asks render with their CTAs', async ({ page }) =>
 	}
 });
 
-test('the goals cycle inside an accessible carousel region with working controls', async ({ page }) => {
+// Wide viewports page three notes at a time; the pane's dwell/stroke timing
+// is read from its own custom properties rather than hardcoded here.
+const WIDE = { width: 1280, height: 900 };
+
+const pane = (page: Page) => page.locator('#goals .wiper');
+const dwellOf = (page: Page) =>
+	pane(page).evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue('--wiper-dwell')));
+const strokeOf = (page: Page) =>
+	pane(page).evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue('--wiper-stroke')));
+const visibleTitles = (page: Page) => page.locator('#goals .goal-list > li.is-current h3').allTextContents();
+
+// Away from the pane: a pointer resting on it is a courtesy pause.
+async function pointerAway(page: Page) {
+	await page.mouse.move(0, 0);
+}
+
+async function selectDetent(page: Page, name: string) {
+	await pane(page).getByRole('radiogroup', { name: 'Wiper speed' }).getByRole('radio', { name }).click();
+	await pointerAway(page);
+}
+
+test('the notes ride a wiper rotator with exactly two controls, and Off is the plain grid', async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const region = page.locator('#goals [aria-roledescription="carousel"]');
-	await expect(region).toHaveAttribute('role', 'region');
-	// The region is named by the section's own heading.
+	await expect(page.locator('#goals h2')).toHaveText('Notes & Goals');
+
+	const region = pane(page);
+	await expect(region).toHaveAttribute('role', 'group');
 	await expect(region).toHaveAttribute('aria-labelledby', 'goals-title');
+	// Hydration paged the list and started the wipers on the default detent.
+	await expect(region).toHaveClass(/wiper--enhanced/u);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	await expect(region).toHaveAttribute('data-page', '0');
 
+	// Every title stays in the DOM while the pages turn: rows are shown and
+	// hidden in place, never mounted and unmounted.
 	const list = page.locator('#goals .goal-list');
-	// Every goal title stays in the DOM while the carousel cycles — slides
-	// are paged by scroll position, never mounted and unmounted.
 	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
+	expect(await visibleTitles(page)).toEqual(publicGoals.slice(0, 3).map((goal) => goal.metadata.title));
 
-	// Auto-advance is running on load, and the live region is honest about
-	// it: "off" while cycling (Zag flips it to "polite" whenever paused).
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	// Exactly two controls: the switch and the four-detent stalk. No
+	// previous/next/play/pause anywhere in the section.
+	const wipers = region.getByRole('switch', { name: 'Wipers' });
+	await expect(wipers).toHaveAttribute('aria-checked', 'true');
+	const stalk = region.getByRole('radiogroup', { name: 'Wiper speed' });
+	await expect(stalk.getByRole('radio')).toHaveText(['Off', 'Intermittent', 'Low', 'High']);
+	await expect(stalk.getByRole('radio', { name: 'Intermittent' })).toHaveAttribute('aria-checked', 'true');
+	await expect(page.locator('#goals button')).toHaveCount(5);
+	await expect(page.locator('#goals').getByRole('button', { name: /previous|next|play|pause|advance/iu })).toHaveCount(
+		0,
+	);
 
-	// Visible prev/next and a pause/play control.
-	const prev = region.getByRole('button', { name: 'Previous goal' });
-	const next = region.getByRole('button', { name: 'Next goal' });
-	await expect(prev).toBeVisible();
-	await expect(next).toBeVisible();
-	await expect(region.getByRole('button', { name: 'Pause auto-advance' })).toBeVisible();
+	// The status line is silent while rotating.
+	const status = region.locator('.wiper-status');
+	await expect(status).toHaveAttribute('aria-live', 'off');
 
-	// Stop rotation first so the manual-navigation assertions are
-	// deterministic, then prove the toggle is honest in both directions.
-	await region.getByRole('button', { name: 'Pause auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
+	// Off: the resting grid of every note, at once, and a polite status.
+	await wipers.click();
+	await expect(wipers).toHaveAttribute('aria-checked', 'false');
+	await expect(region).toHaveAttribute('data-state', 'off');
+	await expect(stalk.getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
+	await expect(status).toHaveAttribute('aria-live', 'polite');
+	await expect(list).not.toHaveClass(/wiper-list--paged/u);
+	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
+	expect(await list.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
 
-	await next.click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
-	await prev.click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeLessThan(1);
-
-	await region.getByRole('button', { name: 'Play auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'off');
-	await region.getByRole('button', { name: 'Pause auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
+	// On again restores the last detent. (The pane shrinks back to one page
+	// under the cursor, which may leave the pointer outside it, so the
+	// courtesy-pause state is not asserted here; the hover test covers it.)
+	await wipers.click();
+	await expect(stalk.getByRole('radio', { name: 'Intermittent' })).toHaveAttribute('aria-checked', 'true');
+	await pointerAway(page);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	await expect(status).toHaveAttribute('aria-live', 'off');
 });
 
-test('hovering the goals pauses auto-advance and leaving resumes it', async ({ page }) => {
+test('the stalk sets the dwell, rides a roving tabindex, and Off on the stalk is the switch off', async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	const region = pane(page);
+	const stalk = region.getByRole('radiogroup', { name: 'Wiper speed' });
 
-	await list.hover();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
+	const dwells: number[] = [];
+	for (const name of ['Intermittent', 'Low', 'High']) {
+		await selectDetent(page, name);
+		await expect(stalk.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
+		await expect(stalk.getByRole('radio', { name })).toHaveAttribute('tabindex', '0');
+		await expect(stalk.getByRole('radio', { checked: false })).toHaveCount(3);
+		for (const other of await stalk.getByRole('radio', { checked: false }).all()) {
+			await expect(other).toHaveAttribute('tabindex', '-1');
+		}
+		dwells.push(await dwellOf(page));
+	}
+	// Faster detents dwell for less time; the sweep is always shorter than the dwell.
+	expect(dwells[0]).toBeGreaterThan(dwells[1]);
+	expect(dwells[1]).toBeGreaterThan(dwells[2]);
+	expect(dwells[2]).toBeGreaterThanOrEqual(1000);
 
-	// Longer than the 7s auto-advance interval: the scroller must not move
-	// while the pointer rests on it.
-	const before = await list.evaluate((el) => el.scrollLeft);
-	await page.waitForTimeout(8000);
-	expect(await list.evaluate((el) => el.scrollLeft)).toBe(before);
-
-	// Pointer leaves — the courtesy pause lifts.
-	await page.mouse.move(0, 0);
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	// Arrow keys move the selection (and focus) with wrap-around.
+	await stalk.getByRole('radio', { name: 'High' }).focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(stalk.getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
+	await expect(stalk.getByRole('radio', { name: 'Off' })).toBeFocused();
+	await expect(region).toHaveAttribute('data-state', 'off');
+	await expect(region.getByRole('switch', { name: 'Wipers' })).toHaveAttribute('aria-checked', 'false');
+	await page.keyboard.press('ArrowLeft');
+	await expect(stalk.getByRole('radio', { name: 'High' })).toHaveAttribute('aria-checked', 'true');
+	await page.keyboard.press('Home');
+	await expect(stalk.getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
+	await page.keyboard.press('End');
+	await expect(stalk.getByRole('radio', { name: 'High' })).toHaveAttribute('aria-checked', 'true');
 });
 
-test('keyboard focus inside the goals pauses auto-advance', async ({ page }) => {
+test("a wipe turns the page at the blades' turnaround and every note gets its turn", async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	await selectDetent(page, 'High');
+	const region = pane(page);
+	await region.scrollIntoViewIfNeeded();
+	const pageCount = Math.ceil(publicGoals.length / 3);
+	// One dwell plus a full sweep per turn, with generous slack: under a
+	// loaded parallel run Chromium throttles timers and animation events.
+	const cycleMs = 3 * ((await dwellOf(page)) + 2 * (await strokeOf(page))) + 3000;
 
-	const cta = page.locator('#goals .goal-cta a').first();
-	await cta.focus();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-
-	// Focus moves on, the courtesy pause lifts.
-	await cta.blur();
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	// Page index and the titles under it are read in one evaluate: a
+	// turnaround between two separate reads would credit a page's titles to
+	// its predecessor and skip one.
+	const snapshot = () =>
+		region.evaluate((el) => ({
+			page: el.getAttribute('data-page'),
+			titles: Array.from(el.querySelectorAll('li.is-current h3'), (h3) => h3.textContent ?? ''),
+		}));
+	const seen = new Set<string>();
+	for (let turn = 0; turn <= pageCount && seen.size < publicGoals.length; turn += 1) {
+		const snap = await snapshot();
+		for (const title of snap.titles) seen.add(title);
+		await expect.poll(async () => (await snapshot()).page, { timeout: cycleMs }).not.toBe(snap.page);
+	}
+	expect([...seen].sort()).toEqual(publicGoals.map((goal) => goal.metadata.title).sort());
+	// The pane never becomes a scroller and the arms stay inside it.
+	expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
 
-test('the play control restarts rotation even after wheel engagement parks the machine', async ({ page }) => {
+test('a pointer over the pane pauses the wipers and leaving resumes them', async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	await selectDetent(page, 'High');
+	const region = pane(page);
+	const status = region.locator('.wiper-status');
+	const dwell = await dwellOf(page);
+	const stroke = await strokeOf(page);
 
-	// A vertical wheel over the slides is direct engagement: rotation stops
-	// and stays stopped (no courtesy resume when the pointer leaves). Under
-	// the hood this is also the gesture that walks Zag into its userScroll
-	// state with no SCROLL.END ever coming — the item group never scrolled.
-	await list.hover();
-	await page.mouse.wheel(0, 1);
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-	await page.mouse.move(0, 0);
-	await expect(list).toHaveAttribute('aria-live', 'polite');
+	await region.hover();
+	await expect(region).toHaveAttribute('data-state', /^(paused|wiping)$/u);
+	// A sweep in flight finishes; from then on the page must not turn while
+	// the pointer rests on the pane.
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	await expect(status).toHaveAttribute('aria-live', 'polite');
+	const before = await region.getAttribute('data-page');
+	await page.waitForTimeout(dwell + 2 * stroke + 500);
+	expect(await region.getAttribute('data-page')).toBe(before);
 
-	// The Play control must genuinely restart rotation from that parked
-	// state (userScroll ignores AUTOPLAY.START; the component re-asserts
-	// the current page to reach idle first) — a Play button may not lie.
-	const region = page.locator('#goals [aria-roledescription="carousel"]');
-	await region.getByRole('button', { name: 'Play auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'off');
-	await expect(region.getByRole('button', { name: 'Pause auto-advance' })).toBeVisible();
+	await pointerAway(page);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	await expect(status).toHaveAttribute('aria-live', 'off');
+	await expect
+		.poll(async () => region.getAttribute('data-page'), { timeout: dwell + 2 * stroke + 1500 })
+		.not.toBe(before);
 });
 
-test('reduced motion never auto-advances; manual navigation still works', async ({ page }) => {
+test('keyboard focus inside the list pauses the wipers and reveals the focused note', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await pointerAway(page);
+	const region = pane(page);
+	const rows = page.locator('#goals .goal-list > li');
+	const lastIndex = publicGoals.length - 1;
+	const lastTitle = publicGoals[lastIndex].metadata.title;
+
+	// The last note sits on the last page; focusing its Edit link brings
+	// that page forward at once, with no wipe, and holds it.
+	const edit = rows.nth(lastIndex).getByRole('link', { name: `Edit ${lastTitle} on GitHub` });
+	await edit.focus();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	await expect(region).toHaveAttribute('data-page', String(Math.floor(lastIndex / 3)));
+	await expect(rows.nth(lastIndex)).toBeVisible();
+	await expect(edit).toBeFocused();
+
+	// Focus moves on (to the dash, which is outside the list): rotation resumes.
+	await region.getByRole('switch', { name: 'Wipers' }).focus();
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+});
+
+test('every note carries an Edit link to its own source and the pane links the collection', async ({ page }) => {
+	await page.goto('/');
+	const rows = page.locator('#goals .goal-list > li');
+	for (const [index, goal] of publicGoals.entries()) {
+		const edits = rows.nth(index).locator('.goal-edit a');
+		await expect(edits).toHaveCount(1);
+		await expect(edits).toHaveAttribute('href', `${sourceMap.repoUrl}/edit/${sourceMap.branch}/${goal.sourcePath}`);
+		await expect(edits).toHaveAttribute('aria-label', `Edit ${goal.metadata.title} on GitHub`);
+		await expect(edits).toHaveAttribute('rel', /noopener/u);
+		// Edit is not a CTA: the CTA pin above still points every .goal-cta at /contact.
+		expect(await edits.evaluate((el) => el.closest('.goal-cta'))).toBeNull();
+	}
+	const collection = pane(page).getByRole('link', { name: 'Edit these notes on GitHub' });
+	await expect(collection).toHaveAttribute('href', `${sourceMap.repoUrl}/tree/${sourceMap.branch}/src/content/goals`);
+	await expect(pane(page).locator('.source-link')).toContainText('These notes live in git.');
+});
+
+test('reduced motion never rotates and offers no rotation controls', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
+	const region = pane(page);
 	const list = page.locator('#goals .goal-list');
 
-	// The machine is created without autoplay: the live region reports the
-	// paused state and the rotation control is not offered at all — there
-	// is no rotation to control under reduced motion.
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-	await expect(page.locator('#goals').getByRole('button', { name: /auto-advance/u })).toHaveCount(0);
+	// Enhanced, but not rotatable: the resting grid, no dash, no arms.
+	await expect(region).toHaveClass(/wiper--enhanced/u);
+	await expect(region).toHaveAttribute('data-state', 'off');
+	await expect(page.locator('#goals button')).toHaveCount(0);
+	await expect(region.locator('svg')).toHaveCount(0);
+	await expect(list).not.toHaveClass(/wiper-list--paged/u);
+	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
 
-	// Longer than the auto-advance interval: nothing moves on its own.
-	expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
-	await page.waitForTimeout(8000);
-	expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
-
-	// Manual prev/next still work (with instant, non-smooth scrolls).
-	const region = page.locator('#goals [aria-roledescription="carousel"]');
-	await region.getByRole('button', { name: 'Next goal' }).click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
-	await region.getByRole('button', { name: 'Previous goal' }).click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeLessThan(1);
+	// Longer than the default dwell: nothing moves on its own, nothing animates.
+	await page.waitForTimeout(6000);
+	await expect(region).toHaveAttribute('data-state', 'off');
+	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
+	expect(
+		await page.evaluate(
+			() =>
+				document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals')).length,
+		),
+	).toBe(0);
+	expect(await region.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe('none');
 });
+
+test('paper gets every note and none of the dash', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await pointerAway(page);
+	await expect(pane(page)).toHaveClass(/wiper--paged/u);
+	await page.emulateMedia({ media: 'print' });
+	const rows = page.locator('#goals .goal-list > li');
+	const shown = await rows.evaluateAll((els) =>
+		els.map((el) => {
+			const style = getComputedStyle(el);
+			return [style.display !== 'none', style.opacity];
+		}),
+	);
+	expect(shown).toEqual(publicGoals.map(() => [true, '1']));
+	for (const selector of ['.wiper-controls', '.wiper-arms', '.goal-edit']) {
+		for (const el of await page.locator(`#goals ${selector}`).all()) {
+			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
+		}
+	}
+});
+
+test('the pane never widens the page on a narrow phone', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 700 });
+	await page.goto('/');
+	await pointerAway(page);
+	// One note per page below 48rem.
+	expect(await visibleTitles(page)).toHaveLength(1);
+	const overflow = await page.evaluate(() => ({
+		document: document.documentElement.scrollWidth - window.innerWidth,
+		section: document.querySelector('#goals')!.scrollWidth - document.querySelector('#goals')!.clientWidth,
+	}));
+	expect(overflow.document).toBeLessThanOrEqual(0);
+	expect(overflow.section).toBeLessThanOrEqual(0);
+});
+
+const AA = 4.5;
+const LARGE = 3;
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the pane's ink clears its floor against the real rendered glass (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		expect(await pane(page).evaluate((el) => getComputedStyle(el).backdropFilter)).toContain('blur');
+
+		// Any pixel of the pane can sit behind any of its ink, so every pair
+		// is held to the worse of the two extremes.
+		// A 16px inset keeps the pane's own 1px --rule border (the same border
+		// .hero-glass carries) out of the scan; no ink ever sits on it.
+		const extremes = await measureGlassExtremes(page, '#goals .wiper', 16);
+		const worst = async (role: string) => {
+			const ink = await resolveRoleRgb(page, role);
+			return Math.min(
+				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
+				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
+			);
+		};
+		expect(await worst('--fg'), 'body copy on the pane').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--fg-muted'), 'window / edit copy on the pane').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--link'), 'CTA and edit links on the pane').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--heading'), 'note titles on the pane').toBeGreaterThanOrEqual(LARGE);
+		expect(await worst('--accent'), 'dash control boundaries on the pane').toBeGreaterThanOrEqual(LARGE);
+	});
+}
 
 test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
 
-	test('the served HTML degrades to the resting goals grid with no dead chrome', async ({ page }) => {
+	test('the served HTML is the resting grid with no dead chrome', async ({ page }) => {
 		await page.goto('/');
 		const list = page.locator('#goals .goal-list');
 		await expect(list.locator('> li')).toHaveCount(publicGoals.length);
-		// No carousel chrome in the static document: no inert buttons, no
-		// scroll-snap inline layout on the list, no hidden slides.
+		// No rotator chrome in the static document: no buttons, no switch, no
+		// stalk, no arms, no inline style on the list, no hidden rows.
 		await expect(page.locator('#goals button')).toHaveCount(0);
+		await expect(page.locator('#goals [role="switch"], #goals [role="radiogroup"]')).toHaveCount(0);
+		await expect(page.locator('#goals .wiper svg')).toHaveCount(0);
 		await expect(list).not.toHaveAttribute('style', /./u);
 		await expect(page.locator('#goals [aria-hidden="true"]')).toHaveCount(0);
-		// The resting layout is the ratified borderless grid, not a scroller.
+		await expect(pane(page)).toHaveAttribute('data-state', 'off');
+		// The resting layout is the ratified borderless grid inside the pane,
+		// not a scroller; the edit links are already there.
 		expect(await list.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
 		expect(await list.evaluate((el) => getComputedStyle(el).overflowX)).toBe('visible');
+		await expect(page.locator('#goals .goal-edit a')).toHaveCount(publicGoals.length);
 	});
 });
 

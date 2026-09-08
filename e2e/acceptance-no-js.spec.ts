@@ -33,7 +33,7 @@ test.describe('JavaScript disabled', () => {
 		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Current status' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Public work sessions' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Near-term goals' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Notes & Goals' })).toBeVisible();
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
 		await expect(page.getByRole('heading', { name: 'Public log', exact: true })).toBeVisible();
