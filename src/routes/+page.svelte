@@ -127,43 +127,23 @@
 			<h2 id="status-title">Current status</h2>
 			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
 			<p class="muted">Updates here describe completed work.</p>
+			<!-- Current operator placement: the recurring hours belong in the
+			     hero, once. Naming consent covers the schedule, not a live location. -->
+			<section class="hero-session" aria-labelledby="next-title">
+				<h3 id="next-title">Public work sessions</h3>
+				<p>
+					Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the
+					<a href="/contact">contact form</a> to confirm before traveling.
+				</p>
+				<p class="muted">
+					Exact location details are shared directly. A confirmed one-off session will be posted here.
+				</p>
+			</section>
 		</aside>
 	</div>
 </section>
 
 <div class="page-shell">
-	<!-- Row 2 (spec §3 :86): next confirmed public work session, or the honest
-	     not-scheduled state. This band is the restored yellow livery block
-	     (gen_board.py:166-168; addendum B1.1). -->
-	<section class="section reveal-armed" use:reveal={{ delay: 0 }} aria-labelledby="next-title">
-		<div class="next-session">
-			<div>
-				<!-- TODO(jess): next-session block (salvaged from restoration
-				     PR-5). The session name and hands-on description were swept
-				     as unverified specifics; restore whatever is real:
-				       heading: "Waterproofing + measurements"
-				       chip: "Schedule being confirmed"
-				       body: "Our current hands-on focus is sealing the body and
-				       openings, then measuring wonky shapes that may need
-				       fabricated inserts."
-				     Operator ruling 2026-08-31: the recurring Friday window is the
-				     public work session, so the hours moved here from the status
-				     card (which keeps only the not-live-yet statement). The
-				     schedule line is consent-covered (meta steering/naming-consent,
-				     row added 2026-08-30). A confirmed one-off session replaces the chip. -->
-				<h2 id="next-title">Public work sessions</h2>
-				<p class="date-chip">Fridays, about 3 to 5 PM ET</p>
-			</div>
-			<div>
-				<p>
-					Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the
-					<a href="/contact">contact form</a> to confirm before traveling.
-				</p>
-				<p>Exact location details are shared directly. A confirmed one-off session will be posted here.</p>
-			</div>
-		</div>
-	</section>
-
 	<!-- Row 4 (spec §3 :88): near-term goals and specific ways to help.
 	     Empty until the operator authors them (see the TODO slots in the
 	     script block). -->

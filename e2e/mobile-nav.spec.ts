@@ -20,7 +20,7 @@ test('mobile public front door exposes current status and working anchors', asyn
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeAttached();
 	await expect(page.getByText('Current status')).toBeAttached();
-	await expect(page.locator('.next-session .date-chip')).toHaveText('Fridays, about 3 to 5 PM ET');
+	await expect(page.locator('.hero .hero-session')).toContainText('Fridays, about 3 to 5 PM ET');
 	await expect(page.getByText('Sunday, August 16, 2026 · afternoon')).toHaveCount(0);
 
 	// The primary CTA is a page link now (B1.4): the form lives on /contact.

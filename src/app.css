@@ -951,6 +951,21 @@ li {
 	color: var(--heading);
 }
 
+.motion-permission {
+	position: fixed;
+	left: 1rem;
+	bottom: 1rem;
+	z-index: var(--z-dropdown);
+	max-width: calc(100% - 2rem);
+	font-size: 0.85rem;
+	text-align: left;
+	cursor: pointer;
+}
+
+.motion-permission:disabled {
+	cursor: wait;
+}
+
 /* The sole button focus indicator (the decorative hover glow was stripped,
  * de-slop ruling 2026-08-19). The ring adjoins two colours — the button's
  * accent fill and the ground behind it — and SC 1.4.11 asks it to separate
@@ -973,8 +988,8 @@ li {
  * itself — AA need or it goes), that makes the border+fill decoration, and
  * it goes; these render as page ground now (surfaces() in
  * design-token-contrast.test.ts models `card` as `page` for the same
- * reason). `.next-session` is explicitly excluded — it is the one ratified
- * coloured container (gen_board.py:166-168) and was never a candidate. */
+ * reason). The recurring work-session content now uses the hero's existing
+ * glass treatment under the September 8 placement ruling. */
 .status-card,
 .card,
 .log-entry,
@@ -987,9 +1002,8 @@ li {
 	border-radius: 0;
 }
 
-/* The purple contact panel is FLATTENED (operator ruling 2026-08-31): every
- * surface is borderless sitewide, whitespace separates them, and
- * .next-session is the one sanctioned coloured container. This supersedes
+/* The purple contact panel is FLATTENED (operator ruling 2026-08-31):
+ * content sections use whitespace to separate them. This supersedes
  * the 2026-08-20 restoration (addendum B1, gen_board.py:170-179) that
  * inverted this panel to primary-900/purple with its own --inverse-* ink
  * group. The form now sits on plain page ground and picks up the ordinary
@@ -1215,38 +1229,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	color: var(--accent);
 }
 
-/* The yellow livery block, restored (gen_board.py:166-168; addendum B1): the
- * next-session/status band is THE one coloured container the ratified table
- * names. --highlight is scheme-invariant (secondary-300, 9.57:1 non-text on
- * the dark page), the 1.4.11 rescue edge carries the paper-side boundary
- * (secondary-700 light / secondary-500 dark), headings pin to
- * --highlight-heading (primary-800, both schemes) and copy to the ratified
- * contrast token (--highlight-contrast = secondary-950, 7.26:1). PR #25
- * flattened this to page roles on an invalid interview; this is the
- * correction. */
-.next-session {
-	display: grid;
-	gap: 1.25rem;
-	border: 1px solid var(--highlight-edge);
-	background: var(--highlight);
-	padding: clamp(1.35rem, 4vw, 2rem);
-	color: var(--highlight-contrast);
-}
-
-.next-session h2 {
-	margin-bottom: 0.75rem;
-	color: var(--highlight-heading);
-}
-
-/* Anchors on the yellow fill keep the ratified "headings on the yellow
- * fill" pair (primary-800, AA at every size there). */
-.next-session a {
-	color: var(--highlight-heading);
-}
-
-.date-chip {
-	font-size: 1.1rem;
-	font-weight: 800;
+.hero-session {
+	margin-top: 1.5rem;
 }
 
 /* Operator ruling 2026-08-30: log surfaces are borderless. The entry sits
@@ -1829,7 +1813,6 @@ figcaption {
 	}
 
 	.grid--2,
-	.next-session,
 	.contact-card {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		align-items: center;
@@ -1870,7 +1853,8 @@ figcaption {
 	.site-footer,
 	.skip-link,
 	.hero__media,
-	.brand-vectors-bg {
+	.brand-vectors-bg,
+	.motion-permission {
 		display: none !important;
 	}
 

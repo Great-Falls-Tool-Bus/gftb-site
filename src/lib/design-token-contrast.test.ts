@@ -313,15 +313,6 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		expect(appCss).not.toMatch(/\.contact-form input,[\s\S]*?background: var\(--inverse-fg\);/u);
 	});
 
-	it('restores the yellow livery band with its rescue edge and pinned heading ink', () => {
-		// gen_board.py:166-168: the band is --highlight with the 1.4.11
-		// rescue edge and primary-800 headings, in both schemes.
-		expect(appCss).toMatch(
-			/\.next-session \{[\s\S]*?border: 1px solid var\(--highlight-edge\);[\s\S]*?background: var\(--highlight\);/u,
-		);
-		expect(appCss).toMatch(/\.next-session h2 \{[\s\S]*?color: var\(--highlight-heading\);/u);
-	});
-
 	it('keeps the field focus indicator on the page-ground rescue edge, same as the skip-link', () => {
 		// While the panel stood, the bare yellow WAS the ratified indicator
 		// (secondary-300 on primary-900, 7.77:1, gen_board.py:221). The
