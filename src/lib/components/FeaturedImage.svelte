@@ -16,8 +16,8 @@
 	// Consumers: the /log archive rows (thumb), the /log/<slug> permalink
 	// (hero), and — since the 2026-09-01 batch's deferred home-integration
 	// item — the home latest-5 citation rows (thumb). The home goals
-	// carousel consumes the same frontmatter group through its own designed
-	// `media` snippet (GoalCarousel.svelte) rather than this component.
+	// rotator consumes the same frontmatter group through the home page's
+	// designed `media` snippet (NotesAndGoals.svelte) rather than this component.
 	interface Props {
 		src?: string;
 		alt?: string;
