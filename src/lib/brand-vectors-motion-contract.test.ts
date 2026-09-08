@@ -100,8 +100,9 @@ describe('tinyvectors default-motion contract', () => {
 		// full freeze under prefers-reduced-motion).
 		expect(block![0]).not.toMatch(/animated=\{false\}/);
 		expect(block![0]).not.toMatch(/respectReducedMotion=\{false\}/);
-		// Devicemotion stays the enhancement layer (dormant on iOS Safari,
-		// which 0.3.7 gates behind a user-gesture grant this surface omits).
+		// Devicemotion stays the enhancement layer. The bound instance's
+		// existing permission API supplies the separate user-gesture control.
 		expect(block![0]).toMatch(/enableDeviceMotion=\{true\}/);
+		expect(block![0]).toMatch(/bind:this=\{tinyVectorsRef\}/);
 	});
 });

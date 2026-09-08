@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { TinyVectors } from '@tummycrypt/tinyvectors';
 	import SEOHead from '$lib/components/SEOHead.svelte';
@@ -9,6 +9,11 @@
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import { theme } from '$lib/theme.svelte';
+	import {
+		createDeviceMotionPermission,
+		type DeviceMotionTarget,
+		type MotionPermissionState,
+	} from '$lib/device-motion-permission';
 	import sourceMap from '$lib/generated/source-map.json';
 	import '../app.css';
 
@@ -23,6 +28,25 @@
 	// traffic, so deferring them to idle restores the pre-blob enhancement
 	// timeline while changing nothing the visitor can interact with.
 	let brandVectorsReady = $state(false);
+	let tinyVectorsRef = $state<DeviceMotionTarget>();
+	let motionPermission = $state<ReturnType<typeof createDeviceMotionPermission>>();
+	let motionPermissionState = $state<MotionPermissionState>({ visible: false, busy: false });
+
+	// The component binds after the idle callback, potentially long after
+	// onMount. Track that binding rather than sampling an absent ref once.
+	$effect(() => {
+		const control = motionPermission;
+		const target = tinyVectorsRef;
+		untrack(() => control?.setTarget(target));
+	});
+
+	onMount(() => {
+		const control = createDeviceMotionPermission(window.matchMedia('(prefers-reduced-motion: reduce)'), (state) => {
+			motionPermissionState = state;
+		});
+		motionPermission = control;
+		return () => control.destroy();
+	});
 
 	onMount(() => {
 		// Hydrate the theme store from localStorage so the mode switch
@@ -133,12 +157,12 @@
 	     opacity, behind the hero's own isolated backdrop stack. v0.3.7 makes
 	     idle drift/bounce the desktop default and honors
 	     prefers-reduced-motion internally, so this call site adds NO motion
-	     logic — config only. On iOS Safari the devicemotion enhancement stays
-	     dormant (0.3.7 never listens without a user-gesture permission grant
-	     this minimal surface does not offer). -->
+	     logic — config only. Browsers requiring a sensor permission gesture
+	     receive the separate, accessible control below after this mount. -->
 	{#if brandVectorsReady}
 		<div class="brand-vectors-bg" aria-hidden="true" data-testid="brand-vectors-bg">
 			<TinyVectors
+				bind:this={tinyVectorsRef}
 				theme="custom"
 				colors={['#cb6738', '#d99d6a', '#a14a52', '#6b4f3a', '#3d6b8c']}
 				opacity={0.1}
@@ -147,6 +171,16 @@
 				enableDeviceMotion={true}
 			/>
 		</div>
+	{/if}
+	{#if motionPermissionState.visible}
+		<button
+			type="button"
+			class="button motion-permission"
+			disabled={motionPermissionState.busy}
+			onclick={() => motionPermission?.request()}
+		>
+			Let the blobs feel your phone move
+		</button>
 	{/if}
 	<a class="skip-link" href="#main-content">Skip to content</a>
 
