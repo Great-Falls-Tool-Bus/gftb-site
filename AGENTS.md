@@ -62,7 +62,10 @@ is not public.
   the protected v4 `validate` action. It registers the schema/conformance and
   immutable-caller contract, current-source Gitleaks, generated source/log/goal
   manifest drift checks, hermetic actionlint, ESLint, Prettier, Svelte checks,
-  and unit tests. Local Just output is never v4 evidence.
+  unit tests, and five Chromium acceptance specs over the declared static
+  build. The browser target requires GF's provisioned Chromium; it never
+  installs a browser or attaches to an ambient preview. Local Just output
+  is never v4 evidence. A passing browser target is not a deployed LOOK.
 - `just conformance` enters the registered `//:bazel_output_contract_test`.
 - `just qr-verify` cross-checks the pinned payload URL against
   `package.json`'s `homepage`, then regenerates the printed apex QR with the

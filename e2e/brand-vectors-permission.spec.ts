@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 
-// Existing browser acceptance source, parked outside the current ActionPlan.
+// Registered in the finite browser target within the validate action.
 // Hold the actual layout's idle mount, rather than testing an already-bound
 // component that would also pass an erroneous onMount-only capability check.
 async function holdVectorMount(page: Page, permission: 'granted' | 'denied' = 'granted') {

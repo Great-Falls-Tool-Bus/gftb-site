@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installExternalGuard, stubChallenge } from './support/network';
 import {
 	compositeOver,
 	contrastRatio,
@@ -15,6 +16,14 @@ import {
 // 0.3832 — turning a 12.4:1 pair into a reported 1.0:1 failure.
 
 test.use({ viewport: { width: 375, height: 667 } });
+
+test.beforeEach(async ({ page, baseURL }) => {
+	if (!baseURL) throw new Error('the browser test configuration must supply its base URL');
+	// Contact starts its challenge on load, including navigation from home.
+	// Install both existing seams before any page navigation.
+	await installExternalGuard(page, baseURL);
+	await stubChallenge(page);
+});
 
 test('mobile public front door exposes current status and working anchors', async ({ page }) => {
 	await page.goto('/');

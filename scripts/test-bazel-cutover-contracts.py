@@ -543,6 +543,7 @@ class RepositoryContractTests(unittest.TestCase):
         validation = bazel_target(self.build, "ci_validation_suite")
         for gate in (
             ":bazel_output_contract_test",
+            ":browser_smoke_test",
             ":current_source_secret_scan_test",
             ":goals_manifest_drift_test",
             ":log_manifest_drift_test",
