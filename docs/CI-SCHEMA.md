@@ -3,6 +3,30 @@
 This is the source CI contract for `Great-Falls-Tool-Bus/gftb-site`; successful
 v4 execution and serving require their separate runtime evidence below.
 
+## Source and release admission
+
+The operator's 2026-09-08 ruling keeps GFTB on GitHub Free and this source
+repository private. GitHub branch-protection status, rulesets, and a paid-plan
+upgrade are not integration or publication gates. Meta ADR 0014 section 7 and
+ADR 0022 Amendment 7 carry the ruling in
+[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63), pending merge
+to Meta `main`.
+
+Integration still requires signed commits, independent review of the exact
+head, and successful registered remote checks. GF/org admission and release
+verification must bind the exact repository, source SHA, workflow identity,
+qualified action output, and signed release. A missing or false GitHub branch
+protection result does not replace those checks or establish their success.
+References to protected canonical `main` mean the exact canonical source
+admitted through GF/org checks; they do not add a GitHub branch-protection
+prerequisite.
+
+This source clarification establishes no installed verifier, published image,
+controller activation, production convergence, or served proof. The existing
+workflow identity, owner authority and independent verification boundaries
+remain required, including the separate Access and LOOK gates. No new policy
+boolean, caller assertion, or consumer execution path supplies that authority.
+
 ## Validation
 
 `.github/workflows/ci.yml` is a thin v4 caller. It dispatches exactly the two

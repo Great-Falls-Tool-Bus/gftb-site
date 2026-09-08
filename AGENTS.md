@@ -142,6 +142,21 @@ analysis, coverage, or candidate-publication recipe outside this plan.
 
 ## Deployment and package safety
 
+Operator ruling, 2026-09-08: GFTB stays on GitHub Free and this source
+repository stays private. GitHub branch protection, rulesets, and a paid plan
+are not prerequisites for this site's integration or publication. The ruling
+is carried by Meta ADR 0014 section 7 and ADR 0022 Amendment 7 in
+[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63), pending merge
+to Meta `main`.
+
+Signed commits, exact-head independent review, and successful registered
+remote checks remain required. GF/org admission must bind the exact
+repository, source and workflow identities, qualified action output, and
+signed release verification. This contract does not claim those mechanisms
+are already installed or that a release has passed them. Keep their runtime
+and owner publication requirements intact; no consumer policy switch or
+fallback replaces them. See [the CI contract](docs/CI-SCHEMA.md).
+
 The GF-I09 publisher owns qualified application publication after the export
 action. This repository has no separate candidate workflow or local Nix
 application-image constructor. It owns neither production dispatch nor infra,
