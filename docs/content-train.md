@@ -123,9 +123,9 @@ PR; only the operator merges it.
 - A normal PR the operator reviews and merges like any other change. No
   auto-merge, no agent merge authority over content PRs.
 
-## Home goals, help asks, and member benefits
+## Home Notes & Goals, help asks, and member benefits
 
-The home page's "Near-term goals" row renders from `src/content/goals/*.md`,
+The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,
 one file per row, through `src/lib/generated/goals-manifest.ts`
 (`just goals-manifest-build`, drift-checked by `just goals-manifest-check`
 inside `just check`). Frontmatter keys: `kind` (`goal`, `help`, or `benefit`),
@@ -135,3 +135,15 @@ read at build time and never emitted). The body is one or two plain sentences.
 Unpublished entries never reach the manifest, and their text joins the
 build-output leak denylist like draft log entries. Operator ruling 2026-08-31:
 these rows are operator-authored and may carry penciled-in dates.
+
+Presentation (operator rulings 2026-09-08): the rows ride the wiper rotator
+(`src/lib/components/WiperRotator.svelte`, goals consumer
+`NotesAndGoals.svelte`), a frosted pane whose page changes are two windshield
+wipers sweeping across it. The only controls are a wipers switch and a speed
+stalk (Off / Intermittent / Low / High); pointer, touch or focus over the pane
+pauses. Wipers off, reduced motion, no-JS and print all show the plain grid
+of every row, which is also the rollback surface. Each row carries an "Edit"
+link to its own source file and the pane links the whole collection
+(`/tree/<branch>/src/content/goals`): the SourceLink "edit this page"
+exception extended to the collection, built from `source-map.json` and the
+manifest's `sourcePath`, never a hardcoded repo string.
