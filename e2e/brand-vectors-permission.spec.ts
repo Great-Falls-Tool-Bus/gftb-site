@@ -71,19 +71,15 @@ for (const permission of ['granted', 'denied'] as const) {
 		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 
-		// A tap on a control inside main does its own job and is never borrowed.
-		// The home page's main carries no native button today, so the row
-		// plants one for the assertion (the guard is DOM-generic: it reads the
-		// tap target, not a component) and removes it afterwards.
-		await page.evaluate(() => {
-			const probe = document.createElement('button');
-			probe.type = 'button';
-			probe.id = 'handshake-probe';
-			probe.textContent = 'probe';
-			document.getElementById('main-content')?.append(probe);
-		});
-		await page.locator('#handshake-probe').click();
-		await page.evaluate(() => document.getElementById('handshake-probe')?.remove());
+		// A tap on a control inside main (the wiper stalk's Off detent) does its
+		// own job and is never borrowed; Intermittent puts the wipers back.
+		const stalk = page.locator('#goals .wiper-stalk');
+		await expect(stalk).toHaveCount(1);
+		await stalk.locator('.wiper-stalk__item', { hasText: 'Off' }).click();
+		await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
+		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+		await stalk.locator('.wiper-stalk__item', { hasText: 'Intermittent' }).click();
+		await expect(page.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 		// A tap on a link is never borrowed either (prevent navigation for the assertion only).

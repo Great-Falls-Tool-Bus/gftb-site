@@ -105,7 +105,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		metadata: {
 			kind: 'help',
 			order: 10,
-			title: 'Good with words? We will need proofreaders for the member documents.',
+			title: 'Good with words? Help us draft copy, proofread docs and share the word!',
 			cta_label: 'Offer an hour',
 			cta_href: '/contact',
 			published: true,
@@ -125,6 +125,19 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		},
 		text: '',
 		sourcePath: 'src/content/goals/71-help-band.md',
+	},
+	{
+		slug: '73-help-bank',
+		metadata: {
+			kind: 'help',
+			order: 10,
+			title: 'What is your favorite local banking institution?',
+			cta_label: 'Tell us where we should park our money',
+			cta_href: '/contact',
+			published: true,
+		},
+		text: '',
+		sourcePath: 'src/content/goals/73-help-bank.md',
 	},
 	{
 		slug: '80-benefit-membership',

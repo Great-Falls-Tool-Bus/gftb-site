@@ -162,7 +162,7 @@ describe('first-gesture phone motion handshake', () => {
 	});
 
 	it('names the interactive ancestors a tap is never borrowed from', () => {
-		for (const tag of ['a', 'button', 'input', 'select', 'textarea', 'summary', '[role="button"]', '[tabindex]']) {
+		for (const tag of ['a', 'button', 'input', 'select', 'textarea', 'summary', 'label', '[role="button"]', '[tabindex]']) {
 			expect(INTERACTIVE_TARGET_SELECTOR).toContain(tag);
 		}
 	});

@@ -60,7 +60,7 @@ export interface MotionHandshakeOptions {
 }
 
 export const INTERACTIVE_TARGET_SELECTOR =
-	'a, button, input, select, textarea, summary, [role="button"], [contenteditable], [tabindex]';
+	'a, button, input, select, textarea, summary, label, [role="button"], [contenteditable], [tabindex]';
 
 const LISTENER_OPTIONS: AddEventListenerOptions = { capture: true, passive: true };
 

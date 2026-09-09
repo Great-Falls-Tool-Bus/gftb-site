@@ -8,7 +8,7 @@
 		"/contact": "src/routes/contact/+page.svelte",
 		"/log": "src/routes/log/+page.svelte",
 		"/log/2026-08-06-drafts-out-and-a-scope-expansion": "src/content/log/2026-08-06-drafts-out-and-a-scope-expansion.svx",
-		"/log/2026-08-11-how-tools-will-move": "src/content/log/2026-08-11-how-tools-will-move.svx",
+		"/log/2026-08-11-semaphore": "src/content/log/2026-08-11-semaphore.svx",
 		"/log/2026-08-13-networking-options-for-the-bus": "src/content/log/2026-08-13-networking-options-for-the-bus.svx",
 		"/log/2026-09-07-alex-the-wheel-maven": "src/content/log/2026-09-07-alex-the-wheel-maven.svx",
 		"/privacy": "src/routes/privacy/+page.svelte",

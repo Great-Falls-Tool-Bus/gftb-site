@@ -11,7 +11,7 @@ const published = [
 		slug: '2026-08-13-networking-options-for-the-bus',
 		title: 'Sizing up networkies for the bus',
 	},
-	{ slug: '2026-08-11-how-tools-will-move', title: 'Sweet semaphores and lore' },
+	{ slug: '2026-08-11-semaphore', title: 'Sweet semaphores and lore' },
 	{
 		slug: '2026-08-06-drafts-out-and-a-scope-expansion',
 		title: 'Hello world, ala 5th Pillar tea house; drafts out for markup',
@@ -19,7 +19,7 @@ const published = [
 ] as const;
 
 const removed = [
-	'2026-08-14-the-system-in-diagrams',
+	'2026-08-11-how-tools-will-move',
 	'2026-08-15-waterproofing-seats-and-a-wants-list',
 	'2026-08-16-public-front-door',
 	'2026-08-17-starting-a-real-public-log',
@@ -32,7 +32,7 @@ test('an entry whose summary equals its title prints the title once', async ({ p
 	// Operator ruling 2026-08-30 (density): the 2026-08-11 summary is
 	// byte-identical to its title; the archive row must not print it twice.
 	await page.goto('/log');
-	const row = page.locator('.log-list li', { has: page.locator('a[href="/log/2026-08-11-how-tools-will-move"]') });
+	const row = page.locator('.log-list li', { has: page.locator('a[href="/log/2026-08-11-semaphore"]') });
 	await expect(row).toHaveCount(1);
 	const text = (await row.innerText()).split('Sweet semaphores and lore').length - 1;
 	expect(text).toBe(1);
@@ -63,7 +63,7 @@ const imagedEntries = [
 		alt: 'Alex kneeling on the ridged bus floor in ear defenders and safety glasses, an angle grinder throwing sparks at the foot of a grey seat frame',
 	},
 	{
-		slug: '2026-08-11-how-tools-will-move',
+		slug: '2026-08-11-semaphore',
 		src: '/photos/log/2026-08-11-how-tools-will-move-1280.webp',
 		alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
 	},
@@ -120,12 +120,15 @@ test('the retired public diagram assets are no longer served', async ({ request 
 	}
 });
 
-test('removed entries stay deleted and the remaining draft stays unpublished', async ({ page }) => {
+test('removed entries stay deleted and retained drafts stay unpublished', async ({ page }) => {
 	for (const slug of removed) {
 		expect(existsSync(path.join(repoRoot, 'src', 'content', 'log', `${slug}.svx`)), slug).toBe(false);
 		const response = await page.goto(`/log/${slug}`);
 		expect(response?.status(), slug).toBe(404);
 	}
-	const response = await page.goto('/log/2026-08-21-the-road-map-plainly');
-	expect(response?.status()).toBe(404);
+	for (const slug of ['2026-08-14-the-system-in-diagrams', '2026-08-21-the-road-map-plainly']) {
+		expect(existsSync(path.join(repoRoot, 'src', 'content', 'log', `${slug}.svx`)), slug).toBe(true);
+		const response = await page.goto(`/log/${slug}`);
+		expect(response?.status(), slug).toBe(404);
+	}
 });

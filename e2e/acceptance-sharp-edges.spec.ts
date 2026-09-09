@@ -49,6 +49,39 @@ test('the mode switch computes sharp corners in both states', async ({ page }) =
 	expect(await sweep(), 'switch corners checked').toEqual([]);
 });
 
+test('the wiper stalk computes sharp corners at rest, Off and High', async ({ page }) => {
+	// Skeleton 5's SegmentedControl ships pill radii on its parts; the stalk
+	// overrides every one (app.css .wiper-stalk*). The indicator moves between
+	// items, so it is swept in three detent states.
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	const stalk = page.locator('#goals .wiper-stalk');
+	await expect(stalk).toHaveCount(1);
+	const sweep = () =>
+		page.evaluate((corners) => {
+			const offenders: string[] = [];
+			for (const element of Array.from(
+				document.querySelectorAll<HTMLElement>(
+					'.wiper-stalk, .wiper-stalk__control, .wiper-stalk__item, .wiper-stalk__text',
+				),
+			)) {
+				const style = getComputedStyle(element);
+				const values = corners.map((corner) => style.getPropertyValue(corner));
+				if (values.some((value) => value !== '0px')) {
+					offenders.push(`${element.className.split(/\s+/u)[0]}: ${values.join(' ')}`);
+				}
+			}
+			return offenders;
+		}, CORNERS);
+	expect(await sweep(), 'stalk corners at rest').toEqual([]);
+	for (const detent of ['Off', 'High']) {
+		await stalk.locator('.wiper-stalk__item', { hasText: detent }).click();
+		await expect(page.getByRole('radio', { name: detent })).toBeChecked();
+		expect(await sweep(), `stalk corners on ${detent}`).toEqual([]);
+	}
+});
+
 for (const path of ['/', '/404', '/log', '/contact']) {
 	test(`no element computes a rounded corner at ${path}`, async ({ page }) => {
 		await page.goto(path);

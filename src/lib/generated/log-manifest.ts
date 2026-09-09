@@ -32,7 +32,7 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		loadComponent: () => import('../../content/log/2026-08-06-drafts-out-and-a-scope-expansion.svx'),
 	},
 	{
-		slug: '2026-08-11-how-tools-will-move',
+		slug: '2026-08-11-semaphore',
 		metadata: {
 			date: '2026-08-11',
 			title: 'Sweet semaphores and lore',
@@ -43,8 +43,8 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 			image_alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
 			image_aspect: '4/3',
 		},
-		sourcePath: 'src/content/log/2026-08-11-how-tools-will-move.svx',
-		loadComponent: () => import('../../content/log/2026-08-11-how-tools-will-move.svx'),
+		sourcePath: 'src/content/log/2026-08-11-semaphore.svx',
+		loadComponent: () => import('../../content/log/2026-08-11-semaphore.svx'),
 	},
 	{
 		slug: '2026-08-13-networking-options-for-the-bus',
