@@ -1667,13 +1667,36 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 		var(--wiper-bevel);
 }
 
-/* Forced colours erase every fill and shadow; give the keys back a border
- * only there. */
+/* Forced colours erase every fill and shadow, so three cues must come back
+ * from system colours alone: the key edge (a border), keyboard focus (an
+ * outline; the box-shadow ring is forced to none and outline: none would
+ * leave nothing), and the latched detent (a thicker Highlight border and a
+ * Highlight thumb that opts out of forcing). */
 @media (forced-colors: active) {
 	.wiper-switch,
 	.wiper-stalk__detent {
 		border: 1px solid ButtonText;
 		border-top-width: 2px;
+	}
+
+	.wiper-switch:focus-visible,
+	.wiper-stalk__detent:focus-visible {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+
+	.wiper-stalk__detent[aria-checked='true'] {
+		border: 3px solid Highlight;
+		border-top-width: 4px;
+	}
+
+	.wiper-switch__thumb {
+		forced-color-adjust: none;
+		background: Highlight;
+	}
+
+	.wiper-switch[aria-checked='false'] .wiper-switch__thumb {
+		background: GrayText;
 	}
 }
 

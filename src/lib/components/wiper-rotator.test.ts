@@ -186,10 +186,25 @@ describe('the dash light-pipe and the aero skin (operator rulings 2026-09-09)', 
 		expect(DEFAULT_WIPER_SKIN).toBe('dash');
 		expect(rotator).toContain('data-skin={skin}');
 		expect(goals).toContain('skin="aero"');
-		// Every aero rule is scoped; the dash skin never inherits one.
+		// Every aero rule is scoped; the dash skin never inherits one. Counting
+		// scoped rules cannot prove that, so this pins the converse: no rule
+		// whose selector lacks data-skin declares an aero-only property (the
+		// gloss token, the gel background-image on the pane, a painted ::after),
+		// and the dash keys keep their transparent fill and invisible bevel.
 		const aeroRules =
 			appCss.match(/^\.wiper\[data-skin='aero'\]|^\[data-mode='dark'\] \.wiper\[data-skin='aero'\]/gmu) ?? [];
 		expect(aeroRules.length).toBeGreaterThanOrEqual(4);
+		const stripped = appCss.replace(/\/\*[\s\S]*?\*\//gu, '');
+		for (const rule of stripped.matchAll(/([^{}]+)\{([^{}]*)\}/gu)) {
+			const [, selector, body] = rule;
+			if (!/\.wiper\b/u.test(selector) || selector.includes('data-skin')) continue;
+			expect(body, selector.trim()).not.toMatch(/--wiper-gloss/u);
+			expect(body, selector.trim()).not.toMatch(/background-image:\s*linear-gradient/u);
+			if (/::after/u.test(selector)) expect(body, selector.trim()).not.toMatch(/content:\s*''/u);
+		}
+		const base = stripped.match(/\n\.wiper \{([^}]*)\}/u)?.[1] ?? '';
+		expect(base).toMatch(/--wiper-key: transparent;/u);
+		expect(base).toMatch(/--wiper-bevel: 0 0 #0000;/u);
 	});
 
 	it('gives each dash key exactly one border, the 2px accent top edge the 1.4.11 collector reads', () => {
