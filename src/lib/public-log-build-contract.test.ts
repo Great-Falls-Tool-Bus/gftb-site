@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { parseLogFrontmatter, readLogEntries } from '../../scripts/lib/log-content.mjs';
 import { assertPublicLogMetadata } from './public-log-schema';
 
 // Acceptance row: static build and frontmatter validity for the .svx logs.
@@ -127,6 +128,47 @@ describe('public log frontmatter', () => {
 			return parseFrontmatter(raw, file).date;
 		});
 		expect(new Set(dates).size).toBe(dates.length);
+	});
+});
+
+describe('public log authoring templates', () => {
+	const templateDirectory = path.join(repoRoot, 'src/content/templates');
+	const templates = ['public-log.svx', 'public-log-with-image.svx'];
+
+	for (const file of templates) {
+		it(`${file} parses as an unpublished draft through the shared reader and schema`, () => {
+			const raw = readFileSync(path.join(templateDirectory, file), 'utf8');
+			const parsed = parseLogFrontmatter(raw, file);
+			const metadata = assertPublicLogMetadata(parsed.metadata, file);
+			expect(metadata.published).toBe(false);
+			expect(parsed.body).toContain('TODO(jess)');
+			expect(metadata.date).toBe('2000-01-01');
+			expect(metadata.tags).toEqual(['replace-this-tag']);
+			expect(metadata.title).toMatch(/^Replace this /u);
+			expect(metadata.summary).toMatch(/^Replace this /u);
+
+			// The existing content contract's independent parser must see the same
+			// values, including booleans and the flat image group, from these bytes.
+			expect(parseFrontmatter(raw, file)).toEqual(metadata);
+			if (file === 'public-log-with-image.svx') {
+				expect(metadata.updated).toBe(metadata.date);
+				expect(metadata.image).toBe('/photos/log/replace-this-image.jpg');
+				expect(metadata.image_alt).toBe('Replace this with a description of the image.');
+				expect(metadata.image_caption).toBe('Replace this with reviewed credit and context.');
+				expect(metadata.image_aspect).toBe('3/2');
+			} else {
+				expect(Object.keys(metadata).sort()).toEqual(['date', 'published', 'summary', 'tags', 'title']);
+			}
+		});
+	}
+
+	it('keeps the reusable examples out of the real log reader and published manifest', () => {
+		const entries = readLogEntries(contentDirectory);
+		const manifest = readFileSync(path.join(repoRoot, 'src/lib/generated/log-manifest.ts'), 'utf8');
+		for (const file of templates) {
+			expect(entries.some((entry) => entry.file === file)).toBe(false);
+			expect(manifest).not.toContain(`content/templates/${file}`);
+		}
 	});
 });
 

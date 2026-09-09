@@ -1,0 +1,17 @@
+---
+date: '2000-01-01'
+title: 'Replace this illustrated draft title'
+summary: 'Replace this example with one useful public sentence about the work.'
+tags:
+  - replace-this-tag
+published: false
+updated: '2000-01-01'
+image: '/photos/log/replace-this-image.jpg'
+image_alt: 'Replace this with a description of the image.'
+image_caption: 'Replace this with reviewed credit and context.'
+image_aspect: '3/2'
+---
+
+<!-- TODO(jess): Replace the example fields and body. Review the image, attribution, and naming consent. -->
+
+Describe one real, public event in your own words.
