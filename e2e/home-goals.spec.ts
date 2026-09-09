@@ -398,7 +398,7 @@ for (const mode of ['enhanced', 'no-js'] as const) {
 }
 
 for (const scheme of ['light', 'dark'] as const) {
-	test(`body copy on bare ground clears its floor over the blob layer (${scheme})`, async ({ page }) => {
+	test(`content glass clears its floor over the blob layer (${scheme})`, async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -411,7 +411,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pointerAway(page);
 		const extremes = await measureGlassExtremes(page, '#goals .goal-asides', 2);
 		const worst = async (role: string) => {
-			const ink = await resolveRoleRgb(page, role);
+			const ink = await resolveRoleRgb(page, role, '#goals .goal-asides');
 			return Math.min(
 				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
 				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),

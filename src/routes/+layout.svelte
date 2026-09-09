@@ -226,8 +226,7 @@
 			<div class="site-footer__intro">
 				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
 				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
-				     Operator ruling 2026-09-09 dropped the "GitHub-verified" label
-				     that used to follow it. Degrade-to-nothing on
+				     Degrade-to-nothing on
 				     local/unstamped builds is already the build-info contract.
 				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
 				     /commit page because that repo is public; this carrier is
@@ -245,8 +244,7 @@
 					</p>
 				{/if}
 				<p class="site-footer__licensing">
-					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · visual credits are listed with
-					each image.
+					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
 				</p>
 			</div>
 			{#each footerNavGroups as group (group.heading)}

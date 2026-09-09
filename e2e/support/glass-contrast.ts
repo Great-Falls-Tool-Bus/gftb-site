@@ -23,25 +23,31 @@ export async function setScheme(page: Page, scheme: 'light' | 'dark') {
 
 /** Resolves a CSS custom property to true 8-bit sRGB via a canvas round-trip
  * (getComputedStyle can hand back an oklch() string verbatim; canvas
- * fillStyle always normalizes to a paintable colour). */
-export async function resolveRoleRgb(page: Page, role: string): Promise<Rgb> {
-	return page.evaluate((cssVar) => {
-		const el = document.createElement('div');
-		el.style.color = `var(${cssVar})`;
-		el.style.position = 'absolute';
-		el.style.opacity = '0';
-		document.body.appendChild(el);
-		const computed = getComputedStyle(el).color;
-		el.remove();
-		const canvas = document.createElement('canvas');
-		canvas.width = 1;
-		canvas.height = 1;
-		const ctx = canvas.getContext('2d')!;
-		ctx.fillStyle = computed;
-		ctx.fillRect(0, 0, 1, 1);
-		const [red, green, blue] = ctx.getImageData(0, 0, 1, 1).data;
-		return { red, green, blue };
-	}, role);
+ * fillStyle always normalizes to a paintable colour). The selected container
+ * supplies inherited local roles, including the stronger glass inks. */
+export async function resolveRoleRgb(page: Page, role: string, selector = 'body'): Promise<Rgb> {
+	return page.evaluate(
+		({ cssVar, scope }) => {
+			const parent = document.querySelector(scope);
+			if (!parent) throw new Error(`${scope} is not present on the page`);
+			const el = document.createElement('div');
+			el.style.color = `var(${cssVar})`;
+			el.style.position = 'absolute';
+			el.style.opacity = '0';
+			parent.appendChild(el);
+			const computed = getComputedStyle(el).color;
+			el.remove();
+			const canvas = document.createElement('canvas');
+			canvas.width = 1;
+			canvas.height = 1;
+			const ctx = canvas.getContext('2d')!;
+			ctx.fillStyle = computed;
+			ctx.fillRect(0, 0, 1, 1);
+			const [red, green, blue] = ctx.getImageData(0, 0, 1, 1).data;
+			return { red, green, blue };
+		},
+		{ cssVar: role, scope: selector },
+	);
 }
 
 /**

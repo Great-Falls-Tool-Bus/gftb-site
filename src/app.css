@@ -152,6 +152,17 @@
 	 * dark by design-token-contrast.test.ts's swept pair) */
 	--control-track: var(--color-surface-300);
 
+	/* Glass ink uses stronger existing palette rungs so a 70% surface stays
+	 * readable even over a black or white backdrop. Global page roles stay
+	 * unchanged; the surface selector below applies these roles locally. */
+	--glass-panel: var(--color-surface-50);
+	--glass-fg: var(--color-surface-950);
+	--glass-muted: var(--color-surface-900);
+	--glass-heading: var(--color-primary-900);
+	--glass-link: var(--color-primary-900);
+	--glass-accent: var(--color-primary-700);
+	--glass-danger: var(--color-error-900);
+
 	/* ── The inverted contact panel (restored) ────────────────────────────
 	 * The ratified role table's inverse group, gen_board.py:170-179: the
 	 * contact panel inverts in BOTH schemes, so every rung here is
@@ -730,69 +741,49 @@ li {
 	padding-block: clamp(4rem, 10vw, 7rem);
 }
 
-/* The featured-glass idiom (demo #90, .hero-glass), on the role layer.
- * Opaque fallback FIRST — `--panel at 88%`, the same mix the card family
- * used to composite; this is the no-@supports fallback contract, unrelated
- * to the AA gate below (2026-08-20 correction — see the @supports block's
- * comment for why the gate no longer models this number as the translucent
- * ground). The translucent variant is progressive enhancement, free to
- * match the demo's own operating point instead of restating the fallback —
- * but neither value matches the demo's 68%/74% verbatim; see below. */
+/* Shared glass surfaces: a 70% palette tint leaves 30% of the photo or
+ * vector backdrop visible. Stronger local inks carry contrast; whole-element
+ * opacity would fade the text too. The same fill works without backdrop
+ * filters, so readability does not depend on blur or a measured photo frame.
+ * The root and body canvas-propagation rules remain untouched. */
+.hero-glass,
+.page-shell > .section,
+.page-shell > .log-entry,
+.page-shell > .contact-card,
+.site-footer {
+	--fg: var(--glass-fg);
+	--fg-muted: var(--glass-muted);
+	--heading: var(--glass-heading);
+	--link: var(--glass-link);
+	--accent: var(--glass-accent);
+	--highlight-edge: var(--glass-link);
+	--danger: var(--glass-danger);
+	color: var(--fg);
+	border-radius: 0;
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
+}
+
 .hero-glass {
 	border: 1px solid var(--rule);
-	background: color-mix(in oklab, var(--panel) 88%, transparent);
 	padding: clamp(1.35rem, 4vw, 2rem);
 }
 
-/* 2026-08-20 review round 2, finding B: a hand-written -webkit-backdrop-filter
- * line here (removed) made the build pipeline emit ONLY the prefixed
- * property — modern Chromium rejects -webkit-backdrop-filter outright, so
- * the frost never rendered (measured: stripe std-dev 63.5, same as no
- * filter at all) even though the translucent fill applied, leaking sharp
- * photo detail straight through a panel whose contrast math assumed a
- * blurred backdrop. `.site-header` (above) ships only the unprefixed
- * property, unconditionally, and works — this repo's actual browser target
- * is evergreen-only (color-mix, animation-timeline: view(), @starting-style
- * are already load-bearing elsewhere), so there is no legacy-Safari case to
- * hand-prefix for. Matched that precedent instead of re-deriving one; the
- * build's own autoprefixer now emits both properties correctly (verified:
- * computed backdrop-filter is `blur(10px) saturate(1.18)`, not `none`).
- *
- * With the frost actually rendering, the gate had to be re-measured against
- * the REAL blurred backdrop instead of the 88% opaque fallback (which
- * models a MORE opaque, hence falsely safer, panel than what ships) — see
- * design-token-contrast.test.ts's heroGrounds() and
- * e2e/acceptance-hero-glass-contrast.spec.ts (the live backstop; the
- * numbers below are its output, not a one-off hand measurement). GFTB's
- * --heading/--link/--fg-muted resolve to different colours than the demo's
- * Skeleton tokens, against a different photo, so the demo's 68%/74% do not
- * transfer: light needed 83% (68% left `status-card muted copy` at 3.76:1
- * against the darkest real pixel — the demo's own ink doesn't have this
- * pair, this repo's role table does), dark needed 95% (74% measured 4.31:1
- * per the round-2 review; 84%, this file's own round-2 fix, still only
- * reached 4.21:1 once the live e2e backstop re-measured it against a wider
- * sample than the hand check that produced 84% — see finding B history in
- * design-token-contrast.test.ts). Dark's 95% sits ABOVE the 88% opaque
- * fallback: real, not a mistake — this photo's brightest real pixel behind
- * the panel in dark mode needs more opacity than the fallback contract
- * happens to declare. It still isn't 100%: backdrop-filter blur keeps
- * applying underneath, so dark mode is subtly frosted rather than
- * genuinely flat the way the true no-@supports fallback is. */
 @supports (backdrop-filter: blur(1px)) {
-	.hero-glass {
-		background: color-mix(in oklab, var(--panel) 83%, transparent);
-		backdrop-filter: blur(10px) saturate(118%);
-	}
-
-	/* Dark re-key follows the file's existing [data-mode] convention, not a
-	 * prefers-color-scheme block (see the note at the top of this file). */
-	[data-mode='dark'] .hero-glass {
-		background: color-mix(in oklab, var(--panel) 95%, transparent);
+	.hero-glass,
+	.page-shell > .section,
+	.page-shell > .log-entry,
+	.page-shell > .contact-card,
+	.site-footer {
+		backdrop-filter: blur(12px) saturate(118%);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.hero-glass {
+	.hero-glass,
+	.page-shell > .section,
+	.page-shell > .log-entry,
+	.page-shell > .contact-card,
+	.site-footer {
 		backdrop-filter: none;
 	}
 }
@@ -853,11 +844,9 @@ li {
  * at the band's top/bottom edges (32% top / 55% bottom) and FULLY
  * TRANSPARENT through the content band, because "contrast is guaranteed by
  * the glass fill, not this scrim" — the scrim carries zero AA obligation in
- * the demo's own design. That is now true here too: `.hero-glass`'s dark
- * operating point moved from 74% to 95% (see above) specifically so the
- * glass alone clears AA against the real blurred backdrop, which is what
- * let the scrim's content band actually go to 0% instead of standing in as
- * a second, redundant AA floor. Values below port the demo's edge/
+ * the demo's own design. The current glass fill and its stronger local
+ * palette inks carry that obligation without a second opacity floor.
+ * Values below retain the demo's edge/
  * horizontal numbers exactly (citation above); content is genuinely 0.
  *
  * The content-zone stops (10%/90%) are NOT an AA boundary — the glass
@@ -965,6 +954,12 @@ li {
 	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
 }
 
+/* A solid local edge keeps keyboard focus readable over any glass backdrop. */
+:is(.hero-glass, .page-shell > .section, .page-shell > .log-entry, .page-shell > .contact-card, .site-footer)
+	.button:focus-visible {
+	box-shadow: 0 0 0 4px var(--highlight-edge);
+}
+
 /* Card-fill reduction, ruled 2026-08-20 (judge review on gftb-site PR #32,
  * finding D). The TODO this replaces deferred on "keep or flatten is yours
  * to rule; it stays until ruled" — the operator's 2026-08-20 checklist item
@@ -979,7 +974,8 @@ li {
  * it goes; these render as page ground now (surfaces() in
  * design-token-contrast.test.ts models `card` as `page` for the same
  * reason). The recurring work-session content now uses the hero's existing
- * glass treatment under the September 8 placement ruling. */
+ * glass treatment under the September 8 placement ruling. The September 9
+ * glass request adds shared outer surfaces without filling individual rows. */
 .status-card,
 .card,
 .log-entry {
@@ -991,18 +987,10 @@ li {
 	border-radius: 0;
 }
 
-/* The purple contact panel is FLATTENED (operator ruling 2026-08-31):
- * content sections use whitespace to separate them. This supersedes
- * the 2026-08-20 restoration (addendum B1, gen_board.py:170-179) that
- * inverted this panel to primary-900/purple with its own --inverse-* ink
- * group. The form now sits on plain page ground and picks up the ordinary
- * roles the h1/h2/h3, `a`, `.muted` and `.external-link__mark` base rules
- * above already paint every other page surface with, so no per-panel
- * override is needed. The --inverse-* role group stays declared in :root
- * (design-token-contrast.test.ts still sweeps it as an unused-but-valid
- * table) but nothing below paints it any more. Radius stays an explicit 0
- * (sharp-edges ruling; the Skeleton `card` @utility collision class
- * documented on the neutral family above applies here too). */
+/* The August 31 ruling retired the inverted purple panel and its inverse
+ * roles. The September 9 glass treatment uses the shared local ink roles;
+ * the archived inverse tokens remain declared but unused. Keep explicit
+ * sharp edges so Skeleton's card utility cannot introduce a radius. */
 .contact-card {
 	border-radius: 0;
 }
@@ -1033,16 +1021,9 @@ li {
 	font-weight: 700;
 }
 
-/* Fields on plain page ground (2026-08-31 flattening, see the .contact-card
- * comment above): the border is now the WCAG 1.4.11 boundary against --bg.
- * --accent measures 7.13:1 light / 6.06:1 dark against --bg, the same proven
- * pair as "primary button fill on the page", where --rule, the usual
- * decorative-edge token, does not clear 3:1 here (1.41:1 light / 2.39:1
- * dark) and so cannot carry this job. Fill and text ride the ordinary
- * --panel/--fg roles every other page surface uses. Against the field's own
- * --panel fill the border reads 7.96:1 light / 5.03:1 dark, and the field
- * text reads 15.25:1 / 12.66:1 on that fill; design-token-contrast.test.ts
- * sweeps all three of those pairs by name in both schemes. */
+/* Fields keep their opaque --panel fill. Their text, accent border and
+ * error border inherit the contact glass roles. The contrast gate checks
+ * the field's inner fill and the surrounding glass separately. */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
@@ -1079,10 +1060,7 @@ li {
 	margin-top: 0.5rem;
 }
 
-/* Errors on the fields carry the ordinary --danger rung now (error-700
- * light / error-300 dark), the same role .field-error uses below. As a
- * boundary it reads 7.47:1 light / 5.89:1 dark on --bg, swept by name in
- * design-token-contrast.test.ts. */
+/* Error text and field borders share the contact glass's --danger role. */
 .contact-form :is(input, textarea)[aria-invalid='true'] {
 	border-color: var(--danger);
 }
@@ -1098,8 +1076,7 @@ li {
 	font-size: 0.86rem;
 }
 
-/* Helper text and field errors on plain page ground (2026-08-31): the same
- * --fg-muted / --danger roles every other page surface uses. */
+/* Helper text and field errors inherit their container's local roles. */
 .form-help {
 	color: var(--fg-muted);
 }
@@ -1108,9 +1085,7 @@ li {
 	color: var(--danger);
 }
 
-/* Notices on plain page ground (2026-08-31): the edge bar takes the rescue
- * edge (bare --highlight fails 3:1 on paper-side grounds; see the focus
- * ring comment above), and error text takes the ordinary --danger rung. */
+/* Notices use the local focus edge and error ink on the same glass ground. */
 .form-notice {
 	border-left: 0.4rem solid var(--highlight-edge);
 	padding: 1rem;
@@ -1151,27 +1126,18 @@ li {
 	color: var(--fg-muted);
 }
 
-/* Demo vertical rhythm (apex-gaps diagnosis 2026-08-20 item 4): the previous
- * clamp(4rem,8vw,6rem) padding-block on every section claimed to model "demo
- * section steps 4-6rem", but the demo does not apply a uniform padding block
- * per section — checked directly (fa5552c src/routes/+page.svelte:184, 218,
- * 223, 233, 246): sections carry `mt-16` (4rem) margin-top plus a thin
- * `border-y`/`border-t` divider with `py-6`/`py-8` (1.5-2rem) internal
- * padding. The old rule ran ~50% heavier than the demo on both edges and
- * dropped the divider treatment entirely. The first section keeps no extra
- * margin/rule: `.page-shell`'s own top padding-block already separates it
- * from the hero, and the demo has no equivalent of that wrapper to double up
- * against. */
+/* Keep the existing four-rem section rhythm. Inset the new glass surface
+ * on every edge, with a smaller phone inset. The first section needs no
+ * extra margin or rule because .page-shell already separates it from hero. */
 .section {
 	margin-top: 4rem;
 	border-top: 1px solid var(--rule);
-	padding-top: 2rem;
+	padding: clamp(1rem, 3vw, 2rem);
 }
 
 .section:first-child {
 	margin-top: 0;
 	border-top: none;
-	padding-top: 0;
 }
 
 /* ===== Scroll-reveal (D04, apex app.css:568-580) =====
@@ -1222,14 +1188,16 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: 1.5rem;
 }
 
-/* Operator ruling 2026-08-30: log surfaces are borderless. The entry sits
- * flush on the page ground; header and body are parted by whitespace, not a
- * rule. No fill, no border, no radius (never-cards stands). */
+/* Log rows remain borderless. The full entry now shares the glass treatment;
+ * header and body are still parted by whitespace. */
 .log-entry {
-	/* E1 (UI-QA 2026-08-30): visible, so focus rings are not clipped now that
-	 * the article has no padding; body wrap rules and img max-width contain
+	/* Keep focus rings visible; body wrapping and image max-width contain
 	 * wide content. */
 	overflow: visible;
+}
+
+.page-shell > .log-entry {
+	padding: clamp(1rem, 3vw, 2rem);
 }
 
 /* E3 (UI-QA 2026-08-30): air between the read-more and the next paragraph. */
@@ -1368,7 +1336,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* ===== The Notes & Goals wiper (src/lib/wiper, NotesAndGoals.svelte) =====
- * The pane is a bare wrapper: no background, no border (never-cards). Once
+ * The pane is a bare wrapper over the section's glass: no extra fill or
+ * border on individual notes. Once
  * enhanced and rotatable, the list stacks its pages into one grid row and the
  * wipe is a DOM mask: each note carries its arm's park angle and pivot as
  * static custom properties (--wipe-from, --wipe-x, --wipe-y, --wipe-span,
@@ -1497,7 +1466,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 .goal-asides {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
 	gap: 1.75rem 2.5rem;
 	margin-top: 2.5rem;
 }
@@ -1763,8 +1732,7 @@ figcaption {
 	line-height: 1.45;
 }
 
-/* Layout only. The panel paint was removed by the 2026-08-31 flattening;
- * see the .contact-card comment with the card family rules above. */
+/* Contact layout; the shared surface rule above supplies the glass paint. */
 .contact-card {
 	display: grid;
 	gap: 1.5rem;
@@ -1780,7 +1748,6 @@ figcaption {
 
 .site-footer {
 	border-top: 1px solid var(--rule);
-	background: var(--panel);
 	/* Clearance for .contribute-fab (anchored bottom-left in this reserved
 	 * rail, review round 2 finding C.3): without this, the footer's own last
 	 * links (Source/Security at 320px, the licensing link on /log) sit under
@@ -1920,6 +1887,23 @@ figcaption {
 	body {
 		font-size: 11pt;
 		line-height: 1.4;
+	}
+
+	.hero-glass,
+	.page-shell > .section,
+	.page-shell > .log-entry,
+	.page-shell > .contact-card {
+		--fg: #000;
+		--fg-muted: #000;
+		--heading: #000;
+		--link: #000;
+		--accent: #000;
+		--accent-contrast: #fff;
+		--highlight-edge: #000;
+		--danger: #000;
+		background: transparent !important;
+		backdrop-filter: none !important;
+		color: #000 !important;
 	}
 
 	main {
@@ -2187,4 +2171,11 @@ figcaption {
 	/* surface-700 leaves the accent thumb at 2.53:1; -800 restores the 3:1
 	 * floor with room (3.74:1, the measured pair) */
 	--control-track: var(--color-surface-800);
+	--glass-panel: var(--color-surface-950);
+	--glass-fg: var(--color-surface-50);
+	--glass-muted: var(--color-surface-100);
+	--glass-heading: var(--color-primary-50);
+	--glass-link: var(--color-primary-50);
+	--glass-accent: var(--color-primary-100);
+	--glass-danger: var(--color-error-50);
 }
