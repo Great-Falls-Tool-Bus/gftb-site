@@ -225,10 +225,9 @@
 		<div class="site-footer__inner">
 			<div class="site-footer__intro">
 				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
-				<!-- Build provenance (D10, demo #140 fe32de1): the short sha plus the
-				     "GitHub-verified" label — main is merged through GitHub, so its
-				     commits are signed by GitHub's web-flow key (committer =
-				     GitHub), not the author's own key. Degrade-to-nothing on
+				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
+				     Operator ruling 2026-09-09 dropped the "GitHub-verified" label
+				     that used to follow it. Degrade-to-nothing on
 				     local/unstamped builds is already the build-info contract.
 				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
 				     /commit page because that repo is public; this carrier is
@@ -242,7 +241,7 @@
 				     ruling that would widen the sanctioned exception. -->
 				{#if buildShaShort}
 					<p class="site-footer__provenance">
-						built from <code>{buildShaShort}</code>, GitHub-verified
+						built from <code>{buildShaShort}</code>
 					</p>
 				{/if}
 				<p class="site-footer__licensing">

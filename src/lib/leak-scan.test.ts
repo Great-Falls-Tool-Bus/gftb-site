@@ -166,7 +166,7 @@ describe('leak-scan detections', () => {
 			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/commit/deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'),
 		).toContain('internal-tracker-reference');
 		// The shape the fixed footer actually renders when stamped is clean.
-		expect([...idsFiring('built from <code>deadbee</code>, GitHub-verified')]).toEqual([]);
+		expect([...idsFiring('built from <code>deadbee</code>')]).toEqual([]);
 	});
 
 	it('keeps the layout from rebuilding a commit URL at the provenance site', () => {
