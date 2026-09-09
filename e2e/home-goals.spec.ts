@@ -484,13 +484,22 @@ test('paper gets every note, no stalk and no edit links, even mid-wipe', async (
 test('the section never widens the page on a narrow phone', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 700 });
 	await page.goto('/');
+	await page.waitForLoadState('networkidle');
 	await pointerAway(page);
-	const overflow = await page.evaluate(() => ({
-		document: document.documentElement.scrollWidth - window.innerWidth,
-		section: document.querySelector('#goals')!.scrollWidth - document.querySelector('#goals')!.clientWidth,
-	}));
+	// The paged wiper is full bleed on the hero band's idiom (html clips x
+	// overflow), so the measure is the document and every element in the
+	// section against the viewport, not the section's own scroll width.
+	const overflow = await page.evaluate(() => {
+		const offenders: string[] = [];
+		for (const el of document.querySelectorAll<HTMLElement>('#goals, #goals *')) {
+			const r = el.getBoundingClientRect();
+			if (r.width === 0 || r.height === 0) continue;
+			if (r.left < -1 || r.right > window.innerWidth + 1) offenders.push(el.tagName + '.' + el.className.split(' ')[0]);
+		}
+		return { document: document.documentElement.scrollWidth - window.innerWidth, offenders };
+	});
 	expect(overflow.document).toBeLessThanOrEqual(0);
-	expect(overflow.section).toBeLessThanOrEqual(0);
+	expect(overflow.offenders).toEqual([]);
 });
 
 for (const mode of ['enhanced', 'no-js'] as const) {

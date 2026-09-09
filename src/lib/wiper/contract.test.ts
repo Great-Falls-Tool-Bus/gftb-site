@@ -133,4 +133,16 @@ describe('the wiper source contract', () => {
 		expect(layoutColors).toEqual([...BRAND_BLOB_COLORS]);
 		expect(layout).toContain('onDeviceMotion={setDeviceTilt}');
 	});
+
+	it('goes full bleed only while paged, on the hero idiom, and gives paged notes their inner room', () => {
+		const paged = /\.wiper--paged \{([^}]*)\}/u.exec(block);
+		expect(paged).not.toBeNull();
+		expect(paged![1]).toMatch(/width: 100vw;/u);
+		expect(paged![1]).toMatch(/margin-left: calc\(50% - 50vw\);/u);
+		const pane = /\.wiper \{([^}]*)\}/u.exec(block);
+		expect(pane![1]).not.toMatch(/100vw/u);
+		expect(block).toMatch(/\.goal-list--paged > li \{[^}]*padding: 1rem 1\.1rem 1\.25rem;/u);
+		const print = css.slice(css.indexOf('@media print {'));
+		expect(print).toMatch(/\.wiper--paged \{\n\t\twidth: auto !important;/u);
+	});
 });

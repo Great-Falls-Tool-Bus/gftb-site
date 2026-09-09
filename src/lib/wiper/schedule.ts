@@ -16,16 +16,21 @@ export interface WiperDetentEntry {
 	sweepMs: number;
 }
 
+/** One full out-and-back sweep, the same at every speed (operator ruling 2026-09-09). */
+export const SWEEP_MS = 1800;
+
 /**
- * The stalk, Off first, then faster detents. Dwell strictly decreases down
- * the table and every sweep is shorter than its dwell, so the notes are
- * always readable for longer than the blades cover them.
+ * The stalk, Off first, then faster detents. A detent sets how often a wipe
+ * comes, never how fast the blades move: dwell strictly decreases down the
+ * table while the sweep stays SWEEP_MS, and every dwell is longer than the
+ * sweep, so the notes are always readable for longer than the blades cover
+ * them.
  */
 export const WIPER_DETENTS: readonly WiperDetentEntry[] = [
 	{ id: 'off', label: 'Off', dwellMs: 0, sweepMs: 0 },
-	{ id: 'intermittent', label: 'Intermittent', dwellMs: 5000, sweepMs: 1400 },
-	{ id: 'low', label: 'Low', dwellMs: 3000, sweepMs: 1000 },
-	{ id: 'high', label: 'High', dwellMs: 1500, sweepMs: 700 },
+	{ id: 'intermittent', label: 'Intermittent', dwellMs: 5000, sweepMs: SWEEP_MS },
+	{ id: 'low', label: 'Low', dwellMs: 3200, sweepMs: SWEEP_MS },
+	{ id: 'high', label: 'High', dwellMs: 2000, sweepMs: SWEEP_MS },
 ];
 
 /** The calmest cadence: closest to the retired carousel's 7 s auto-advance. */

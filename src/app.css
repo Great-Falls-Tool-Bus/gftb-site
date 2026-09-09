@@ -1381,6 +1381,25 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--wipe-feather: 1.2deg;
 }
 
+/* Full bleed while paged (operator ruling at LOOK 2): the glass runs edge to
+ * edge on the hero band's own idiom (html clips x overflow, so a 100vw child
+ * never adds a scrollbar), while the notes, the stalk and the collection link
+ * keep the page column's gutter. The plain grid never breaks out. */
+.wiper--paged {
+	width: 100vw;
+	margin-left: calc(50% - 50vw);
+	--wiper-gutter: max(1rem, calc(50vw - 36rem));
+}
+
+.wiper--paged .goal-list {
+	padding-inline: var(--wiper-gutter);
+}
+
+.wiper--paged .wiper-stalk,
+.wiper--paged .goal-list__source {
+	margin-inline: var(--wiper-gutter);
+}
+
 /* The glass: the list box the scene canvas fills. The canvas sits behind the
  * notes (never over text), pointer-inert, sharp, and it is gone on paper and
  * under forced colours; the plain grid never renders it at all. */
@@ -1411,6 +1430,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 .goal-list--paged > li {
 	position: relative;
 	grid-row: 1;
+	/* Room between the ink and the glass edges (operator ruling at LOOK 2). */
+	padding: 1rem 1.1rem 1.25rem;
 }
 
 /* Off-page notes stay in the DOM and in the tab order (focus-follow reveals
@@ -2004,6 +2025,15 @@ figcaption {
 	 * the per-row edit links). !important because the paged classes are
 	 * still on the elements when a print begins mid-wipe. The collection
 	 * link keeps printing (hrefs expand above). */
+	.wiper--paged {
+		width: auto !important;
+		margin-left: 0 !important;
+	}
+
+	.wiper--paged .goal-list {
+		padding-inline: 0 !important;
+	}
+
 	.goal-list--paged {
 		grid-template-columns: repeat(2, 1fr) !important;
 		gap: 1.25rem 2rem !important;
