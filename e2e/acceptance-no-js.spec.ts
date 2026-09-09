@@ -154,6 +154,11 @@ test.describe('JavaScript enabled', () => {
 		const pageErrors: string[] = [];
 		page.on('console', (message) => {
 			if (message.type() === 'error' || message.type() === 'warning') {
+				// Headless Chromium on software GL relays its own driver
+				// performance notices (a readback stall while it composites the
+				// WebGL scene) through the page console; a GPU browser never emits
+				// them and they are not the page's doing. Nothing else is filtered.
+				if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
 				consoleErrors.push(`${message.type()}: ${message.text()}`);
 			}
 		});
@@ -163,6 +168,10 @@ test.describe('JavaScript enabled', () => {
 		await stubChallenge(page);
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
+		// Bring the Notes & Goals scene into view and let it run: the strongest
+		// console gate on the site must cover the renderer, not only the load.
+		await page.locator('#goals').scrollIntoViewIfNeeded();
+		await page.waitForTimeout(2000);
 
 		expect(await unresolvedHomeHashes(page), 'hydrated home hash targets without matching elements').toEqual([]);
 		expect(pageErrors, 'uncaught page errors').toEqual([]);

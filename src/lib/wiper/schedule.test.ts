@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	DEFAULT_WIPER_DETENT,
 	INTERMITTENT_JITTER,
+	SWEEP_MS,
 	WIPER_DETENTS,
 	dwellFor,
 	isWiperDetent,
@@ -19,15 +20,18 @@ describe('the wiper stalk table', () => {
 		expect(DEFAULT_WIPER_DETENT).not.toBe('off');
 	});
 
-	it('keeps dwell strictly decreasing and every sweep shorter than its dwell', () => {
+	it('keeps dwell strictly decreasing, the sweep the same at every speed, and every sweep shorter than its dwell', () => {
 		const active = WIPER_DETENTS.filter((entry) => entry.id !== 'off');
 		for (let index = 1; index < active.length; index += 1) {
 			expect(active[index].dwellMs).toBeLessThan(active[index - 1].dwellMs);
 		}
 		for (const entry of active) {
+			expect(entry.sweepMs).toBe(SWEEP_MS);
 			expect(entry.sweepMs).toBeGreaterThan(0);
 			expect(entry.sweepMs).toBeLessThan(entry.dwellMs);
 		}
+		// Long enough to read as a wiper once the blades are drawn: 0.9 s per stroke.
+		expect(SWEEP_MS).toBeGreaterThanOrEqual(1600);
 	});
 
 	it('jitters only the intermittent dwell, inside its band', () => {

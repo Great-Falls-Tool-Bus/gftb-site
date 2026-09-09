@@ -2,6 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { TinyVectors } from '@tummycrypt/tinyvectors';
+	import { setDeviceTilt } from '$lib/motion/device-tilt.svelte';
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
@@ -186,6 +187,7 @@
 				enableScrollPhysics={true}
 				enableDeviceMotion={true}
 				enablePointerPhysics={false}
+				onDeviceMotion={setDeviceTilt}
 			/>
 		</div>
 	{/if}
