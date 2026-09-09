@@ -547,6 +547,7 @@ class RepositoryContractTests(unittest.TestCase):
             ":current_source_secret_scan_test",
             ":goals_manifest_drift_test",
             ":log_manifest_drift_test",
+            ":served_tinyvectors_test",
             ":source_map_drift_test",
             ":workflow_validation_test",
         ):
@@ -562,6 +563,14 @@ class RepositoryContractTests(unittest.TestCase):
                 target = bazel_target(self.build, name)
                 self.assertIn('args = ["--check"]', target)
                 self.assertIn(f'entry_point = "{entry_point}"', target)
+
+        # TIN-4339: the served-artifact proof reads the declared build and the
+        # pin, never a rebuilt or ambient tree.
+        served = bazel_target(self.build, "served_tinyvectors_test")
+        self.assertIn('entry_point = "scripts/check-served-tinyvectors.mjs"', served)
+        self.assertIn('"$(rootpath :build)"', served)
+        self.assertIn('"$(rootpath MODULE.bazel)"', served)
+        self.assertIn('":build",', served)
 
         workflow_validation = bazel_target(self.build, "workflow_validation_test")
         self.assertIn('config = ".github/actionlint.yaml"', workflow_validation)

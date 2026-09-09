@@ -68,6 +68,11 @@ is not public.
   build. The browser target requires GF's provisioned Chromium; it never
   installs a browser or attaches to an ambient preview. Local Just output
   is never v4 evidence. A passing browser target is not a deployed LOOK.
+  The suite also carries the served-artifact proof for the tinyvectors pin
+  (`//:served_tinyvectors_test`): `MODULE.bazel` is the package's only
+  resolution, and a build made off-fabric (`vite build` against a stray
+  `node_modules/@tummycrypt/tinyvectors`) can bundle another release with
+  every other check green; such output is never evidence for blob feel.
 - `just conformance` enters the registered `//:bazel_output_contract_test`.
 - `just qr-verify` cross-checks the pinned payload URL against
   `package.json`'s `homepage`, then regenerates the printed apex QR with the
