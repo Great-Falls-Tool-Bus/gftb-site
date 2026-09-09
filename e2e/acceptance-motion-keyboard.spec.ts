@@ -61,6 +61,32 @@ test.describe('prefers-reduced-motion', () => {
 		expect(moving, 'elements still animating under prefers-reduced-motion').toEqual([]);
 	});
 
+	test('the wiper pane declares no motion on its pseudo-elements either', async ({ page, guardedPage }) => {
+		// The sitewide sweep above reads elements; the aero skin paints its
+		// droplets and sheen on the pane's ::before/::after, so read those too.
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await guardedPage();
+		const moving = await page.evaluate(() => {
+			const offenders: string[] = [];
+			for (const element of Array.from(document.querySelectorAll('#goals .wiper, #goals .wiper *'))) {
+				for (const pseudo of ['::before', '::after']) {
+					const style = getComputedStyle(element, pseudo);
+					if (style.content === 'none' || style.content === '') continue;
+					if (style.animationName && style.animationName !== 'none')
+						offenders.push(`${pseudo} animation-name ${style.animationName}`);
+					if (style.transitionDuration.split(',').some((entry) => Number.parseFloat(entry) > 0)) {
+						offenders.push(`${pseudo} transition-duration ${style.transitionDuration}`);
+					}
+					if (style.animationDuration.split(',').some((entry) => Number.parseFloat(entry) > 0)) {
+						offenders.push(`${pseudo} animation-duration ${style.animationDuration}`);
+					}
+				}
+			}
+			return offenders;
+		});
+		expect(moving).toEqual([]);
+	});
+
 	test('nothing is animating on the compositor after load', async ({ page, guardedPage }) => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await guardedPage();

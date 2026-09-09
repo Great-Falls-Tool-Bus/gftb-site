@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDeviceMotionPermission, type DeviceMotionTarget } from './device-motion-permission';
+import {
+	INTERACTIVE_TARGET_SELECTOR,
+	createDeviceMotionHandshake,
+	type DeviceMotionTarget,
+} from './device-motion-permission';
+
+type Status = ReturnType<DeviceMotionTarget['getDeviceMotionStatus']>;
 
 function preference(initial = false) {
 	let matches = initial;
@@ -22,113 +28,265 @@ function preference(initial = false) {
 	};
 }
 
-function component(overrides: Partial<ReturnType<DeviceMotionTarget['getDeviceMotionStatus']>> = {}) {
+/** A click source whose taps carry a duck-typed target with `closest`. */
+function gestures() {
+	const listeners = new Set<(event: Event) => void>();
+	const root = { id: 'main' } as unknown as Element;
 	return {
-		getDeviceMotionStatus: vi.fn(() => ({
-			enabled: true,
-			supported: true,
-			requiresPermission: true,
-			active: false,
-			...overrides,
-		})),
-		requestDeviceMotionPermission: vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
+		listeners,
+		root,
+		addEventListener(_type: 'click', listener: (event: Event) => void) {
+			listeners.add(listener);
+		},
+		removeEventListener(_type: 'click', listener: (event: Event) => void) {
+			listeners.delete(listener);
+		},
+		/** A tap on neutral space: the nearest interactive ancestor is the root itself. */
+		tapNeutral() {
+			const event = { target: { closest: () => root } } as unknown as Event;
+			for (const listener of [...listeners]) listener(event);
+		},
+		/** A tap on a link, button or field. */
+		tapInteractive() {
+			const event = { target: { closest: () => ({}) as Element } } as unknown as Event;
+			for (const listener of [...listeners]) listener(event);
+		},
 	};
 }
 
-describe('phone motion permission control', () => {
-	it('waits for the deferred component and never requests permission on mount', () => {
+/** A component whose reported permission state follows the platform answer. */
+function component(overrides: Partial<Status> = {}, answer: 'granted' | 'denied' | 'unanswered' = 'granted') {
+	const status: Status = {
+		enabled: true,
+		supported: true,
+		requiresPermission: true,
+		active: false,
+		permissionState: 'prompt',
+		...overrides,
+	};
+	const target = {
+		status,
+		getDeviceMotionStatus: vi.fn(() => ({ ...status })),
+		requestDeviceMotionPermission: vi.fn<() => Promise<boolean>>(),
+	};
+	target.requestDeviceMotionPermission.mockImplementation(() => {
+		if (answer === 'granted') {
+			status.permissionState = 'granted';
+			status.active = true;
+			return Promise.resolve(true);
+		}
+		if (answer === 'denied') {
+			status.permissionState = 'denied';
+			return Promise.resolve(false);
+		}
+		return Promise.resolve(false);
+	});
+	return target;
+}
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe('first-gesture phone motion handshake', () => {
+	it('never arms before the deferred component binds and never calls on bind', () => {
 		const query = preference();
+		const source = gestures();
 		const publish = vi.fn();
-		const control = createDeviceMotionPermission(query, publish);
+		const handshake = createDeviceMotionHandshake(query, source, { root: source.root, publish });
+		expect(source.listeners.size).toBe(0);
+		expect(publish).toHaveBeenLastCalledWith('idle');
 		const target = component();
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
-		control.setTarget(target);
-		expect(publish).toHaveBeenLastCalledWith({ visible: true, busy: false });
+		handshake.setTarget(target);
+		expect(source.listeners.size).toBe(1);
+		expect(publish).toHaveBeenLastCalledWith('armed');
 		expect(target.requestDeviceMotionPermission).not.toHaveBeenCalled();
-		control.setTarget(undefined);
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
-		control.destroy();
+		handshake.setTarget(undefined);
+		expect(source.listeners.size).toBe(0);
+		expect(publish).toHaveBeenLastCalledWith('idle');
+		handshake.destroy();
 		expect(query.listeners.size).toBe(0);
 	});
 
-	it.each([{ enabled: false }, { supported: false }, { requiresPermission: false }, { active: true }])(
-		'has no prompt or permission call for an ineligible component: %j',
-		async (status) => {
-			const publish = vi.fn();
-			const target = component(status);
-			const control = createDeviceMotionPermission(preference(), publish);
-			control.setTarget(target);
-			await control.request();
-			expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
-			expect(target.requestDeviceMotionPermission).not.toHaveBeenCalled();
-			control.destroy();
-		},
-	);
+	it.each<Partial<Status>>([
+		{ enabled: false },
+		{ supported: false },
+		{ requiresPermission: false },
+		{ active: true },
+		{ permissionState: 'granted' },
+		{ permissionState: 'denied' },
+	])('never arms for an ineligible component: %j', (status) => {
+		const source = gestures();
+		const target = component(status);
+		const handshake = createDeviceMotionHandshake(preference(), source, { root: source.root });
+		handshake.setTarget(target);
+		expect(source.listeners.size).toBe(0);
+		source.tapNeutral();
+		expect(target.requestDeviceMotionPermission).not.toHaveBeenCalled();
+		handshake.destroy();
+	});
 
-	it('tracks reduced motion before and after binding without an automatic permission request', async () => {
+	it('borrows one neutral tap, calls the platform synchronously, and latches once answered', async () => {
+		const source = gestures();
+		const publish = vi.fn();
+		const target = component();
+		const handshake = createDeviceMotionHandshake(preference(), source, { root: source.root, publish });
+		handshake.setTarget(target);
+		source.tapNeutral();
+		// Synchronous inside the click stack (transient activation), and the
+		// listener is already gone so a double tap cannot double-call.
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		expect(source.listeners.size).toBe(0);
+		expect(publish).toHaveBeenLastCalledWith('asking');
+		await flush();
+		expect(publish).toHaveBeenLastCalledWith('asked');
+		expect(handshake.getState()).toBe('asked');
+		source.tapNeutral();
+		await flush();
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		handshake.destroy();
+	});
+
+	it('ignores taps on links, buttons and fields and stays armed for the next neutral tap', async () => {
+		const source = gestures();
+		const target = component();
+		const handshake = createDeviceMotionHandshake(preference(), source, { root: source.root });
+		handshake.setTarget(target);
+		source.tapInteractive();
+		source.tapInteractive();
+		expect(target.requestDeviceMotionPermission).not.toHaveBeenCalled();
+		expect(handshake.getState()).toBe('armed');
+		source.tapNeutral();
+		await flush();
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		expect(handshake.getState()).toBe('asked');
+		handshake.destroy();
+	});
+
+	it('names the interactive ancestors a tap is never borrowed from', () => {
+		for (const tag of ['a', 'button', 'input', 'select', 'textarea', 'summary', '[role="button"]', '[tabindex]']) {
+			expect(INTERACTIVE_TARGET_SELECTOR).toContain(tag);
+		}
+	});
+
+	it('honours a route veto at gesture time and keeps the shot', async () => {
+		const source = gestures();
+		const target = component();
+		let onContactPage = true;
+		const handshake = createDeviceMotionHandshake(preference(), source, {
+			root: source.root,
+			eligible: () => !onContactPage,
+		});
+		handshake.setTarget(target);
+		source.tapNeutral();
+		await flush();
+		expect(target.requestDeviceMotionPermission).not.toHaveBeenCalled();
+		expect(handshake.getState()).toBe('armed');
+		onContactPage = false;
+		source.tapNeutral();
+		await flush();
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		handshake.destroy();
+	});
+
+	it('re-arms when the request never reached the platform (component not yet ready)', async () => {
+		const source = gestures();
+		const target = component({}, 'unanswered');
+		const handshake = createDeviceMotionHandshake(preference(), source, { root: source.root });
+		handshake.setTarget(target);
+		source.tapNeutral();
+		await flush();
+		// Resolved false with the state still 'prompt': the shot is kept.
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		expect(handshake.getState()).toBe('armed');
+		expect(source.listeners.size).toBe(1);
+		// The platform answers on the next neutral tap.
+		target.requestDeviceMotionPermission.mockImplementation(() => {
+			target.status.permissionState = 'denied';
+			return Promise.resolve(false);
+		});
+		source.tapNeutral();
+		await flush();
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(2);
+		expect(handshake.getState()).toBe('asked');
+		expect(source.listeners.size).toBe(0);
+		handshake.destroy();
+	});
+
+	it.each(['denied', 'rejected'] as const)('settles %s silently and never asks again', async (outcome) => {
+		const source = gestures();
+		const target = component({}, 'denied');
+		if (outcome === 'rejected') {
+			target.requestDeviceMotionPermission.mockImplementation(() => {
+				// The package catches the platform rejection and latches 'denied'.
+				target.status.permissionState = 'denied';
+				return Promise.reject(new Error('permission unavailable'));
+			});
+		}
+		const query = preference();
+		const handshake = createDeviceMotionHandshake(query, source, { root: source.root });
+		handshake.setTarget(target);
+		source.tapNeutral();
+		await flush();
+		expect(handshake.getState()).toBe('asked');
+		query.change(true);
+		query.change(false);
+		expect(source.listeners.size).toBe(0);
+		source.tapNeutral();
+		await flush();
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		handshake.destroy();
+	});
+
+	it('tracks reduced motion: never arms under reduce, re-arms only while unasked', async () => {
 		const query = preference(true);
+		const source = gestures();
 		const publish = vi.fn();
 		const target = component();
-		const control = createDeviceMotionPermission(query, publish);
-		control.setTarget(target);
-		await control.request();
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
+		const handshake = createDeviceMotionHandshake(query, source, { root: source.root, publish });
+		handshake.setTarget(target);
+		expect(source.listeners.size).toBe(0);
+		expect(publish).toHaveBeenLastCalledWith('idle');
 		query.change(false);
-		expect(publish).toHaveBeenLastCalledWith({ visible: true, busy: false });
+		expect(source.listeners.size).toBe(1);
+		expect(publish).toHaveBeenLastCalledWith('armed');
 		query.change(true);
-		await control.request();
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
-		expect(target.requestDeviceMotionPermission).not.toHaveBeenCalled();
-		control.destroy();
+		expect(source.listeners.size).toBe(0);
+		expect(publish).toHaveBeenLastCalledWith('idle');
+		query.change(false);
+		source.tapNeutral();
+		await flush();
+		expect(handshake.getState()).toBe('asked');
+		query.change(true);
+		query.change(false);
+		expect(source.listeners.size).toBe(0);
+		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
+		handshake.destroy();
 	});
 
-	it('calls permission synchronously in the gesture and admits only one pending request', async () => {
+	it('re-checks after the package recovers from a reduce-induced denial', async () => {
+		// Under Reduce Motion tinyvectors reports 'denied'; lifting it resets
+		// the package to 'prompt' in ITS change listener, which runs after
+		// ours. The deferred re-check must see the recovered state.
+		const query = preference(true);
+		const source = gestures();
+		const target = component({ permissionState: 'denied' });
+		const handshake = createDeviceMotionHandshake(query, source, { root: source.root });
+		handshake.setTarget(target);
+		expect(source.listeners.size).toBe(0);
+		query.listeners.add(() => {
+			// The package's own recovery, registered later than the handshake.
+			target.status.permissionState = query.matches ? 'denied' : 'prompt';
+		});
+		query.change(false);
+		expect(source.listeners.size).toBe(0);
+		await flush();
+		expect(source.listeners.size).toBe(1);
+		expect(handshake.getState()).toBe('armed');
+		handshake.destroy();
+	});
+
+	it('removes its listeners and ignores pending results or late bindings after teardown', async () => {
 		let finish!: (granted: boolean) => void;
-		const target = component();
-		target.requestDeviceMotionPermission.mockImplementation(
-			() =>
-				new Promise((resolve) => {
-					finish = resolve;
-				}),
-		);
-		const publish = vi.fn();
-		const query = preference();
-		const control = createDeviceMotionPermission(query, publish);
-		control.setTarget(target);
-		const pending = control.request();
-		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
-		expect(publish).toHaveBeenLastCalledWith({ visible: true, busy: true });
-		await control.request();
-		query.change(true);
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: true });
-		finish(true);
-		await pending;
-		query.change(false);
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
-		await control.request();
-		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
-		control.destroy();
-	});
-
-	it.each(['denied', 'rejected'] as const)('settles %s without errors or repeated prompts', async (outcome) => {
-		const target = component();
-		if (outcome === 'denied') target.requestDeviceMotionPermission.mockResolvedValue(false);
-		else target.requestDeviceMotionPermission.mockRejectedValue(new Error('permission unavailable'));
-		const publish = vi.fn();
-		const query = preference();
-		const control = createDeviceMotionPermission(query, publish);
-		control.setTarget(target);
-		await expect(control.request()).resolves.toBeUndefined();
-		expect(publish).toHaveBeenLastCalledWith({ visible: false, busy: false });
-		query.change(true);
-		query.change(false);
-		await control.request();
-		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
-		control.destroy();
-	});
-
-	it('removes its listener and ignores pending results or late bindings after teardown', async () => {
-		let finish!: (granted: boolean) => void;
+		const source = gestures();
 		const target = component();
 		target.requestDeviceMotionPermission.mockImplementation(
 			() =>
@@ -138,18 +296,19 @@ describe('phone motion permission control', () => {
 		);
 		const query = preference();
 		const publish = vi.fn();
-		const control = createDeviceMotionPermission(query, publish);
-		control.setTarget(target);
-		const pending = control.request();
-		control.destroy();
+		const handshake = createDeviceMotionHandshake(query, source, { root: source.root, publish });
+		handshake.setTarget(target);
+		source.tapNeutral();
+		handshake.destroy();
 		expect(query.listeners.size).toBe(0);
+		expect(source.listeners.size).toBe(0);
 		publish.mockClear();
 		query.change(true);
-		control.setTarget(component());
+		handshake.setTarget(component());
 		finish(true);
-		await pending;
-		await control.request();
+		await flush();
 		expect(publish).not.toHaveBeenCalled();
+		expect(source.listeners.size).toBe(0);
 		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
 	});
 });

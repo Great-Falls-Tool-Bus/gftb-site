@@ -491,6 +491,26 @@ js_test(
     timeout = "long",
 )
 
+# Served-artifact proof for the tinyvectors pin (TIN-4339). MODULE.bazel is
+# the only resolution of the brand-vectors package; a build made off-fabric can
+# still bundle a stray node_modules copy of another release with every other
+# check green. This reads the declared client chunks and proves the bundled
+# release's distinctive literal matches the pin. No browser, no server.
+js_test(
+    name = "served_tinyvectors_test",
+    args = [
+        "$(rootpath :build)",
+        "--module",
+        "$(rootpath MODULE.bazel)",
+    ],
+    data = [
+        "MODULE.bazel",
+        ":build",
+    ],
+    entry_point = "scripts/check-served-tinyvectors.mjs",
+    timeout = "short",
+)
+
 test_suite(
     name = "ci_validation_suite",
     tests = [
@@ -501,6 +521,7 @@ test_suite(
         ":goals_manifest_drift_test",
         ":log_manifest_drift_test",
         ":prettier_check_test",
+        ":served_tinyvectors_test",
         ":source_map_drift_test",
         ":svelte_check_test",
         ":unit_tests",

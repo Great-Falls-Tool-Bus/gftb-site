@@ -118,13 +118,21 @@ test('the notes ride a wiper rotator with exactly two controls, and Off is the p
 	// Hydration paged the list and started the wipers on the default detent.
 	await expect(region).toHaveClass(/wiper--enhanced/u);
 	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	await expect(region).toHaveAttribute('data-page', '0');
+	await expect(region).toHaveAttribute('data-page', /^[0-9]+$/u);
 
 	// Every title stays in the DOM while the pages turn: rows are shown and
 	// hidden in place, never mounted and unmounted.
 	const list = page.locator('#goals .goal-list');
 	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	expect(await visibleTitles(page)).toEqual(publicGoals.slice(0, 3).map((goal) => goal.metadata.title));
+	// A loaded runner may already have turned a page: read the page and its
+	// titles in one evaluate and compare against that page's slice.
+	const shown = await region.evaluate((el) => ({
+		page: Number(el.getAttribute('data-page')),
+		titles: Array.from(el.querySelectorAll('.goal-list > li.is-current h3')).map((h) => h.textContent),
+	}));
+	expect(shown.titles).toEqual(
+		publicGoals.slice(shown.page * 3, shown.page * 3 + 3).map((goal) => goal.metadata.title),
+	);
 
 	// Exactly two controls: the switch and the four-detent stalk. No
 	// previous/next/play/pause anywhere in the section.
@@ -204,28 +212,47 @@ test("a wipe turns the page at the blades' turnaround and every note gets its tu
 	await page.goto('/');
 	await selectDetent(page, 'High');
 	const region = pane(page);
-	await region.scrollIntoViewIfNeeded();
 	const pageCount = Math.ceil(publicGoals.length / 3);
-	// One dwell plus a full sweep per turn, with generous slack: under a
-	// loaded parallel run Chromium throttles timers and animation events.
-	const cycleMs = 3 * ((await dwellOf(page)) + 2 * (await strokeOf(page))) + 3000;
+	const cycleMs = (await dwellOf(page)) + 2 * (await strokeOf(page)) + 1500;
 
-	// Page index and the titles under it are read in one evaluate: a
-	// turnaround between two separate reads would credit a page's titles to
-	// its predecessor and skip one.
-	const snapshot = () =>
-		region.evaluate((el) => ({
-			page: el.getAttribute('data-page'),
-			titles: Array.from(el.querySelectorAll('li.is-current h3'), (h3) => h3.textContent ?? ''),
-		}));
-	const seen = new Set<string>();
-	for (let turn = 0; turn <= pageCount && seen.size < publicGoals.length; turn += 1) {
-		const snap = await snapshot();
-		for (const title of snap.titles) seen.add(title);
-		await expect.poll(async () => (await snapshot()).page, { timeout: cycleMs }).not.toBe(snap.page);
+	// Observe the turns from inside the page (a poll from outside can miss a
+	// page on a loaded runner): every data-page mutation records the page and
+	// the titles it shows, atomically.
+	await region.evaluate((el) => {
+		const seen: Array<{ page: string | null; titles: string[] }> = [];
+		const record = () =>
+			seen.push({
+				page: el.getAttribute('data-page'),
+				titles: Array.from(el.querySelectorAll('.goal-list > li.is-current h3')).map((h) => h.textContent ?? ''),
+			});
+		record();
+		new MutationObserver(record).observe(el, { attributes: true, attributeFilter: ['data-page'] });
+		(window as unknown as { __wiperTurns: typeof seen }).__wiperTurns = seen;
+	});
+	await expect
+		.poll(
+			async () =>
+				page.evaluate(() => {
+					const seen = (window as unknown as { __wiperTurns: Array<{ titles: string[] }> }).__wiperTurns;
+					return new Set(seen.flatMap((s) => s.titles)).size;
+				}),
+			{ timeout: cycleMs * (pageCount + 2) },
+		)
+		.toBe(publicGoals.length);
+	const turns = await page.evaluate(
+		() => (window as unknown as { __wiperTurns: Array<{ page: string | null; titles: string[] }> }).__wiperTurns,
+	);
+	// Pages advance one at a time and wrap; no page is ever skipped.
+	for (let i = 1; i < turns.length; i += 1) {
+		expect(Number(turns[i].page)).toBe((Number(turns[i - 1].page) + 1) % pageCount);
 	}
-	expect([...seen].sort()).toEqual(publicGoals.map((goal) => goal.metadata.title).sort());
-	// The pane never becomes a scroller and the arms stay inside it.
+	expect([...new Set(turns.flatMap((t) => t.titles))].sort()).toEqual(
+		publicGoals.map((goal) => goal.metadata.title).sort(),
+	);
+	// The pane never becomes a scroller and the arms stay inside it (measured
+	// at rest: a sheen band crossing mid-wipe widens the clipped overflow the
+	// browser reports, which no visitor can scroll into).
+	await expect(region).toHaveAttribute('data-state', /^(dwell|paused)$/u);
 	expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
 
@@ -251,8 +278,9 @@ test('a pointer over the pane pauses the wipers and leaving resumes them', async
 	await pointerAway(page);
 	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
 	await expect(status).toHaveAttribute('aria-live', 'off');
+	// Resume budget covers a delayed animation start on a loaded runner.
 	await expect
-		.poll(async () => region.getAttribute('data-page'), { timeout: dwell + 2 * stroke + 1500 })
+		.poll(async () => region.getAttribute('data-page'), { timeout: 2 * (dwell + 2 * stroke) + 2500 })
 		.not.toBe(before);
 });
 
@@ -385,6 +413,10 @@ test('reduced motion never rotates and offers no rotation controls', async ({ pa
 		),
 	).toBe(0);
 	expect(await region.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe('none');
+	// The aero skin's own pseudo paint is static under reduce: no sheen exists,
+	// the droplet layer carries no filter.
+	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+	expect(await region.evaluate((el) => getComputedStyle(el, '::before').filter)).toBe('none');
 });
 
 test('paper gets every note and none of the dash', async ({ page }) => {
@@ -411,7 +443,103 @@ test('paper gets every note and none of the dash', async ({ page }) => {
 			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
 		}
 	}
+	// A print begun mid-wipe carries no sheen band.
+	expect(await pane(page).evaluate((el) => getComputedStyle(el, '::after').display)).toBe('none');
 });
+
+// Operator ruling 2026-09-09 (light-pipe): each dash key keeps exactly one
+// border, a 2px top edge (accent on the glass skins, destination-sign amber
+// on the deck), because the browser 1.4.11 collector
+// (e2e/acceptance-contrast.spec.ts) reads fills and border-TOP only and
+// visits only /contact. This row runs the collector's own math at / in both
+// schemes on what the browser actually painted: the RENDERED border-top
+// colour and fill of every key (converted from their computed oklch through
+// a canvas), max(fill, top edge) against the ground the key sits on, 3:1. On
+// the deck that ground is the rendered chassis; on the glass skins it is the
+// darkest and the lightest pane pixel.
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the dash keys are borderless except their light-pipe and clear 3:1 on their ground (${scheme})`, async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		const skin = await pane(page).getAttribute('data-skin');
+		expect(['aero', 'deck']).toContain(skin);
+		const keys = page.locator('#goals .wiper-controls button');
+		await expect(keys).toHaveCount(5);
+		// Rendered colours: computed styles come back as oklch(); a 1x1 canvas
+		// resolves them to the sRGB the browser painted (alpha 0 = no paint).
+		const boxes = await keys.evaluateAll((els) => {
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = 1;
+			const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+			const rgb = (css: string) => {
+				ctx.clearRect(0, 0, 1, 1);
+				ctx.fillStyle = css;
+				ctx.fillRect(0, 0, 1, 1);
+				const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
+				return alpha === 0 ? null : { red, green, blue, alpha: alpha / 255 };
+			};
+			return els.map((el) => {
+				const s = getComputedStyle(el);
+				return {
+					label: el.textContent?.trim() ?? '',
+					top: s.borderTopWidth,
+					right: s.borderRightWidth,
+					bottom: s.borderBottomWidth,
+					left: s.borderLeftWidth,
+					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius],
+					topRgb: rgb(s.borderTopColor),
+					fillRgb: rgb(s.backgroundColor),
+					groundRgb: rgb(getComputedStyle(el.closest('.wiper-controls') as Element).backgroundColor),
+				};
+			});
+		});
+		for (const box of boxes) {
+			expect(box.top, `${box.label} top edge`).toBe('2px');
+			expect([box.right, box.bottom, box.left], `${box.label} other edges`).toEqual(['0px', '0px', '0px']);
+			expect(box.radius, `${box.label} corners`).toEqual(['0px', '0px', '0px', '0px']);
+		}
+		expect(await page.locator('#goals .wiper-controls').evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe(
+			'0px',
+		);
+		const glass =
+			skin === 'deck'
+				? null
+				: await measureGlassExtremes(page, '#goals .wiper', 16).then((x) => [x.darkest.rgb, x.lightest.rgb]);
+		for (const box of boxes) {
+			const grounds = skin === 'deck' ? [box.groundRgb] : glass;
+			expect(grounds?.[0], `${box.label} ground`).toBeTruthy();
+			if (skin === 'deck') expect(box.groundRgb?.alpha, 'the deck chassis is opaque').toBe(1);
+			// The collector takes the better of the fill and the top edge; a
+			// translucent fill is composited over the ground first.
+			const candidates = [box.topRgb, box.fillRgb]
+				.filter((c): c is NonNullable<typeof c> => c !== null)
+				.map((c) =>
+					c.alpha >= 1
+						? c
+						: {
+								red: Math.round(c.red * c.alpha + grounds![0]!.red * (1 - c.alpha)),
+								green: Math.round(c.green * c.alpha + grounds![0]!.green * (1 - c.alpha)),
+								blue: Math.round(c.blue * c.alpha + grounds![0]!.blue * (1 - c.alpha)),
+							},
+				);
+			expect(candidates.length, `${box.label} paints a boundary`).toBeGreaterThan(0);
+			const best = Math.max(
+				...candidates.map((c) => Math.min(...grounds!.map((g) => roundRatio(contrastRatio(c, g!))))),
+			);
+			expect(best, `${box.label} boundary on its ground`).toBeGreaterThanOrEqual(LARGE);
+		}
+		// The pane's own pseudo paint (droplets, sheen) is square too.
+		for (const pseudo of ['::before', '::after'] as const) {
+			expect(await pane(page).evaluate((el, p) => getComputedStyle(el, p).borderTopLeftRadius, pseudo)).toBe('0px');
+		}
+	});
+}
 
 test('the pane never widens the page on a narrow phone', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 700 });
@@ -513,6 +641,277 @@ for (const scheme of ['light', 'dark'] as const) {
 		expect(await worst('--accent'), 'dash control boundaries on the pane').toBeGreaterThanOrEqual(LARGE);
 	});
 }
+
+// The blob layer (operator ruling 2026-09-09: opacity 0.15, pointer physics
+// off) tints the bare ground under body copy. The GATE for that opacity is
+// analytic: src/lib/blob-ground-contrast.test.ts composites every blob colour
+// at the layer's opacity with the scheme's blend mode over --bg and holds
+// the ink roles to their floors. The rows below are a
+// one-frame smoke over a randomly seeded, moving layer: they catch a gross
+// regression, they do not prove the worst case.
+for (const scheme of ['light', 'dark'] as const) {
+	test(`body copy on bare ground clears its floor over the blob layer (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
+		// The layer fades in after its idle mount; sample once it is opaque.
+		await page.waitForTimeout(1200);
+		const ground = page.locator('#goals .goal-asides');
+		await ground.scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		const extremes = await measureGlassExtremes(page, '#goals .goal-asides', 2);
+		const worst = async (role: string) => {
+			const ink = await resolveRoleRgb(page, role);
+			return Math.min(
+				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
+				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
+			);
+		};
+		expect(await worst('--fg'), 'body copy on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--fg-muted'), 'muted copy on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--link'), 'links on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--heading'), 'headings on the ground').toBeGreaterThanOrEqual(LARGE);
+	});
+}
+
+// The instruments (PR-3): rain accumulates over the dwell, the posbar fills
+// toward the next wipe, the sheen crosses with the blades. All of it is CSS
+// keyed on the pane's state, so Off is dead still, a resting pointer freezes
+// the gauge and the rain where they are, and the sheen exists only during a
+// wipe.
+test('nothing runs while the wipers are off', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Off');
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
+	await page.waitForTimeout(600);
+	const running = await page.evaluate(() =>
+		document
+			.getAnimations()
+			.filter((a) => a.playState === 'running')
+			.map((a) => (a.effect as KeyframeEffect | null)?.target)
+			.filter((target): target is Element => target instanceof Element && target.closest('#goals') !== null)
+			.map((el) => el.className.toString()),
+	);
+	expect(running).toEqual([]);
+	expect(await pane(page).evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+});
+
+test('the rain and the gauge fill toward the next wipe and freeze under the pointer', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Intermittent');
+	const region = pane(page);
+	// Sample a fresh dwell (the one that follows the next wipe), so the two
+	// readings never straddle a wipe: the rain resets to 0.15 at the return
+	// stroke and the gauge to empty.
+	await region.evaluate(
+		(el) =>
+			new Promise<void>((resolve) => {
+				// A mutation observer, not requestAnimationFrame: the blob layer
+				// can starve animation frames on a loaded runner.
+				let wiped = false;
+				const observer = new MutationObserver(() => {
+					const state = el.getAttribute('data-state');
+					if (state === 'wiping') wiped = true;
+					if (wiped && state === 'dwell') {
+						observer.disconnect();
+						resolve();
+					}
+				});
+				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+			}),
+	);
+	const sample = () =>
+		region.evaluate((el) => ({
+			rain: Number(getComputedStyle(el, '::before').opacity),
+			gauge: getComputedStyle(el.querySelector('.wiper-gauge') as Element, '::before').transform,
+		}));
+	// A busy main thread (the blob layer's physics) can hold a CSS animation's
+	// start for a while on a loaded runner; wait until the accumulation is
+	// visibly under way (past the 0.15 floor, short of full), then sample.
+	// Two readings inside ONE dwell (a wipe between them resets both
+	// instruments, so a pair that straddles a wipe is discarded and retaken).
+	const pair = async () => {
+		await expect.poll(async () => (await sample()).rain, { timeout: 6000 }).toBeGreaterThan(0.16);
+		const first = await sample();
+		await page.waitForTimeout(600);
+		const second = await sample();
+		const state = await region.getAttribute('data-state');
+		return { first, second, sameDwell: state === 'dwell' && second.rain >= first.rain };
+	};
+	let reading = await pair();
+	for (let attempt = 0; attempt < 3 && !reading.sameDwell; attempt += 1) reading = await pair();
+	const { first: a, second: b } = reading;
+	expect(a.rain).toBeLessThan(0.95);
+	// Both instruments move during the dwell.
+	expect(b.rain).toBeGreaterThan(a.rain);
+	expect(b.gauge).not.toBe(a.gauge);
+	// A resting pointer freezes them where they are.
+	await region.hover();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	const c = await sample();
+	await page.waitForTimeout(700);
+	const d = await sample();
+	expect(d.rain).toBeCloseTo(c.rain, 2);
+	expect(d.gauge).toBe(c.gauge);
+	await pointerAway(page);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	// After the resume the instruments and the wipe share one clock: the
+	// gauge must not sit pegged at full while nothing happens (the pre-fix
+	// failure was up to a whole dwell of a full gauge before the wipe).
+	const dwell = await dwellOf(page);
+	let pegged = 0;
+	const started = Date.now();
+	while (Date.now() - started < dwell + 3000) {
+		if ((await region.getAttribute('data-state')) !== 'dwell') break;
+		if (/matrix\(1, 0, 0, 1, 0, 0\)/u.test((await sample()).gauge)) pegged += 1;
+		await page.waitForTimeout(250);
+	}
+	expect(pegged, 'quarter-second samples with a full gauge before the wipe').toBeLessThanOrEqual(3);
+});
+
+test('the sheen exists only during a wipe', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Intermittent');
+	const region = pane(page);
+	await expect(region).toHaveAttribute('data-skin', /^(aero|deck)$/u);
+	await expect(region).toHaveAttribute('data-state', 'dwell');
+	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+	const seen = await region.evaluate(
+		(el) =>
+			new Promise<{ content: string; animation: string }>((resolve) => {
+				const observer = new MutationObserver(() => {
+					if (el.getAttribute('data-state') !== 'wiping') return;
+					observer.disconnect();
+					const s = getComputedStyle(el, '::after');
+					resolve({ content: s.content, animation: s.animationName });
+				});
+				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+			}),
+	);
+	expect(seen.content).not.toBe('none');
+	expect(seen.animation).toContain('wiper-sheen');
+	await expect(region).toHaveAttribute('data-state', 'dwell', { timeout: 10_000 });
+	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+});
+
+// The deck skin (ruled 2026-09-09): the dash strip is the one sanctioned opaque
+// chassis; its keys keep the amber light-pipe as their measurable boundary,
+// the LCD counts the dwell down, the VU bars step once per wipe, and the
+// marquee moves only while the wipers run.
+test('the deck chassis keys keep a measurable boundary and every deck element is square', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await pointerAway(page);
+	const region = pane(page);
+	await expect(region).toHaveAttribute('data-skin', 'deck');
+	// Rendered colours through a canvas (computed styles are oklch()).
+	const painted = await region.locator('.wiper-switch, .wiper-stalk__detent').evaluateAll((els) => {
+		const canvas = document.createElement('canvas');
+		canvas.width = canvas.height = 1;
+		const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+		const rgb = (css: string) => {
+			ctx.clearRect(0, 0, 1, 1);
+			ctx.fillStyle = css;
+			ctx.fillRect(0, 0, 1, 1);
+			const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
+			return { red, green, blue, alpha: alpha / 255 };
+		};
+		const chassis = els[0].closest('.wiper-controls') as Element;
+		return {
+			ground: rgb(getComputedStyle(chassis).backgroundColor),
+			keys: els.map((el) => {
+				const s = getComputedStyle(el);
+				return {
+					top: Number.parseFloat(s.borderTopWidth),
+					sides: [s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth],
+					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius],
+					pipe: rgb(s.borderTopColor),
+				};
+			}),
+		};
+	});
+	expect(painted.ground.alpha, 'the deck chassis is opaque').toBe(1);
+	expect(painted.keys).toHaveLength(5);
+	for (const key of painted.keys) {
+		expect(key.top).toBe(2);
+		expect(key.sides).toEqual(['0px', '0px', '0px']);
+		expect(key.radius).toEqual(['0px', '0px', '0px', '0px']);
+		expect(key.pipe.alpha).toBe(1);
+		expect(
+			roundRatio(contrastRatio(key.pipe, painted.ground)),
+			'rendered light-pipe on the rendered chassis',
+		).toBeGreaterThanOrEqual(3);
+	}
+	for (const selector of ['.wiper-lcd', '.wiper-vu i', '.wiper-switch__lamp', '.wiper-marquee']) {
+		for (const el of await region.locator(selector).all()) {
+			expect(await el.evaluate((node) => getComputedStyle(node).borderRadius), selector).toBe('0px');
+		}
+	}
+});
+
+test('the LCD counts the dwell down and the VU bars step at the turnaround', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Intermittent');
+	const region = pane(page);
+	const digits = region.locator('.wiper-lcd__digits');
+	// The counter's rendered digits are not observable through computed
+	// style (content stays the counter() expression); the registered
+	// integer that feeds it is.
+	const readout = () => digits.evaluate((el) => getComputedStyle(el).getPropertyValue('--wiper-left').trim());
+	const bars = () =>
+		region.locator('.wiper-vu i').evaluateAll((els) => els.map((el) => getComputedStyle(el).transform));
+	// A fresh dwell, then two readings a second apart: the count falls.
+	await region.evaluate(
+		(el) =>
+			new Promise<void>((resolve) => {
+				let wiped = false;
+				const observer = new MutationObserver(() => {
+					const state = el.getAttribute('data-state');
+					if (state === 'wiping') wiped = true;
+					if (wiped && state === 'dwell') {
+						observer.disconnect();
+						resolve();
+					}
+				});
+				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+			}),
+	);
+	const barsBefore = await bars();
+	await expect.poll(readout, { timeout: 4000 }).toMatch(/^[1-4]$/u);
+	const a = Number(await readout());
+	await page.waitForTimeout(1200);
+	const b = Number(await readout());
+	expect(b).toBeLessThan(a);
+	// After the next turnaround the bars stand at new heights.
+	const pageBefore = await region.getAttribute('data-page');
+	await expect.poll(async () => region.getAttribute('data-page'), { timeout: 12_000 }).not.toBe(pageBefore);
+	await page.waitForTimeout(900);
+	expect(await bars()).not.toEqual(barsBefore);
+});
+
+test('the marquee moves only while the wipers run', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await pointerAway(page);
+	const region = pane(page);
+	const track = region.locator('.wiper-marquee__track');
+	const state = () =>
+		track.evaluate((el) => `${getComputedStyle(el).animationName}/${getComputedStyle(el).animationPlayState}`);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	expect(await state()).toBe('wiper-marquee/running');
+	await region.hover();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	expect(await state()).toBe('wiper-marquee/paused');
+	await selectDetent(page, 'Off');
+	await expect(region).toHaveAttribute('data-state', 'off');
+	expect(await state()).toBe('none/running');
+});
 
 test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
