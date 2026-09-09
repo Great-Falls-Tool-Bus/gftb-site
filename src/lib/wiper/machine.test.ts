@@ -80,7 +80,7 @@ describe('WiperMachine', () => {
 	});
 
 	it('banks the dwell across a hover pause and resumes where it left off', () => {
-		const m = make();
+		const m = make({ initial: 'intermittent' });
 		m.resume(0);
 		run(m, 0, 1000);
 		const remaining = m.dwellRemainingMs;
@@ -95,6 +95,18 @@ describe('WiperMachine', () => {
 		expect(m.phase).toBe('out');
 	});
 
+	it('ignores a resting pointer on Low and High; focus still pauses them', () => {
+		for (const initial of ['low', 'high'] as const) {
+			const m = make({ initial });
+			m.resume(0);
+			run(m, 0, 500);
+			m.hover = true;
+			expect(m.view()).toMatchObject({ state: 'dwell', running: true });
+			m.focus = true;
+			expect(m.view()).toMatchObject({ state: 'paused', running: false });
+		}
+	});
+
 	it('lets a stroke in flight complete even under a pause', () => {
 		const m = make({ initial: 'high' });
 		const { dwellMs, sweepMs } = wiperDetent('high');
@@ -102,7 +114,7 @@ describe('WiperMachine', () => {
 		run(m, 0, dwellMs + 20);
 		expect(m.phase).toBe('out');
 		const started = dwellMs + 20;
-		m.hover = true;
+		m.focus = true;
 		run(m, started, started + sweepMs / 2 + 40);
 		expect(m.phase).toBe('back');
 		run(m, started + sweepMs / 2 + 40, started + sweepMs + 80);

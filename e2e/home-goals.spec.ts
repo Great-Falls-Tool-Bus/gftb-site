@@ -180,9 +180,17 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	await pane(page).scrollIntoViewIfNeeded();
+	// High is the detent on load, so a wipe may already have turned the page
+	// by now: read whichever page is in view and expect the one after it.
 	const firstPage = await currentTitles(page);
-	expect(firstPage).toHaveLength(3);
-	const expectedSecondPage = publicGoals.slice(3, 6).map((goal) => goal.metadata.title);
+	const titles = publicGoals.map((goal) => goal.metadata.title);
+	const pageSize = 3;
+	const pageCount = Math.ceil(titles.length / pageSize);
+	const pageInView = Math.floor(titles.indexOf(firstPage[0]) / pageSize);
+	expect(pageInView).toBeGreaterThanOrEqual(0);
+	expect(firstPage).toEqual(titles.slice(pageInView * pageSize, (pageInView + 1) * pageSize));
+	const nextPage = (pageInView + 1) % pageCount;
+	const expectedSecondPage = titles.slice(nextPage * pageSize, (nextPage + 1) * pageSize);
 	// Observe from inside the page: every data-wipe flip and every page turn,
 	// with the mask progress sampled while the out-stroke runs.
 	await page.evaluate(() => {
@@ -212,7 +220,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	});
 	await selectDetent(page, 'High');
 	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
-	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(3);
+	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(firstPage.length);
 	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(expectedSecondPage.length);
 	const outMask = await page
 		.locator('#goals li[data-wipe="out"]')
@@ -244,7 +252,6 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	const secondPage = await currentTitles(page);
 	expect(secondPage).toEqual(expectedSecondPage);
 	expect(secondPage).not.toEqual(firstPage);
-	expect(secondPage[0]).toBe(publicGoals[3].metadata.title);
 	const log = await page.evaluate(
 		() =>
 			(window as unknown as { __wipeLog: Array<{ state: string; unit: number; outs: number; ins: number }> }).__wipeLog,
@@ -252,7 +259,9 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	// The engine resets the unit to 0 at the apex synchronously, a microtask
 	// before Svelte drops the data-wipe attributes, so the log ends with that
 	// reset; the rise before it must be monotonic and reach the turnaround.
-	const units = log.filter((entry) => entry.state === 'wiping' && entry.outs === 3).map((entry) => entry.unit);
+	const units = log
+		.filter((entry) => entry.state === 'wiping' && entry.outs === firstPage.length)
+		.map((entry) => entry.unit);
 	const peak = Math.max(...units);
 	const rising = units.slice(0, units.lastIndexOf(peak) + 1);
 	// The hold sits at 0.5 and the release continues upward; on a slow software
@@ -425,7 +434,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		// At rest means at rest: a stroke shoves the notes across the glass
 		// while the pixels are read. A slower detent keeps the dwell already
 		// counting, so the only guaranteed window is the fresh dwell after a
-		// stroke ends: take Intermittent (at least 5.2 s of rest), let the next
+		// stroke ends: take Intermittent (at least 5.6 s of rest), let the next
 		// stroke run to its end, then sample.
 		await selectDetent(page, 'Intermittent');
 		await pointerAway(page);
@@ -522,7 +531,14 @@ for (const scheme of ['light', 'dark'] as const) {
 			throw new Error(`no gutter crossing for the arm parked at ${parkAngle(arm)}`);
 		});
 		const peak = async (rect: (typeof targets)[number]['rect']) => {
-			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__blades', [rect], '#goals .goal-list');
+			// The blade layer alone over the page ground: the notes and the scene
+			// (whose beads and frost are sharp too) are hidden for the capture.
+			const extremes = await measureExtremesInRects(
+				page,
+				'#goals canvas.wiper__blades',
+				[rect],
+				'#goals .goal-list, #goals canvas.wiper__scene',
+			);
 			return Math.max(
 				roundRatio(contrastRatio(ground, extremes.darkest.rgb)),
 				roundRatio(contrastRatio(ground, extremes.lightest.rgb)),
@@ -587,7 +603,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
-		// A fresh rest begins when a stroke ends; Intermittent gives at least 5.2 s of it.
+		// A fresh rest begins when a stroke ends; Intermittent gives at least 5.6 s of it.
 		await selectDetent(page, 'Intermittent');
 		await pointerAway(page);
 		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 20_000 });
@@ -605,9 +621,11 @@ for (const scheme of ['light', 'dark'] as const) {
 			/dwell|paused/u,
 		);
 		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
+		// Edge energy is the measure: beads are sharp. Deviation is not, since
+		// frost softens the smooth field toward the ground as the beads arrive.
 		for (const side of [0, 1]) {
 			expect(late[side].edge, `edge energy, side ${side}`).toBeGreaterThanOrEqual(early[side].edge * 1.4);
-			expect(late[side].stddev, `deviation, side ${side}`).toBeGreaterThanOrEqual(early[side].stddev * 1.3);
+			expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
 		}
 	});
 
@@ -666,12 +684,22 @@ test('a pointer over the pane pauses the wipers, leaving resumes them, and focus
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	await pane(page).scrollIntoViewIfNeeded();
+	// The courtesy pause belongs to the intermittent detent alone (operator
+	// ruling at the M4 ratification): on High a resting pointer changes nothing.
+	await selectDetent(page, 'Intermittent');
 	await pointerAway(page);
 	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
 	await pane(page).hover();
 	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
 	await pointerAway(page);
 	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	await selectDetent(page, 'High');
+	await pane(page).hover();
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|wiping/u);
+	await page.waitForTimeout(400);
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|wiping/u);
+	await selectDetent(page, 'Intermittent');
+	await pointerAway(page);
 	// Focus a note on the last page: the page turns at once, no wipe, and holds.
 	const lastIndex = publicGoals.length - 1;
 	await page.locator('#goals .goal-list > li').nth(lastIndex).locator('.goal-edit a').focus();

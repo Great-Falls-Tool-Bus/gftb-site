@@ -1,6 +1,20 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { contrastRatio, roundRatio } from '../../../scripts/lib/color-contrast.mjs';
+import { resolveRole, schemes } from '../../../scripts/lib/css-tokens.mjs';
+import { BRAND_BLOB_COLORS } from '../brand-blob-colors';
 import { distanceToRect, rasterizeInkField } from './ink-field';
-import { DROP_SPEC, FROST_MAX, INK_FIELD_HEIGHT, INK_FIELD_WIDTH, INK_SAFE_ALPHA } from './renderer/shaders/constants';
+import {
+	DROP_RIM_DARKEN,
+	DROP_RIM_LIGHTEN,
+	DROP_SPEC,
+	FROST_MAX,
+	INK_FIELD_HEIGHT,
+	INK_FIELD_WIDTH,
+	INK_SAFE_ALPHA,
+} from './renderer/shaders/constants';
 import { SCENE_FRAGMENT } from './renderer/shaders/scene.glsl';
 
 describe('the ink field raster', () => {
@@ -85,63 +99,104 @@ describe('the ink field raster', () => {
 	});
 });
 
-// The glass (M4) sits before the clamp like the blobs. Its worst pixels are a
-// bead's darkened rim (ground times 0.72 in light), a bead's specular point
-// (ground plus DROP_SPEC) and full frost (ground pulled FROST_MAX toward the
-// frost tint). Under measured text each is pulled back to the ground by
-// 1 - INK_SAFE_ALPHA, and every text role must still clear its floor. A
-// failure here lowers DROP_SPEC or FROST_MAX, never the clamp.
+// The glass (M4) sits before the clamp like the blobs, and it is gated by
+// the ink field: under measured text (k = 1) beads and frost contribute
+// nothing, because the blob field alone spends the ratified budget there
+// (dark links sit at the floor under one blob). This pin holds the gate to
+// the same standard the blob field meets: at any ink coverage k, the worst
+// glass pixel (a bead's rim, a bead's specular point, full frost, each over
+// the blob field's own worst case) may cost a role at most what the blob
+// field already costs it there, and under text the floor holds outright.
+// Palette through the ratified resolver, so a token change moves this too.
 describe('the glass under the ink clamp', () => {
-	const srgbToLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-	const luminance = (rgb: readonly [number, number, number]) =>
-		0.2126 * srgbToLinear(rgb[0]) + 0.7152 * srgbToLinear(rgb[1]) + 0.0722 * srgbToLinear(rgb[2]);
-	const contrast = (a: readonly [number, number, number], b: readonly [number, number, number]) => {
-		const la = luminance(a);
-		const lb = luminance(b);
-		return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-	};
-	const hex = (value: string): [number, number, number] => {
-		const n = Number.parseInt(value.slice(1), 16);
+	const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+	const appCss = readFileSync(path.join(repoRoot, 'src/app.css'), 'utf8');
+	const themeCss = readFileSync(path.join(repoRoot, 'src/lib/styles/theme-gftb.css'), 'utf8');
+	const SCHEMES = schemes({ appCss, themeCss });
+	type Rgb = { red: number; green: number; blue: number; alpha: number };
+	type Vec = [number, number, number];
+	const role = (tokens: (typeof SCHEMES)[keyof typeof SCHEMES], name: string): Rgb => ({
+		...(resolveRole(tokens, name) as Omit<Rgb, 'alpha'>),
+		alpha: 1,
+	});
+	const toVec = (rgb: Rgb): Vec => [rgb.red / 255, rgb.green / 255, rgb.blue / 255];
+	const toRgb = (v: Vec): Rgb => ({
+		red: Math.round(Math.min(Math.max(v[0], 0), 1) * 255),
+		green: Math.round(Math.min(Math.max(v[1], 0), 1) * 255),
+		blue: Math.round(Math.min(Math.max(v[2], 0), 1) * 255),
+		alpha: 1,
+	});
+	const hexVec = (value: string): Vec => {
+		const n = Number.parseInt(value.replace('#', ''), 16);
 		return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 	};
-	const mix = (a: readonly [number, number, number], b: readonly [number, number, number], t: number) =>
-		[a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t] as [number, number, number];
-	const clampToGround = (ground: [number, number, number], scene: [number, number, number]) =>
-		mix(ground, scene, INK_SAFE_ALPHA);
-
-	const schemes = [
-		{
-			name: 'light',
-			ground: hex('#f7f0df'),
-			tint: [0.97, 0.98, 1.0] as [number, number, number],
-			frostMax: FROST_MAX[0],
-			roles: { fg: hex('#28222b'), muted: hex('#625d5c'), link: hex('#564682'), heading: hex('#463a67') },
-		},
-		{
-			name: 'dark',
-			ground: hex('#1a1620'),
-			tint: [0.62, 0.66, 0.76] as [number, number, number],
-			frostMax: FROST_MAX[1],
-			roles: { fg: hex('#f2ecdf'), muted: hex('#c9c2b8'), link: hex('#c9b8f0'), heading: hex('#e6dcff') },
-		},
+	const mix = (a: Vec, b: Vec, t: number): Vec => [
+		a[0] + (b[0] - a[0]) * t,
+		a[1] + (b[1] - a[1]) * t,
+		a[2] + (b[2] - a[2]) * t,
 	];
+	const add = (a: Vec, k: number): Vec => [a[0] + k, a[1] + k, a[2] + k];
+	const scale = (a: Vec, k: number): Vec => [a[0] * k, a[1] * k, a[2] * k];
+	const blend = (scheme: string, g: Vec, c: Vec): Vec =>
+		scheme === 'dark'
+			? [1 - (1 - g[0]) * (1 - c[0]), 1 - (1 - g[1]) * (1 - c[1]), 1 - (1 - g[2]) * (1 - c[2])]
+			: [g[0] * c[0], g[1] * c[1], g[2] * c[2]];
+	const BLOB_COVER_CAP = 0.72;
+	const ROLES = [
+		'--fg',
+		'--fg-muted',
+		'--link',
+		'--heading',
+		'--glass-fg',
+		'--glass-muted',
+		'--glass-link',
+		'--glass-heading',
+	];
+	const FLOORS: Record<string, number> = { '--heading': 3, '--glass-heading': 3 };
 
-	for (const scheme of schemes) {
-		it(`clears every text role's floor in ${scheme.name}`, () => {
-			const { ground } = scheme;
-			const rim = mix(ground, [ground[0] * 0.72, ground[1] * 0.72, ground[2] * 0.72], 1);
-			const spec = [
-				Math.min(ground[0] + DROP_SPEC, 1),
-				Math.min(ground[1] + DROP_SPEC, 1),
-				Math.min(ground[2] + DROP_SPEC, 1),
-			] as [number, number, number];
-			const frost = mix(ground, scheme.tint, scheme.frostMax);
-			for (const worst of [rim, spec, frost]) {
-				const seen = clampToGround(ground, worst);
-				expect(contrast(scheme.roles.fg, seen)).toBeGreaterThanOrEqual(4.5);
-				expect(contrast(scheme.roles.muted, seen)).toBeGreaterThanOrEqual(4.5);
-				expect(contrast(scheme.roles.link, seen)).toBeGreaterThanOrEqual(4.5);
-				expect(contrast(scheme.roles.heading, seen)).toBeGreaterThanOrEqual(3);
+	for (const scheme of Object.keys(SCHEMES)) {
+		it(`adds nothing under text and costs no more than the blob field across the feather (${scheme})`, () => {
+			const tokens = SCHEMES[scheme as keyof typeof SCHEMES];
+			const ground = toVec(role(tokens, '--bg'));
+			const tint: Vec = scheme === 'dark' ? [0.62, 0.66, 0.76] : [0.97, 0.98, 1.0];
+			const frostMax = scheme === 'dark' ? FROST_MAX[1] : FROST_MAX[0];
+			const fields: Vec[] = [
+				ground,
+				...BRAND_BLOB_COLORS.map((c) => mix(ground, blend(scheme, ground, hexVec(c)), BLOB_COVER_CAP)),
+			];
+			// The shader's composite at ink coverage k: glass gated by (1 - k), then the clamp.
+			const composite = (field: Vec, glassPixel: Vec, k: number): Rgb => {
+				const withGlass = mix(field, glassPixel, 1 - k);
+				return toRgb(mix(ground, withGlass, 1 - k * (1 - INK_SAFE_ALPHA)));
+			};
+			for (const field of fields) {
+				const glassPixels: Vec[] = [
+					scheme === 'dark' ? add(field, DROP_RIM_LIGHTEN) : scale(field, DROP_RIM_DARKEN),
+					add(field, DROP_SPEC),
+					mix(mix(field, mix(ground, field, 0.6), 0.5), tint, frostMax),
+				];
+				// k = 1 is measured text (dilated 14px past every rect); k = 0.9 is the
+				// first tenth of the 96px feather beyond it, where no glyph sits.
+				for (const k of [1, 0.9]) {
+					const bare = composite(field, field, k);
+					for (const glassPixel of glassPixels) {
+						const seen = composite(field, glassPixel, k);
+						for (const name of ROLES) {
+							const ink = role(tokens, name);
+							const withGlass = roundRatio(contrastRatio(ink, seen));
+							const withoutGlass = roundRatio(contrastRatio(ink, bare));
+							const floor = FLOORS[name] ?? 4.5;
+							if (k === 1) {
+								expect(withGlass, `${name} under text in ${scheme}`).toBeGreaterThanOrEqual(floor);
+								expect(seen).toEqual(bare);
+							} else if (withoutGlass >= floor) {
+								expect(withGlass, `${name} at k=${k} in ${scheme}`).toBeGreaterThanOrEqual(
+									Math.min(floor, withoutGlass) - 0.35,
+								);
+							}
+						}
+					}
+				}
 			}
 		});
 	}

@@ -166,7 +166,12 @@ describe('the wiper source contract', () => {
 			/mask-image: linear-gradient\(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%\);/u,
 		);
 		// The band feathers like the hero backdrop and clips what the blade shoves out.
-		expect(css).toMatch(/\.wiper--paged \.wiper__glass \{\n\toverflow: clip;/u);
+		expect(css).toMatch(
+			/\.wiper--paged \.wiper__glass \{\n\toverflow: clip;\n\tborder-radius: var\(--bleed-radius\) var\(--bleed-radius\) 0 0;/u,
+		);
+		// The mirror: the hero band's bottom corners on the same token.
+		expect(css).toMatch(/\.hero__media \{[^}]*border-radius: 0 0 var\(--bleed-radius\) var\(--bleed-radius\);/u);
+		expect(css).toMatch(/--bleed-radius: clamp\(1\.75rem, 5vw, 3\.5rem\);/u);
 		expect(css).toMatch(/\.wiper--paged \.wiper__glass::after \{[^}]*z-index: 0;[^}]*pointer-events: none;/u);
 		const host = read('src/lib/components/WiperScene.svelte');
 		expect(host).toContain('aria-hidden="true"');
@@ -194,10 +199,16 @@ describe('the wiper source contract', () => {
 		const [, rest] = fragment.split('if (u_layer == 0) {');
 		const [sceneBranch, bladeBranch] = rest.split('return;\n\t}');
 		expect(shader).toContain('uniform highp sampler2D u_drops;');
+		const clampWrite = sceneBranch.indexOf('outColor = vec4(mix(u_ground, blobs');
+		expect(clampWrite).toBeGreaterThan(-1);
 		for (const call of ['sweptNow(', 'frost(', 'droplets(']) {
 			expect(sceneBranch.indexOf(call)).toBeGreaterThan(-1);
-			expect(sceneBranch.indexOf(call)).toBeLessThan(sceneBranch.indexOf('texture(u_ink'));
+			expect(sceneBranch.indexOf(call)).toBeLessThan(clampWrite);
 		}
+		// The glass is gated by the ink field: nothing under measured text.
+		expect(sceneBranch).toContain('float glass = 1.0 - k;');
+		expect(fragment).toContain('* (1.0 - swept) * glass;');
+		expect(fragment).toContain('drop.w * edgeAA * (1.0 - swept) * glass');
 		expect(sceneBranch).not.toMatch(/armParts\(|shadeChrome\(/u);
 		expect(bladeBranch).not.toMatch(/u_drops|u_frostTex|u_armEdge|u_armFan/u);
 		// GLSL ES reserved words never appear as identifiers.

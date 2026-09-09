@@ -9,7 +9,7 @@
 // cross-section, a key light, a rim light, a fresnel-weighted iridescent
 // sheen) and their soft shadow, written premultiplied over transparency so
 // the blade passes over the panes it wipes.
-import { DROP_LENS, DROP_SPEC, MAX_ARMS, MAX_BLOBS } from './constants';
+import { DROP_LENS, DROP_RIM_DARKEN, DROP_RIM_LIGHTEN, DROP_SPEC, MAX_ARMS, MAX_BLOBS } from './constants';
 
 /** A number as a GLSL float literal (32 reads 32.0). */
 const glslFloat = (value: number): string => (Number.isInteger(value) ? `${value}.0` : `${value}`);
@@ -116,10 +116,11 @@ float sweptNow(vec2 p) {
 	return swept;
 }
 
-// Frost: the grain raster times the clock's strength, gone behind the edge.
-// It softens the field toward the ground and tints it cold.
-vec3 frost(vec2 uv, vec3 col, float swept) {
-	float h = texture(u_frostTex, uv).r * u_frost * (1.0 - swept);
+// Frost: the grain raster times the clock's strength, gone behind the edge
+// and under measured text (glass). It softens the field toward the ground
+// and tints it cold.
+vec3 frost(vec2 uv, vec3 col, float swept, float glass) {
+	float h = texture(u_frostTex, uv).r * u_frost * (1.0 - swept) * glass;
 	vec3 tint = (u_blend == 0) ? vec3(0.97, 0.98, 1.0) : vec3(0.62, 0.66, 0.76);
 	vec3 soft = mix(col, mix(u_ground, col, 0.6), 0.5 * h);
 	return mix(soft, tint, u_frostMax * h);
@@ -128,7 +129,7 @@ vec3 frost(vec2 uv, vec3 col, float swept) {
 // Droplets: the four cells around the pixel can hold a bead that reaches
 // it. Each bead is a lens over the blob field (sampled toward its centre),
 // darker at the rim in light, brighter in dark, with one specular point.
-vec3 droplets(vec2 p, vec3 base, float swept) {
+vec3 droplets(vec2 p, vec3 base, float swept, float glass) {
 	vec2 g = p / u_dropCell - 0.5;
 	ivec2 c0 = ivec2(floor(g)) + ivec2(1);
 	vec3 col = base;
@@ -147,12 +148,14 @@ vec3 droplets(vec2 p, vec3 base, float swept) {
 			float lensCover;
 			vec3 seen = blobScene(drop.xy - d * ${glslFloat(DROP_LENS)}, lensCover);
 			float rim = smoothstep(0.55, 1.0, rr);
-			vec3 bead = (u_blend == 0) ? mix(seen, seen * 0.72, rim) : seen + rim * 0.10;
+			vec3 bead = (u_blend == 0)
+				? mix(seen, seen * ${glslFloat(DROP_RIM_DARKEN)}, rim)
+				: seen + rim * ${glslFloat(DROP_RIM_LIGHTEN)};
 			vec3 n = normalize(vec3(d / r, h));
 			float spec = pow(max(dot(n, normalize(vec3(-0.42, -0.62, 0.66))), 0.0), 24.0);
 			bead += spec * ${glslFloat(DROP_SPEC)};
 			float edgeAA = 1.0 - smoothstep(r - 1.0, r, dist);
-			col = mix(col, bead, drop.w * edgeAA * (1.0 - swept));
+			col = mix(col, bead, drop.w * edgeAA * (1.0 - swept) * glass);
 		}
 	}
 	return col;
@@ -300,13 +303,17 @@ void main() {
 	if (u_layer == 0) {
 		float cover;
 		vec3 blobs = blobScene(p, cover);
+		// The ink field: the blob field's ratified budget under text is spent
+		// by the blobs alone (dark links sit at the floor), so the glass adds
+		// nothing under measured text and fades in over the ink feather.
+		float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);
+		float glass = 1.0 - k;
 		// The glass: frost and beads ride the field and vanish behind a
 		// moving edge; the blades themselves live on layer 1.
 		float swept = sweptNow(p);
-		blobs = droplets(p, frost(uv, blobs, swept), swept);
+		blobs = droplets(p, frost(uv, blobs, swept, glass), swept, glass);
 		// The ink clamp, last: under measured text the scene may leave the
-		// ground by at most u_inkAlpha of its own deviation, glass included.
-		float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);
+		// ground by at most u_inkAlpha of its own deviation.
 		outColor = vec4(mix(u_ground, blobs, 1.0 - k * (1.0 - u_inkAlpha)), 1.0);
 		return;
 	}

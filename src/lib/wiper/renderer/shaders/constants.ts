@@ -64,7 +64,10 @@ export const DROP_PRESEED = 0.3;
 /** How far inside a bead the blob field is sampled (a lens), as a fraction of the offset. */
 export const DROP_LENS = 0.55;
 /** Specular highlight strength on a bead. */
-export const DROP_SPEC = 0.35;
+export const DROP_SPEC = 0.22;
+/** A bead's rim: the field darkens by this factor in light, brightens by this much in dark. */
+export const DROP_RIM_DARKEN = 0.72;
+export const DROP_RIM_LIGHTEN = 0.06;
 /** No bead is born behind a moving edge or within this many radians ahead of it, past its own extent. */
 export const DROP_EDGE_CLEARANCE_RAD = 0.03;
 
@@ -77,6 +80,6 @@ export const FROST_SCALES_PX: readonly [number, number] = [90, 9];
 export const FROST_DELAY_S = 1.8;
 export const FROST_TAU_S = 3.5;
 /** Full frost pulls the scene this far toward the frost tint: light scheme, dark scheme. */
-export const FROST_MAX: readonly [number, number] = [0.16, 0.14];
+export const FROST_MAX: readonly [number, number] = [0.16, 0.1];
 /** The field clock's stamp for passes that happened before the field existed. */
 export const FROST_PRESEED_S = -3;

@@ -132,7 +132,10 @@ export class WiperMachine {
 		return this.rotatable && this.enabled;
 	}
 	get paused(): boolean {
-		return this.hover || this.focus || this.hidden || this.offscreen;
+		// A resting pointer pauses only the intermittent wipers (operator
+		// ruling at the M4 ratification): on Low and High the blades keep
+		// time. Focus, a hidden tab and an off-screen pane pause every detent.
+		return (this.hover && this.detent === 'intermittent') || this.focus || this.hidden || this.offscreen;
 	}
 	get running(): boolean {
 		return this.paged && !this.paused;

@@ -127,6 +127,13 @@
 	 * way — the propagated background is painted from the same tokens.
 	 * brand-vectors-motion-contract.test.ts pins this contract. */
 
+	/* The two full-bleed bands (the hero above, the windshield below) carry
+	 * one mirrored radius pair: the hero's bottom corners and the band's top
+	 * corners (operator ruling at the M4 ratification, 2026-09-09). Every
+	 * control, pane and card stays at radius 0 (never-cards, sharp edges);
+	 * e2e/acceptance-sharp-edges.spec.ts exempts exactly these two boxes. */
+	--bleed-radius: clamp(1.75rem, 5vw, 3.5rem);
+
 	--bg: var(--color-surface-100);
 	--panel: var(--color-surface-50);
 	--fg: var(--color-surface-950);
@@ -806,6 +813,8 @@ li {
 	 * own `isolation: isolate` stacking context, not a UI tier. */
 	z-index: -1;
 	overflow: clip;
+	/* The band's bottom corners, mirrored by the windshield's top corners. */
+	border-radius: 0 0 var(--bleed-radius) var(--bleed-radius);
 }
 
 /* Backdrop layer. Over-scans the band on the BLOCK axis only: 20% top and
@@ -1419,9 +1428,11 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	padding-block: 1.75rem 2.25rem;
 }
 
-/* The band clips: a note the blade has shoved past its edge is gone. */
+/* The band clips: a note the blade has shoved past its edge is gone. Its
+ * top corners mirror the hero band's bottom corners (see --bleed-radius). */
 .wiper--paged .wiper__glass {
 	overflow: clip;
+	border-radius: var(--bleed-radius) var(--bleed-radius) 0 0;
 }
 
 /* The band feathers into the page on the y axis the way the hero backdrop
