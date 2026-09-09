@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { decodePng } from './support/png-luminance';
 
 // Registered in the finite browser target within the validate action.
 //
@@ -150,4 +151,56 @@ test('the contact page never borrows a tap', async ({ page, guardedPage }) => {
 	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 	await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 	await expect(noControl(page)).toHaveCount(0);
+});
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the compiled root leaves the vector layer above the page ground: ${scheme}`, async ({ page, guardedPage }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+		await holdVectorMount(page, 'absent');
+		await guardedPage();
+		await expect(html(page)).toHaveAttribute('data-vector-mount-waiting', 'true');
+		await releaseMount(page);
+		const layer = page.getByTestId('brand-vectors-bg');
+		await expect(layer).toHaveCount(1);
+		await expect(layer.locator('svg > g > path').first()).toHaveAttribute('d', /^M/u);
+		await expect(html(page)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+		await expect(html(page)).toHaveCSS('background-image', 'none');
+		await expect(page.locator('body')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+		// Probe the real negative-z layer, preserving the actual html/body
+		// backgrounds and every ancestor stacking context. Hide only foreground
+		// paint and add a solid marker inside the layer, so random blob shapes
+		// cannot make the assertion flaky. Skeleton's opaque html background
+		// used to make body's ground cover this marker completely.
+		await page.locator('.app-shell > :not(.brand-vectors-bg)').evaluateAll((elements) => {
+			for (const element of elements) (element as HTMLElement).style.visibility = 'hidden';
+		});
+		await layer.evaluate((element) => {
+			const probe = document.createElement('div');
+			Object.assign(probe.style, {
+				position: 'absolute',
+				inset: '0',
+				background: 'rgb(255, 0, 255)',
+				zIndex: '1',
+			});
+			element.append(probe);
+		});
+		const image = decodePng(await page.screenshot({ clip: { x: 4, y: 4, width: 4, height: 4 } }));
+		expect(image.channels).toBeGreaterThanOrEqual(3);
+		expect([...image.pixels.subarray(0, 3)], 'the real vector stacking layer must paint').toEqual([255, 0, 255]);
+	});
+}
+
+test('idle vectors advance without a pointer, scroll or permission gesture', async ({ page, guardedPage }) => {
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await holdVectorMount(page, 'absent');
+	await guardedPage();
+	await expect(html(page)).toHaveAttribute('data-vector-mount-waiting', 'true');
+	await releaseMount(page);
+	const path = page.getByTestId('brand-vectors-bg').locator('svg > g > path').first();
+	await expect(path).toHaveAttribute('d', /^M/u);
+	const initial = await path.getAttribute('d');
+	await expect.poll(() => path.getAttribute('d')).not.toBe(initial);
+	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 });

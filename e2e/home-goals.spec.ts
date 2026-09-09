@@ -42,11 +42,11 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	await expect(list).toHaveAttribute('role', 'list');
 	const rows = list.locator('> li');
 	await expect(rows).toHaveCount(publicGoals.length);
-	expect(publicGoals.length).toBeGreaterThanOrEqual(6);
+	expect(publicGoals.length).toBe(5);
 	// The rendered order IS the SSOT's sort (order asc, then slug), and the
 	// first row is the operator's first penciled goal.
 	await expect(rows.locator('h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	await expect(rows.first().locator('h3')).toHaveText('Form the club');
+	await expect(rows.first().locator('h3')).toHaveText('Soft opening at the block party');
 	await expect(page.locator('#goals')).toContainText('Sunday, September 20, 2026');
 	// Featured-image home integration (the 2026-09-01 batch's deferred item):
 	// a goal that ships the frontmatter image group renders that exact image

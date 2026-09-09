@@ -8,10 +8,6 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const published = [
 	{ slug: '2026-09-07-alex-the-wheel-maven', title: 'Alex the wheel maven grinding away' },
 	{
-		slug: '2026-08-14-the-system-in-diagrams',
-		title: 'We laugh, we graph, we diagramming the system',
-	},
-	{
 		slug: '2026-08-13-networking-options-for-the-bus',
 		title: 'Sizing up networkies for the bus',
 	},
@@ -23,6 +19,7 @@ const published = [
 ] as const;
 
 const removed = [
+	'2026-08-14-the-system-in-diagrams',
 	'2026-08-15-waterproofing-seats-and-a-wants-list',
 	'2026-08-16-public-front-door',
 	'2026-08-17-starting-a-real-public-log',
@@ -112,39 +109,22 @@ test('imageless permalinks render no hero between header and body', async ({ pag
 	await expect(page.locator('.log-entry .featured-image')).toHaveCount(0);
 });
 
-test('the approved public diagrams are served from the static carrier', async ({ request }) => {
+test('the retired public diagram assets are no longer served', async ({ request }) => {
 	for (const name of [
 		'inventory-custody-flow.svg',
 		'release-proof-flow-public.svg',
 		'launch-authority-flow-public.svg',
 	]) {
 		const response = await request.get(`/diagrams/launch-member-v0/${name}`);
-		expect(response.status(), name).toBe(200);
-	}
-});
-
-test('the diagram post exposes full-size affordances at mobile width', async ({ page }) => {
-	await page.setViewportSize({ width: 320, height: 800 });
-	await page.goto('/log/2026-08-14-the-system-in-diagrams');
-	// Operator edit 2026-08-31 (2d167956): the post now carries two diagrams
-	// (inventory, release proof); the launch-authority figure and its link
-	// were removed from the prose. The SVG stays served from the static
-	// carrier (previous test) because the file remains public.
-	for (const [name, href] of [
-		['Open the full-size inventory diagram', '/diagrams/launch-member-v0/inventory-custody-flow.svg'],
-		['Open the full-size release proof diagram', '/diagrams/launch-member-v0/release-proof-flow-public.svg'],
-	] as const) {
-		const link = page.getByRole('link', { name });
-		await expect(link).toBeVisible();
-		await link.scrollIntoViewIfNeeded();
-		await expect(link).toBeInViewport();
-		await expect(link).toHaveAttribute('href', href);
+		expect(response.status(), name).toBe(404);
 	}
 });
 
 test('removed entries stay deleted and the remaining draft stays unpublished', async ({ page }) => {
 	for (const slug of removed) {
 		expect(existsSync(path.join(repoRoot, 'src', 'content', 'log', `${slug}.svx`)), slug).toBe(false);
+		const response = await page.goto(`/log/${slug}`);
+		expect(response?.status(), slug).toBe(404);
 	}
 	const response = await page.goto('/log/2026-08-21-the-road-map-plainly');
 	expect(response?.status()).toBe(404);

@@ -59,18 +59,6 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		loadComponent: () => import('../../content/log/2026-08-13-networking-options-for-the-bus.svx'),
 	},
 	{
-		slug: '2026-08-14-the-system-in-diagrams',
-		metadata: {
-			date: '2026-08-14',
-			title: 'We laugh, we graph, we diagramming the system',
-			summary: 'I love graphs almost as much as I love email',
-			tags: ['diagrams', 'ricing'],
-			published: true,
-		},
-		sourcePath: 'src/content/log/2026-08-14-the-system-in-diagrams.svx',
-		loadComponent: () => import('../../content/log/2026-08-14-the-system-in-diagrams.svx'),
-	},
-	{
 		slug: '2026-09-07-alex-the-wheel-maven',
 		metadata: {
 			date: '2026-09-07',

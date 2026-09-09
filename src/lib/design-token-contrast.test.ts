@@ -52,8 +52,8 @@ const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
 function surfaces(scheme: SchemeName) {
 	const tokens = SCHEMES[scheme];
 	const page = resolveRole(tokens, '--bg');
-	// Card-fill reduction (2026-08-20 review, finding D): .status-card, .card,
-	// .log-entry and .history-card no longer declare a border or background —
+	// Card-fill reduction (2026-08-20 review, finding D): .status-card, .card
+	// and .log-entry no longer declare a border or background;
 	// src/app.css strips the fill they used to composite (never AA-load-bearing;
 	// see that file's comment for the ruling). They render as page ground now,
 	// so `card` IS `page` here. `.hero-glass` is NOT part of this: its own
@@ -61,7 +61,7 @@ function surfaces(scheme: SchemeName) {
 	// against the hero scrim rather than the bare page.
 	const card = page;
 	return {
-		/** body, hero, section grounds — .status-card/.card/.log-entry/.history-card render here too since the 2026-08-20 fill removal */
+		/** Body, hero and section grounds; .status-card/.card/.log-entry render here too after the fill removal. */
 		page,
 		card,
 		/** .site-footer */

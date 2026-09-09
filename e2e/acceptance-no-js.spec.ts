@@ -39,7 +39,7 @@ test.describe('JavaScript disabled', () => {
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
 		await expect(page.getByRole('heading', { name: 'Public log', exact: true })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'History', exact: true })).toHaveCount(0);
 		await expect(page.getByRole('heading', { name: 'Contact and discussion' })).toBeVisible();
 	});
 

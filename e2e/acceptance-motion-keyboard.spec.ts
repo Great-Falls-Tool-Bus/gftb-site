@@ -51,15 +51,16 @@ test.describe('prefers-reduced-motion', () => {
 	});
 
 	test('anchor navigation still lands on its target with motion reduced', async ({ page, guardedPage }) => {
-		// The contact CTA is a page link now (B1.4); the footer's History link
-		// is the surviving same-page anchor this row exercises.
+		// The skip link remains a useful same-page anchor after content edits.
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await guardedPage();
-		await page.getByRole('link', { name: 'History', exact: true }).click();
-		await expect(page).toHaveURL(/#history$/u);
-		const settled = await page.locator('#history').evaluate((element) => element.getBoundingClientRect().top);
-		// scroll-margin-top is 5rem; the section must be at the top of the
-		// viewport immediately, not easing toward it.
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('link', { name: 'Skip to content', exact: true })).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(page).toHaveURL(/#main-content$/u);
+		await expect(page.locator('#main-content')).toBeFocused();
+		const settled = await page.locator('#main-content').evaluate((element) => element.getBoundingClientRect().top);
+		// The target lands near the viewport top without a smooth transition.
 		expect(Math.abs(settled)).toBeLessThan(120);
 	});
 

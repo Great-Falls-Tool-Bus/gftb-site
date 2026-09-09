@@ -116,8 +116,8 @@
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	font-synthesis: none;
 	color: var(--fg);
-	/* DELIBERATELY NO background here. The root element must stay
-	 * background-free so `body`'s wash+ground background propagates to the
+	/* The html rule below clears Skeleton's imported root background so
+	 * `body`'s wash+ground background propagates to the
 	 * CANVAS (CSS Backgrounds 3 §2.11.2) — that is what lets the negative-z
 	 * .brand-vectors-bg layer paint ABOVE the page ground yet UNDER every
 	 * in-flow surface. A background on :root defeats the propagation: body's
@@ -221,6 +221,11 @@
 }
 
 html {
+	/* Skeleton's base layer paints html even when our :root declares no
+	 * background. Clear that imported fill and image explicitly so body's
+	 * ground propagates to the canvas below the negative-z vector layer.
+	 * The browser regression checks the compiled cascade and painted pixels. */
+	background: transparent;
 	/* Document-level guard: nothing may widen the page. `clip` rather than
 	 * `hidden` so no scroll container is created and position: sticky keeps
 	 * working. (Previous apex guard, present there since its first commit.) */
@@ -231,8 +236,8 @@ html {
 body {
 	margin: 0;
 	min-width: 320px;
-	/* This is the CANVAS background: :root deliberately declares none (see
-	 * the role block above), so this propagates to the canvas and paints
+	/* This is the CANVAS background: html explicitly clears the imported
+	 * root background, so this propagates to the canvas and paints
 	 * below every negative-z layer — the seam .brand-vectors-bg depends on. */
 	background: linear-gradient(180deg, var(--wash), transparent 22rem), var(--bg);
 	color: var(--fg);
@@ -278,8 +283,8 @@ body {
  * ladder for the same reason as .hero__media: this is a below-content layer,
  * not a UI tier. .app-shell (position: relative, z-index auto) creates no
  * stacking context, so z-index: -1 stacks against the root context. The
- * layering contract that makes -1 actually visible: :root declares NO
- * background, so body's wash+ground background propagates to the CANVAS and
+ * layering contract that makes -1 actually visible: html clears the imported
+ * root background, so body's wash+ground background propagates to the CANVAS and
  * paints below this layer, while every in-flow surface paints above it (a
  * root background would flip that — body's background would then stack over
  * all negative-z layers and occlude the blobs completely; see the :root
@@ -977,8 +982,7 @@ li {
  * glass treatment under the September 8 placement ruling. */
 .status-card,
 .card,
-.log-entry,
-.history-card {
+.log-entry {
 	/* Explicit 0, not an omission: Skeleton 5 ships a `card` @utility whose
 	 * border-radius: var(--radius-container) reaches the class="card"
 	 * elements through the BUILT stylesheet, where a source grep cannot see
@@ -1624,42 +1628,6 @@ pre.shiki span {
 	color: var(--link);
 }
 
-.history-card {
-	display: grid;
-	overflow: hidden;
-}
-
-/* TIN-3932: the figure is a flex column so the photo absorbs the space the
- * credit line does not need. The photo used to carry `height: 100%`, which
- * resolved against the stretched <figure> and left the <figcaption> with
- * nowhere inside the figure to go — it spilled into the next grid row. Above
- * 48rem that row is empty, so the desktop card looked correct; below it the row
- * holds .history-card__copy and the credit printed on top of the eyebrow
- * (41px of overlap at 320 CSS px, 17px at 600). `flex: 1` with `min-height`
- * keeps the same 16rem floor and the same cover crop, but now the caption is
- * laid out first and the image takes what is left. */
-.history-card figure {
-	display: flex;
-	flex-direction: column;
-}
-
-/* <picture> only selects a source; it carries the flex sizing so the <img>
- * inside it still fills whatever the credit line leaves. */
-.history-card picture {
-	display: flex;
-	flex: 1;
-	min-height: 16rem;
-}
-
-.history-card img {
-	width: 100%;
-	object-fit: cover;
-}
-
-.history-card__copy {
-	padding: clamp(1.5rem, 5vw, 3rem);
-}
-
 figcaption {
 	margin-top: 0.7rem;
 	color: var(--fg-muted);
@@ -1778,10 +1746,6 @@ figcaption {
 	.contact-card {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		align-items: center;
-	}
-
-	.history-card {
-		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
 
 	/* Four explicit tracks, the demo's intro-weighted footer template
