@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const published = [
+	{ slug: '2026-09-07-alex-the-wheel-maven', title: 'Alex the wheel maven grinding away' },
 	{
 		slug: '2026-08-14-the-system-in-diagrams',
 		title: 'We laugh, we graph, we diagramming the system',
@@ -40,7 +41,7 @@ test('an entry whose summary equals its title prints the title once', async ({ p
 	expect(text).toBe(1);
 });
 
-test('the public log exposes exactly the approved four-entry batch', async ({ page }) => {
+test('the public log exposes exactly the approved batch, newest first', async ({ page }) => {
 	await page.goto('/log');
 	const links = page.locator('.log-list h3 a');
 	await expect(links).toHaveCount(published.length);
@@ -58,44 +59,57 @@ for (const entry of published) {
 	});
 }
 
-const imagedEntry = {
-	slug: '2026-08-11-how-tools-will-move',
-	src: '/photos/log/2026-08-11-how-tools-will-move-1280.webp',
-	alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
-} as const;
+const imagedEntries = [
+	{
+		slug: '2026-09-07-alex-the-wheel-maven',
+		src: '/photos/log/2026-09-07-alex-the-wheel-maven-1280.webp',
+		alt: 'Alex kneeling on the ridged bus floor in ear defenders and safety glasses, an angle grinder throwing sparks at the foot of a grey seat frame',
+	},
+	{
+		slug: '2026-08-11-how-tools-will-move',
+		src: '/photos/log/2026-08-11-how-tools-will-move-1280.webp',
+		alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
+	},
+] as const;
+const imagelessEntry = published.find((entry) => !imagedEntries.some((imaged) => imaged.slug === entry.slug))!;
 
-test('only the imaged entry renders featured-image markup on /log', async ({ page }) => {
-	// The first published entry with an `image` (2026-08-11, curation
-	// 2026-09-01): its archive row pins src, alt and sharp corners. Every
-	// other row keeps the honest empty state — no <img>, no <figure>, no
-	// reserved box — so the zeros survive as an exactly-one count.
+test('only the imaged entries render featured-image markup on /log', async ({ page }) => {
+	// The published entries with an `image` (2026-08-11 from the 2026-09-01
+	// curation, 2026-09-07 from the operator's own batch): each archive row
+	// pins src, alt and sharp corners. Every other row keeps the honest empty
+	// state — no <img>, no <figure>, no reserved box — so the zeros survive as
+	// an exact count.
 	await page.goto('/log');
 	await expect(page.locator('.log-list li')).toHaveCount(published.length);
-	await expect(page.locator('.log-list img')).toHaveCount(1);
-	await expect(page.locator('.featured-image')).toHaveCount(1);
-	const row = page.locator('.log-list li', { has: page.locator(`a[href="/log/${imagedEntry.slug}"]`) });
-	const thumb = row.locator('.featured-image img');
-	await expect(thumb).toHaveAttribute('src', imagedEntry.src);
-	await expect(thumb).toHaveAttribute('alt', imagedEntry.alt);
-	await expect(thumb).toHaveCSS('border-radius', '0px');
+	await expect(page.locator('.log-list img')).toHaveCount(imagedEntries.length);
+	await expect(page.locator('.featured-image')).toHaveCount(imagedEntries.length);
+	for (const imaged of imagedEntries) {
+		const row = page.locator('.log-list li', { has: page.locator(`a[href="/log/${imaged.slug}"]`) });
+		const thumb = row.locator('.featured-image img');
+		await expect(thumb).toHaveAttribute('src', imaged.src);
+		await expect(thumb).toHaveAttribute('alt', imaged.alt);
+		await expect(thumb).toHaveCSS('border-radius', '0px');
+	}
 });
 
-test('the imaged permalink renders its hero between header and body', async ({ page }) => {
-	await page.goto(`/log/${imagedEntry.slug}`);
-	const hero = page.locator('.log-entry .featured-image img');
-	await expect(hero).toHaveAttribute('src', imagedEntry.src);
-	await expect(hero).toHaveAttribute('alt', imagedEntry.alt);
-});
+for (const imaged of imagedEntries) {
+	test(`${imaged.slug} renders its hero between header and body`, async ({ page }) => {
+		await page.goto(`/log/${imaged.slug}`);
+		const hero = page.locator('.log-entry .featured-image img');
+		await expect(hero).toHaveAttribute('src', imaged.src);
+		await expect(hero).toHaveAttribute('alt', imaged.alt);
+	});
+
+	test(`${imaged.slug}'s photo is served from the static carrier`, async ({ request }) => {
+		const response = await request.get(imaged.src);
+		expect(response.status()).toBe(200);
+		expect(response.headers()['content-type']).toContain('image/webp');
+	});
+}
 
 test('imageless permalinks render no hero between header and body', async ({ page }) => {
-	await page.goto(`/log/${published[0].slug}`);
+	await page.goto(`/log/${imagelessEntry.slug}`);
 	await expect(page.locator('.log-entry .featured-image')).toHaveCount(0);
-});
-
-test('the featured log photo is served from the static carrier', async ({ request }) => {
-	const response = await request.get(imagedEntry.src);
-	expect(response.status()).toBe(200);
-	expect(response.headers()['content-type']).toContain('image/webp');
 });
 
 test('the approved public diagrams are served from the static carrier', async ({ request }) => {
