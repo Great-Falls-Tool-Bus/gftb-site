@@ -124,13 +124,9 @@
 
 		const needsFrames = () => alive && visible && !hidden && renderer !== null && field !== null;
 
-		const frame = (now: number) => {
-			raf = 0;
-			if (!needsFrames() || !renderer || !field) return;
-			const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
-			last = now;
-			field.setTilt({ x: deviceTilt.x, y: deviceTilt.y, z: deviceTilt.z });
-			field.tick(dt, now / 1000);
+		/** Draw the scene as it stands; the physics is advanced by the loop, not here. */
+		const paint = (now: number) => {
+			if (!renderer || !field) return;
 			if (inkDirty) uploadInk();
 			// The field's window covers the glass the way the SVG's viewBox does (slice).
 			const scale = Math.max(width, height) / BLOB_WINDOW_EXTENT;
@@ -146,6 +142,16 @@
 					color: palette[index % palette.length],
 				}));
 			renderer.render({ time: now / 1000, ground, blend, blobs, inkAlpha: INK_SAFE_ALPHA });
+		};
+
+		const frame = (now: number) => {
+			raf = 0;
+			if (!needsFrames() || !renderer || !field) return;
+			const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
+			last = now;
+			field.setTilt({ x: deviceTilt.x, y: deviceTilt.y, z: deviceTilt.z });
+			field.tick(dt, now / 1000);
+			paint(now);
 			raf = requestAnimationFrame(frame);
 		};
 
@@ -181,6 +187,9 @@
 			tier = 'webgl2';
 			engine.tier = 'webgl2';
 			measure();
+			// A page that loads in a background tab gets no animation frames until
+			// it is shown; paint once now so the buffer never shows empty.
+			paint(performance.now());
 			arm();
 		})();
 
