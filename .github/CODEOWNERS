@@ -1,9 +1,6 @@
 # Default owner for all paths
 * @Jesssullivan
 
-# Spec docs (dated bootstrap + future spec records)
-/docs/spec/ @Jesssullivan
-
 # Bazel files (registry consumer surface)
 /MODULE.bazel @Jesssullivan
 /.bazelrc @Jesssullivan
