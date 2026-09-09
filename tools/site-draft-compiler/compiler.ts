@@ -7,6 +7,7 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { compile as compileMarkdown } from 'mdsvex';
@@ -38,7 +39,15 @@ const TOOL_FILES = [
 	'MODULE.bazel', 'pnpm-lock.yaml', 'package.json', '.prettierrc',
 	'tools/site-draft-compiler/defs.bzl', 'tools/site-draft-compiler/BUILD.bazel',
 	'tools/site-draft-compiler/compiler.ts',
+	'tools/site-draft-compiler/package.json',
 	'src/lib/public-log-schema.ts', 'src/lib/featured-image-schema.ts',
+	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
+	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
+	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
+] as const;
+
+const RUNTIME_FILES = [
+	'package.json', 'src/lib/public-log-schema.js', 'src/lib/featured-image-schema.js',
 	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
 	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
 	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
@@ -268,12 +277,16 @@ async function checkCandidate(content: string, metadata: PublicLogMetadata): Pro
 }
 
 function toolCustody() {
-	const root = new URL('../../', import.meta.url);
-	const contents = new Map(TOOL_FILES.map((path) => [path, readFileSync(new URL(path, root))]));
+	const packageRoot = new URL('../../', import.meta.url);
+	const sourceRoot = new URL('source/', packageRoot);
+	const contents = new Map(TOOL_FILES.map((path) => [path, readFileSync(new URL(path, sourceRoot))]));
 	const files: Array<{ path: string; sha256: string }> = TOOL_FILES.map((path) => ({
 		path, sha256: sha256(contents.get(path)!),
 	}));
 	files.push({ path: 'compiler-runtime', sha256: sha256(readFileSync(fileURLToPath(import.meta.url))) });
+	for (const path of RUNTIME_FILES) {
+		files.push({ path: `runtime/${path}`, sha256: sha256(readFileSync(new URL(path, packageRoot))) });
+	}
 	const siteInputs = SITE_SEMANTIC_FILES.map((path) => ({ path, oid: gitObject('blob', contents.get(path)!) }));
 	return { files, siteInputs, format: contents.get('.prettierrc')!.toString('utf8') };
 }
@@ -323,6 +336,10 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 		// Arbitrary Prettier plugins from a caller's source snapshot are not code inputs.
 		requireFact(get('.prettierrc') === custody.format);
 		const format = JSON.parse(custody.format);
+		// Prettier resolves named plugins from cwd. Bind the reviewed plugin to
+		// this installed package's dependency closure, never the worker checkout.
+		requireFact(isDeepStrictEqual(format.plugins, ['prettier-plugin-svelte']));
+		format.plugins = [createRequire(import.meta.url).resolve('prettier-plugin-svelte')];
 		const repository = resolveSourceRepository(JSON.parse(get('tinyland.repo.json')), JSON.parse(get('package.json')));
 		requireFact(repository.repoUrl === `https://github.com/${REPOSITORY}` && repository.branch === 'main');
 		const entries = [...required].filter((path) => LOG_PATH.test(path)).sort().map((path) => parseEntry(path, get(path)));

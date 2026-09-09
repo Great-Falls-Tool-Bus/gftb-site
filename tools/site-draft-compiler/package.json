@@ -1,0 +1,23 @@
+{
+	"name": "@gftb/site-draft-compiler",
+	"version": "0.3.0",
+	"private": true,
+	"type": "module",
+	"description": "Checked unpublished draft compiler from the gftb_site Bazel module",
+	"license": "Zlib",
+	"exports": {
+		".": {
+			"types": "./tools/site-draft-compiler/compiler.d.ts",
+			"import": "./tools/site-draft-compiler/compiler.js"
+		}
+	},
+	"engines": {
+		"node": "^22.13.0 || >=24 <25"
+	},
+	"dependencies": {
+		"mdsvex": "0.12.8",
+		"prettier": "3.9.6",
+		"prettier-plugin-svelte": "4.1.1",
+		"svelte": "5.57.0"
+	}
+}

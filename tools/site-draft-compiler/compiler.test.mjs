@@ -6,34 +6,25 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { parse as parseSvelte } from 'svelte/compiler';
+import { object, seal, semanticSources } from './fixtures.mjs';
 
 const packagePath = process.env.SITE_DRAFT_COMPILER_PACKAGE;
 assert.ok(packagePath, 'Bazel must supply the declared compiled package');
 const runtime = path.resolve(packagePath);
+const source = path.join(runtime, 'source');
 const { prepareDraftProjection, assertVerifiedSiteDraftCandidate, SiteDraftRefusal } = await import(
 	pathToFileURL(path.join(runtime, 'tools/site-draft-compiler/compiler.js')).href
 );
 const { renderLogManifest, renderSourceMap } = await import(pathToFileURL(path.join(runtime, 'scripts/lib/log-projection.mjs')).href);
 const { parseLogFrontmatter, readLogEntries } = await import(pathToFileURL(path.join(runtime, 'scripts/lib/log-content.mjs')).href);
-const format = JSON.parse(readFileSync(path.join(runtime, '.prettierrc'), 'utf8'));
+const format = JSON.parse(readFileSync(path.join(source, '.prettierrc'), 'utf8'));
 const repository = { repoUrl: 'https://github.com/Great-Falls-Tool-Bus/gftb-site', branch: 'main' };
 const manifest = 'src/lib/generated/log-manifest.ts';
 const sourceMap = 'src/lib/generated/source-map.json';
 const day = 'src/content/log/2026-09-09-original.svx';
 const older = 'src/content/log/2026-09-01-earlier.svx';
 
-// Independent inventory of the real site's semantic source. The compiler's
-// implementation and packaging remain pinned package inputs, not main inputs.
-const semanticSources = [
-	'MODULE.bazel', 'pnpm-lock.yaml', 'package.json', '.prettierrc',
-	'src/lib/public-log-schema.ts', 'src/lib/featured-image-schema.ts',
-	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
-	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
-	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
-];
-
 const sha = (text) => createHash('sha256').update(text).digest('hex');
-const object = (kind, bytes) => createHash('sha1').update(`${kind} ${bytes.length}\0`).update(bytes).digest('hex');
 
 function log(date, title, published, body = '<p>We sorted the hand tools and repaired the workbench.</p>') {
 	return `---\ndate: '${date}'\ntitle: '${title}'\nsummary: 'We sorted the hand tools and repaired the workbench.'\ntags:\n  - 'tools'\npublished: ${published}\n---\n\n${published ? '' : '<!-- TODO(jess): Review before publication. -->\n\n'}${body}\n`;
@@ -43,45 +34,14 @@ function entry(file, content) {
 	return { file: path.basename(file), slug: path.basename(file, '.svx'), sourcePath: file, ...parseLogFrontmatter(content, file) };
 }
 
-/** Fixture construction uses explicit Git tree objects, never the compiler's tree function. */
-function seal(input) {
-	const tree = input.tree;
-	for (const blob of input.blobs) tree.find((item) => item.path === blob.path).oid = object('blob', Buffer.from(blob.content));
-	const directories = new Map([['', []]]);
-	for (const leaf of tree) {
-		let directory = path.posix.dirname(leaf.path);
-		if (directory === '.') directory = '';
-		if (!directories.has(directory)) directories.set(directory, []);
-		directories.get(directory).push({ name: path.posix.basename(leaf.path), mode: leaf.mode, oid: leaf.oid });
-		while (directory) {
-			directory = path.posix.dirname(directory);
-			if (directory === '.') directory = '';
-			if (!directories.has(directory)) directories.set(directory, []);
-		}
-	}
-	for (const directory of [...directories.keys()].sort((a, b) => b.split('/').length - a.split('/').length || b.length - a.length)) {
-		const children = directories.get(directory).sort((a, b) => Buffer.compare(
-			Buffer.from(a.name + (a.mode === '40000' ? '/' : '')), Buffer.from(b.name + (b.mode === '40000' ? '/' : '')),
-		));
-		const bytes = Buffer.concat(children.map((item) => Buffer.concat([Buffer.from(`${item.mode} ${item.name}\0`), Buffer.from(item.oid, 'hex')])));
-		const oid = object('tree', bytes);
-		if (!directory) input.baseTreeSha = oid;
-		else {
-			const parent = path.posix.dirname(directory);
-			directories.get(parent === '.' ? '' : parent).push({ name: path.posix.basename(directory), mode: '40000', oid });
-		}
-	}
-	return input;
-}
-
 async function fixture(existing) {
 	const documents = new Map([[older, log('2026-09-01', 'Earlier work', true)]]);
 	if (existing !== undefined) documents.set(day, log('2026-09-09', 'Existing approved title', existing, '<p>Preserve this original paragraph exactly.</p>'));
 	const entries = [...documents].map(([file, content]) => entry(file, content));
 	const bodies = new Map([
-		['.prettierrc', readFileSync(path.join(runtime, '.prettierrc'), 'utf8')],
+		['.prettierrc', readFileSync(path.join(source, '.prettierrc'), 'utf8')],
 		['tinyland.repo.json', JSON.stringify({ repo: { github: 'Great-Falls-Tool-Bus/gftb-site', defaultBranch: 'main' } })],
-		['package.json', readFileSync(path.join(runtime, 'package.json'), 'utf8')],
+		['package.json', readFileSync(path.join(source, 'package.json'), 'utf8')],
 		[manifest, await renderLogManifest(entries, format)],
 		[sourceMap, renderSourceMap(repository, ['src/routes/+page.svelte'], entries)],
 		...documents,
@@ -91,7 +51,7 @@ async function fixture(existing) {
 		repository: 'Great-Falls-Tool-Bus/gftb-site', repositoryId: '12345', baseSha: 'a'.repeat(40), baseTreeSha: '',
 		tree: [...bodies].map(([file]) => ({ path: file, mode: '100644', oid: '' })).concat([
 			...semanticSources.filter((file) => !bodies.has(file)).map((file) => ({
-				path: file, mode: '100644', oid: object('blob', readFileSync(path.join(runtime, file))),
+				path: file, mode: '100644', oid: object('blob', readFileSync(path.join(source, file))),
 			})),
 			{ path: 'src/routes/+page.svelte', mode: '100644', oid: object('blob', Buffer.from('<h1>Home</h1>')) },
 			{ path: 'other-source.txt', mode: '100644', oid: object('blob', Buffer.from('Unrelated source remains bound.')) },
@@ -153,7 +113,7 @@ test('the authenticated tree binds all real semantic inputs without requiring co
 	const result = await prepareDraftProjection(input);
 	assertVerifiedSiteDraftCandidate(result);
 	for (const file of semanticSources) {
-		const bytes = readFileSync(path.join(runtime, file));
+		const bytes = readFileSync(path.join(source, file));
 		assert.equal(input.tree.find((leaf) => leaf.path === file).oid, object('blob', bytes));
 		assert.equal(result.toolInputs.find((source) => source.path === file).sha256, sha(bytes));
 	}
@@ -168,7 +128,7 @@ for (const file of semanticSources) {
 				input.tree = input.tree.filter((entry) => entry.path !== file);
 				input.blobs = input.blobs.filter((blob) => blob.path !== file);
 			} else if (failure === 'changed') {
-				const bytes = Buffer.concat([readFileSync(path.join(runtime, file)), Buffer.from('\n')]);
+				const bytes = Buffer.concat([readFileSync(path.join(source, file)), Buffer.from('\n')]);
 				leaf.oid = object('blob', bytes);
 				const blob = input.blobs.find((entry) => entry.path === file);
 				if (blob) blob.content = bytes.toString('utf8');

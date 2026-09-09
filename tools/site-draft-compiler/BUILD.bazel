@@ -2,14 +2,20 @@
 
 filegroup(
     name = "source_inputs",
-    srcs = ["BUILD.bazel", "compiler.test.mjs", "compiler.ts", "defs.bzl"],
+    srcs = ["BUILD.bazel", "compiler.test.mjs", "compiler.ts", "consumer.test.mjs", "defs.bzl", "fixtures.mjs", "package.json"],
     visibility = ["//visibility:public"],
 )
 
 filegroup(
     name = "format_inputs",
-    srcs = ["compiler.ts", "compiler.test.mjs"],
+    srcs = ["compiler.ts", "compiler.test.mjs", "consumer.test.mjs", "fixtures.mjs", "package.json"],
     visibility = ["//visibility:public"],
 )
 
-exports_files(["BUILD.bazel", "compiler.ts", "compiler.test.mjs", "defs.bzl"])
+exports_files(["BUILD.bazel", "compiler.ts", "compiler.test.mjs", "consumer.test.mjs", "defs.bzl", "fixtures.mjs", "package.json"])
+
+alias(
+    name = "pkg",
+    actual = "//:pkg",
+    visibility = ["//visibility:public"],
+)
