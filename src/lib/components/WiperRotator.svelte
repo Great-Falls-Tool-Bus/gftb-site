@@ -4,15 +4,11 @@
 	import { WiperCycle } from './wiper-rotator.svelte';
 	import {
 		DEFAULT_WIPER_POSITION,
-		DEFAULT_WIPER_SKIN,
-		VU_COLUMNS,
 		WIPER_POSITIONS,
 		pageCountFor,
 		pageOf,
 		stepWiperPosition,
-		vuHeight,
 		type WiperPosition,
-		type WiperSkin,
 	} from './wiper-rotator';
 
 	// A generic "windshield wiper" rotator: a frosted pane (the house
@@ -44,9 +40,7 @@
 	//   wipe is `animationend`/`animationcancel`, and a timer failsafe covers a
 	//   throttled tab. The old page fades out under the outbound stroke and
 	//   the new page fades in under the return stroke (data-stroke), so the
-	//   two never overprint each other. A pause banks the dwell time still
-	//   owed and resumes from it, matching the frozen CSS instruments; a
-	//   detent change wipes at once so every clock restarts together; The only JS timer is the dwell between wipes, an
+	//   two never overprint each other. The only JS timer is the dwell between wipes, an
 	//   $effect whose teardown IS the pause;
 	// - rotation pauses while the pointer (mouse, touch or pen) is over the
 	//   pane, while focus is inside the list, and while the document is
@@ -56,11 +50,7 @@
 	// - Off (the stalk's first detent, or the switch) is the resting grid of
 	//   every item, immediately. It is also the rollback surface;
 	// - the status line is aria-live="off" while rotating and "polite" when
-	//   paused or off, which is exactly when a page change is user-caused;
-	// - the instruments (rain accumulating over the dwell, the posbar gauge
-	//   filling toward the next wipe, the sheen crossing with the blades) are
-	//   CSS keyed on data-state / data-stroke / .wiper--wiping only; they
-	//   pause with the pane and never reach the sweep handlers.
+	//   paused or off, which is exactly when a page change is user-caused.
 	//
 	// Page size is declared in two coupled places: the `wide` media query
 	// below and the `@media (min-width: 48rem)` nth-child block in app.css
@@ -82,10 +72,6 @@
 		initialPosition?: WiperPosition;
 		/** Static droplet texture on the glass (CSS only, never animated). */
 		rain?: boolean;
-		/** Named skin; every skin rule is scoped under data-skin in app.css. */
-		skin?: WiperSkin;
-		/** Marquee text per item (deck skin); omitted = no marquee. */
-		marquee?: (item: T) => string;
 		/** Rendered after the controls, inside the pane. */
 		footer?: Snippet;
 	}
@@ -99,8 +85,6 @@
 		noun = 'items',
 		initialPosition = DEFAULT_WIPER_POSITION,
 		rain = false,
-		skin = DEFAULT_WIPER_SKIN,
-		marquee,
 		footer,
 	}: Props = $props();
 
@@ -133,19 +117,6 @@
 	const paneState = $derived(!paged ? 'off' : cycle.phase === 'wiping' ? 'wiping' : cycle.paused ? 'paused' : 'dwell');
 	const first = $derived(cycle.currentPage * pageSize + 1);
 	const last = $derived(Math.min(items.length, (cycle.currentPage + 1) * pageSize));
-	// Deck instruments, all derived from the page (deterministic, testable):
-	// the VU strip's column heights step once per wipe, the marquee carries
-	// the current page's labels, the LCD counts the dwell down in seconds.
-	const vu = $derived(Array.from({ length: VU_COLUMNS }, (_, column) => vuHeight(cycle.currentPage, column)));
-	const marqueeText = $derived(
-		marquee
-			? items
-					.slice(first - 1, last)
-					.map(marquee)
-					.join('  \u2022  ')
-			: '',
-	);
-	const lcdFrom = $derived(Math.ceil(cycle.dwellMs / 1000));
 
 	let listEl = $state<HTMLOListElement>();
 
@@ -153,30 +124,16 @@
 	// this effect; its teardown clears the pending wipe.
 	$effect(() => {
 		if (!cycle.running || cycle.phase !== 'dwell') return;
-		// Resume from the time still owed (the CSS instruments froze in place
-		// under the pause and resume from the same point), else a full dwell.
-		const remaining = untrack(() => cycle.dwellRemainingMs) ?? cycle.dwellMs;
-		const armedAt = performance.now();
-		const handle = setTimeout(() => cycle.startWipe(), remaining);
-		return () => {
-			clearTimeout(handle);
-			// Teardown while still dwelling is a pause: bank the remainder.
-			if (untrack(() => cycle.phase) === 'dwell') {
-				cycle.dwellRemainingMs = Math.max(0, remaining - (performance.now() - armedAt));
-			}
-		};
+		const handle = setTimeout(() => cycle.startWipe(), cycle.dwellMs);
+		return () => clearTimeout(handle);
 	});
 
 	// Failsafe: if the animation events never arrive (display: none, a
 	// throttled background tab, the arms unmounted mid-sweep), end the wipe
-	// after it should have finished so the dwell timer can re-arm. The budget
-	// leaves room for a delayed animation start: a busy main thread (the
-	// full-viewport blob layer's physics on a slow device) can hold a CSS
-	// animation's start for several hundred milliseconds, and cutting a wipe
-	// short there would drop the turnaround along with the trail.
+	// a beat after it should have finished so the dwell timer can re-arm.
 	$effect(() => {
 		if (cycle.phase !== 'wiping') return;
-		const handle = setTimeout(() => cycle.finish(), cycle.activeSweepMs + 1200);
+		const handle = setTimeout(() => cycle.finish(), cycle.activeSweepMs + 300);
 		return () => clearTimeout(handle);
 	});
 
@@ -207,17 +164,13 @@
 		cycle.focus = false;
 	}
 
-	// Each phase change fires once, from a named arm: the leader (left,
-	// undelayed) reports the turnaround, the last ghost (the most delayed
-	// blade) reports the end so the trail is never cut off mid-return. Only
-	// the sweep animation counts. (animationcancel is not typed on svg
-	// elements; the failsafe effect above covers a cancelled sweep.)
-	function onSweepIteration(event: AnimationEvent) {
-		if (event.animationName === 'wiper-sweep') cycle.apex();
-	}
-
-	function onSweepEnd(event: AnimationEvent) {
-		if (event.animationName === 'wiper-sweep') cycle.finish();
+	// Only the left arm carries the handlers, so each phase change fires
+	// once; only the sweep animation counts. (animationcancel is not typed
+	// on svg elements; the failsafe effect above covers a cancelled sweep.)
+	function onSweepEvent(event: AnimationEvent) {
+		if (event.animationName !== 'wiper-sweep') return;
+		if (event.type === 'animationiteration') cycle.apex();
+		else cycle.finish();
 	}
 
 	async function onStalkKey(event: KeyboardEvent) {
@@ -258,7 +211,6 @@
 		paneState === 'wiping' && 'wiper--wiping',
 		rain && 'wiper--rain',
 	]}
-	data-skin={skin}
 	role="group"
 	aria-labelledby={labelledby}
 	data-state={paneState}
@@ -266,7 +218,6 @@
 	data-page={paged ? cycle.currentPage : undefined}
 	style:--wiper-dwell={enhanced ? `${cycle.dwellMs}ms` : undefined}
 	style:--wiper-stroke={enhanced ? `${cycle.activeSweepMs / 2}ms` : undefined}
-	style:--wiper-lcd-from={enhanced ? lcdFrom : undefined}
 	onpointerenter={onPaneEnter}
 	onpointerleave={onPaneLeave}
 	onpointercancel={onPaneLeave}
@@ -301,33 +252,33 @@
 		</p>
 
 		{#if paged}
-			<!-- Two arms, parked near horizontal, sweeping in tandem, each with two
-			     ghost blades lagging it (a motion trail, delayed copies of the
-			     same sweep). Decorative: hidden from AT, inert to the pointer,
-			     painted above the rows and clipped by the pane. Rect-only chrome
-			     (square hub, highlight and shadow stripes): no defs, no ids, no
-			     round forms. The narrow layout shows one centred arm (app.css). -->
+			<!-- Two arms, parked near horizontal, sweeping in tandem. Decorative:
+			     hidden from AT, inert to the pointer, painted above the rows and
+			     clipped by the pane. The narrow layout shows one centred arm
+			     (app.css). -->
 			<div class="wiper-arms" aria-hidden="true">
-				{#each ['left', 'right'] as side (side)}
-					{#each [0, 1, 2] as ghost (ghost)}
-						<svg
-							class={['wiper-arm', `wiper-arm--${side}`, ghost > 0 && `wiper-arm--ghost wiper-arm--ghost-${ghost}`]}
-							viewBox="0 0 24 320"
-							preserveAspectRatio="xMidYMax meet"
-							focusable="false"
-							onanimationiteration={side === 'left' && ghost === 0 ? onSweepIteration : undefined}
-							onanimationend={side === 'left' && ghost === 2 ? onSweepEnd : undefined}
-						>
-							<rect class="wiper-arm__blade" x="8" y="0" width="8" height="196" />
-							<rect class="wiper-arm__blade-hi" x="8" y="0" width="2" height="196" />
-							<rect class="wiper-arm__blade-lo" x="14" y="0" width="2" height="196" />
-							<rect class="wiper-arm__shaft" x="10.5" y="180" width="3" height="132" />
-							<rect class="wiper-arm__hub" x="3" y="302" width="18" height="18" />
-							<rect class="wiper-arm__stripe-hi" x="3" y="302" width="18" height="2" />
-							<rect class="wiper-arm__stripe-lo" x="3" y="318" width="18" height="2" />
-						</svg>
-					{/each}
-				{/each}
+				<svg
+					class="wiper-arm wiper-arm--left"
+					viewBox="0 0 24 320"
+					preserveAspectRatio="xMidYMax meet"
+					focusable="false"
+					onanimationiteration={onSweepEvent}
+					onanimationend={onSweepEvent}
+				>
+					<rect class="wiper-arm__blade" x="8" y="0" width="8" height="196" />
+					<rect class="wiper-arm__shaft" x="10.5" y="180" width="3" height="132" />
+					<circle class="wiper-arm__hub" cx="12" cy="311" r="9" />
+				</svg>
+				<svg
+					class="wiper-arm wiper-arm--right"
+					viewBox="0 0 24 320"
+					preserveAspectRatio="xMidYMax meet"
+					focusable="false"
+				>
+					<rect class="wiper-arm__blade" x="8" y="0" width="8" height="196" />
+					<rect class="wiper-arm__shaft" x="10.5" y="180" width="3" height="132" />
+					<circle class="wiper-arm__hub" cx="12" cy="311" r="9" />
+				</svg>
 			</div>
 		{/if}
 
@@ -336,13 +287,6 @@
 		     detent. Detents are buttons with role="radio" and a roving
 		     tabindex (one Tab stop; arrows move and select). -->
 		<div class="wiper-controls" role="group" aria-label="Wipers">
-			{#if skin === 'deck' && marquee}
-				<!-- Marquee (deck): the current page's labels crossing the chassis,
-				     moving only while the wipers run; decorative. -->
-				<span class="wiper-marquee" aria-hidden="true">
-					<span class="wiper-marquee__track">{marqueeText}</span>
-				</span>
-			{/if}
 			<button
 				type="button"
 				class="wiper-switch"
@@ -351,30 +295,11 @@
 				aria-label="Wipers"
 				onclick={() => cycle.toggle()}
 			>
-				<span class="wiper-switch__lamp" aria-hidden="true"></span>
 				<span class="wiper-switch__track" aria-hidden="true"><span class="wiper-switch__thumb"></span></span>
 				<span class="wiper-switch__text" aria-hidden="true">
 					Wipers <span class="wiper-switch__state">{cycle.enabled ? 'On' : 'Off'}</span>
 				</span>
 			</button>
-			{#if skin === 'deck'}
-				<!-- LCD (deck): seconds to the next wipe, counted down by a
-				     registered custom property and rendered through a CSS counter;
-				     decorative. -->
-				<span class="wiper-lcd" aria-hidden="true">
-					<span class="wiper-lcd__label">Next wipe</span>
-					<span class="wiper-lcd__digits"></span>
-				</span>
-				<!-- VU strip (deck): twelve bars whose heights step once per wipe. -->
-				<span class="wiper-vu" aria-hidden="true">
-					{#each vu as height, column (column)}
-						<i style:--vu={height}></i>
-					{/each}
-				</span>
-			{/if}
-			<!-- The posbar: a dwell gauge that fills toward the next wipe (CSS
-			     keyed on data-state, paused with the pane; decorative). -->
-			<span class="wiper-gauge" aria-hidden="true"></span>
 			<div class="wiper-stalk" role="radiogroup" aria-label="Wiper speed" tabindex="-1" onkeydown={onStalkKey}>
 				{#each WIPER_POSITIONS as detent (detent.id)}
 					<button

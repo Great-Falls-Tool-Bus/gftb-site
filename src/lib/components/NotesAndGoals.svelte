@@ -37,16 +37,7 @@
 	const collectionUrl = `${sourceMap.repoUrl}/tree/${sourceMap.branch}/src/content/goals`;
 </script>
 
-<WiperRotator
-	items={goals}
-	key={(goal) => goal.slug}
-	{labelledby}
-	listClass="goal-list"
-	noun="goals"
-	skin="deck"
-	marquee={(goal) => goal.metadata.title}
-	rain
->
+<WiperRotator items={goals} key={(goal) => goal.slug} {labelledby} listClass="goal-list" noun="goals" rain>
 	{#snippet item(goal)}
 		{#if media}
 			{@render media(goal)}
