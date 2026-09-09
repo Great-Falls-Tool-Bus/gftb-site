@@ -84,13 +84,25 @@ test.describe('keyboard operability', () => {
 					'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
 				),
 			);
-			return focusable
-				.filter((element) => !element.closest('.honeypot'))
-				.filter((element) => element.getAttribute('tabindex') !== '-1')
-				.map(
-					(element) =>
-						element.id || `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24)}`,
-				);
+			return (
+				focusable
+					.filter((element) => !element.closest('.honeypot'))
+					.filter((element) => element.getAttribute('tabindex') !== '-1')
+					// A native radio group is one tab stop: the checked radio, or the
+					// first when none is (the wiper stalk's four detents).
+					.filter((element) => {
+						if (!(element instanceof HTMLInputElement) || element.type !== 'radio' || !element.name) return true;
+						const group = Array.from(
+							document.querySelectorAll<HTMLInputElement>(`input[type=radio][name="${CSS.escape(element.name)}"]`),
+						);
+						const checked = group.find((radio) => radio.checked);
+						return checked ? element === checked : element === group[0];
+					})
+					.map(
+						(element) =>
+							element.id || `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24)}`,
+					)
+			);
 		});
 		expect(expected.length, 'focusable controls on the page').toBeGreaterThan(8);
 
@@ -162,8 +174,8 @@ test.describe('keyboard operability', () => {
 				// person can actually perceive, not a clipped box's computed
 				// style (review E7).
 				const indicatorHost =
-					control.tagName === 'INPUT' && control.closest('.mode-switch')
-						? (control.closest('.mode-switch') as HTMLElement)
+					control.tagName === 'INPUT' && control.closest('.mode-switch, .wiper-stalk__item')
+						? (control.closest('.mode-switch, .wiper-stalk__item') as HTMLElement)
 						: control;
 				const before = readable(indicatorHost);
 				control.focus();
