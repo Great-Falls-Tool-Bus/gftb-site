@@ -52,7 +52,11 @@
 	// - Off (the stalk's first detent, or the switch) is the resting grid of
 	//   every item, immediately. It is also the rollback surface;
 	// - the status line is aria-live="off" while rotating and "polite" when
-	//   paused or off, which is exactly when a page change is user-caused.
+	//   paused or off, which is exactly when a page change is user-caused;
+	// - the instruments (rain accumulating over the dwell, the posbar gauge
+	//   filling toward the next wipe, the sheen crossing with the blades) are
+	//   CSS keyed on data-state / data-stroke / .wiper--wiping only; they
+	//   pause with the pane and never reach the sweep handlers.
 	//
 	// Page size is declared in two coupled places: the `wide` media query
 	// below and the `@media (min-width: 48rem)` nth-child block in app.css
@@ -314,6 +318,9 @@
 					Wipers <span class="wiper-switch__state">{cycle.enabled ? 'On' : 'Off'}</span>
 				</span>
 			</button>
+			<!-- The posbar: a dwell gauge that fills toward the next wipe (CSS
+			     keyed on data-state, paused with the pane; decorative). -->
+			<span class="wiper-gauge" aria-hidden="true"></span>
 			<div class="wiper-stalk" role="radiogroup" aria-label="Wiper speed" tabindex="-1" onkeydown={onStalkKey}>
 				{#each WIPER_POSITIONS as detent (detent.id)}
 					<button
