@@ -87,7 +87,7 @@
 			     the meta description carriers, pinned by
 			     e2e/acceptance-copy-deslop.spec.ts) and the triad tail was
 			     removed as motion slop. -->
-			<p class="lede">The Great Falls Tool Bus is becoming a community-run tool library.</p>
+			<p class="lede">The Great Falls Tool Bus is a community-run tool library.</p>
 			<!-- Row 3 (spec §3 :87): the one primary interest/help CTA, pointing
 			     at the contact page (B1.4: the form lives on its own page).
 			     TODO(jess): CTA wording (interim label salvaged from PR-5). -->
@@ -104,7 +104,6 @@
 			     statement. -->
 			<h2 id="status-title">Current status</h2>
 			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
-			<p class="muted">Updates here describe completed work.</p>
 			<!-- Current operator placement: the recurring hours belong in the
 			     hero, once. Naming consent covers the schedule, not a live location. -->
 			<section class="hero-session" aria-labelledby="next-title">
