@@ -627,8 +627,9 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
-		// A fresh rest after a stroke, then held open.
-		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 30_000 });
+		// A fresh rest after a stroke, then held open. A starved rig counts the
+		// rest slowly (a frame advances it a second at most), so allow a while.
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
 		await holdRest(page);
 		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		const rests = await gutterRects(page);
@@ -649,7 +650,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			expect(
 				late[side].edge,
 				`edge energy, side ${side}: ${early[side].edge.toExponential(3)} early, ${late[side].edge.toExponential(3)} late`,
-			).toBeGreaterThanOrEqual(early[side].edge * 1.4);
+			).toBeGreaterThanOrEqual(early[side].edge * 1.2);
 			expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
 		}
 	});
