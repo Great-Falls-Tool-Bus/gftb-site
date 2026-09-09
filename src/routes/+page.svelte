@@ -12,12 +12,8 @@
 	// failsafe, so no-JS / reduced-motion / dead-bundle visitors always see
 	// content at rest — see src/lib/motion.svelte.ts.
 
-	// The front page is the ratified spec §3 page order (:83-93), eight rows,
-	// nothing else. Rows render from files/data (the log pipeline, the photo
-	// record, the nav SSOT); every string an operator has not authored is a
-	// TODO(jess) slot (addendum B1.3: the baked prose sections are killed,
-	// their swept text preserved in the comment slots restoration PR-5
-	// recorded).
+	// Front-page copy follows the operator's current content selections.
+	// Logs, goals and navigation render from their source files and manifests.
 
 	// Operator ruling 2026-09-01: latest five minified logs on home —
 	// supersedes the 2026-08-30 single-row scope (the citation form and
@@ -44,28 +40,10 @@
 	// docs/attribution.md; a phone now pulls the 640 or 1280 candidate instead.
 	const photoBase = '/photos/great-falls-lewiston-1930s';
 	const photoWidths = [640, 1280, 1920];
-	const historyPhoto = {
-		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
-		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
-		fallback: `${photoBase}-1280.jpg`,
-		sizes: '(min-width: 76rem) 604px, (min-width: 48rem) 52vw, 100vw',
-	};
 
-	// ── HERO SOURCE SWAP POINT ────────────────────────────────────────────
-	// The hero backdrop reuses the licensed Great Falls postcard renditions
-	// the history figure already ships (credits recorded in NOTICE and
-	// docs/attribution.md). The bus-photo corpus is pending its
-	// colorspace/EXIF audit; when an audited photo lands, swap ONLY this
-	// constant. The layer is decorative: empty alt, aria-hidden wrapper.
-	//
-	// `sizes` is its OWN value (apex-gaps diagnosis 2026-08-20 item 1),
-	// NOT historyPhoto.sizes: this picture fills `.hero`, which breaks out
-	// to the full 100vw band (app.css `.hero { width: 100vw; margin-left:
-	// calc(50% - 50vw); }`), not the ~604px-capped column the History
-	// thumbnail renders in. Reusing History's sizes told the browser this
-	// was a small, column-capped image, so at a 1440px viewport it picked
-	// the 640w candidate and stretched it ~2.3x via object-fit: cover —
-	// compounding the crush the scrim/blur tuning above fixes.
+	// The decorative hero uses the licensed postcard renditions credited in
+	// NOTICE and docs/attribution.md. Its sizes value matches the full viewport
+	// width so the browser selects a rendition large enough for the backdrop.
 	const heroPhoto = {
 		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
 		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
@@ -270,42 +248,7 @@
 		<p><a href="/log">Older log entries</a></p>
 	</section>
 
-	<!-- Row 7 (spec §3 :92): short history. -->
-	<section class="section reveal-armed" use:reveal={{ delay: 210 }} id="history" aria-labelledby="history-title">
-		<div class="history-card">
-			<figure>
-				<picture>
-					<source type="image/webp" srcset={historyPhoto.webp} sizes={historyPhoto.sizes} />
-					<img
-						src={historyPhoto.fallback}
-						srcset={historyPhoto.jpeg}
-						sizes={historyPhoto.sizes}
-						alt="Historic postcard view of Great Falls between Auburn and Lewiston"
-						width="1280"
-						height="771"
-						loading="lazy"
-						decoding="async"
-					/>
-				</picture>
-				<figcaption>
-					Tichnor Brothers, Inc., Boston Public Library collection no. 69902. Public domain; no known restrictions.
-				</figcaption>
-			</figure>
-			<div class="history-card__copy">
-				<!-- TODO(jess): history copy. "A name shaped by this place." and
-				     its body were swept (the body's "useful things moving between
-				     neighbors" is motion copy — the bus is parked; salvage of the
-				     PR-5 sweep). The interim heading is the spec row's own term;
-				     the short history is yours to write. -->
-				<h2 id="history-title">History</h2>
-				<p>The falls and working river connect Lewiston and Auburn; the bus borrows that local name.</p>
-			</div>
-		</div>
-	</section>
-
-	<!-- Row 8 (spec §3 :93): contact and discussion information — a LINK to
-	     the contact page (B1.4: the form lives on its own page, never the
-	     root). -->
+	<!-- The contact form lives on its own page; home links to it. -->
 	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="contact" aria-labelledby="contact-title">
 		<div class="section-heading">
 			<h2 id="contact-title">Contact and discussion</h2>

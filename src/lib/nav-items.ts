@@ -70,8 +70,7 @@ export const navItems: NavItem[] = [
 		primary: true,
 		external: true,
 	},
-	// Footer-demoted rows. History is the home page's spec §3 row 7 anchor.
-	{ label: 'History', href: '/#history', match: [], footerGroup: 'About' },
+	// Footer navigation.
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
 ];
