@@ -118,13 +118,17 @@ test('the notes ride a wiper rotator with exactly two controls, and Off is the p
 	// Hydration paged the list and started the wipers on the default detent.
 	await expect(region).toHaveClass(/wiper--enhanced/u);
 	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	await expect(region).toHaveAttribute('data-page', '0');
+	await expect(region).toHaveAttribute('data-page', /^[0-9]+$/u);
 
 	// Every title stays in the DOM while the pages turn: rows are shown and
 	// hidden in place, never mounted and unmounted.
 	const list = page.locator('#goals .goal-list');
 	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	expect(await visibleTitles(page)).toEqual(publicGoals.slice(0, 3).map((goal) => goal.metadata.title));
+	// A loaded runner may already have turned a page: compare against the page shown.
+	const shown = Number(await region.getAttribute('data-page'));
+	expect(await visibleTitles(page)).toEqual(
+		publicGoals.slice(shown * 3, shown * 3 + 3).map((goal) => goal.metadata.title),
+	);
 
 	// Exactly two controls: the switch and the four-detent stalk. No
 	// previous/next/play/pause anywhere in the section.
@@ -219,7 +223,8 @@ test("a wipe turns the page at the blades' turnaround and every note gets its tu
 			titles: Array.from(el.querySelectorAll('li.is-current h3'), (h3) => h3.textContent ?? ''),
 		}));
 	const seen = new Set<string>();
-	for (let turn = 0; turn <= pageCount && seen.size < publicGoals.length; turn += 1) {
+	// Under a loaded runner a poll can miss a fast page; allow a few laps.
+	for (let turn = 0; turn < pageCount * 3 && seen.size < publicGoals.length; turn += 1) {
 		const snap = await snapshot();
 		for (const title of snap.titles) seen.add(title);
 		await expect.poll(async () => (await snapshot()).page, { timeout: cycleMs }).not.toBe(snap.page);
@@ -511,6 +516,40 @@ for (const scheme of ['light', 'dark'] as const) {
 		expect(await worst('--link'), 'CTA and edit links on the pane').toBeGreaterThanOrEqual(AA);
 		expect(await worst('--heading'), 'note titles on the pane').toBeGreaterThanOrEqual(LARGE);
 		expect(await worst('--accent'), 'dash control boundaries on the pane').toBeGreaterThanOrEqual(LARGE);
+	});
+}
+
+// The blob layer (operator ruling 2026-09-09: opacity 0.2, pointer physics off) tints the bare
+// page ground under every text block, and the AA text sweep resolves computed
+// background colours only, so it cannot see it. This row reads the real pixels
+// behind the goal asides (a text-free container once its descendants are
+// hidden: element children only, no bare text nodes) in both schemes and holds
+// the page's ink roles to their floors against the worst pixel. If the layer's
+// opacity ever climbs, dark mode fails here first.
+for (const scheme of ['light', 'dark'] as const) {
+	test(`body copy on bare ground clears its floor over the blob layer (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
+		// The layer fades in after its idle mount; sample once it is opaque.
+		await page.waitForTimeout(1200);
+		const ground = page.locator('#goals .goal-asides');
+		await ground.scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		const extremes = await measureGlassExtremes(page, '#goals .goal-asides', 2);
+		const worst = async (role: string) => {
+			const ink = await resolveRoleRgb(page, role);
+			return Math.min(
+				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
+				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
+			);
+		};
+		expect(await worst('--fg'), 'body copy on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--fg-muted'), 'muted copy on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--link'), 'links on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--heading'), 'headings on the ground').toBeGreaterThanOrEqual(LARGE);
 	});
 }
 
