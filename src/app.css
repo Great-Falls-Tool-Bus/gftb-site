@@ -1742,7 +1742,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * glass (gel highlight, sheen), in dark mode it may only DARKEN (the
  * --wiper-drop precedent above). Keys are descendants and unmeasured, so
  * their bevel keeps a light highlight in both schemes. */
-.wiper[data-skin='aero'] {
+.wiper:is([data-skin='aero'], [data-skin='deck']) {
 	--wiper-gloss: #fff;
 	--wiper-key: color-mix(in oklab, var(--panel) 42%, transparent);
 	--wiper-key-hi: #fff;
@@ -1759,7 +1759,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	);
 }
 
-[data-mode='dark'] .wiper[data-skin='aero'] {
+[data-mode='dark'] .wiper:is([data-skin='aero'], [data-skin='deck']) {
 	--wiper-gloss: #000;
 	--wiper-key-hi: #fff;
 	--wiper-key-lo: #000;
@@ -1768,7 +1768,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 /* Bead specks: one offset lightening speck per droplet tile in light mode
  * (the rain is dark-drop, so the pair reads as a bead), none in dark. */
-.wiper[data-skin='aero'].wiper--rain::before {
+.wiper:is([data-skin='aero'], [data-skin='deck']).wiper--rain::before {
 	background-image:
 		radial-gradient(
 			circle at 30% 40%,
@@ -1795,7 +1795,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 		71px 67px;
 }
 
-[data-mode='dark'] .wiper[data-skin='aero'].wiper--rain::before {
+[data-mode='dark'] .wiper:is([data-skin='aero'], [data-skin='deck']).wiper--rain::before {
 	background-image:
 		radial-gradient(
 			circle at 30% 40%,
@@ -1813,11 +1813,11 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 /* Sheen: a 28%-wide band that exists only while a wipe runs and crosses the
  * pane with the blades (transform only; keyframes in the block below).
  * Behind the rows (z 0 vs the list's 1). */
-.wiper[data-skin='aero']::after {
+.wiper:is([data-skin='aero'], [data-skin='deck'])::after {
 	content: none;
 }
 
-.wiper[data-skin='aero'].wiper--wiping::after {
+.wiper:is([data-skin='aero'], [data-skin='deck']).wiper--wiping::after {
 	content: '';
 	position: absolute;
 	inset: 0 auto 0 0;
@@ -1831,6 +1831,16 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 		color-mix(in oklab, var(--wiper-gloss) 10%, transparent) 50%,
 		transparent 70%
 	);
+}
+
+/* The deck LCD counts the dwell down through a registered integer custom
+ * property (animatable, Chromium/Safari 16.4+/Firefox 128+), rendered as a CSS
+ * counter. Static registration here; the countdown animation lives inside the
+ * no-preference block below, so reduce shows a still "00". */
+@property --wiper-left {
+	syntax: '<integer>';
+	inherits: false;
+	initial-value: 0;
 }
 
 /* ===== Instruments (PR-3) =====
@@ -1867,6 +1877,179 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 .wiper[data-state='wiping'] .wiper-gauge::before {
 	transform: scaleX(1);
+}
+
+/* ===== Skin: deck (operator rulings 2026-09-09, TIN-4338 ruled) =====
+ * Aero's glass and blades plus the Winamp chassis: the dash strip is the one
+ * sanctioned opaque, bevelled panel (the 2026-08-31 flattening ruling was
+ * reopened for this strip only; note rows stay never-cards). Every colour is
+ * an inverse-panel role token, so the pairs are the ones
+ * src/lib/design-token-contrast.test.ts already proves: --inverse-fg copy,
+ * --highlight (destination-sign amber) light-pipes, lamp and LCD on
+ * --inverse-panel; the 1.4.11 browser collector still reads the amber TOP
+ * edge of every key. The chassis is a descendant, so the glass sampler never
+ * sees it. Square everything (sharp-edges sweep). */
+.wiper[data-skin='deck'] .wiper-controls {
+	--wiper-key: color-mix(in oklab, var(--inverse-panel) 78%, #000);
+	--wiper-key-hi: #fff;
+	--wiper-key-lo: #000;
+	--wiper-bevel:
+		inset 0 1px 0 color-mix(in oklab, var(--wiper-key-hi) 22%, transparent),
+		inset 0 -1px 0 color-mix(in oklab, var(--wiper-key-lo) 45%, transparent);
+	margin-top: 1.5rem;
+	padding: 0.85rem 0.9rem 0.9rem;
+	background: var(--inverse-panel);
+	color: var(--inverse-fg);
+	box-shadow:
+		inset 1px 1px 0 color-mix(in oklab, #fff 18%, transparent),
+		inset -1px -1px 0 color-mix(in oklab, #000 55%, transparent),
+		0 1px 0 color-mix(in oklab, #000 35%, transparent);
+}
+
+.wiper[data-skin='deck'] .wiper-switch,
+.wiper[data-skin='deck'] .wiper-stalk__detent {
+	border-top-color: var(--highlight);
+	color: var(--inverse-fg);
+}
+
+.wiper[data-skin='deck'] .wiper-switch:hover,
+.wiper[data-skin='deck'] .wiper-stalk__detent:not([aria-checked='true']):hover {
+	background: color-mix(in oklab, var(--highlight) 18%, var(--wiper-key));
+}
+
+/* The latched detent: amber key, ink label (the highlight button pair). */
+.wiper[data-skin='deck'] .wiper-stalk__detent[aria-checked='true'] {
+	--wiper-bevel: inset 0 2px 0 color-mix(in oklab, #000 28%, transparent);
+	background: var(--highlight);
+	color: var(--highlight-contrast);
+}
+
+.wiper[data-skin='deck'] .wiper-switch__track {
+	background: color-mix(in oklab, var(--inverse-panel) 60%, #000);
+}
+
+.wiper[data-skin='deck'] .wiper-switch__thumb {
+	background: var(--highlight);
+}
+
+/* The lamp: a square LED beside the switch, lit amber while the wipers are
+ * on, dark otherwise. */
+.wiper-switch__lamp {
+	display: none;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-radius: 0;
+	background: color-mix(in oklab, #000 45%, transparent);
+	box-shadow: inset 0 1px 0 color-mix(in oklab, #000 40%, transparent);
+}
+
+.wiper[data-skin='deck'] .wiper-switch__lamp {
+	display: block;
+}
+
+.wiper[data-skin='deck'] .wiper-switch[aria-checked='true'] .wiper-switch__lamp {
+	background: var(--highlight);
+	box-shadow:
+		inset 0 1px 0 color-mix(in oklab, #fff 40%, transparent),
+		0 0 6px color-mix(in oklab, var(--highlight) 70%, transparent);
+}
+
+/* The posbar on the chassis. */
+.wiper[data-skin='deck'] .wiper-gauge {
+	background: color-mix(in oklab, var(--inverse-panel) 60%, #000);
+}
+
+.wiper[data-skin='deck'] .wiper-gauge::before {
+	background: var(--highlight);
+}
+
+/* The LCD: a recessed amber readout, tabular digits from the counter. */
+.wiper-lcd {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	min-height: 2.75rem;
+	padding: 0.35rem 0.75rem;
+	border-radius: 0;
+	background: color-mix(in oklab, var(--inverse-panel) 55%, #000);
+	color: var(--highlight);
+	box-shadow:
+		inset 1px 1px 0 color-mix(in oklab, #000 60%, transparent),
+		inset -1px -1px 0 color-mix(in oklab, #fff 12%, transparent);
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.wiper-lcd__label {
+	font-size: 0.68rem;
+}
+
+.wiper-lcd__digits {
+	--wiper-left: 0;
+	counter-reset: wiper-left var(--wiper-left);
+	font-size: 1.15rem;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.wiper-lcd__digits::after {
+	content: counter(wiper-left, decimal-leading-zero);
+}
+
+/* The VU strip: twelve square bars stepping once per wipe (heights are the
+ * deterministic --vu per bar; the step transition lives in the block). */
+.wiper-vu {
+	display: inline-flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 1.5rem;
+	padding: 0.2rem 0.35rem;
+	background: color-mix(in oklab, var(--inverse-panel) 55%, #000);
+	box-shadow: inset 1px 1px 0 color-mix(in oklab, #000 60%, transparent);
+}
+
+.wiper-vu i {
+	display: block;
+	width: 5px;
+	height: 100%;
+	border-radius: 0;
+	background: linear-gradient(
+		0deg,
+		var(--highlight) 0 60%,
+		color-mix(in oklab, var(--danger) 45%, var(--highlight)) 60.01%
+	);
+	transform: scaleY(var(--vu, 0.2));
+	transform-origin: 50% 100%;
+}
+
+/* The marquee: the chassis' full-width top line. The track is a block the
+ * width of the strip that clips its own single line and scrolls the text
+ * through with text-indent (animation in the block, only while the wipers
+ * run). No element ever extends past the pane: the responsive sweeps read
+ * every element's box, clipped or not, so a wide translated track would
+ * count as overflow. */
+.wiper-marquee {
+	flex-basis: 100%;
+	min-width: 0;
+	margin-bottom: 0.25rem;
+	padding: 0.2rem 0;
+	box-shadow: inset 0 -1px 0 color-mix(in oklab, #000 45%, transparent);
+	font-family: var(--font-sans);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--inverse-fg-muted);
+}
+
+.wiper-marquee__track {
+	display: block;
+	width: 100%;
+	overflow: clip;
+	white-space: nowrap;
+	text-indent: 100%;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1908,7 +2091,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 		}
 	}
 
-	.wiper[data-skin='aero'].wiper--wiping::after {
+	.wiper:is([data-skin='aero'], [data-skin='deck']).wiper--wiping::after {
 		animation: wiper-sheen var(--wiper-stroke) cubic-bezier(0.45, 0, 0.55, 1) 2 alternate both;
 	}
 
@@ -1951,6 +2134,56 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 	.wiper[data-state='paused'] .wiper-gauge::before {
 		animation-play-state: paused;
+	}
+
+	/* Deck LCD: the registered integer counts the dwell down; frozen with
+	 * the pane. The starting value rides the pane as --wiper-lcd-from. */
+	@keyframes wiper-lcd {
+		from {
+			--wiper-left: var(--wiper-lcd-from);
+		}
+
+		to {
+			--wiper-left: 0;
+		}
+	}
+
+	.wiper[data-skin='deck']:is([data-state='dwell'], [data-state='paused']) .wiper-lcd__digits {
+		animation: wiper-lcd var(--wiper-dwell) linear both;
+	}
+
+	.wiper[data-skin='deck'][data-state='paused'] .wiper-lcd__digits {
+		animation-play-state: paused;
+	}
+
+	/* Deck VU bars step to their next height under the blades. */
+	.wiper-vu i {
+		transition: transform var(--wiper-stroke) ease;
+	}
+
+	/* Deck marquee: runs only while the wipers run (dwell and wiping),
+	 * freezes under the pointer, and is still when Off. */
+	@keyframes wiper-marquee {
+		from {
+			text-indent: 100%;
+		}
+
+		to {
+			text-indent: -320%;
+		}
+	}
+
+	.wiper[data-skin='deck']:is([data-state='dwell'], [data-state='wiping'], [data-state='paused'])
+		.wiper-marquee__track {
+		animation: wiper-marquee calc(var(--wiper-dwell) * 4) linear infinite;
+	}
+
+	.wiper[data-skin='deck'][data-state='paused'] .wiper-marquee__track {
+		animation-play-state: paused;
+	}
+
+	.wiper[data-skin='deck'] .wiper-switch__lamp {
+		transition: background-color 160ms ease;
 	}
 
 	/* Sequenced, never overprinted: the old page fades out under the

@@ -32,12 +32,14 @@ export const WIPER_POSITIONS: readonly WiperPositionEntry[] = [
 export const DEFAULT_WIPER_POSITION: ActiveWiperPosition = 'intermittent';
 
 /**
- * Named skins (operator ruling 2026-09-09). `dash` is the tranche-1 look and
- * the rollback; `aero` is the wet-glass pane with the deck's instruments.
+ * Named skins (operator rulings 2026-09-09). `dash` is the tranche-1 look and
+ * the rollback; `aero` is the wet-glass pane with the deck's instruments;
+ * `deck` is aero plus the Winamp chassis (opaque bevelled dash strip, amber
+ * LCD countdown, VU strip, marquee, lamp) and ships as the home default.
  * Every skin rule in app.css is scoped under `[data-skin='<name>']`, so the
  * default skin's computed styles never change when a new skin lands.
  */
-export const WIPER_SKINS = ['dash', 'aero'] as const;
+export const WIPER_SKINS = ['dash', 'aero', 'deck'] as const;
 export type WiperSkin = (typeof WIPER_SKINS)[number];
 export const DEFAULT_WIPER_SKIN: WiperSkin = 'dash';
 
@@ -57,6 +59,19 @@ export function stepWiperPosition(current: WiperPosition, delta: 1 | -1): WiperP
 export function pageOf(index: number, pageSize: number): number {
 	return Math.floor(index / Math.max(pageSize, 1));
 }
+
+/**
+ * Deterministic VU column height for a page (0.2 to 1): the same page always
+ * lights the same bars, so the strip is stable under test and steps once per
+ * wipe. A hash, not a random source.
+ */
+export function vuHeight(page: number, column: number): number {
+	const seed = Math.sin((page + 1) * 12.9898 + (column + 1) * 78.233) * 43758.5453;
+	const fraction = seed - Math.floor(seed);
+	return Math.round((0.2 + 0.8 * fraction) * 100) / 100;
+}
+
+export const VU_COLUMNS = 12;
 
 export function pageCountFor(itemCount: number, pageSize: number): number {
 	return Math.max(Math.ceil(itemCount / Math.max(pageSize, 1)), 1);
