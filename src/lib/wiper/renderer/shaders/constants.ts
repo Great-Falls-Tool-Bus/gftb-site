@@ -5,15 +5,6 @@
 
 /** Under measured ink the scene may deviate from the page ground by this fraction at most. */
 export const INK_SAFE_ALPHA = 0.15;
-/**
- * The blades and their shadow leave the ground by nothing at all under ink.
- * The ratified budget above was proven for the brand blob colours; chrome
- * highlights and rubber reach full white and full black, which spend that
- * budget faster in the shader's sRGB mix (the mid-sweep ink gate measured
- * 4.13:1 on muted copy under a blade at 0.15), so the arm layer fades out
- * over the ink feather and the blobs alone keep their ratified dimness.
- */
-export const ARM_INK_ALPHA = 0;
 export const INK_FIELD_WIDTH = 256;
 export const INK_FIELD_HEIGHT = 128;
 /**

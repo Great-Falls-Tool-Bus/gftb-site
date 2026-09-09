@@ -30,7 +30,10 @@ describe('the wiper source contract', () => {
 	});
 
 	it('masks only paged notes, only by their wipe role, with the shared unit and span', () => {
-		const masks = [...block.matchAll(/^([^\n{]+)\{\n[^}]*mask-image:/gmu)].map((match) => match[1].trim());
+		const masked = [...block.matchAll(/^([^\n{]+)\{\n[^}]*mask-image:/gmu)].map((match) => match[1].trim());
+		// The blade canvas feathers itself top and bottom; every other mask is a note's wipe.
+		expect(masked.filter((selector) => !selector.startsWith('.goal-list'))).toEqual(['.wiper__blades']);
+		const masks = masked.filter((selector) => selector.startsWith('.goal-list'));
 		expect(masks).toEqual([
 			".goal-list--paged > li[data-wipe='out']",
 			".goal-list--paged > li[data-wipe='in']",
@@ -46,9 +49,23 @@ describe('the wiper source contract', () => {
 		expect(block).toMatch(
 			/#000 var\(--wipe-feather\) calc\(var\(--wipe-feather\) \+ var\(--wipe-u\) \* var\(--wipe-span\)\)/u,
 		);
-		// Both directions share the gradients; only the start angle differs.
-		expect(block).toMatch(/\[data-wipe-dir='ccw'\] \{\n\t--wipe-start: calc\(var\(--wipe-from\) - var\(--wipe-u\)/u);
+		expect(block).toMatch(/--wipe-start: calc\(var\(--wipe-from\) - var\(--wipe-feather\)\);/u);
+		expect(block).not.toMatch(/data-wipe-dir/u);
 		expect(block.match(/from var\(--wipe-start\)/gu)).toHaveLength(4);
+		// Clearing masks pivot against the push; revealing masks stay put.
+		expect(block.match(/at calc\(var\(--wipe-x\) - var\(--wipe-push, 0px\)\) var\(--wipe-y\)/gu)).toHaveLength(2);
+		expect(block.match(/at var\(--wipe-x\) var\(--wipe-y\)/gu)).toHaveLength(2);
+		const push =
+			/@supports \(width: calc\(1px \* tan\(45deg\)\)\) \{\n\t\.goal-list--paged > li\[data-wipe='out'\] \{([^}]*)\}/u.exec(
+				block,
+			);
+		expect(push).not.toBeNull();
+		expect(push![1]).toMatch(/transform: translateX\(var\(--wipe-push\)\);/u);
+		expect(push![1]).toMatch(/tan\(var\(--wipe-phi\)\)/u);
+		// The leading blade drives the shove and the note outruns it.
+		expect(push![1]).toMatch(/--wipe-shove: 1\.6;/u);
+		expect(push![1]).toMatch(/max\(0px, var\(--wipe-reach\), var\(--wipe-reach-2\)\)/u);
+		expect(push![1]).toMatch(/var\(--wipe-x-2, -99999px\)/u);
 		expect(block.match(/from var\(--wipe-start-2\)/gu)).toHaveLength(2);
 		expect(css).not.toMatch(/\.goal-list > li[^{]*\{[^}]*mask-image/u);
 	});
@@ -80,10 +97,27 @@ describe('the wiper source contract', () => {
 		}
 	});
 
+	it('gives every note and the asides one glass pane, and the goals section none', () => {
+		const pane = /\.goal-list > li,\n\.goal-asides \{([^}]*)\}/u.exec(css);
+		expect(pane).not.toBeNull();
+		expect(pane![1]).toMatch(/background: color-mix\(in oklab, var\(--glass-panel\) 70%, transparent\);/u);
+		expect(pane![1]).toMatch(/border-radius: 0;/u);
+		expect(pane![1]).toMatch(/--fg: var\(--glass-fg\);/u);
+		expect(pane![1]).not.toMatch(/border(?!-radius)|box-shadow/u);
+		expect(css).toMatch(/\.page-shell > \.section:not\(\.section--bare\),/u);
+		expect(css).not.toMatch(/\.page-shell > \.section,/u);
+		const page = read('src/routes/+page.svelte');
+		expect(page).toMatch(/class="section section--bare reveal-armed"[\s\S]{0,120}id="goals"/u);
+		const print = css.slice(css.indexOf('@media print {'));
+		expect(print).toMatch(/\.goal-list > li,\n\t\.goal-asides \{\n\t\tbackground: none !important;/u);
+	});
+
 	it('unwinds the paging on paper and hides the stalk', () => {
 		const print = css.slice(css.indexOf('@media print {'));
 		expect(print).toMatch(/\.goal-list--paged > li \{[^}]*mask-image: none !important;/u);
-		expect(print).toMatch(/\.wiper-stalk,\n\t\.wiper__scene,\n\t\.goal-edit \{\n\t\tdisplay: none !important;/u);
+		expect(print).toMatch(
+			/\.wiper-stalk,\n\t\.wiper__scene,\n\t\.wiper__blades,\n\t\.goal-edit \{\n\t\tdisplay: none !important;/u,
+		);
 	});
 
 	it('renders one Skeleton SegmentedControl with the four detents and no other control', () => {
@@ -119,12 +153,28 @@ describe('the wiper source contract', () => {
 		expect(scene![1]).toMatch(/border-radius: 0;/u);
 		expect(css).toMatch(/\.wiper__glass > \.goal-list \{[^}]*z-index: 1;/u);
 		const print = css.slice(css.indexOf('@media print {'));
-		expect(print).toMatch(/\.wiper__scene,\n\t\.goal-edit \{\n\t\tdisplay: none !important;/u);
+		expect(print).toMatch(/\.wiper__scene,\n\t\.wiper__blades,\n\t\.goal-edit \{\n\t\tdisplay: none !important;/u);
 		const forced = css.slice(css.indexOf('@media (forced-colors: active) {\n\t.wiper__scene'));
-		expect(forced).toMatch(/\.wiper__scene \{\n\t\tdisplay: none;/u);
+		expect(forced).toMatch(/\.wiper__scene,\n\t\.wiper__blades \{\n\t\tdisplay: none;/u);
+		// The blade layer sits over the notes, inert and sharp, feathered top and bottom.
+		const blades = /\.wiper__blades \{([^}]*)\}/u.exec(css);
+		expect(blades).not.toBeNull();
+		expect(blades![1]).toMatch(/z-index: 2;/u);
+		expect(blades![1]).toMatch(/pointer-events: none;/u);
+		expect(blades![1]).toMatch(/border-radius: 0;/u);
+		expect(blades![1]).toMatch(
+			/mask-image: linear-gradient\(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%\);/u,
+		);
+		// The band feathers like the hero backdrop and clips what the blade shoves out.
+		expect(css).toMatch(/\.wiper--paged \.wiper__glass \{\n\toverflow: clip;/u);
+		expect(css).toMatch(/\.wiper--paged \.wiper__glass::after \{[^}]*z-index: 0;[^}]*pointer-events: none;/u);
 		const host = read('src/lib/components/WiperScene.svelte');
 		expect(host).toContain('aria-hidden="true"');
 		expect(host).toContain('inkAlpha: INK_SAFE_ALPHA');
+		expect(host).toContain("selectRenderer(element, { layer: 'scene' })");
+		expect(host).toContain("selectRenderer(bladesElement, { layer: 'blades' })");
+		expect(host).toContain('renderer.render({ ...frame, arms: [] });');
+		expect(host).toContain('blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });');
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
 		expect(goals).toContain('{#if view.paged && glassEl}');
@@ -157,7 +207,9 @@ describe('the wiper source contract', () => {
 		expect(paged![1]).toMatch(/margin-left: calc\(50% - 50vw\);/u);
 		const pane = /\.wiper \{([^}]*)\}/u.exec(block);
 		expect(pane![1]).not.toMatch(/100vw/u);
-		expect(block).toMatch(/\.goal-list--paged > li \{[^}]*padding: 1rem 1\.1rem 1\.25rem;/u);
+		// Inner room lives on every note now that each note is a pane.
+		expect(css).toMatch(/\.goal-list > li \{\n\tpadding: 1rem 1\.1rem 1\.25rem;\n\}/u);
+		expect(block).not.toMatch(/\.goal-list--paged > li \{[^}]*padding/u);
 		const print = css.slice(css.indexOf('@media print {'));
 		expect(print).toMatch(/\.wiper--paged \{\n\t\twidth: auto !important;/u);
 	});

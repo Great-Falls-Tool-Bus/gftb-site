@@ -4,11 +4,11 @@
 // state changes a few times per cycle and lives in $state; the 60 Hz channel
 // never touches reactivity. Every listener hangs off one AbortSignal.
 import {
-	armsAcross,
+	armsOver,
 	bladePoseAt,
 	deriveGeometry,
-	halfSweepDeg,
 	maskVarsFor,
+	sweepSpanDeg,
 	type ArmSpec,
 	type BladePose,
 	type WiperGeometry,
@@ -105,10 +105,17 @@ export class WiperEngine {
 		pane.style.setProperty('--wipe-feather', `${geometry.featherDeg}deg`);
 		for (const item of glass.querySelectorAll<HTMLElement>(':scope > li')) {
 			const rect = item.getBoundingClientRect();
-			const [owner, second] = armsAcross(geometry, rect.left - box.left, rect.right - box.left);
+			const [owner, second] = armsOver(geometry, {
+				left: rect.left - box.left,
+				top: rect.top - box.top,
+				width: rect.width,
+				height: rect.height,
+			});
 			this.#writeArmVars(item, owner, rect, box, '');
-			// A note reaching into both spans is wiped by both blades, each where
-			// it passes: a second set of variables and a composited second mask.
+			// The push (app.css --wipe-push) meets the blade at the note's mid-height.
+			item.style.setProperty('--wipe-h', `${Math.round(rect.height * 100) / 100}px`);
+			// A note both blades pass over is wiped by both, each where it
+			// passes: a second set of variables and a composited second mask.
 			if (second) {
 				this.#writeArmVars(item, second, rect, box, '-2');
 				item.dataset.wipeArms = 'both';
@@ -116,7 +123,6 @@ export class WiperEngine {
 				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2'])
 					item.style.removeProperty(name);
 				delete item.dataset.wipeArms;
-				item.removeAttribute('data-wipe-dir-2');
 			}
 		}
 		this.refresh();
@@ -125,13 +131,7 @@ export class WiperEngine {
 	#writeArmVars(item: HTMLElement, arm: ArmSpec, rect: DOMRect, box: DOMRect, suffix: '' | '-2'): void {
 		const vars = maskVarsFor(arm, rect, box);
 		for (const [name, value] of Object.entries(vars)) item.style.setProperty(`${name}${suffix}`, value);
-		item.style.setProperty(`--wipe-span${suffix}`, `${Math.round(2 * halfSweepDeg(arm) * 100) / 100}deg`);
-		// A counter-clockwise arm's mask grows from park the other way (app.css
-		// --wipe-start). Plain attributes: dataset would spell the suffix
-		// without its hyphen, and the stylesheet selects data-wipe-dir-2.
-		const name = `data-wipe-dir${suffix}`;
-		if (arm.dir < 0) item.setAttribute(name, 'ccw');
-		else item.removeAttribute(name);
+		item.style.setProperty(`--wipe-span${suffix}`, `${Math.round(sweepSpanDeg(arm) * 100) / 100}deg`);
 	}
 
 	/**

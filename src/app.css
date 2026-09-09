@@ -747,7 +747,7 @@ li {
  * filters, so readability does not depend on blur or a measured photo frame.
  * The root and body canvas-propagation rules remain untouched. */
 .hero-glass,
-.page-shell > .section,
+.page-shell > .section:not(.section--bare),
 .page-shell > .log-entry,
 .page-shell > .contact-card,
 .site-footer {
@@ -770,7 +770,7 @@ li {
 
 @supports (backdrop-filter: blur(1px)) {
 	.hero-glass,
-	.page-shell > .section,
+	.page-shell > .section:not(.section--bare),
 	.page-shell > .log-entry,
 	.page-shell > .contact-card,
 	.site-footer {
@@ -780,7 +780,7 @@ li {
 
 @media (prefers-reduced-motion: reduce) {
 	.hero-glass,
-	.page-shell > .section,
+	.page-shell > .section:not(.section--bare),
 	.page-shell > .log-entry,
 	.page-shell > .contact-card,
 	.site-footer {
@@ -955,7 +955,13 @@ li {
 }
 
 /* A solid local edge keeps keyboard focus readable over any glass backdrop. */
-:is(.hero-glass, .page-shell > .section, .page-shell > .log-entry, .page-shell > .contact-card, .site-footer)
+:is(
+		.hero-glass,
+		.page-shell > .section:not(.section--bare),
+		.page-shell > .log-entry,
+		.page-shell > .contact-card,
+		.site-footer
+	)
 	.button:focus-visible {
 	box-shadow: 0 0 0 4px var(--highlight-edge);
 }
@@ -1247,6 +1253,49 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	gap: 1.75rem 2.5rem;
 }
 
+/* Every note is one glass pane (operator ruling at LOOK 3: uniform occlusion
+ * under the photos and the copy, not ink floating on the scene): the site's
+ * content-surface idiom with its stronger local inks, radius 0, no border,
+ * inner room on every edge. The goals section itself is bare (.section--bare)
+ * so the full-bleed glass runs through the page ground, and the asides below
+ * the stalk carry the same pane. Paper drops the fill; forced colours paint
+ * system colours anyway. */
+.goal-list > li,
+.goal-asides {
+	--fg: var(--glass-fg);
+	--fg-muted: var(--glass-muted);
+	--heading: var(--glass-heading);
+	--link: var(--glass-link);
+	--accent: var(--glass-accent);
+	--highlight-edge: var(--glass-link);
+	--danger: var(--glass-danger);
+	color: var(--fg);
+	border-radius: 0;
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
+}
+
+.goal-list > li {
+	padding: 1rem 1.1rem 1.25rem;
+}
+
+.goal-asides {
+	padding: clamp(1rem, 3vw, 2rem);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+	.goal-list > li,
+	.goal-asides {
+		backdrop-filter: blur(12px) saturate(118%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.goal-list > li,
+	.goal-asides {
+		backdrop-filter: none;
+	}
+}
+
 .goal-list h3 {
 	margin-bottom: 0.25rem;
 	font-size: 1.25rem;
@@ -1366,6 +1415,31 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 .wiper--paged .goal-list {
 	padding-inline: var(--wiper-gutter);
+	/* Room above and below the panes inside the band (operator ruling at LOOK 3). */
+	padding-block: 1.75rem 2.25rem;
+}
+
+/* The band clips: a note the blade has shoved past its edge is gone. */
+.wiper--paged .wiper__glass {
+	overflow: clip;
+}
+
+/* The band feathers into the page on the y axis the way the hero backdrop
+ * does (.hero__scrim): a scrim of the page ground over the scene, under the
+ * notes, thin at the top, heavier at the bottom. */
+.wiper--paged .wiper__glass::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background: linear-gradient(
+		180deg,
+		color-mix(in oklab, var(--bg) 32%, transparent) 0%,
+		transparent 10%,
+		transparent 90%,
+		color-mix(in oklab, var(--bg) 55%, transparent) 100%
+	);
 }
 
 .wiper--paged .wiper-stalk,
@@ -1396,6 +1470,20 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	pointer-events: none;
 }
 
+/* The blade layer: transparent, over the notes, inert, sharp, and feathered
+ * at the band's top and bottom so a blade rises into frame softly. */
+.wiper__blades {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: 0;
+	pointer-events: none;
+	mask-image: linear-gradient(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+}
+
 .goal-list--paged {
 	grid-template-columns: repeat(var(--wipe-columns, 1), minmax(0, 1fr));
 }
@@ -1403,8 +1491,6 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 .goal-list--paged > li {
 	position: relative;
 	grid-row: 1;
-	/* Room between the ink and the glass edges (operator ruling at LOOK 2). */
-	padding: 1rem 1.1rem 1.25rem;
 }
 
 /* Off-page notes stay in the DOM and in the tab order (focus-follow reveals
@@ -1414,28 +1500,17 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	pointer-events: none;
 }
 
-/* The swept wedge starts one feather before the park angle for a clockwise
- * arm, and one feather before the moving edge for a counter-clockwise arm
- * (the second of an opposed pair: the engine marks its notes data-wipe-dir),
- * so the same two gradients serve both directions with the soft edge on the
- * blade's side. */
+/* The swept wedge starts one feather before the park angle, so the soft edge
+ * sits on the blade's side and the park side (out of frame) stays hard. */
 .goal-list--paged > li {
 	--wipe-start: calc(var(--wipe-from) - var(--wipe-feather));
 	--wipe-start-2: calc(var(--wipe-from-2) - var(--wipe-feather));
 }
 
-.goal-list--paged > li[data-wipe-dir='ccw'] {
-	--wipe-start: calc(var(--wipe-from) - var(--wipe-u) * var(--wipe-span) - var(--wipe-feather));
-}
-
-.goal-list--paged > li[data-wipe-dir-2='ccw'] {
-	--wipe-start-2: calc(var(--wipe-from-2) - var(--wipe-u) * var(--wipe-span-2) - var(--wipe-feather));
-}
-
 .goal-list--paged > li[data-wipe='out'] {
 	z-index: 1;
 	mask-image: conic-gradient(
-		from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+		from var(--wipe-start) at calc(var(--wipe-x) - var(--wipe-push, 0px)) var(--wipe-y),
 		#000 0,
 		transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
 		#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
@@ -1451,19 +1526,19 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	);
 }
 
-/* A note straddling an opposed pair: gone where either blade has passed
- * (the two clearing masks intersect), revealed where either has passed
- * (the two revealing masks add). */
+/* A note both blades pass over: gone where either blade has passed (the
+ * two clearing masks intersect), revealed where either has passed (the two
+ * revealing masks add). */
 .goal-list--paged > li[data-wipe='out'][data-wipe-arms='both'] {
 	mask-image:
 		conic-gradient(
-			from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+			from var(--wipe-start) at calc(var(--wipe-x) - var(--wipe-push, 0px)) var(--wipe-y),
 			#000 0,
 			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
 			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
 		),
 		conic-gradient(
-			from var(--wipe-start-2) at var(--wipe-x-2) var(--wipe-y-2),
+			from var(--wipe-start-2) at calc(var(--wipe-x-2) - var(--wipe-push, 0px)) var(--wipe-y-2),
 			#000 0,
 			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
 			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
@@ -1486,6 +1561,27 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
 		);
 	mask-composite: add;
+}
+
+/* The blade shoves the outgoing note off the glass rather than only wiping
+ * it in place (operator ruling at LOOK 3): once a blade's ray passes the
+ * note's left edge at mid-height the note slides right, driven by whichever
+ * blade has reached furthest into it, and it outruns the blade by the shove
+ * factor so every note has cleared the band by the turnaround. The mask
+ * pivot slides the other way so the clipped edge stays under the rubber.
+ * Behind the feature query the note is wiped in place. No timed rule: the
+ * transform follows --wipe-u frame by frame. */
+@supports (width: calc(1px * tan(45deg))) {
+	.goal-list--paged > li[data-wipe='out'] {
+		--wipe-shove: 1.6;
+		--wipe-phi: calc(var(--wipe-from) + var(--wipe-u) * var(--wipe-span));
+		--wipe-reach: calc(var(--wipe-x) + (var(--wipe-y) - var(--wipe-h, 0px) / 2) * tan(var(--wipe-phi)));
+		--wipe-reach-2: calc(
+			var(--wipe-x-2, -99999px) + (var(--wipe-y-2, 0px) - var(--wipe-h, 0px) / 2) * tan(var(--wipe-phi))
+		);
+		--wipe-push: calc(var(--wipe-shove) * max(0px, var(--wipe-reach), var(--wipe-reach-2)));
+		transform: translateX(var(--wipe-push));
+	}
 }
 
 /* The stalk: one Skeleton SegmentedControl (a radio group), Off first.
@@ -1546,7 +1642,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 @media (forced-colors: active) {
-	.wiper__scene {
+	.wiper__scene,
+	.wiper__blades {
 		display: none;
 	}
 
@@ -1987,7 +2084,7 @@ figcaption {
 	}
 
 	.hero-glass,
-	.page-shell > .section,
+	.page-shell > .section:not(.section--bare),
 	.page-shell > .log-entry,
 	.page-shell > .contact-card {
 		--fg: #000;
@@ -2053,8 +2150,16 @@ figcaption {
 
 	.wiper-stalk,
 	.wiper__scene,
+	.wiper__blades,
 	.goal-edit {
 		display: none !important;
+	}
+
+	.goal-list > li,
+	.goal-asides {
+		background: none !important;
+		backdrop-filter: none !important;
+		transform: none !important;
 	}
 
 	/* A print begun before the reveal IO ever fires must still show every

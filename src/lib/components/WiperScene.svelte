@@ -34,6 +34,7 @@
 	const { engine, colors, glass }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement>();
+	let bladesCanvas = $state<HTMLCanvasElement>();
 	let tier = $state<'pending' | 'webgl2' | 'none'>('pending');
 	const view = $derived(engine.view);
 	let inkDirty = true;
@@ -65,6 +66,30 @@
 		return [r / 255, g / 255, b / 255];
 	}
 
+	/** The box the arms can touch this frame, CSS px, or null when every blade is out of frame. */
+	function armsBox(arms: readonly SceneArm[], width: number, height: number) {
+		let left = Infinity;
+		let top = Infinity;
+		let right = -Infinity;
+		let bottom = -Infinity;
+		for (const arm of arms) {
+			const tipX = arm.pivotX + arm.length * Math.sin(arm.phi);
+			const tipY = arm.pivotY - arm.length * Math.cos(arm.phi);
+			// Shadow and anatomy reach a few widths from the centreline.
+			const margin = 4 * arm.width + 4;
+			left = Math.min(left, tipX, arm.pivotX) - margin;
+			right = Math.max(right, tipX, arm.pivotX) + margin;
+			top = Math.min(top, tipY, arm.pivotY) - margin;
+			bottom = Math.max(bottom, tipY, arm.pivotY) + margin;
+		}
+		const x = Math.max(0, left);
+		const y = Math.max(0, top);
+		const x2 = Math.min(width, right);
+		const y2 = Math.min(height, bottom);
+		if (!(x2 > x && y2 > y)) return null;
+		return { x, y, width: x2 - x, height: y2 - y };
+	}
+
 	function inkRects(host: HTMLElement): InkRect[] {
 		const box = host.getBoundingClientRect();
 		const rects: InkRect[] = [];
@@ -82,9 +107,13 @@
 	onMount(() => {
 		const host = glass;
 		const element = canvas;
-		if (!host || !element) return;
+		const bladesElement = bladesCanvas;
+		if (!host || !element || !bladesElement) return;
 		let alive = true;
 		let renderer: RendererHandle | null = null;
+		// The blade layer: a transparent canvas over the notes, so the arms pass
+		// over the panes they wipe (operator ruling at LOOK 3).
+		let blades: RendererHandle | null = null;
 		let field: BlobFieldHandle | null = null;
 		let raf = 0;
 		let last = 0;
@@ -104,6 +133,8 @@
 			raf = 0;
 			renderer?.destroy();
 			renderer = null;
+			blades?.destroy();
+			blades = null;
 			field?.dispose();
 			field = null;
 			tier = 'none';
@@ -114,7 +145,9 @@
 			const box = host.getBoundingClientRect();
 			width = box.width;
 			height = box.height;
-			renderer?.resize(width, height, Math.min(window.devicePixelRatio || 1, 2));
+			const ratio = Math.min(window.devicePixelRatio || 1, 2);
+			renderer?.resize(width, height, ratio);
+			blades?.resize(width, height, ratio);
 			inkDirty = true;
 		};
 
@@ -124,11 +157,11 @@
 			inkDirty = false;
 		};
 
-		const needsFrames = () => alive && visible && !hidden && renderer !== null && field !== null;
+		const needsFrames = () => alive && visible && !hidden && renderer !== null && blades !== null && field !== null;
 
 		/** Draw the scene as it stands; the physics is advanced by the loop, not here. */
 		const paint = (now: number) => {
-			if (!renderer || !field) return;
+			if (!renderer || !blades || !field) return;
 			if (inkDirty) uploadInk();
 			// The field's window covers the glass the way the SVG's viewBox does (slice).
 			const scale = Math.max(width, height) / BLOB_WINDOW_EXTENT;
@@ -147,12 +180,14 @@
 			// the machine clock through the mask's own easing, so the drawn blade
 			// sits on the mask edge whichever callback the browser runs first.
 			const arms: SceneArm[] = engine.blades(now);
-			renderer.render({ time: now / 1000, ground, blend, blobs, arms, inkAlpha: INK_SAFE_ALPHA });
+			const frame = { time: now / 1000, ground, blend, blobs, inkAlpha: INK_SAFE_ALPHA };
+			renderer.render({ ...frame, arms: [] });
+			blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });
 		};
 
 		const frame = (now: number) => {
 			raf = 0;
-			if (!needsFrames() || !renderer || !field) return;
+			if (!needsFrames() || !renderer || !blades || !field) return;
 			const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
 			last = now;
 			field.setTilt({ x: deviceTilt.x, y: deviceTilt.y, z: deviceTilt.z });
@@ -168,7 +203,7 @@
 		};
 
 		(async () => {
-			const selection = await selectRenderer(element);
+			const selection = await selectRenderer(element, { layer: 'scene' });
 			if (!alive) return;
 			if (!selection.ok) {
 				demote();
@@ -176,6 +211,14 @@
 			}
 			renderer = selection.handle;
 			renderer.onLost(() => demote());
+			const bladeSelection = await selectRenderer(bladesElement, { layer: 'blades' });
+			if (!alive) return;
+			if (!bladeSelection.ok) {
+				demote();
+				return;
+			}
+			blades = bladeSelection.handle;
+			blades.onLost(() => demote());
 			try {
 				field = await createBlobField({
 					count: 5,
@@ -237,6 +280,7 @@
 			modeWatch.disconnect();
 			controller.abort();
 			renderer?.destroy();
+			blades?.destroy();
 			field?.dispose();
 		};
 	});
@@ -244,4 +288,5 @@
 
 {#if tier !== 'none'}
 	<canvas class="wiper__scene" aria-hidden="true" data-tier={tier} bind:this={canvas}></canvas>
+	<canvas class="wiper__blades" aria-hidden="true" data-tier={tier} bind:this={bladesCanvas}></canvas>
 {/if}

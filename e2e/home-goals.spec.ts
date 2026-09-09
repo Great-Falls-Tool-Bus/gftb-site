@@ -14,7 +14,7 @@ const sourceMap = JSON.parse(
 
 import { publishedGoalEntries } from '../src/lib/generated/goals-manifest';
 import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-goals';
-import { bladePoseAt, coversPane, deriveGeometry, halfSweepDeg, parkAngle } from '../src/lib/wiper/geometry';
+import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
@@ -72,17 +72,23 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 			await expect(media).toHaveCount(0);
 		}
 	}
-	// Never-cards (2026-08-30): no border on any side of any row, no fill.
+	// Never-cards (2026-08-30) as amended at LOOK 3 (2026-09-09): no border on
+	// any side of any row; every row is one translucent glass pane (the site's
+	// content-surface fill at 70%), the same for all, so photos and copy share
+	// one uniform occlusion over the scene rather than floating on it.
 	const boxes = await rows.evaluateAll((els) =>
 		els.map((el) => {
 			const s = getComputedStyle(el);
 			return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.backgroundColor];
 		}),
 	);
+	const fills = new Set<string>();
 	for (const box of boxes) {
 		expect(box.slice(0, 4)).toEqual(['0px', '0px', '0px', '0px']);
-		expect(box[4]).toBe('rgba(0, 0, 0, 0)');
+		expect(box[4]).toMatch(/\/ 0\.7\)$|, 0\.7\)$/u);
+		fills.add(box[4]);
 	}
+	expect(fills.size).toBe(1);
 });
 
 test('member benefits and help asks render with their CTAs', async ({ page }) => {
@@ -130,12 +136,12 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	await page.waitForLoadState('networkidle');
 	await pane(page).scrollIntoViewIfNeeded();
 	await pointerAway(page);
-	// One control: a radio group named for the speed, Off first, Intermittent on load.
+	// One control: a radio group named for the speed, Off first, High on load.
 	const group = page.getByRole('radiogroup', { name: 'Wiper speed' });
 	await expect(group).toHaveCount(1);
 	await expect(stalk(page).locator('.wiper-stalk__item')).toHaveText(WIPER_DETENTS.map((entry) => entry.label));
 	for (const entry of WIPER_DETENTS) await expect(group.getByRole('radio', { name: entry.label })).toHaveCount(1);
-	await expect(group.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
+	await expect(group.getByRole('radio', { name: 'High' })).toBeChecked();
 	await expect(page.locator('#goals button')).toHaveCount(0);
 	await expect(page.locator('#goals [role="switch"]')).toHaveCount(0);
 	// Paged: three notes up on a wide viewport, the rest in the DOM but hidden.
@@ -213,6 +219,18 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 		.evaluate((el) => getComputedStyle(el).maskImage);
 	expect(inMask).toContain('conic-gradient');
 	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.5000');
+	// Halfway, the blades stand vertical over their span midpoints: the first
+	// column's outgoing note has been shoved right by the blade's advance past
+	// its left edge, and the reveal underneath has not moved.
+	const shove = await page.evaluate(() => {
+		const out = document.querySelector<HTMLElement>('#goals li[data-wipe="out"]')!;
+		const incoming = document.querySelector<HTMLElement>('#goals li[data-wipe="in"]')!;
+		const matrix = new DOMMatrixReadOnly(getComputedStyle(out).transform);
+		return { x: matrix.e, y: matrix.f, revealX: new DOMMatrixReadOnly(getComputedStyle(incoming).transform).e };
+	});
+	expect(shove.x).toBeGreaterThan(40);
+	expect(shove.y).toBe(0);
+	expect(shove.revealX).toBe(0);
 	await page.evaluate(() => {
 		delete document.documentElement.dataset.wiperFreeze;
 	});
@@ -275,8 +293,8 @@ for (const width of [320, 390, 768, 1280, 1440]) {
 			const arm =
 				geometry.arms.find((candidate) => item.centerX >= candidate.span[0] && item.centerX < candidate.span[1]) ??
 				geometry.arms.at(-1)!;
-			expect(item.from).toBeCloseTo(-arm.dir * halfSweepDeg(arm), 1);
-			expect(item.span).toBeCloseTo(2 * halfSweepDeg(arm), 1);
+			expect(item.from).toBeCloseTo((parkAngle(arm) * 180) / Math.PI, 1);
+			expect(item.span).toBeCloseTo(sweepSpanDeg(arm), 1);
 			expect(Number.isFinite(item.x) && Number.isFinite(item.y)).toBe(true);
 			// The hub hangs below the list, never below the stalk or the footer.
 			expect(item.y).toBeLessThanOrEqual(arm.pivotY + 1);
@@ -295,6 +313,28 @@ test('the scene canvas exists only while the notes page, fills the list box, and
 	await expect(scene(page)).toHaveCount(1);
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
 	await expect(scene(page)).toHaveAttribute('aria-hidden', 'true');
+	// The blade layer: one transparent canvas over the notes, same box, inert.
+	const blades = page.locator('#goals canvas.wiper__blades');
+	await expect(blades).toHaveCount(1);
+	await expect(blades).toHaveAttribute('aria-hidden', 'true');
+	const layering = await page.evaluate(() => {
+		const scene = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
+		const over = document.querySelector('#goals canvas.wiper__blades')!;
+		const box = over.getBoundingClientRect();
+		const style = getComputedStyle(over);
+		const list = getComputedStyle(document.querySelector('#goals .goal-list')!);
+		return {
+			same: Math.abs(box.width - scene.width) < 1 && Math.abs(box.height - scene.height) < 1,
+			z: Number(style.zIndex),
+			listZ: Number(list.zIndex),
+			pointer: style.pointerEvents,
+			radius: style.borderRadius,
+		};
+	});
+	expect(layering.same).toBe(true);
+	expect(layering.z).toBeGreaterThan(layering.listZ);
+	expect(layering.pointer).toBe('none');
+	expect(layering.radius).toBe('0px');
 	const boxes = await page.evaluate(() => {
 		const canvas = document.querySelector('#goals canvas.wiper__scene')!;
 		const list = document.querySelector('#goals .goal-list')!;
@@ -341,8 +381,10 @@ test('the scene is absent under reduced motion and hidden on paper and under for
 	await expect(scene(page)).toHaveCount(1);
 	await page.emulateMedia({ media: 'print' });
 	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
+	expect(await page.locator('#goals canvas.wiper__blades').evaluate((el) => getComputedStyle(el).display)).toBe('none');
 	await page.emulateMedia({ media: 'screen', forcedColors: 'active' });
 	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
+	expect(await page.locator('#goals canvas.wiper__blades').evaluate((el) => getComputedStyle(el).display)).toBe('none');
 	await expect(stalk(page)).toBeVisible();
 });
 
@@ -379,7 +421,12 @@ for (const scheme of ['light', 'dark'] as const) {
 		const check = async (label: string) => {
 			const rects = await inkRects(page);
 			expect(rects.length, `${label}: text rects`).toBeGreaterThan(3);
-			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__scene', rects, '#goals .goal-list');
+			const extremes = await measureExtremesInRects(
+				page,
+				'#goals canvas.wiper__scene',
+				rects,
+				'#goals .goal-list, #goals canvas.wiper__blades',
+			);
 			const worst = async (role: string) => {
 				const ink = await resolveRoleRgb(page, role);
 				return Math.min(
@@ -407,11 +454,12 @@ for (const scheme of ['light', 'dark'] as const) {
 }
 
 // The drawn blade and the mask edge share one clock and one easing. Hold the
-// out-stroke where the left arm's ray crosses the left gutter (no ink within
-// the clamp's reach there) and read the scene's own pixels: something far
-// from the ground (rubber in light, chrome in dark) sits on the ray; move the
-// hold to the vertical and the same spot is ground and blobs again. The
-// right arm mirrors it from the right gutter, which is the opposed pair.
+// out-stroke where an arm's ray crosses a gutter (no ink within the clamp's
+// reach there) and read the scene's own pixels: something far from the
+// ground (rubber in light, chrome in dark) sits on the ray; move the hold to
+// the vertical and the same spot is ground and blobs again. The left arm
+// crosses the left gutter as it rises; the right arm reaches the right gutter
+// near the turnaround.
 const BLADE_CONTRAST = 6;
 
 function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi: number, x: number) {
@@ -441,12 +489,12 @@ for (const scheme of ['light', 'dark'] as const) {
 		const sampleX = 24;
 		// The first held unit at which each arm's ray crosses its own gutter
 		// inside the glass; the pose is what the scene draws at that hold.
-		const targets = geometry.arms.map((arm) => {
-			const x = arm.dir > 0 ? sampleX : box.width - sampleX;
-			for (let unit = 0.02; unit <= 0.3; unit += 0.01) {
+		const targets = geometry.arms.map((arm, index) => {
+			const x = index === 0 ? sampleX : box.width - sampleX;
+			for (let unit = 0.02; unit <= 0.98; unit += 0.01) {
 				const pose = bladePoseAt(arm, box, 'out', unit, unit);
 				const point = rayPointAtX(arm, pose.phi, x);
-				if (point && point.y > box.height * 0.15 && point.y < box.height * 0.9) {
+				if (point && point.y > box.height * 0.05 && point.y < box.height * 0.96) {
 					const half = 1.4 * pose.width;
 					return {
 						unit: unit.toFixed(2),
@@ -457,7 +505,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			throw new Error(`no gutter crossing for the arm parked at ${parkAngle(arm)}`);
 		});
 		const peak = async (rect: (typeof targets)[number]['rect']) => {
-			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__scene', [rect], '#goals .goal-list');
+			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__blades', [rect], '#goals .goal-list');
 			return Math.max(
 				roundRatio(contrastRatio(ground, extremes.darkest.rgb)),
 				roundRatio(contrastRatio(ground, extremes.lightest.rgb)),

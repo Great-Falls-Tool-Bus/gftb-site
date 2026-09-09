@@ -5,7 +5,7 @@ import {
 	PHI_MAX_DEG,
 	TWO_ARM_MIN_WIDTH,
 	armAt,
-	armsAcross,
+	armsOver,
 	bladePoseAt,
 	coversPane,
 	deriveGeometry,
@@ -13,6 +13,8 @@ import {
 	maskVarsFor,
 	parkAngle,
 	phiAt,
+	sweepSpan,
+	sweepSpanDeg,
 	sweptBy,
 	wipeAngleDeg,
 } from './geometry';
@@ -49,19 +51,16 @@ describe('deriveGeometry', () => {
 		}
 	});
 
-	it('runs two arms opposed and one arm clockwise, each parked out of the pane', () => {
-		const pair = deriveGeometry({ width: 1152, height: 620 });
-		expect(pair.arms.map((arm) => arm.dir)).toEqual([1, -1]);
-		expect(deriveGeometry({ width: 358, height: 400 }).arms.map((arm) => arm.dir)).toEqual([1]);
+	it('parks every blade with its tip on or below the glass line, and starts the fan there', () => {
 		for (const box of BOXES) {
 			for (const arm of deriveGeometry(box).arms) {
-				// At park the blade's ray crosses the glass edge at its own outer
-				// corner and leaves the pane: nothing of it lies over the notes.
-				const park = parkAngle(arm);
-				expect(Math.sign(park)).toBe(-arm.dir);
-				const crossX = arm.pivotX + Math.tan(park) * (arm.pivotY - box.height);
-				const outerCorner = arm.dir > 0 ? arm.span[0] : arm.span[1];
-				expect(crossX, box.label).toBeCloseTo(outerCorner, 6);
+				expect(arm.park, box.label).toBeGreaterThanOrEqual(arm.halfSweep);
+				expect(parkAngle(arm)).toBe(-arm.park);
+				const tipY = arm.pivotY - arm.length * Math.cos(arm.park);
+				expect(tipY, box.label).toBeGreaterThanOrEqual(box.height - 1e-6);
+				// The stroke is the whole span from park to the turnaround.
+				expect(sweepSpan(arm)).toBeCloseTo(arm.park + arm.halfSweep, 12);
+				expect(sweepSpanDeg(arm)).toBeCloseTo(halfSweepDeg(arm) + (arm.park * 180) / Math.PI, 9);
 			}
 		}
 	});
@@ -81,19 +80,22 @@ describe('deriveGeometry', () => {
 		expect(sweptBy(left, left.pivotX, 10)).toBe(true);
 	});
 
-	it('hands a note straddling the pair to both arms, its owner first', () => {
+	it('hands a note to every blade that passes over it, its owner first', () => {
 		const geometry = deriveGeometry({ width: 1152, height: 620 });
 		const [left, right] = geometry.arms;
-		// A note wholly inside a span belongs to that arm alone.
-		expect(armsAcross(geometry, 40, 380)).toEqual([left]);
-		expect(armsAcross(geometry, 800, 1140)).toEqual([right]);
-		// The middle column of a three-up row reaches into both spans.
-		expect(armsAcross(geometry, 420, 740)).toEqual([right, left]);
-		expect(armsAcross(geometry, 400, 730)).toEqual([left, right]);
-		// A few pixels over the line do not count as straddling.
-		expect(armsAcross(geometry, 200, 578)).toEqual([left]);
-		expect(deriveGeometry({ width: 358, height: 400 }).arms).toHaveLength(1);
-		expect(armsAcross(deriveGeometry({ width: 358, height: 400 }), 0, 358)).toHaveLength(1);
+		// High and far out in its own span, past the other blade's tip.
+		expect(armsOver(geometry, { left: 20, top: 20, width: 200, height: 140 })).toEqual([left]);
+		expect(armsOver(geometry, { left: 900, top: 20, width: 230, height: 140 })).toEqual([right]);
+		// Lower down near the boundary the other blade's arc crosses the note.
+		expect(armsOver(geometry, { left: 40, top: 20, width: 340, height: 200 })).toEqual([left, right]);
+		// The middle column of a three-up row straddles the boundary.
+		expect(armsOver(geometry, { left: 420, top: 20, width: 320, height: 500 })).toEqual([right, left]);
+		expect(armsOver(geometry, { left: 400, top: 20, width: 330, height: 500 })).toEqual([left, right]);
+		// A left note reaching the bottom meets the right blade's rising tip.
+		expect(armsOver(geometry, { left: 40, top: 20, width: 500, height: 600 })).toEqual([left, right]);
+		expect(
+			armsOver(deriveGeometry({ width: 358, height: 400 }), { left: 0, top: 0, width: 358, height: 400 }),
+		).toHaveLength(1);
 	});
 
 	it('assigns an item to the arm owning its x and the last arm past the edge', () => {
@@ -107,11 +109,11 @@ describe('deriveGeometry', () => {
 describe('the stroke and the mask', () => {
 	const arm = deriveGeometry({ width: 1152, height: 620 }).arms[0];
 
-	it('runs the out-stroke from park to end and the back-stroke home, monotonically', () => {
-		expect(phiAt(arm, 0, 'out', strokeEase)).toBeCloseTo(-arm.halfSweep, 12);
+	it('runs the out-stroke from park to the turnaround and the back-stroke home, monotonically', () => {
+		expect(phiAt(arm, 0, 'out', strokeEase)).toBeCloseTo(-arm.park, 12);
 		expect(phiAt(arm, 1, 'out', strokeEase)).toBeCloseTo(arm.halfSweep, 12);
 		expect(phiAt(arm, 0, 'back', strokeEase)).toBeCloseTo(arm.halfSweep, 12);
-		expect(phiAt(arm, 1, 'back', strokeEase)).toBeCloseTo(-arm.halfSweep, 12);
+		expect(phiAt(arm, 1, 'back', strokeEase)).toBeCloseTo(-arm.park, 12);
 		let previous = -Infinity;
 		for (let step = 0; step <= 50; step += 1) {
 			const phi = phiAt(arm, step / 50, 'out', strokeEase);
@@ -121,28 +123,15 @@ describe('the stroke and the mask', () => {
 	});
 
 	it('maps the blade angle to a swept angle from park, in degrees', () => {
-		expect(wipeAngleDeg(arm, -arm.halfSweep)).toBeCloseTo(0, 12);
-		expect(wipeAngleDeg(arm, arm.halfSweep)).toBeCloseTo(2 * halfSweepDeg(arm), 12);
-	});
-
-	it('mirrors the counter-clockwise arm: park at +halfSweep, out-stroke falling, the same swept angle', () => {
-		const right = deriveGeometry({ width: 1152, height: 620 }).arms[1];
-		expect(right.dir).toBe(-1);
-		expect(phiAt(right, 0, 'out', strokeEase)).toBeCloseTo(right.halfSweep, 12);
-		expect(phiAt(right, 1, 'out', strokeEase)).toBeCloseTo(-right.halfSweep, 12);
-		expect(phiAt(right, 0, 'back', strokeEase)).toBeCloseTo(-right.halfSweep, 12);
-		expect(wipeAngleDeg(right, right.halfSweep)).toBeCloseTo(0, 12);
-		expect(wipeAngleDeg(right, -right.halfSweep)).toBeCloseTo(2 * halfSweepDeg(right), 12);
-		expect(maskVarsFor(right, { left: 0, top: 0 }, { left: 0, top: 0 })['--wipe-from']).toBe(
-			`${Math.round(halfSweepDeg(right) * 100) / 100}deg`,
-		);
+		expect(wipeAngleDeg(arm, -arm.park)).toBeCloseTo(0, 12);
+		expect(wipeAngleDeg(arm, arm.halfSweep)).toBeCloseTo(sweepSpanDeg(arm), 12);
 	});
 
 	it('expresses the pivot in item coordinates and the park angle in the conic convention', () => {
 		const pane = { left: 144, top: 900 };
 		const item = { left: 144 + 400, top: 900 + 50 };
 		const vars = maskVarsFor(arm, item, pane);
-		expect(vars['--wipe-from']).toBe(`${Math.round(-halfSweepDeg(arm) * 100) / 100}deg`);
+		expect(vars['--wipe-from']).toBe(`${Math.round(((-arm.park * 180) / Math.PI) * 100) / 100}deg`);
 		expect(vars['--wipe-x']).toBe(`${Math.round((arm.pivotX - 400) * 100) / 100}px`);
 		expect(vars['--wipe-y']).toBe(`${Math.round((arm.pivotY - 50) * 100) / 100}px`);
 	});
@@ -171,7 +160,7 @@ describe('the blade pose', () => {
 		expect(bladePoseAt(left, box, 'out', 1, 1).flex).toBeCloseTo(0, 12);
 		expect(bladePoseAt(left, box, 'out', 0.5, 0.5).flex).toBeCloseTo(1, 12);
 		expect(bladePoseAt(left, box, 'back', 0.5, 0.5).flex).toBeCloseTo(-1, 12);
-		expect(bladePoseAt(right, box, 'out', 0.5, 0.5).flex).toBeCloseTo(-1, 12);
+		expect(bladePoseAt(right, box, 'out', 0.5, 0.5).flex).toBeCloseTo(1, 12);
 		expect(bladePoseAt(left, box, 'dwell', 0, 0).flex).toBe(0);
 	});
 

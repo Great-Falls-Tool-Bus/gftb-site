@@ -2,12 +2,14 @@
 // classifies files by extension and fails closed on anything it does not
 // know, so shaders live inside modules). No URLs, no mailboxes in here.
 //
-// One pass, one triangle: the page ground, tinyvectors' blob field, the
-// wiper arms as 2D signed-distance chrome and rubber lit analytically (a
-// dusk sky reflected in a half-cylinder cross-section, a key light, a rim
-// light, a fresnel-weighted iridescent sheen), their soft shadow on the
-// glass, and the ink clamp last over everything, blades included.
-import { ARM_INK_ALPHA, MAX_ARMS, MAX_BLOBS } from './constants';
+// One program, one triangle, two layers. Layer 0, the scene behind the
+// notes: the page ground, tinyvectors' blob field, the ink clamp last.
+// Layer 1, the blades over the notes: the wiper arms as 2D signed-distance
+// chrome and rubber lit analytically (a dusk sky reflected in a half-cylinder
+// cross-section, a key light, a rim light, a fresnel-weighted iridescent
+// sheen) and their soft shadow, written premultiplied over transparency so
+// the blade passes over the panes it wipes.
+import { MAX_ARMS, MAX_BLOBS } from './constants';
 
 export const SCENE_VERTEX = `#version 300 es
 precision highp float;
@@ -20,6 +22,8 @@ void main() {
 
 export const SCENE_FRAGMENT = `#version 300 es
 precision highp float;
+// 0: the opaque scene behind the notes; 1: the transparent blade layer over them.
+uniform int u_layer;
 uniform vec2 u_resolution;
 uniform vec3 u_ground;
 uniform int u_blend;
@@ -85,10 +89,10 @@ float sdBox(vec2 q, vec2 extent) {
 }
 
 // The parts of one arm in its own frame (x along the arm from the hub, y
-// across it, mirrored by the sweep direction so an opposed pair is a mirror
-// pair). The rubber rides the mask edge (y = 0) and trails the frame against
-// travel; the blade's chrome spine, the four claws that hold the rubber, the
-// hinge and the arm shaft sit on the swept side, over notes already wiped.
+// across it). The rubber rides the mask edge (y = 0) and trails the frame
+// against travel; the blade's chrome spine, the four claws that hold the
+// rubber, the hinge and the arm shaft sit on the swept side (the blades
+// travel clockwise, so that is -y), over notes already wiped.
 struct ArmHit {
 	float chrome;
 	float rubber;
@@ -97,9 +101,9 @@ struct ArmHit {
 	float rubberSide;
 };
 
-ArmHit armParts(vec2 q, float L, float w, float b, float flex, float dir) {
+ArmHit armParts(vec2 q, float L, float w, float b, float flex) {
 	// m grows toward the swept side.
-	vec2 m = vec2(q.x, -dir * q.y);
+	vec2 m = vec2(q.x, -q.y);
 	float bladeLen = L - b;
 	float hinge = b + 0.5 * bladeLen;
 	// Rubber on the edge, lagging the frame against travel.
@@ -140,8 +144,8 @@ ArmHit armParts(vec2 q, float L, float w, float b, float flex, float dir) {
 		hit.chromeSide = clamp((m.y - clawMid) / clawHalf.y, -1.0, 1.0);
 	}
 	// Back to the arm's own frame for the lighting normal.
-	hit.chromeSide *= -dir;
-	hit.rubberSide = clamp((m.y - rubberOff) / rubberHw, -1.0, 1.0) * -dir;
+	hit.chromeSide = -hit.chromeSide;
+	hit.rubberSide = -clamp((m.y - rubberOff) / rubberHw, -1.0, 1.0);
 	return hit;
 }
 
@@ -211,17 +215,21 @@ void main() {
 	vec2 p = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
 	vec2 uv = p / u_resolution;
 
-	float cover;
-	vec3 blobs = blobScene(p, cover);
+	if (u_layer == 0) {
+		float cover;
+		vec3 blobs = blobScene(p, cover);
+		// The ink clamp, last: under measured text the field may leave the
+		// ground by at most u_inkAlpha of its own deviation.
+		float k = texture(u_ink, uv).r;
+		outColor = vec4(mix(u_ground, blobs, 1.0 - k * (1.0 - u_inkAlpha)), 1.0);
+		return;
+	}
 
-	// The ink clamp on the blob field: under measured text the field may leave
-	// the ground by at most u_inkAlpha of its own deviation. The arm layer is
-	// gated separately below and never stacks on this budget.
-	float k = texture(u_ink, uv).r;
-	vec3 scene = mix(u_ground, blobs, 1.0 - k * (1.0 - u_inkAlpha));
-	float armGate = 1.0 - k * (1.0 - ${ARM_INK_ALPHA.toFixed(3)});
-
-	// Each arm: darken the glass under it, then lay the lit parts over it.
+	// The blade layer, accumulated premultiplied: each arm darkens what lies
+	// beneath (a soft shadow cast down and right, a tight contact shadow where
+	// the rubber meets the glass), then lays its lit parts over it.
+	vec3 rgb = vec3(0.0);
+	float alpha = 0.0;
 	for (int i = 0; i < ${MAX_ARMS}; i++) {
 		if (i >= u_armCount) break;
 		vec4 arm = u_arms[i];
@@ -230,7 +238,6 @@ void main() {
 		float w = style.x;
 		float b = style.y;
 		float flex = style.z;
-		float sweep = style.w;
 		vec2 along = vec2(sin(arm.z), -cos(arm.z));
 		vec2 across = vec2(cos(arm.z), sin(arm.z));
 		vec2 rel = p - arm.xy;
@@ -238,31 +245,34 @@ void main() {
 		// Cheap reject far from the arm.
 		if (abs(q.y) > 4.0 * w || q.x < -w || q.x > L + w) continue;
 
-		ArmHit hit = armParts(q, L, w, b, flex, sweep);
-		// Soft shadow on the glass, cast down and right of the arm, plus the
-		// tight contact shadow where the rubber meets the glass.
+		ArmHit hit = armParts(q, L, w, b, flex);
 		vec2 offset = vec2(0.45 * w, 0.60 * w);
 		vec2 relShadow = rel - offset;
 		vec2 qs = vec2(dot(relShadow, along), dot(relShadow, across));
-		ArmHit under = armParts(qs, L, w, b, flex, sweep);
+		ArmHit under = armParts(qs, L, w, b, flex);
 		float dUnder = min(under.chrome, under.rubber);
 		float shadow = 0.26 * exp(-max(dUnder, 0.0) / (0.75 * w));
 		shadow += 0.30 * exp(-max(hit.rubber, 0.0) / (0.22 * w));
-		scene *= 1.0 - clamp(shadow, 0.0, 0.5) * armGate;
+		shadow = clamp(shadow, 0.0, 0.5);
+		rgb *= 1.0 - shadow;
+		alpha = shadow + alpha * (1.0 - shadow);
 
 		float aa = 0.75;
-		float chromeCover = (1.0 - smoothstep(-aa, aa, hit.chrome)) * armGate;
-		float rubberCover = (1.0 - smoothstep(-aa, aa, hit.rubber)) * armGate;
+		float rubberCover = 1.0 - smoothstep(-aa, aa, hit.rubber);
 		if (rubberCover > 0.0) {
 			vec3 n = sectionNormal(across, hit.rubberSide);
-			scene = mix(scene, shadeRubber(n), rubberCover);
+			vec3 c = shadeRubber(n);
+			rgb = c * rubberCover + rgb * (1.0 - rubberCover);
+			alpha = rubberCover + alpha * (1.0 - rubberCover);
 		}
+		float chromeCover = 1.0 - smoothstep(-aa, aa, hit.chrome);
 		if (chromeCover > 0.0) {
 			vec3 n = sectionNormal(across, hit.chromeSide);
-			scene = mix(scene, shadeChrome(n, p, w, q.x), chromeCover);
+			vec3 c = shadeChrome(n, p, w, q.x);
+			rgb = c * chromeCover + rgb * (1.0 - chromeCover);
+			alpha = chromeCover + alpha * (1.0 - chromeCover);
 		}
 	}
-
-	outColor = vec4(scene, 1.0);
+	outColor = vec4(rgb, alpha);
 }
 `;

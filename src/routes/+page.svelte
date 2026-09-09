@@ -122,7 +122,12 @@
 
 <div class="page-shell">
 	<!-- Row 4 (spec §3 :88): notes, goals and specific ways to help. -->
-	<section class="section reveal-armed" use:reveal={{ delay: 70 }} id="goals" aria-labelledby="goals-title">
+	<section
+		class="section section--bare reveal-armed"
+		use:reveal={{ delay: 70 }}
+		id="goals"
+		aria-labelledby="goals-title"
+	>
 		<div class="section-heading">
 			<h2 id="goals-title">Notes &amp; Goals</h2>
 		</div>
