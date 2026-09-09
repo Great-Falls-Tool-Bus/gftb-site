@@ -147,6 +147,11 @@ export function armsOver(geometry: WiperGeometry, box: ItemBox): ArmSpec[] {
 	return [owner, ...others];
 }
 
+/** The arms left to right by hub, for masks that must know which is which. */
+export function leftToRight(arms: readonly ArmSpec[]): ArmSpec[] {
+	return [...arms].sort((a, b) => a.pivotX - b.pivotX);
+}
+
 export interface ItemBox {
 	readonly left: number;
 	readonly top: number;

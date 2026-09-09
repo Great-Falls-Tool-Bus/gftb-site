@@ -40,9 +40,13 @@ describe('the wiper source contract', () => {
 			".goal-list--paged > li[data-wipe='out'][data-wipe-arms='both']",
 			".goal-list--paged > li[data-wipe='in'][data-wipe-arms='both']",
 		]);
-		// A straddling note: clearing masks intersect, revealing masks add.
-		expect(block).toMatch(/\[data-wipe='out'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: intersect;/u);
-		expect(block).toMatch(/\[data-wipe='in'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: add;/u);
+		// A note both blades pass over: the right wedge is cut to its span.
+		expect(block).toMatch(/\[data-wipe='out'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: intersect, add;/u);
+		expect(block).toMatch(/\[data-wipe='in'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: add, intersect;/u);
+		expect(block.match(/var\(--wipe-split\)/gu)).toHaveLength(4);
+		const engineSource = read('src/lib/wiper/engine.svelte.ts');
+		expect(engineSource).toContain("'--wipe-split'");
+		expect(engineSource).toContain('leftToRight([owner, second])');
 		expect(block).toMatch(
 			/transparent var\(--wipe-feather\) calc\(var\(--wipe-feather\) \+ var\(--wipe-u\) \* var\(--wipe-span\)\)/u,
 		);

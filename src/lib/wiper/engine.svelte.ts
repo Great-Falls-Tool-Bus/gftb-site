@@ -7,6 +7,7 @@ import {
 	armsOver,
 	bladePoseAt,
 	deriveGeometry,
+	leftToRight,
 	maskVarsFor,
 	sweepSpanDeg,
 	type ArmSpec,
@@ -124,16 +125,24 @@ export class WiperEngine {
 				width: rect.width,
 				height: rect.height,
 			});
-			this.#writeArmVars(item, owner, rect, box, '');
 			// The push (app.css --wipe-push) meets the blade at the note's mid-height.
 			item.style.setProperty('--wipe-h', `${Math.round(rect.height * 100) / 100}px`);
-			// A note both blades pass over is wiped by both, each where it
-			// passes: a second set of variables and a composited second mask.
 			if (second) {
-				this.#writeArmVars(item, second, rect, box, '-2');
+				// A note both blades pass over is wiped by both, each where it
+				// passes. The stylesheet composites the pair as the left arm's
+				// wedge plus the right arm's wedge cut to the right arm's span
+				// (a wedge is unbounded in radius, and the right blade's would
+				// otherwise reveal the whole left column ahead of the left
+				// blade), so the sets are written by side, not by ownership,
+				// with the span boundary in the note's own coordinates.
+				const [left, right] = leftToRight([owner, second]);
+				this.#writeArmVars(item, left, rect, box, '');
+				this.#writeArmVars(item, right, rect, box, '-2');
+				item.style.setProperty('--wipe-split', `${Math.round((right.span[0] - (rect.left - box.left)) * 100) / 100}px`);
 				item.dataset.wipeArms = 'both';
 			} else {
-				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2'])
+				this.#writeArmVars(item, owner, rect, box, '');
+				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2', '--wipe-split'])
 					item.style.removeProperty(name);
 				delete item.dataset.wipeArms;
 			}

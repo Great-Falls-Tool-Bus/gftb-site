@@ -1537,9 +1537,12 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	);
 }
 
-/* A note both blades pass over: gone where either blade has passed (the
- * two clearing masks intersect), revealed where either has passed (the two
- * revealing masks add). */
+/* A note both blades pass over. A wedge is unbounded in radius, so the right
+ * blade's would reveal the whole left column ahead of the left blade; the
+ * pair is composited as the left wedge plus the right wedge cut to the right
+ * arm's span (--wipe-split, the span boundary in the note's coordinates).
+ * Layers composite bottom up: revealed = W1 add (S2 intersect W2); gone =
+ * not W1 intersect (not W2 add not S2). */
 .goal-list--paged > li[data-wipe='out'][data-wipe-arms='both'] {
 	mask-image:
 		conic-gradient(
@@ -1553,8 +1556,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 			#000 0,
 			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
 			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
+		),
+		linear-gradient(
+			90deg,
+			#000 calc(var(--wipe-split) - var(--wipe-push, 0px)),
+			transparent calc(var(--wipe-split) - var(--wipe-push, 0px))
 		);
-	mask-composite: intersect;
+	mask-composite: intersect, add;
 }
 
 .goal-list--paged > li[data-wipe='in'][data-wipe-arms='both'] {
@@ -1565,13 +1573,14 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
 			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
 		),
+		linear-gradient(90deg, transparent var(--wipe-split), #000 var(--wipe-split)),
 		conic-gradient(
 			from var(--wipe-start-2) at var(--wipe-x-2) var(--wipe-y-2),
 			transparent 0,
 			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
 			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
 		);
-	mask-composite: add;
+	mask-composite: add, intersect;
 }
 
 /* The blade shoves the outgoing note off the glass rather than only wiping
