@@ -181,11 +181,15 @@ Unpublished entries never reach the manifest, and their text joins the
 build-output leak denylist like draft log entries. Operator ruling 2026-08-31:
 these rows are operator-authored and may carry penciled-in dates.
 
-Presentation (operator ruling 2026-09-09): the rows render as a plain,
-borderless grid in every state (`src/lib/components/NotesAndGoals.svelte`).
-The windshield-wiper rotator ruled on 2026-09-08 was removed from the public
-surface pending its ratified replacement; the grid is also that work's
-rollback surface. Each row carries an "Edit" link to its own source file and
+Presentation (operator rulings 2026-09-08 and 2026-09-09): the served HTML,
+reduced motion, the Off detent, print and forced colours are all the same
+plain, borderless grid of every row (`src/lib/components/NotesAndGoals.svelte`);
+that grid is the rollback surface. Once enhanced, the rows page under the
+ratified windshield wiper (`src/lib/wiper`, landing milestone by milestone
+behind attended LOOKs: the DOM wipe, the GPU scene behind the notes, the
+chrome arms). Content authors need no knowledge of it: a row is a row, the
+wiper pages whatever the manifest publishes, and a note that straddles the two
+blades on a wide screen is wiped by both. Each row carries an "Edit" link to its own source file and
 the section links the whole collection (`/tree/<branch>/src/content/goals`):
 the SourceLink "edit this page"
 exception extended to the collection, built from `source-map.json` and the
