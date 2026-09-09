@@ -90,12 +90,8 @@ export interface InkSampleRect {
  * text boxes, relative to the element). Returns the darkest and lightest
  * pixel by WCAG relative luminance across all rects.
  */
-export async function measureExtremesInRects(
-	page: Page,
-	selector: string,
-	rects: InkSampleRect[],
-	hideSelector?: string,
-) {
+/** Screenshot one element's box with `hideSelector` hidden, decoded, with the CSS to PNG scale. */
+async function captureElement(page: Page, selector: string, hideSelector?: string) {
 	const box = await page.evaluate((sel) => {
 		const el = document.querySelector(sel);
 		if (!el) return null;
@@ -115,30 +111,93 @@ export async function measureExtremesInRects(
 		});
 	}
 	const image = decodePng(buffer);
-	const scaleX = image.width / box.width;
-	const scaleY = image.height / box.height;
-	const channel = (r: number) => (r <= 0.03928 ? r / 12.92 : ((r + 0.055) / 1.055) ** 2.4);
+	return { image, scaleX: image.width / box.width, scaleY: image.height / box.height };
+}
+
+const channel = (r: number) => (r <= 0.03928 ? r / 12.92 : ((r + 0.055) / 1.055) ** 2.4);
+
+function pixelLuminance(image: ReturnType<typeof decodePng>, x: number, y: number) {
+	const offset = (y * image.width + x) * image.channels;
+	const red = image.pixels[offset];
+	const green = image.pixels[offset + 1];
+	const blue = image.pixels[offset + 2];
+	return {
+		luminance: 0.2126 * channel(red / 255) + 0.7152 * channel(green / 255) + 0.0722 * channel(blue / 255),
+		rgb: { red, green, blue } as Rgb,
+	};
+}
+
+function pngBounds(rect: InkSampleRect, image: ReturnType<typeof decodePng>, scaleX: number, scaleY: number) {
+	return {
+		x0: Math.max(0, Math.floor(rect.left * scaleX)),
+		y0: Math.max(0, Math.floor(rect.top * scaleY)),
+		x1: Math.min(image.width, Math.ceil((rect.left + rect.width) * scaleX)),
+		y1: Math.min(image.height, Math.ceil((rect.top + rect.height) * scaleY)),
+	};
+}
+
+export async function measureExtremesInRects(
+	page: Page,
+	selector: string,
+	rects: InkSampleRect[],
+	hideSelector?: string,
+) {
+	const { image, scaleX, scaleY } = await captureElement(page, selector, hideSelector);
 	let darkest: { luminance: number; rgb: Rgb } | null = null;
 	let lightest: { luminance: number; rgb: Rgb } | null = null;
 	let sampled = 0;
 	for (const rect of rects) {
-		const x0 = Math.max(0, Math.floor(rect.left * scaleX));
-		const y0 = Math.max(0, Math.floor(rect.top * scaleY));
-		const x1 = Math.min(image.width, Math.ceil((rect.left + rect.width) * scaleX));
-		const y1 = Math.min(image.height, Math.ceil((rect.top + rect.height) * scaleY));
+		const { x0, y0, x1, y1 } = pngBounds(rect, image, scaleX, scaleY);
 		for (let y = y0; y < y1; y += 1) {
 			for (let x = x0; x < x1; x += 1) {
-				const offset = (y * image.width + x) * image.channels;
-				const red = image.pixels[offset];
-				const green = image.pixels[offset + 1];
-				const blue = image.pixels[offset + 2];
-				const luminance = 0.2126 * channel(red / 255) + 0.7152 * channel(green / 255) + 0.0722 * channel(blue / 255);
+				const pixel = pixelLuminance(image, x, y);
 				sampled += 1;
-				if (!darkest || luminance < darkest.luminance) darkest = { luminance, rgb: { red, green, blue } };
-				if (!lightest || luminance > lightest.luminance) lightest = { luminance, rgb: { red, green, blue } };
+				if (!darkest || pixel.luminance < darkest.luminance) darkest = pixel;
+				if (!lightest || pixel.luminance > lightest.luminance) lightest = pixel;
 			}
 		}
 	}
 	if (!darkest || !lightest) throw new Error(`${selector}: no pixels sampled under ${rects.length} rects`);
 	return { darkest, lightest, sampled };
+}
+
+/**
+ * Texture of the scene inside rects: mean luminance, its standard deviation,
+ * and the mean absolute luminance step between horizontal neighbours (edge
+ * energy). The blob field is smooth, so its edge energy is low; droplets and
+ * frost grain are small and sharp, so theirs is high. A blade pass that
+ * clears them drops the edge energy behind it.
+ */
+export async function measureTextureInRects(
+	page: Page,
+	selector: string,
+	rects: InkSampleRect[],
+	hideSelector?: string,
+) {
+	const { image, scaleX, scaleY } = await captureElement(page, selector, hideSelector);
+	return rects.map((rect) => {
+		const { x0, y0, x1, y1 } = pngBounds(rect, image, scaleX, scaleY);
+		let sum = 0;
+		let sumSquares = 0;
+		let steps = 0;
+		let stepSum = 0;
+		let count = 0;
+		for (let y = y0; y < y1; y += 1) {
+			let previous: number | null = null;
+			for (let x = x0; x < x1; x += 1) {
+				const { luminance } = pixelLuminance(image, x, y);
+				sum += luminance;
+				sumSquares += luminance * luminance;
+				count += 1;
+				if (previous !== null) {
+					stepSum += Math.abs(luminance - previous);
+					steps += 1;
+				}
+				previous = luminance;
+			}
+		}
+		const mean = count ? sum / count : 0;
+		const variance = count ? Math.max(0, sumSquares / count - mean * mean) : 0;
+		return { mean, stddev: Math.sqrt(variance), edge: steps ? stepSum / steps : 0, sampled: count };
+	});
 }
