@@ -54,12 +54,14 @@ artifact into:
 
 `ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character commit SHA>`
 
-The source repository remains private. Publication starts with the package's
-default private visibility. After a reviewed publish, the operator lane may
-make only this web image package public, then must prove an anonymous manifest
-lookup and digest pull. The publisher uses only the ambient GitHub token, has
-no mutable `latest`/production tag, and sends no deployment dispatch. This repo
-must not carry a registry credential or Kubernetes image-pull secret.
+The source repository is public under the 2026-09-09 operator ruling in
+[AGENTS.md](../AGENTS.md#role-and-authority), which supersedes the earlier
+private-source requirement. Source visibility does not establish image-package
+visibility. After a reviewed publish, the operator lane may make only this web
+image package public, then must prove an anonymous manifest lookup and digest
+pull. The publisher uses only the ambient GitHub token, has no mutable
+`latest`/production tag, and sends no deployment dispatch. This repo must not
+carry a registry credential or Kubernetes image-pull secret.
 Consumers select an immutable digest only after independent pull/serve QA.
 The image generates `/health.sha` during packaging from the exact
 `BUILD_COMMIT_SHA`; served readback must equal the expected 40-character SHA.

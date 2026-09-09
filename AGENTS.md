@@ -2,9 +2,14 @@
 
 ## Role and authority
 
-This private repository builds the public static site at
+This public repository builds the public static site at
 `greatfallstoolbus.org`. It owns reviewed public page copy, build-time `.svx`
 daily logs, the static build graph, and a candidate OCI publisher.
+
+**Source visibility (operator ruling, 2026-09-09).** This repository's source
+is public. This explicitly supersedes the earlier instruction to keep
+`gftb-site` private. Jess's internal tooling, member data, private mail, and
+private list archives remain outside this repository.
 
 It owns no member records, auth, payments, mail administration, private
 content, DNS, Cloudflare state, cluster state, or GitOps apply authority. The
@@ -34,8 +39,10 @@ Public daily-log frontmatter is exactly:
 Every file in `src/content/log/` is public build input. Entries render only
 with `published: true`; a `published: false` file is an operator-pending
 TODO(jess) draft (restoration addendum B1.2) that the loader excludes from
-every rendered surface — a draft is still leak-scanned and is never a place
-to park private text.
+every rendered surface. Files and pull requests on this public GitHub
+repository are readable, including draft PRs and `published: false` entries.
+Those draft states do not make source private. A draft is still leak-scanned
+and is never a place to park private text.
 
 Never publish Linear IDs, PR numbers, commit SHAs, tracker pointers,
 credentials, member information, private locations, or internal operational
@@ -150,9 +157,10 @@ tag for its exact commit. It has no production dispatch and no infra, DNS, or
 edge credentials. GitHub Pages workflows are forbidden. A merge, green CI, or
 successful package push is not served-site proof.
 
-Source stays private. The operator release lane may make only the reviewed web
-image package public after publication, then must prove anonymous manifest and
-digest pull. Do not add registry credentials or image-pull secrets here.
+Public source does not establish image-package visibility or pullability. The
+operator release lane may make only the reviewed web image package public
+after publication, then must prove anonymous manifest and digest pull. Do not
+add registry credentials or image-pull secrets here.
 
 ## Delete-after-rewire policy
 
@@ -187,7 +195,6 @@ or script while any live entrypoint still references it.
   browsing/QA (gstack supersedes there); operator-attended LOOK tab-opening
   is the sanctioned exception. SSOT: `prompts-enqueue`
   `context/house-active-dialog-cadence.md`.
-- This repo stays private until an explicit visibility decision.
 
 ## Licenses and assets
 
