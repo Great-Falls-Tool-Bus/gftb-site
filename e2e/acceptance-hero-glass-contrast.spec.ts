@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
-import { decodePng, luminanceExtremes, type Rgb } from './support/png-luminance';
+import type { Rgb } from './support/png-luminance';
+import { measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
 
 // Review round 2, finding B: the unit-test model of `.hero-glass`'s AA
 // contract (a hardcoded panel percent composited over synthetic
@@ -32,58 +33,6 @@ const contrastTestSource = readFileSync(path.join(repoRoot, 'src/lib/design-toke
 const AA = 4.5;
 const LARGE = 3;
 const NON_TEXT = 3;
-
-async function setScheme(page: Page, scheme: 'light' | 'dark') {
-	await page.evaluate((mode) => {
-		localStorage.setItem('color-mode', mode);
-		document.documentElement.setAttribute('data-mode', mode);
-	}, scheme);
-	await page.reload();
-	await page.waitForLoadState('networkidle');
-}
-
-/** Resolves a CSS custom property to true 8-bit sRGB via a canvas round-trip
- * (getComputedStyle can hand back an oklch() string verbatim; canvas
- * fillStyle always normalizes to a paintable colour). */
-async function resolveRoleRgb(page: Page, role: string): Promise<Rgb> {
-	return page.evaluate((cssVar) => {
-		const el = document.createElement('div');
-		el.style.color = `var(${cssVar})`;
-		el.style.position = 'absolute';
-		el.style.opacity = '0';
-		document.body.appendChild(el);
-		const computed = getComputedStyle(el).color;
-		el.remove();
-		const canvas = document.createElement('canvas');
-		canvas.width = 1;
-		canvas.height = 1;
-		const ctx = canvas.getContext('2d')!;
-		ctx.fillStyle = computed;
-		ctx.fillRect(0, 0, 1, 1);
-		const [red, green, blue] = ctx.getImageData(0, 0, 1, 1).data;
-		return { red, green, blue };
-	}, role);
-}
-
-async function measureGlassExtremes(page: Page, selector: string) {
-	const rect = await page.evaluate((sel) => {
-		const el = document.querySelector(sel);
-		if (!el) return null;
-		const r = el.getBoundingClientRect();
-		return { x: r.x, y: r.y, width: r.width, height: r.height };
-	}, selector);
-	if (!rect) throw new Error(`${selector} is not present on the page`);
-
-	await page.addStyleTag({ content: `${selector} * { visibility: hidden !important; }` });
-	const buffer = await page.screenshot({ clip: rect });
-	await page.evaluate(() => {
-		document.querySelectorAll('style').forEach((s) => {
-			if (s.textContent?.includes('visibility: hidden')) s.remove();
-		});
-	});
-	const image = decodePng(buffer);
-	return luminanceExtremes(image, 6);
-}
 
 function ratioAgainst(ink: Rgb, extreme: { rgb: Rgb }): number {
 	return roundRatio(contrastRatio(ink, extreme.rgb));

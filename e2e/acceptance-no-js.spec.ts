@@ -3,7 +3,7 @@ import { expect, test } from './support/fixtures';
 
 import { primaryNavItems } from '../src/lib/nav-items';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
-import { CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
+import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 
 async function unresolvedHomeHashes(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
@@ -35,7 +35,7 @@ test.describe('JavaScript disabled', () => {
 		await expect(page.getByRole('heading', { name: 'Public work sessions' })).toBeVisible();
 		await expect(page.locator('.hero .hero-session')).toContainText('Fridays, about 3 to 5 PM ET');
 		await expect(page.getByText(/Fridays, about 3 to 5 PM ET/u)).toHaveCount(1);
-		await expect(page.getByRole('heading', { name: 'Near-term goals' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Notes & Goals' })).toBeVisible();
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
 		await expect(page.getByRole('heading', { name: 'Public log', exact: true })).toBeVisible();
@@ -187,7 +187,11 @@ test.describe('JavaScript enabled', () => {
 
 		// The contact page may talk to exactly the form origin.
 		requested.length = 0;
-		await page.goto('/contact');
+		// Idle can precede hydration and its auto=onload challenge fetch.
+		const challenge = page.waitForRequest(
+			(request) => request.url() === CHALLENGE_URL && request.method() === 'GET',
+		);
+		await Promise.all([challenge, page.goto('/contact')]);
 		await page.waitForLoadState('networkidle');
 		const contactOrigins = new Set(requested.map((url) => new URL(url).origin));
 		contactOrigins.delete(new URL(baseUrl).origin);

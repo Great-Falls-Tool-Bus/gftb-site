@@ -301,7 +301,7 @@ body {
  * reduced-motion contract is ZERO declared transition time
  * (e2e/acceptance-motion-keyboard.spec.ts sweeps every element), so kill the
  * declaration here — !important is required to beat the element-level inline
- * style, exactly the .goal-list--enhanced print precedent. */
+ * style, exactly the print unwind precedent (@media print, .wiper-list--paged). */
 @media (prefers-reduced-motion: reduce) {
 	.brand-vectors-bg * {
 		transition: none !important;
@@ -1277,24 +1277,20 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	text-decoration-thickness: 2px;
 }
 
-/* Near-term goals (operator ruling 2026-08-31): borderless timeline rows.
- * Same ground, same whitespace separation as the log surfaces; the CTA
- * shares the read-more link treatment. The rows now live inside the goals
- * carousel (src/lib/components/GoalCarousel.svelte): at rest — the served
- * no-JS HTML — .goal-list lays out as the ratified grid below; once
- * hydration flips .goal-list--enhanced, Zag's inline scroll-snap layout
- * (grid-auto-flow: column, --slide-item-size, overflow-x: auto on the list
- * itself) takes over, so the enhanced state declares no competing tracks.
- * The list is its own horizontal scroller; the document never widens. */
+/* Notes & Goals (operator ruling 2026-08-31, retitled 2026-09-08): borderless
+ * timeline rows. Same ground, same whitespace separation as the log surfaces;
+ * the CTA shares the read-more link treatment. The rows live inside the
+ * wiper rotator (src/lib/components/WiperRotator.svelte): this grid is the
+ * resting layout of the served no-JS HTML, of wipers-off, of reduced motion
+ * and of paper; once hydration pages the list (.wiper-list--paged, below)
+ * the rows stack into one grid row per page. No horizontal scroller in any
+ * state; the document never widens. */
 .goal-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
-}
-
-.goal-list:not(.goal-list--enhanced) {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
 	gap: 1.75rem 2.5rem;
 }
 
@@ -1328,63 +1324,16 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	text-decoration-thickness: 2px;
 }
 
-/* Carousel chrome (goals carousel, D-goals): the control bar mounts only
- * after hydration. Buttons reuse the ratified secondary-button boundary
- * (2px --accent border — the proven 1.4.11 pair on page ground) at control
- * scale, with the sharp-edges radius re-pin Skeleton/UA chrome requires and
- * the .button focus ring. No transitions are declared anywhere in this
- * block, so the reduced-motion sweep stays clean by construction. */
-.goal-carousel__controls {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.75rem;
-	margin-top: 1.5rem;
-	font-family: var(--font-sans);
-}
-
-.goal-carousel__button {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 2.75rem;
-	padding: 0.35rem 1rem;
-	border: 2px solid var(--accent);
-	border-radius: 0;
-	background: transparent;
-	color: var(--heading);
-	font-family: var(--font-sans);
-	font-size: 0.95rem;
-	font-weight: 800;
-	cursor: pointer;
-}
-
-.goal-carousel__button:hover {
-	background: var(--accent);
-	color: var(--accent-contrast);
-}
-
-.goal-carousel__button:focus-visible {
-	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
-}
-
-.goal-carousel__progress {
-	margin: 0;
-	color: var(--fg-muted);
-	font-size: 0.95rem;
-}
-
-/* The featured-image slot (GoalCarousel `media` snippet), mounted from the
- * home page since the 2026-09-01 batch's deferred home-integration item:
- * media still collapses to nothing for an imageless goal — no reserved box.
- * When a goal ships the frontmatter image group, the img is a fixed crop box
- * in the thumb's spirit: the 3/2 default aspect (a goal's own image_aspect
- * overrides inline, from the page) and the max-height cap size the box from
- * CSS alone, BEFORE any bytes load, so a lazy image can never shift a slide
- * (no CLS) and a tall aspect cannot blow the carousel's one-slide-tall
- * mobile height budget. object-fit keeps the crop honest instead of
- * distorting; border/radius restated for the never-cards + sharp-edges
- * rulings. */
+/* The featured-image slot (the home page's `media` snippet, rendered by
+ * NotesAndGoals.svelte at the top of every row): media still collapses to
+ * nothing for an imageless goal (no reserved box). When a goal ships the
+ * frontmatter image group, the img is a fixed crop box in the thumb's
+ * spirit: the 3/2 default aspect (a goal's own image_aspect overrides
+ * inline, from the page) and the max-height cap size the box from CSS
+ * alone, BEFORE any bytes load, so a lazy image can never shift a row (no
+ * CLS) and a tall aspect cannot blow the rotator's one-item-tall mobile
+ * height budget. object-fit keeps the crop honest instead of distorting;
+ * border/radius restated for the never-cards + sharp-edges rulings. */
 .goal-media {
 	margin: 0 0 0.75rem;
 }
@@ -1399,6 +1348,367 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	object-fit: cover;
 	border: 0;
 	border-radius: 0;
+}
+
+/* ===== The wiper rotator (src/lib/components/WiperRotator.svelte) =====
+ * The pane restates the .hero-glass idiom under its own class (the hero
+ * specs select `.hero-glass` descendants as hero ink, so the class itself
+ * cannot travel): the same opaque fallback FIRST, the same @supports frost
+ * and dark re-key (83% light / 95% dark, the numbers the hero backstop
+ * derived), and backdrop-filter: none under reduced motion. The pane's own
+ * live backstop is e2e/home-goals.spec.ts ("clears its floor against the
+ * real rendered glass"), which measures these pixels over the blob layer.
+ * container-type gives the arms pane-relative lengths (cqw); it is layout
+ * containment, not a filter/opacity, so it cannot create a backdrop root
+ * above the frost. Every animation and timed transition in this block is
+ * inside the no-preference media query below: the reduced-motion sweep
+ * (e2e/acceptance-motion-keyboard.spec.ts) stays clean by construction, and
+ * src/lib/components/wiper-rotator.test.ts pins that placement. */
+.wiper {
+	position: relative;
+	overflow: clip;
+	container-type: inline-size;
+	border: 1px solid var(--rule);
+	background: color-mix(in oklab, var(--panel) 88%, transparent);
+	padding: clamp(1.35rem, 4vw, 2rem);
+	/* Narrow: one centred arm, symmetric sweep. Reach = sin(62deg) * length
+	 * stays inside the pane on both sides. */
+	--wiper-park: -62deg;
+	--wiper-end: 62deg;
+	--wiper-length: min(70%, 55cqw);
+	--wiper-pivot-left: 50%;
+	--wiper-pivot-right: 50%;
+}
+
+@media (min-width: 48rem) {
+	/* Wide: two arms in tandem, parked near horizontal like a bus, sweeping
+	 * a little past vertical. Left reach sin(80deg) * 30cqw <= 30%; right
+	 * reach sin(20deg) * 30cqw beyond 72% <= 83%. Blade tips never leave the
+	 * pane, so the responsive overflow sweep never sees them. */
+	.wiper {
+		--wiper-park: -80deg;
+		--wiper-end: 20deg;
+		--wiper-length: min(62%, 30cqw);
+		--wiper-pivot-left: 30%;
+		--wiper-pivot-right: 72%;
+	}
+}
+
+@supports (backdrop-filter: blur(1px)) {
+	.wiper {
+		background: color-mix(in oklab, var(--panel) 83%, transparent);
+		backdrop-filter: blur(10px) saturate(118%);
+	}
+
+	[data-mode='dark'] .wiper {
+		background: color-mix(in oklab, var(--panel) 95%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wiper {
+		backdrop-filter: none;
+	}
+}
+
+/* Optional static droplet texture (opt-in class). Faint, never animated,
+ * painted under the rows. The droplets always DARKEN the pane (ink-coloured
+ * in light mode, black in dark mode): a lightening speck under light ink
+ * measured 3.89:1 for --link in dark mode against the live backstop in
+ * e2e/home-goals.spec.ts, so the mix direction is part of the contract. */
+.wiper {
+	--wiper-drop: var(--fg);
+}
+
+[data-mode='dark'] .wiper {
+	--wiper-drop: #000;
+}
+
+.wiper--rain::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background-image:
+		radial-gradient(
+			circle at 30% 40%,
+			color-mix(in oklab, var(--wiper-drop) 5%, transparent) 0 1.5px,
+			transparent 2.5px
+		),
+		radial-gradient(circle at 70% 65%, color-mix(in oklab, var(--wiper-drop) 4%, transparent) 0 1px, transparent 2px),
+		radial-gradient(circle at 15% 80%, color-mix(in oklab, var(--wiper-drop) 3%, transparent) 0 2px, transparent 3px);
+	background-size:
+		37px 41px,
+		53px 47px,
+		71px 67px;
+}
+
+.wiper-list {
+	position: relative;
+	z-index: 1;
+}
+
+/* The paged stack: every row of the current page shares grid row 1, so the
+ * pane's height is the tallest row's height in every state and never shifts
+ * when the page flips. Off-page rows are transparent and inert (never
+ * aria-hidden, never translated off-canvas): their links stay focusable and
+ * focus-follow reveals their page. */
+.wiper-list--paged {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.wiper-list--paged > li {
+	grid-row: 1;
+	grid-column: 1;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.wiper-list--paged > li.is-current {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* Coupled to the `wide` MediaQuery in WiperRotator.svelte: three per page. */
+@media (min-width: 48rem) {
+	.wiper-list--paged {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.wiper-list--paged > li:nth-child(3n + 2) {
+		grid-column: 2;
+	}
+
+	.wiper-list--paged > li:nth-child(3n) {
+		grid-column: 3;
+	}
+}
+
+/* The arms: decorative, above the rows, clipped by the pane, visible only
+ * while a wipe is running. Each arm is its own HTML-positioned <svg>, so
+ * transform-origin resolves against the arm's box (no transform-box
+ * dance) and the pivot sits at the hub. */
+.wiper-arms {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	overflow: clip;
+	pointer-events: none;
+	visibility: hidden;
+}
+
+.wiper--wiping .wiper-arms {
+	visibility: visible;
+}
+
+.wiper-arm {
+	position: absolute;
+	bottom: -2%;
+	height: var(--wiper-length);
+	width: auto;
+	aspect-ratio: 24 / 320;
+	overflow: visible;
+	translate: -50% 0;
+	transform-origin: 50% 97%;
+	rotate: var(--wiper-park);
+	color: color-mix(in oklab, var(--fg) 72%, transparent);
+	fill: currentColor;
+}
+
+.wiper-arm--left {
+	left: var(--wiper-pivot-left);
+}
+
+.wiper-arm--right {
+	left: var(--wiper-pivot-right);
+	display: none;
+}
+
+@media (min-width: 48rem) {
+	.wiper-arm--right {
+		display: block;
+	}
+}
+
+.wiper-arm__blade {
+	fill: color-mix(in oklab, var(--fg) 82%, transparent);
+}
+
+/* The dash: a wipers switch and the speed stalk. Both reuse the ratified
+ * secondary-button boundary (2px --accent, the proven 1.4.11 pair) with the
+ * sharp-edges radius re-pin and the .button focus ring. */
+.wiper-controls {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem 1.25rem;
+	margin-top: 1.25rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--rule);
+	font-family: var(--font-sans);
+}
+
+.wiper-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.6rem;
+	min-height: 2.75rem;
+	padding: 0.35rem 0.85rem;
+	border: 2px solid var(--accent);
+	border-radius: 0;
+	background: transparent;
+	color: var(--heading);
+	font: inherit;
+	font-size: 0.95rem;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.wiper-switch__track {
+	display: flex;
+	box-sizing: border-box;
+	width: 2.75rem;
+	height: 1.5rem;
+	padding: 3px;
+	border: 1px solid var(--rule);
+	border-radius: 0;
+	background: var(--control-track);
+}
+
+/* The thumb is the switch's second 1.4.11 boundary: --accent on
+ * --control-track, the pair the mode switch already proves. */
+.wiper-switch__thumb {
+	display: block;
+	height: 100%;
+	aspect-ratio: 1;
+	border-radius: 0;
+	background: var(--accent);
+	translate: 0 0;
+	transition: none;
+}
+
+.wiper-switch[aria-checked='true'] .wiper-switch__thumb {
+	translate: 1.25rem 0;
+}
+
+.wiper-switch__state {
+	display: inline-block;
+	min-width: 1.6em;
+	text-align: left;
+}
+
+.wiper-stalk {
+	display: inline-flex;
+	flex-wrap: wrap;
+}
+
+.wiper-stalk__detent {
+	min-height: 2.75rem;
+	min-width: 2.75rem;
+	padding: 0.35rem 0.85rem;
+	border: 2px solid var(--accent);
+	border-radius: 0;
+	background: transparent;
+	color: var(--heading);
+	font: inherit;
+	font-size: 0.9rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.wiper-stalk__detent + .wiper-stalk__detent {
+	margin-left: -2px;
+}
+
+.wiper-stalk__detent[aria-checked='true'] {
+	background: var(--accent);
+	color: var(--accent-contrast);
+}
+
+.wiper-switch:hover,
+.wiper-stalk__detent:not([aria-checked='true']):hover {
+	background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+.wiper-switch:focus-visible,
+.wiper-stalk__detent:focus-visible {
+	position: relative;
+	z-index: 1;
+	outline: none;
+	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
+}
+
+/* Per-row edit link (operator ruling 2026-09-08): the SourceLink affordance
+ * at row scale, after the CTA so the CTA stays the row's primary action.
+ * A 24x24 CSS px target on its own (WCAG 2.5.8 without the spacing
+ * exception; e2e/acceptance-responsive.spec.ts sweeps it at 375). */
+.goal-edit {
+	margin-top: 0.75rem;
+	font-family: var(--font-sans);
+	font-size: 0.82rem;
+}
+
+.goal-edit a {
+	display: inline-block;
+	min-width: 1.5rem;
+	min-height: 1.5rem;
+	line-height: 1.5rem;
+	padding-inline: 0.15rem;
+	margin-inline: -0.15rem;
+	color: var(--link);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.goal-edit a:hover,
+.goal-edit a:focus-visible {
+	text-decoration-thickness: 2px;
+}
+
+/* The collection link sits inside the pane, under the dash. */
+.wiper .source-link {
+	position: relative;
+	z-index: 1;
+	margin-top: 1rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	@keyframes wiper-sweep {
+		from {
+			rotate: var(--wiper-park);
+		}
+
+		to {
+			rotate: var(--wiper-end);
+		}
+	}
+
+	/* Two strokes per wipe (`alternate`, count 2): out over the old page,
+	 * the turnaround fires animationiteration (the swap), back over the new
+	 * one. --wiper-stroke is one stroke, set inline on the pane once
+	 * enhanced; `both` holds the blade at the far end at the turnaround. */
+	.wiper--wiping .wiper-arm {
+		animation: wiper-sweep var(--wiper-stroke) cubic-bezier(0.45, 0, 0.55, 1) 2 alternate both;
+	}
+
+	/* Sequenced, never overprinted: the old page fades out under the
+	 * outbound stroke (its rows are still .is-current, so the data-stroke
+	 * rule below drives them to 0), the swap happens at the turnaround, and
+	 * the new page fades in under the returning blade. */
+	.wiper-list--paged > li {
+		transition: opacity var(--wiper-stroke) ease;
+	}
+
+	.wiper[data-stroke='out'] .wiper-list--paged > li.is-current {
+		opacity: 0;
+	}
+
+	.wiper-switch__thumb {
+		transition: translate 220ms cubic-bezier(0.4, 0, 0.2, 1);
+	}
 }
 
 .goal-asides {
@@ -1891,20 +2201,35 @@ figcaption {
 		display: none !important;
 	}
 
-	/* Paper gets the whole goals timeline, not a scroll viewport: unwind the
-	 * carousel's inline scroll-snap layout back to the resting grid and drop
-	 * the screen-only controls. !important is required — the enhanced layout
-	 * arrives as element-level inline styles from the carousel machine. */
-	.goal-list--enhanced {
-		display: grid !important;
-		grid-auto-flow: row !important;
-		grid-auto-columns: auto !important;
-		grid-template-columns: repeat(2, 1fr) !important;
-		gap: 1.25rem 2rem !important;
-		overflow: visible !important;
+	/* Paper gets every note, not one page: unwind the wiper rotator's stacked
+	 * paging back to a two-column grid and drop the screen-only chrome (arms,
+	 * dash controls, status line, droplets, per-row edit links). !important
+	 * because the paged classes are still on the elements when a print begins
+	 * mid-wipe. The collection link keeps printing (hrefs expand above). */
+	.wiper {
+		background: #fff !important;
+		border-color: #000;
+		backdrop-filter: none;
+		overflow: visible;
 	}
 
-	.goal-carousel__controls {
+	.wiper-list--paged {
+		grid-template-columns: repeat(2, 1fr) !important;
+		gap: 1.25rem 2rem !important;
+	}
+
+	.wiper-list--paged > li {
+		grid-row: auto !important;
+		grid-column: auto !important;
+		opacity: 1 !important;
+		transition: none !important;
+	}
+
+	.wiper::before,
+	.wiper-arms,
+	.wiper-controls,
+	.wiper-status,
+	.goal-edit {
 		display: none !important;
 	}
 

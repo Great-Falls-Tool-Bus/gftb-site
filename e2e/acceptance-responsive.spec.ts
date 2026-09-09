@@ -46,16 +46,6 @@ async function horizontalOverflow(page: Page) {
 		scrollWidth: document.documentElement.scrollWidth,
 		innerWidth: window.innerWidth,
 		widest: Array.from(document.querySelectorAll<HTMLElement>('body *'))
-			// The enhanced goals carousel is a sanctioned scroll REGION (the
-			// prose-table precedent: wide content scrolls in its own
-			// container). Its off-page slides sit beyond the viewport BY
-			// DESIGN and scroll within the item group, so their layout rects
-			// are excluded here — while the document-level assertion below
-			// still proves the page itself never widens, and
-			// e2e/home-goals.spec.ts proves every slide is reachable through
-			// the carousel's own controls. At rest (no JS) the class is
-			// absent and the goals grid is swept like everything else.
-			.filter((element) => !element.closest('.goal-list--enhanced'))
 			// The brand-vectors background is a sanctioned CLIPPED layer (the
 			// same precedent as the scroll region above, for painting instead
 			// of scrolling). TinyVectors draws its blob world through a square
@@ -89,15 +79,6 @@ async function clippedControls(page: Page, selector: string) {
 			// 52x28 control box, asserted by e2e/acceptance-mode-switch.spec.ts.
 			// Nothing else inside the switch subtree gets a pass.
 			if (element.tagName === 'INPUT' && element.closest('.mode-switch')) continue;
-			// CTAs inside the enhanced goals carousel live in slides that page
-			// through the item group's own scroller, so an off-page slide's
-			// link rect sits past the viewport without being unreachable:
-			// the visible prev/next controls (and Tab, which scrolls the
-			// focused link into view) bring it on screen. Reachability is
-			// pinned by e2e/home-goals.spec.ts and the keyboard sweep in
-			// e2e/acceptance-motion-keyboard.spec.ts; at rest (no JS) the
-			// class is absent and these links are swept like everything else.
-			if (element.closest('.goal-list--enhanced')) continue;
 			if (element.offsetParent === null && getComputedStyle(element).position !== 'fixed') continue;
 			const box = element.getBoundingClientRect();
 			const label = `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24) || element.id}`;

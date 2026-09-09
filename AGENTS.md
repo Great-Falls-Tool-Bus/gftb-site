@@ -44,7 +44,9 @@ developer docs, or private list archives. One repository pointer is
 sanctioned (B1.2, demo #94): the SourceLink "Edit this page" affordance links
 this repo's own page sources (`/edit/`, `/blob/`, the advisory form) through
 the generated `src/lib/generated/source-map.json`, drift-gated by
-`just source-map-check`; the repo's PR/issue/commit surfaces stay banned
+`just source-map-check`, and the home Notes & Goals surface extends the same
+exception to per-row `/edit/` links and the `/tree/` collection link
+(operator ruling 2026-09-08); the repo's PR/issue/commit surfaces stay banned
 (`scripts/lib/leak-scan-rules.json`). `discuss@latoolb.us` is the public discussion
 list and archive; `keyholders@latoolb.us` is a private role list whose archive
 is not public.

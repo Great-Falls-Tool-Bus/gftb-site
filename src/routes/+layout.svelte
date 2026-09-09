@@ -21,7 +21,7 @@
 
 	// TinyVectors mounts on browser idle, not during hydration. Mounting the
 	// blob layer inside the first hydration pass measurably delayed the
-	// page's progressive enhancements (the goals carousel's `enhanced` flip,
+	// page's progressive enhancements (the goals rotator's `enhanced` flip,
 	// the contact widget's onload challenge fetch) enough that the acceptance
 	// suite's post-domcontentloaded samples caught the page mid-enhancement.
 	// The blobs are pure decoration with no focusables and no network

@@ -2,7 +2,7 @@
 	import { publicLogs, formatLogDate, summaryDiffersFromTitle, HOME_LOG_COUNT } from '$lib/public-logs';
 	import { publicGoals, publicHelpAsks, memberBenefits } from '$lib/public-goals';
 	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
-	import GoalCarousel from '$lib/components/GoalCarousel.svelte';
+	import NotesAndGoals from '$lib/components/NotesAndGoals.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
@@ -25,7 +25,7 @@
 	// render however many exist.
 	const latestLogs = publicLogs.slice(0, HOME_LOG_COUNT);
 
-	// Near-term goals, help asks, and member benefits render from
+	// Notes & Goals, help asks, and member benefits render from
 	// src/content/goals/*.md through the drift-checked manifest
 	// (src/lib/public-goals.ts), the log pattern. Operator-authored
 	// 2026-08-31 (timelines penciled in by the operator; the earlier
@@ -144,34 +144,30 @@
 </section>
 
 <div class="page-shell">
-	<!-- Row 4 (spec §3 :88): near-term goals and specific ways to help.
-	     Empty until the operator authors them (see the TODO slots in the
-	     script block). -->
+	<!-- Row 4 (spec §3 :88): notes, goals and specific ways to help. -->
 	<section class="section reveal-armed" use:reveal={{ delay: 70 }} id="goals" aria-labelledby="goals-title">
 		<div class="section-heading">
-			<h2 id="goals-title">Near-term goals</h2>
+			<h2 id="goals-title">Notes &amp; Goals</h2>
 		</div>
 
 		{#if publicGoals.length > 0}
-			<!-- The borderless timeline rows (never-cards stands: title, plain
-			     window, one sentence, at most one CTA per row) now cycle as an
-			     accessible carousel. Without JavaScript the served HTML is the
-			     same resting grid as before; hydration adds paging, controls and
-			     a reduced-motion-honest auto-advance. See
-			     src/lib/components/GoalCarousel.svelte for the whole contract.
+			<!-- Notes & Goals: the borderless timeline rows (never-cards stands:
+			     title, plain window, one sentence, at most one CTA per row) now
+			     ride the wiper rotator. Without JavaScript, with wipers off, under
+			     reduced motion and on paper the served HTML is the same resting
+			     grid as before; hydration adds the frosted pane's paging, the
+			     wiper arms and the dash controls. See
+			     src/lib/components/WiperRotator.svelte for the whole contract and
+			     NotesAndGoals.svelte for the goal rows and their Edit links.
 
-			     The curated-photo change already on main mounted the carousel's
-			     designed `media` snippet. This change preserves that markup and
-			     adds its fixed crop-box styling plus manifest-bound acceptance
-			     coverage. It still consumes ONLY the schema's frontmatter group
-			     (src/lib/featured-image-schema.ts) — no new semantics — and is
-			     graceful in absence: an imageless goal renders no figure and no
-			     reserved box. The .goal-media crop box (app.css) fixes the media
-			     height from CSS before any bytes arrive, so lazy-loading cannot
-			     shift layout and the carousel's one-slide-tall mobile budget
-			     holds; a goal's own image_aspect overrides the default crop
-			     inline. -->
-			<GoalCarousel goals={publicGoals} labelledby="goals-title">
+			     The designed `media` snippet below is unchanged: it still consumes
+			     ONLY the schema's frontmatter group (src/lib/featured-image-schema.ts)
+			     and is graceful in absence (an imageless goal renders no figure
+			     and no reserved box). The .goal-media crop box (app.css) fixes the
+			     media height from CSS before any bytes arrive, so lazy-loading
+			     cannot shift layout and the rotator's one-item-tall mobile budget
+			     holds; a goal's own image_aspect overrides the default crop inline. -->
+			<NotesAndGoals goals={publicGoals} labelledby="goals-title">
 				{#snippet media(goal)}
 					{#if goal.metadata.image}
 						<figure class="goal-media">
@@ -185,9 +181,9 @@
 						</figure>
 					{/if}
 				{/snippet}
-			</GoalCarousel>
+			</NotesAndGoals>
 		{:else}
-			<p>Near-term goals and specific ways to help will be posted here.</p>
+			<p>Notes, goals and specific ways to help will be posted here.</p>
 		{/if}
 
 		{#if memberBenefits.length > 0 || publicHelpAsks.length > 0}
