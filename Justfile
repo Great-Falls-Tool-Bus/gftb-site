@@ -162,14 +162,12 @@ goals-manifest-build:
 goals-manifest-check:
     cd {{ root }} && bazelisk test //:goals_manifest_drift_test
 
-entrypoint-contract:
-    cd {{ root }} && bazelisk test //:bazel_output_contract_test
+entrypoint-contract: conformance
 
 workflow-validate:
     cd {{ root }} && bazelisk test //:workflow_validation_test
 
-repo-manifest-validate:
-    cd {{ root }} && bazelisk test //:bazel_output_contract_test
+repo-manifest-validate: conformance
 
 skills-validate:
     cd {{ root }} && python3 scripts/validate-skills.py
