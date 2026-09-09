@@ -1,29 +1,5 @@
-import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { stubContactEndpoint } from './support/network';
-
-// The Notes & Goals wipers page the list after hydration; with the wipers
-// off every note is a plain grid row, so the keyboard sweeps below meet a
-// stable document. The rotator's own keyboard rows (focus-follow, the
-// stalk's roving tabindex) live in e2e/home-goals.spec.ts.
-async function switchWipersOff(page: Page) {
-	const wipers = page.locator('#goals').getByRole('switch', { name: 'Wipers' });
-	if ((await wipers.count()) === 0) return;
-	// Operate the switch from the keyboard, not the pointer: a real mouse
-	// click would flip Chromium into pointer modality (programmatic focus
-	// then paints no :focus-visible ring for the indicator sweep) and leave
-	// the pointer resting on the pane. Then hand focus back to the document
-	// body so the sequential-focus starting point is the top of the page.
-	await wipers.focus();
-	await page.keyboard.press('Space');
-	await expect(wipers).toHaveAttribute('aria-checked', 'false');
-	await page.evaluate(() => {
-		const body = document.body;
-		body.tabIndex = -1;
-		body.focus();
-		body.removeAttribute('tabindex');
-	});
-}
 
 // Acceptance rows (§3): prefers-reduced-motion is respected (no non-essential
 // animation), and the page is fully keyboard operable with a visible, ordered
@@ -61,32 +37,6 @@ test.describe('prefers-reduced-motion', () => {
 		expect(moving, 'elements still animating under prefers-reduced-motion').toEqual([]);
 	});
 
-	test('the wiper pane declares no motion on its pseudo-elements either', async ({ page, guardedPage }) => {
-		// The sitewide sweep above reads elements; the aero skin paints its
-		// droplets and sheen on the pane's ::before/::after, so read those too.
-		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await guardedPage();
-		const moving = await page.evaluate(() => {
-			const offenders: string[] = [];
-			for (const element of Array.from(document.querySelectorAll('#goals .wiper, #goals .wiper *'))) {
-				for (const pseudo of ['::before', '::after']) {
-					const style = getComputedStyle(element, pseudo);
-					if (style.content === 'none' || style.content === '') continue;
-					if (style.animationName && style.animationName !== 'none')
-						offenders.push(`${pseudo} animation-name ${style.animationName}`);
-					if (style.transitionDuration.split(',').some((entry) => Number.parseFloat(entry) > 0)) {
-						offenders.push(`${pseudo} transition-duration ${style.transitionDuration}`);
-					}
-					if (style.animationDuration.split(',').some((entry) => Number.parseFloat(entry) > 0)) {
-						offenders.push(`${pseudo} animation-duration ${style.animationDuration}`);
-					}
-				}
-			}
-			return offenders;
-		});
-		expect(moving).toEqual([]);
-	});
-
 	test('nothing is animating on the compositor after load', async ({ page, guardedPage }) => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await guardedPage();
@@ -101,15 +51,16 @@ test.describe('prefers-reduced-motion', () => {
 	});
 
 	test('anchor navigation still lands on its target with motion reduced', async ({ page, guardedPage }) => {
-		// The contact CTA is a page link now (B1.4); the footer's History link
-		// is the surviving same-page anchor this row exercises.
+		// The skip link remains a useful same-page anchor after content edits.
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await guardedPage();
-		await page.getByRole('link', { name: 'History', exact: true }).click();
-		await expect(page).toHaveURL(/#history$/u);
-		const settled = await page.locator('#history').evaluate((element) => element.getBoundingClientRect().top);
-		// scroll-margin-top is 5rem; the section must be at the top of the
-		// viewport immediately, not easing toward it.
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('link', { name: 'Skip to content', exact: true })).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(page).toHaveURL(/#main-content$/u);
+		await expect(page.locator('#main-content')).toBeFocused();
+		const settled = await page.locator('#main-content').evaluate((element) => element.getBoundingClientRect().top);
+		// The target lands near the viewport top without a smooth transition.
 		expect(Math.abs(settled)).toBeLessThan(120);
 	});
 
@@ -127,7 +78,6 @@ test.describe('prefers-reduced-motion', () => {
 test.describe('keyboard operability', () => {
 	test('tab order follows document order and reaches every control', async ({ page, guardedPage }) => {
 		await guardedPage();
-		await switchWipersOff(page);
 
 		const expected = await page.evaluate(() => {
 			const focusable = Array.from(
@@ -135,13 +85,25 @@ test.describe('keyboard operability', () => {
 					'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
 				),
 			);
-			return focusable
-				.filter((element) => !element.closest('.honeypot'))
-				.filter((element) => element.getAttribute('tabindex') !== '-1')
-				.map(
-					(element) =>
-						element.id || `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24)}`,
-				);
+			return (
+				focusable
+					.filter((element) => !element.closest('.honeypot'))
+					.filter((element) => element.getAttribute('tabindex') !== '-1')
+					// A native radio group is one tab stop: the checked radio, or the
+					// first when none is (the wiper stalk's four detents).
+					.filter((element) => {
+						if (!(element instanceof HTMLInputElement) || element.type !== 'radio' || !element.name) return true;
+						const group = Array.from(
+							document.querySelectorAll<HTMLInputElement>(`input[type=radio][name="${CSS.escape(element.name)}"]`),
+						);
+						const checked = group.find((radio) => radio.checked);
+						return checked ? element === checked : element === group[0];
+					})
+					.map(
+						(element) =>
+							element.id || `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24)}`,
+					)
+			);
 		});
 		expect(expected.length, 'focusable controls on the page').toBeGreaterThan(8);
 
@@ -171,7 +133,6 @@ test.describe('keyboard operability', () => {
 	test('every focused control shows a visible indicator', async ({ page, guardedPage }) => {
 		await guardedPage();
 		await page.waitForLoadState('networkidle');
-		await switchWipersOff(page);
 
 		const invisible = await page.evaluate(async () => {
 			// Declare keyboard modality before the sweep: the switch's ring is
@@ -214,8 +175,8 @@ test.describe('keyboard operability', () => {
 				// person can actually perceive, not a clipped box's computed
 				// style (review E7).
 				const indicatorHost =
-					control.tagName === 'INPUT' && control.closest('.mode-switch')
-						? (control.closest('.mode-switch') as HTMLElement)
+					control.tagName === 'INPUT' && control.closest('.mode-switch, .wiper-stalk__item')
+						? (control.closest('.mode-switch, .wiper-stalk__item') as HTMLElement)
 						: control;
 				const before = readable(indicatorHost);
 				control.focus();

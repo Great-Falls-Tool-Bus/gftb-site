@@ -14,19 +14,30 @@ const sourceMap = JSON.parse(
 
 import { publishedGoalEntries } from '../src/lib/generated/goals-manifest';
 import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-goals';
+import { coversPane, deriveGeometry, halfSweepDeg } from '../src/lib/wiper/geometry';
+import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub
 // joins the header; the AX footer row is retired.
 //
-// Operator rulings 2026-09-08: the section is "Notes & Goals" and the rows
-// ride the wiper rotator (src/lib/components/WiperRotator.svelte, goals
-// consumer NotesAndGoals.svelte). Every pre-rotator pin below still holds
-// (the OL/role=list markup, the row count and order, the never-cards sweep,
-// the CTA hrefs) because every row stays in the DOM in every state; the
-// rotator-specific rows (two controls, pause honesty, focus-follow, the
-// stalk, edit links, reduced-motion stillness, print, glass contrast, no-JS
-// degradation) follow after them.
+// Operator rulings 2026-09-09: the section is "Notes & Goals"; the served
+// HTML, reduced motion, the Off detent, print and forced colours are the plain
+// borderless grid of every note; once enhanced the list pages under a wiper
+// whose wipe is a DOM mask in lockstep with the engine's clock (src/lib/wiper),
+// driven by one stalk. Every row stays in the DOM in every state, so the
+// manifest pins below hold without a JavaScript branch.
+
+const AA = 4.5;
+const LARGE = 3;
+const WIDE = { width: 1280, height: 900 };
+
+const section = (page: Page) => page.locator('#goals');
+
+// Away from the section: a resting pointer must never change what is measured.
+async function pointerAway(page: Page) {
+	await page.mouse.move(0, 0);
+}
 
 test('the notes render from the manifest as an ordered, borderless list, soonest first', async ({ page }) => {
 	await page.goto('/');
@@ -35,18 +46,18 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	await expect(list).toHaveAttribute('role', 'list');
 	const rows = list.locator('> li');
 	await expect(rows).toHaveCount(publicGoals.length);
-	expect(publicGoals.length).toBeGreaterThanOrEqual(6);
+	expect(publicGoals.length).toBe(5);
 	// The rendered order IS the SSOT's sort (order asc, then slug), and the
 	// first row is the operator's first penciled goal.
 	await expect(rows.locator('h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	await expect(rows.first().locator('h3')).toHaveText('Form the club');
+	await expect(rows.first().locator('h3')).toHaveText('Soft opening at the block party');
 	await expect(page.locator('#goals')).toContainText('Sunday, September 20, 2026');
 	// Featured-image home integration (the 2026-09-01 batch's deferred item):
 	// a goal that ships the frontmatter image group renders that exact image
-	// and alt text in the carousel's designed media slot, above the title;
-	// an imageless goal renders NO figure and no reserved box (graceful
-	// absence). Every expectation derives from the manifest so the pin stays
-	// honest as goals gain or lose images.
+	// and alt text in the designed media slot, above the title; an imageless
+	// goal renders NO figure and no reserved box (graceful absence). Every
+	// expectation derives from the manifest so the pin stays honest as goals
+	// gain or lose images.
 	for (const [index, goal] of publicGoals.entries()) {
 		const media = rows.nth(index).locator('.goal-media');
 		if (goal.metadata.image) {
@@ -86,311 +97,7 @@ test('member benefits and help asks render with their CTAs', async ({ page }) =>
 	}
 });
 
-// Wide viewports page three notes at a time; the pane's dwell/stroke timing
-// is read from its own custom properties rather than hardcoded here.
-const WIDE = { width: 1280, height: 900 };
-
-const pane = (page: Page) => page.locator('#goals .wiper');
-const dwellOf = (page: Page) =>
-	pane(page).evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue('--wiper-dwell')));
-const strokeOf = (page: Page) =>
-	pane(page).evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue('--wiper-stroke')));
-const visibleTitles = (page: Page) => page.locator('#goals .goal-list > li.is-current h3').allTextContents();
-
-// Away from the pane: a pointer resting on it is a courtesy pause.
-async function pointerAway(page: Page) {
-	await page.mouse.move(0, 0);
-}
-
-// The glass capture is viewport-relative and the sticky header paints over
-// whatever scrolls under it, so a pane taller than the viewport would put the
-// header's ink and its white ground inside the scan and read as a 1:1 floor.
-// The notes grow at the operator's pace; the rail grows the viewport to fit
-// the whole pane below the header, then proves that it did.
-async function fitPaneBelowHeader(page: Page, width: number) {
-	const headerBottom = await page.locator('.site-header').evaluate((el) => el.getBoundingClientRect().bottom);
-	const paneHeight = await pane(page).evaluate((el) => el.getBoundingClientRect().height);
-	await page.setViewportSize({ width, height: Math.max(900, Math.ceil(paneHeight + headerBottom * 2 + 32)) });
-	await pane(page).evaluate((el, offset) => {
-		window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - offset);
-	}, headerBottom + 16);
-	const rect = await pane(page).evaluate((el) => {
-		const r = el.getBoundingClientRect();
-		return { top: r.top, bottom: r.bottom, inner: window.innerHeight };
-	});
-	expect(rect.top, 'the pane sits below the sticky header').toBeGreaterThanOrEqual(headerBottom);
-	expect(rect.bottom, 'the whole pane sits inside the viewport').toBeLessThanOrEqual(rect.inner);
-}
-
-async function selectDetent(page: Page, name: string) {
-	await pane(page).getByRole('radiogroup', { name: 'Wiper speed' }).getByRole('radio', { name }).click();
-	await pointerAway(page);
-}
-
-test('the notes ride a wiper rotator with exactly two controls, and Off is the plain grid', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await expect(page.locator('#goals h2')).toHaveText('Notes & Goals');
-
-	const region = pane(page);
-	await expect(region).toHaveAttribute('role', 'group');
-	await expect(region).toHaveAttribute('aria-labelledby', 'goals-title');
-	// Hydration paged the list and started the wipers on the default detent.
-	await expect(region).toHaveClass(/wiper--enhanced/u);
-	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	await expect(region).toHaveAttribute('data-page', /^[0-9]+$/u);
-
-	// Every title stays in the DOM while the pages turn: rows are shown and
-	// hidden in place, never mounted and unmounted.
-	const list = page.locator('#goals .goal-list');
-	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	// A loaded runner may already have turned a page: read the page and its
-	// titles in one evaluate and compare against that page's slice.
-	const shown = await region.evaluate((el) => ({
-		page: Number(el.getAttribute('data-page')),
-		titles: Array.from(el.querySelectorAll('.goal-list > li.is-current h3')).map((h) => h.textContent),
-	}));
-	expect(shown.titles).toEqual(
-		publicGoals.slice(shown.page * 3, shown.page * 3 + 3).map((goal) => goal.metadata.title),
-	);
-
-	// Exactly two controls: the switch and the four-detent stalk. No
-	// previous/next/play/pause anywhere in the section.
-	const wipers = region.getByRole('switch', { name: 'Wipers' });
-	await expect(wipers).toHaveAttribute('aria-checked', 'true');
-	const stalk = region.getByRole('radiogroup', { name: 'Wiper speed' });
-	await expect(stalk.getByRole('radio')).toHaveText(['Off', 'Intermittent', 'Low', 'High']);
-	await expect(stalk.getByRole('radio', { name: 'Intermittent' })).toHaveAttribute('aria-checked', 'true');
-	await expect(page.locator('#goals button')).toHaveCount(5);
-	await expect(page.locator('#goals').getByRole('button', { name: /previous|next|play|pause|advance/iu })).toHaveCount(
-		0,
-	);
-
-	// The status line is silent while rotating.
-	const status = region.locator('.wiper-status');
-	await expect(status).toHaveAttribute('aria-live', 'off');
-
-	// Off: the resting grid of every note, at once, and a polite status.
-	await wipers.click();
-	await expect(wipers).toHaveAttribute('aria-checked', 'false');
-	await expect(region).toHaveAttribute('data-state', 'off');
-	await expect(stalk.getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
-	await expect(status).toHaveAttribute('aria-live', 'polite');
-	await expect(list).not.toHaveClass(/wiper-list--paged/u);
-	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
-	expect(await list.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
-
-	// On again restores the last detent. (The pane shrinks back to one page
-	// under the cursor, which may leave the pointer outside it, so the
-	// courtesy-pause state is not asserted here; the hover test covers it.)
-	await wipers.click();
-	await expect(stalk.getByRole('radio', { name: 'Intermittent' })).toHaveAttribute('aria-checked', 'true');
-	await pointerAway(page);
-	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	await expect(status).toHaveAttribute('aria-live', 'off');
-});
-
-test('the stalk sets the dwell, rides a roving tabindex, and Off on the stalk is the switch off', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	const region = pane(page);
-	const stalk = region.getByRole('radiogroup', { name: 'Wiper speed' });
-
-	const dwells: number[] = [];
-	for (const name of ['Intermittent', 'Low', 'High']) {
-		await selectDetent(page, name);
-		await expect(stalk.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
-		await expect(stalk.getByRole('radio', { name })).toHaveAttribute('tabindex', '0');
-		await expect(stalk.getByRole('radio', { checked: false })).toHaveCount(3);
-		for (const other of await stalk.getByRole('radio', { checked: false }).all()) {
-			await expect(other).toHaveAttribute('tabindex', '-1');
-		}
-		dwells.push(await dwellOf(page));
-	}
-	// Faster detents dwell for less time; the sweep is always shorter than the dwell.
-	expect(dwells[0]).toBeGreaterThan(dwells[1]);
-	expect(dwells[1]).toBeGreaterThan(dwells[2]);
-	expect(dwells[2]).toBeGreaterThanOrEqual(1000);
-
-	// Arrow keys move the selection (and focus) with wrap-around.
-	await stalk.getByRole('radio', { name: 'High' }).focus();
-	await page.keyboard.press('ArrowRight');
-	await expect(stalk.getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
-	await expect(stalk.getByRole('radio', { name: 'Off' })).toBeFocused();
-	await expect(region).toHaveAttribute('data-state', 'off');
-	await expect(region.getByRole('switch', { name: 'Wipers' })).toHaveAttribute('aria-checked', 'false');
-	await page.keyboard.press('ArrowLeft');
-	await expect(stalk.getByRole('radio', { name: 'High' })).toHaveAttribute('aria-checked', 'true');
-	await page.keyboard.press('Home');
-	await expect(stalk.getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
-	await page.keyboard.press('End');
-	await expect(stalk.getByRole('radio', { name: 'High' })).toHaveAttribute('aria-checked', 'true');
-});
-
-test("a wipe turns the page at the blades' turnaround and every note gets its turn", async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'High');
-	const region = pane(page);
-	const pageCount = Math.ceil(publicGoals.length / 3);
-	const cycleMs = (await dwellOf(page)) + 2 * (await strokeOf(page)) + 1500;
-
-	// Observe the turns from inside the page (a poll from outside can miss a
-	// page on a loaded runner): every data-page mutation records the page and
-	// the titles it shows, atomically.
-	await region.evaluate((el) => {
-		const seen: Array<{ page: string | null; titles: string[] }> = [];
-		const record = () =>
-			seen.push({
-				page: el.getAttribute('data-page'),
-				titles: Array.from(el.querySelectorAll('.goal-list > li.is-current h3')).map((h) => h.textContent ?? ''),
-			});
-		record();
-		new MutationObserver(record).observe(el, { attributes: true, attributeFilter: ['data-page'] });
-		(window as unknown as { __wiperTurns: typeof seen }).__wiperTurns = seen;
-	});
-	await expect
-		.poll(
-			async () =>
-				page.evaluate(() => {
-					const seen = (window as unknown as { __wiperTurns: Array<{ titles: string[] }> }).__wiperTurns;
-					return new Set(seen.flatMap((s) => s.titles)).size;
-				}),
-			{ timeout: cycleMs * (pageCount + 2) },
-		)
-		.toBe(publicGoals.length);
-	const turns = await page.evaluate(
-		() => (window as unknown as { __wiperTurns: Array<{ page: string | null; titles: string[] }> }).__wiperTurns,
-	);
-	// Pages advance one at a time and wrap; no page is ever skipped.
-	for (let i = 1; i < turns.length; i += 1) {
-		expect(Number(turns[i].page)).toBe((Number(turns[i - 1].page) + 1) % pageCount);
-	}
-	expect([...new Set(turns.flatMap((t) => t.titles))].sort()).toEqual(
-		publicGoals.map((goal) => goal.metadata.title).sort(),
-	);
-	// The pane never becomes a scroller and the arms stay inside it (measured
-	// at rest: a sheen band crossing mid-wipe widens the clipped overflow the
-	// browser reports, which no visitor can scroll into).
-	await expect(region).toHaveAttribute('data-state', /^(dwell|paused)$/u);
-	expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-});
-
-test('a pointer over the pane pauses the wipers and leaving resumes them', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'High');
-	const region = pane(page);
-	const status = region.locator('.wiper-status');
-	const dwell = await dwellOf(page);
-	const stroke = await strokeOf(page);
-
-	await region.hover();
-	await expect(region).toHaveAttribute('data-state', /^(paused|wiping)$/u);
-	// A sweep in flight finishes; from then on the page must not turn while
-	// the pointer rests on the pane.
-	await expect(region).toHaveAttribute('data-state', 'paused');
-	await expect(status).toHaveAttribute('aria-live', 'polite');
-	const before = await region.getAttribute('data-page');
-	await page.waitForTimeout(dwell + 2 * stroke + 500);
-	expect(await region.getAttribute('data-page')).toBe(before);
-
-	await pointerAway(page);
-	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	await expect(status).toHaveAttribute('aria-live', 'off');
-	// Resume budget covers a delayed animation start on a loaded runner.
-	await expect
-		.poll(async () => region.getAttribute('data-page'), { timeout: 2 * (dwell + 2 * stroke) + 2500 })
-		.not.toBe(before);
-});
-
-test('keyboard focus inside the list pauses the wipers and reveals the focused note', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await pointerAway(page);
-	const region = pane(page);
-	const rows = page.locator('#goals .goal-list > li');
-	const lastIndex = publicGoals.length - 1;
-	const lastTitle = publicGoals[lastIndex].metadata.title;
-
-	// The last note sits on the last page; focusing its Edit link brings
-	// that page forward at once, with no wipe, and holds it.
-	const edit = rows.nth(lastIndex).getByRole('link', { name: `Edit ${lastTitle} on GitHub` });
-	await edit.focus();
-	await expect(region).toHaveAttribute('data-state', 'paused');
-	await expect(region).toHaveAttribute('data-page', String(Math.floor(lastIndex / 3)));
-	await expect(rows.nth(lastIndex)).toBeVisible();
-	await expect(edit).toBeFocused();
-
-	// Focus moves on (to the dash, which is outside the list): rotation resumes.
-	await region.getByRole('switch', { name: 'Wipers' }).focus();
-	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-});
-
-test('focus during an outbound wipe keeps the selected note visible after that sweep ends', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'High');
-	const region = pane(page);
-	// Catch a real CSS animation start and focus in that same browser turn;
-	// separate test-driver calls could miss the short outbound stroke.
-	const observed = await region.evaluate(
-		(el) =>
-			new Promise<{
-				index: number;
-				state: string | null;
-				stroke: string | null;
-				opacity: string;
-				sweepMs: number;
-			}>((resolve, reject) => {
-				const arm = el.querySelector('.wiper-arm--left');
-				if (!arm) return reject(new Error('the wiper arm is missing'));
-				const timer = setTimeout(() => {
-					arm.removeEventListener('animationstart', onStart);
-					reject(new Error('no outbound wiper animation started'));
-				}, 10_000);
-				function onStart(event: Event) {
-					if (event.target !== arm || (event as AnimationEvent).animationName !== 'wiper-sweep') return;
-					clearTimeout(timer);
-					arm?.removeEventListener('animationstart', onStart);
-					const rows = Array.from(el.querySelectorAll<HTMLElement>('.goal-list > li'));
-					const index = rows.findIndex((row) => !row.classList.contains('is-current'));
-					const row = rows[index];
-					const edit = row?.querySelector<HTMLAnchorElement>('.goal-edit a');
-					if (!row || !edit) return reject(new Error('an off-page note Edit link is missing'));
-					const before = {
-						index,
-						state: el.getAttribute('data-state'),
-						stroke: el.getAttribute('data-stroke'),
-						opacity: getComputedStyle(row).opacity,
-						sweepMs: 2 * Number.parseFloat(getComputedStyle(el).getPropertyValue('--wiper-stroke')),
-					};
-					edit.focus();
-					resolve(before);
-				}
-				arm.addEventListener('animationstart', onStart);
-			}),
-	);
-	expect(observed).toMatchObject({ state: 'wiping', stroke: 'out', opacity: '0' });
-	expect(observed.sweepMs).toBeGreaterThan(0);
-	const focusedRow = page.locator('#goals .goal-list > li').nth(observed.index);
-	const edit = focusedRow.locator('.goal-edit a');
-	await expect(edit).toBeFocused();
-	await expect(region).toHaveAttribute('data-state', 'paused');
-	await expect(region).toHaveAttribute('data-page', String(Math.floor(observed.index / 3)));
-	await expect(focusedRow).toHaveClass(/is-current/u);
-	await expect(focusedRow).toHaveCSS('transition-duration', '0s');
-	await expect(focusedRow).toHaveCSS('opacity', '1');
-	// Past both the cancelled sweep and its timer failsafe, neither can
-	// advance the page while the same link retains keyboard focus.
-	await page.waitForTimeout(observed.sweepMs + 500);
-	await expect(edit).toBeFocused();
-	await expect(region).toHaveAttribute('data-state', 'paused');
-	await expect(region).toHaveAttribute('data-page', String(Math.floor(observed.index / 3)));
-	await expect(focusedRow).toHaveCSS('opacity', '1');
-});
-
-test('every note carries an Edit link to its own source and the pane links the collection', async ({ page }) => {
+test('every note carries an Edit link to its own source and the section links the collection', async ({ page }) => {
 	await page.goto('/');
 	const rows = page.locator('#goals .goal-list > li');
 	for (const [index, goal] of publicGoals.entries()) {
@@ -402,29 +109,212 @@ test('every note carries an Edit link to its own source and the pane links the c
 		// Edit is not a CTA: the CTA pin above still points every .goal-cta at /contact.
 		expect(await edits.evaluate((el) => el.closest('.goal-cta'))).toBeNull();
 	}
-	const collection = pane(page).getByRole('link', { name: 'Edit these notes on GitHub' });
+	const collection = section(page).getByRole('link', { name: 'Edit these notes on GitHub' });
 	await expect(collection).toHaveAttribute('href', `${sourceMap.repoUrl}/tree/${sourceMap.branch}/src/content/goals`);
-	await expect(pane(page).locator('.source-link')).toContainText('These notes live in git.');
+	await expect(section(page).locator('.source-link')).toContainText('These notes live in git.');
 });
 
-test('reduced motion never rotates and offers no rotation controls', async ({ page }) => {
+const pane = (page: Page) => page.locator('#goals .wiper');
+const stalk = (page: Page) => page.locator('#goals .wiper-stalk');
+const currentTitles = (page: Page) => page.locator('#goals .goal-list > li.is-current h3').allTextContents();
+
+async function selectDetent(page: Page, label: string) {
+	await stalk(page).locator('.wiper-stalk__item', { hasText: label }).click();
+	await expect(page.getByRole('radio', { name: label })).toBeChecked();
+	await pointerAway(page);
+}
+
+test('the notes page under one stalk with four detents, and Off is the plain grid', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await pointerAway(page);
+	// One control: a radio group named for the speed, Off first, Intermittent on load.
+	const group = page.getByRole('radiogroup', { name: 'Wiper speed' });
+	await expect(group).toHaveCount(1);
+	await expect(stalk(page).locator('.wiper-stalk__item')).toHaveText(WIPER_DETENTS.map((entry) => entry.label));
+	for (const entry of WIPER_DETENTS) await expect(group.getByRole('radio', { name: entry.label })).toHaveCount(1);
+	await expect(group.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
+	await expect(page.locator('#goals button')).toHaveCount(0);
+	await expect(page.locator('#goals [role="switch"]')).toHaveCount(0);
+	// Paged: three notes up on a wide viewport, the rest in the DOM but hidden.
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused|wiping/u);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await expect(page.locator('#goals .goal-list > li.is-current')).toHaveCount(3);
+	await expect(page.locator('#goals .goal-list > li')).toHaveCount(publicGoals.length);
+	// Off is the resting grid at once: every note visible, nothing paged, nothing masked.
+	await selectDetent(page, 'Off');
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
+	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	for (const row of await page.locator('#goals .goal-list > li').all()) await expect(row).toBeVisible();
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
+	// The indicator's slide is the only timed rule; once it has settled nothing animates.
+	await page.waitForTimeout(400);
+	expect(
+		await page.evaluate(
+			() =>
+				document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals')).length,
+		),
+	).toBe(0);
+	await selectDetent(page, 'Intermittent');
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+});
+
+test('a wipe masks the outgoing page out along the arc and the incoming page in, then turns the page', async ({
+	page,
+}) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	const firstPage = await currentTitles(page);
+	expect(firstPage).toHaveLength(3);
+	const expectedSecondPage = publicGoals.slice(3, 6).map((goal) => goal.metadata.title);
+	// Observe from inside the page: every data-wipe flip and every page turn,
+	// with the mask progress sampled while the out-stroke runs.
+	await page.evaluate(() => {
+		const host = document.querySelector('#goals .wiper') as HTMLElement;
+		const log: Array<Record<string, unknown>> = [];
+		(window as unknown as { __wipeLog: typeof log }).__wipeLog = log;
+		const observer = new MutationObserver(() => {
+			const outs = host.querySelectorAll('li[data-wipe="out"]').length;
+			const ins = host.querySelectorAll('li[data-wipe="in"]').length;
+			log.push({
+				state: host.dataset.state,
+				outs,
+				ins,
+				unit: Number.parseFloat(host.style.getPropertyValue('--wipe-u')) || 0,
+			});
+		});
+		observer.observe(host, {
+			attributes: true,
+			subtree: true,
+			attributeFilter: ['data-wipe', 'data-state', 'class', 'style'],
+		});
+	});
+	// Arm the hold before the stroke starts so the out-stroke freezes at its
+	// midpoint the moment it begins; release it after reading the masks.
+	await page.evaluate(() => {
+		document.documentElement.dataset.wiperFreeze = '0.5';
+	});
+	await selectDetent(page, 'High');
+	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(3);
+	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(expectedSecondPage.length);
+	const outMask = await page
+		.locator('#goals li[data-wipe="out"]')
+		.first()
+		.evaluate((el) => getComputedStyle(el).maskImage);
+	expect(outMask).toContain('conic-gradient');
+	const inMask = await page
+		.locator('#goals li[data-wipe="in"]')
+		.first()
+		.evaluate((el) => getComputedStyle(el).maskImage);
+	expect(inMask).toContain('conic-gradient');
+	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.5000');
+	await page.evaluate(() => {
+		delete document.documentElement.dataset.wiperFreeze;
+	});
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 15_000 });
+	const secondPage = await currentTitles(page);
+	expect(secondPage).toEqual(expectedSecondPage);
+	expect(secondPage).not.toEqual(firstPage);
+	expect(secondPage[0]).toBe(publicGoals[3].metadata.title);
+	const log = await page.evaluate(
+		() =>
+			(window as unknown as { __wipeLog: Array<{ state: string; unit: number; outs: number; ins: number }> }).__wipeLog,
+	);
+	// The engine resets the unit to 0 at the apex synchronously, a microtask
+	// before Svelte drops the data-wipe attributes, so the log ends with that
+	// reset; the rise before it must be monotonic and reach the turnaround.
+	const units = log.filter((entry) => entry.state === 'wiping' && entry.outs === 3).map((entry) => entry.unit);
+	const peak = Math.max(...units);
+	const rising = units.slice(0, units.lastIndexOf(peak) + 1);
+	expect(rising.length).toBeGreaterThanOrEqual(2);
+	for (let index = 1; index < rising.length; index += 1)
+		expect(rising[index]).toBeGreaterThanOrEqual(rising[index - 1]);
+	expect(peak).toBeGreaterThan(0.9);
+	// Masks live only during the out-stroke: none once the page has turned.
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
+	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.0000');
+});
+
+for (const width of [320, 390, 768, 1280, 1440]) {
+	test(`the blade covers every note at ${width}px and the notes carry that arm's angles`, async ({ page }) => {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await pane(page).scrollIntoViewIfNeeded();
+		await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+		const measured = await page.evaluate(() => {
+			const list = document.querySelector('#goals .goal-list') as HTMLElement;
+			const box = list.getBoundingClientRect();
+			const items = Array.from(list.querySelectorAll<HTMLElement>(':scope > li')).map((li) => {
+				const style = getComputedStyle(li);
+				return {
+					centerX: li.getBoundingClientRect().left - box.left + li.getBoundingClientRect().width / 2,
+					from: Number.parseFloat(style.getPropertyValue('--wipe-from')),
+					span: Number.parseFloat(style.getPropertyValue('--wipe-span')),
+					x: Number.parseFloat(style.getPropertyValue('--wipe-x')),
+					y: Number.parseFloat(style.getPropertyValue('--wipe-y')),
+				};
+			});
+			return { width: box.width, height: box.height, items };
+		});
+		const geometry = deriveGeometry({ width: measured.width, height: measured.height });
+		expect(
+			coversPane(geometry),
+			`coverage of a ${Math.round(measured.width)}x${Math.round(measured.height)} pane`,
+		).toBe(true);
+		expect(geometry.arms).toHaveLength(width >= 768 ? 2 : 1);
+		for (const item of measured.items) {
+			const arm =
+				geometry.arms.find((candidate) => item.centerX >= candidate.span[0] && item.centerX < candidate.span[1]) ??
+				geometry.arms.at(-1)!;
+			expect(item.from).toBeCloseTo(-halfSweepDeg(arm), 1);
+			expect(item.span).toBeCloseTo(2 * halfSweepDeg(arm), 1);
+			expect(Number.isFinite(item.x) && Number.isFinite(item.y)).toBe(true);
+			// The hub hangs below the list, never below the stalk or the footer.
+			expect(item.y).toBeLessThanOrEqual(arm.pivotY + 1);
+		}
+	});
+}
+
+test('a pointer over the pane pauses the wipers, leaving resumes them, and focus inside reveals the focused note', async ({
+	page,
+}) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await pointerAway(page);
+	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	await pane(page).hover();
+	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
+	await pointerAway(page);
+	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	// Focus a note on the last page: the page turns at once, no wipe, and holds.
+	const lastIndex = publicGoals.length - 1;
+	await page.locator('#goals .goal-list > li').nth(lastIndex).locator('.goal-edit a').focus();
+	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
+	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
+	await expect(page.locator('#goals .goal-list > li').nth(lastIndex)).toBeVisible();
+	await page.waitForTimeout(wiperDetent('intermittent').dwellMs + 500);
+	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
+});
+
+test('reduced motion shows the same grid, every note visible, nothing moving', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const region = pane(page);
 	const list = page.locator('#goals .goal-list');
-
-	// Enhanced, but not rotatable: the resting grid, no dash, no arms.
-	await expect(region).toHaveClass(/wiper--enhanced/u);
-	await expect(region).toHaveAttribute('data-state', 'off');
-	await expect(page.locator('#goals button')).toHaveCount(0);
-	await expect(region.locator('svg')).toHaveCount(0);
-	await expect(list).not.toHaveClass(/wiper-list--paged/u);
+	await expect(list.locator('> li')).toHaveCount(publicGoals.length);
+	await expect(page.locator('#goals [role="radiogroup"], #goals .wiper-stalk')).toHaveCount(0);
+	await expect(list).not.toHaveClass(/goal-list--paged/u);
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
 	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
-
-	// Longer than the default dwell: nothing moves on its own, nothing animates.
-	await page.waitForTimeout(6000);
-	await expect(region).toHaveAttribute('data-state', 'off');
+	await page.waitForTimeout(3000);
 	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
 	expect(
 		await page.evaluate(
@@ -432,25 +322,28 @@ test('reduced motion never rotates and offers no rotation controls', async ({ pa
 				document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals')).length,
 		),
 	).toBe(0);
-	expect(await region.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe('none');
-	// The aero skin's own pseudo paint is static under reduce: no sheen exists,
-	// the droplet layer carries no filter.
-	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
-	expect(await region.evaluate((el) => getComputedStyle(el, '::before').filter)).toBe('none');
 });
 
-test('paper gets every note and none of the dash', async ({ page }) => {
+test('paper gets every note, no stalk and no edit links, even mid-wipe', async ({ page }) => {
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	await pointerAway(page);
-	await expect(pane(page)).toHaveClass(/wiper--paged/u);
-	// Hold only the blades when the real dwell starts an outbound sweep;
-	// row opacity transitions continue normally and must reach zero first.
-	await page.addStyleTag({ content: '.wiper-arm { animation-play-state: paused !important; }' });
-	await expect(pane(page)).toHaveAttribute('data-stroke', 'out', { timeout: 10_000 });
-	await expect(page.locator('#goals li.is-current').first()).toHaveCSS('opacity', '0');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await selectDetent(page, 'High');
+	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+	await page.evaluate(() => {
+		document.documentElement.dataset.wiperFreeze = '0.5';
+	});
 	await page.emulateMedia({ media: 'print' });
 	const rows = page.locator('#goals .goal-list > li');
+	for (const selector of ['.wiper-stalk']) {
+		for (const el of await page.locator(`#goals ${selector}`).all()) {
+			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
+		}
+	}
+	expect(await rows.evaluateAll((els) => els.map((el) => getComputedStyle(el).maskImage))).toEqual(
+		publicGoals.map(() => 'none'),
+	);
 	const shown = await rows.evaluateAll((els) =>
 		els.map((el) => {
 			const style = getComputedStyle(el);
@@ -458,115 +351,16 @@ test('paper gets every note and none of the dash', async ({ page }) => {
 		}),
 	);
 	expect(shown).toEqual(publicGoals.map(() => [true, '1', '0s']));
-	for (const selector of ['.wiper-controls', '.wiper-arms', '.goal-edit']) {
-		for (const el of await page.locator(`#goals ${selector}`).all()) {
-			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
-		}
+	for (const el of await page.locator('#goals .goal-edit').all()) {
+		expect(await el.evaluate((node) => getComputedStyle(node).display)).toBe('none');
 	}
-	// A print begun mid-wipe carries no sheen band.
-	expect(await pane(page).evaluate((el) => getComputedStyle(el, '::after').display)).toBe('none');
+	await expect(section(page).getByRole('link', { name: 'Edit these notes on GitHub' })).toHaveCount(1);
 });
 
-// Operator ruling 2026-09-09 (light-pipe): each dash key keeps exactly one
-// border, a 2px top edge (accent on the glass skins, destination-sign amber
-// on the deck), because the browser 1.4.11 collector
-// (e2e/acceptance-contrast.spec.ts) reads fills and border-TOP only and
-// visits only /contact. This row runs the collector's own math at / in both
-// schemes on what the browser actually painted: the RENDERED border-top
-// colour and fill of every key (converted from their computed oklch through
-// a canvas), max(fill, top edge) against the ground the key sits on, 3:1. On
-// the deck that ground is the rendered chassis; on the glass skins it is the
-// darkest and the lightest pane pixel.
-for (const scheme of ['light', 'dark'] as const) {
-	test(`the dash keys are borderless except their light-pipe and clear 3:1 on their ground (${scheme})`, async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/');
-		await page.waitForLoadState('networkidle');
-		await setScheme(page, scheme);
-		await pane(page).scrollIntoViewIfNeeded();
-		await pointerAway(page);
-		const skin = await pane(page).getAttribute('data-skin');
-		expect(['aero', 'deck']).toContain(skin);
-		const keys = page.locator('#goals .wiper-controls button');
-		await expect(keys).toHaveCount(5);
-		// Rendered colours: computed styles come back as oklch(); a 1x1 canvas
-		// resolves them to the sRGB the browser painted (alpha 0 = no paint).
-		const boxes = await keys.evaluateAll((els) => {
-			const canvas = document.createElement('canvas');
-			canvas.width = canvas.height = 1;
-			const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-			const rgb = (css: string) => {
-				ctx.clearRect(0, 0, 1, 1);
-				ctx.fillStyle = css;
-				ctx.fillRect(0, 0, 1, 1);
-				const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
-				return alpha === 0 ? null : { red, green, blue, alpha: alpha / 255 };
-			};
-			return els.map((el) => {
-				const s = getComputedStyle(el);
-				return {
-					label: el.textContent?.trim() ?? '',
-					top: s.borderTopWidth,
-					right: s.borderRightWidth,
-					bottom: s.borderBottomWidth,
-					left: s.borderLeftWidth,
-					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius],
-					topRgb: rgb(s.borderTopColor),
-					fillRgb: rgb(s.backgroundColor),
-					groundRgb: rgb(getComputedStyle(el.closest('.wiper-controls') as Element).backgroundColor),
-				};
-			});
-		});
-		for (const box of boxes) {
-			expect(box.top, `${box.label} top edge`).toBe('2px');
-			expect([box.right, box.bottom, box.left], `${box.label} other edges`).toEqual(['0px', '0px', '0px']);
-			expect(box.radius, `${box.label} corners`).toEqual(['0px', '0px', '0px', '0px']);
-		}
-		expect(await page.locator('#goals .wiper-controls').evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe(
-			'0px',
-		);
-		const glass =
-			skin === 'deck'
-				? null
-				: await measureGlassExtremes(page, '#goals .wiper', 16).then((x) => [x.darkest.rgb, x.lightest.rgb]);
-		for (const box of boxes) {
-			const grounds = skin === 'deck' ? [box.groundRgb] : glass;
-			expect(grounds?.[0], `${box.label} ground`).toBeTruthy();
-			if (skin === 'deck') expect(box.groundRgb?.alpha, 'the deck chassis is opaque').toBe(1);
-			// The collector takes the better of the fill and the top edge; a
-			// translucent fill is composited over the ground first.
-			const candidates = [box.topRgb, box.fillRgb]
-				.filter((c): c is NonNullable<typeof c> => c !== null)
-				.map((c) =>
-					c.alpha >= 1
-						? c
-						: {
-								red: Math.round(c.red * c.alpha + grounds![0]!.red * (1 - c.alpha)),
-								green: Math.round(c.green * c.alpha + grounds![0]!.green * (1 - c.alpha)),
-								blue: Math.round(c.blue * c.alpha + grounds![0]!.blue * (1 - c.alpha)),
-							},
-				);
-			expect(candidates.length, `${box.label} paints a boundary`).toBeGreaterThan(0);
-			const best = Math.max(
-				...candidates.map((c) => Math.min(...grounds!.map((g) => roundRatio(contrastRatio(c, g!))))),
-			);
-			expect(best, `${box.label} boundary on its ground`).toBeGreaterThanOrEqual(LARGE);
-		}
-		// The pane's own pseudo paint (droplets, sheen) is square too.
-		for (const pseudo of ['::before', '::after'] as const) {
-			expect(await pane(page).evaluate((el, p) => getComputedStyle(el, p).borderTopLeftRadius, pseudo)).toBe('0px');
-		}
-	});
-}
-
-test('the pane never widens the page on a narrow phone', async ({ page }) => {
+test('the section never widens the page on a narrow phone', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 700 });
 	await page.goto('/');
 	await pointerAway(page);
-	// One note per page below 48rem.
-	expect(await visibleTitles(page)).toHaveLength(1);
 	const overflow = await page.evaluate(() => ({
 		document: document.documentElement.scrollWidth - window.innerWidth,
 		section: document.querySelector('#goals')!.scrollWidth - document.querySelector('#goals')!.clientWidth,
@@ -575,102 +369,36 @@ test('the pane never widens the page on a narrow phone', async ({ page }) => {
 	expect(overflow.section).toBeLessThanOrEqual(0);
 });
 
-for (const mode of ['off', 'reduced', 'no-js'] as const) {
-	test.describe(`320px resting grid: ${mode}`, () => {
-		test.use({
-			viewport: { width: 320, height: 700 },
-			reducedMotion: mode === 'reduced' ? 'reduce' : 'no-preference',
-			javaScriptEnabled: mode !== 'no-js',
-		});
+for (const mode of ['enhanced', 'no-js'] as const) {
+	test.describe(`320px grid: ${mode}`, () => {
+		test.use({ viewport: { width: 320, height: 700 }, javaScriptEnabled: mode !== 'no-js' });
 
-		test('keeps every row and its links inside the pane without clipping', async ({ page }) => {
+		test('keeps every row and its links inside the section without clipping', async ({ page }) => {
 			await page.goto('/');
-			const region = pane(page);
-			if (mode === 'off') await region.getByRole('switch', { name: 'Wipers' }).click();
-			await expect(region).toHaveAttribute('data-state', 'off');
 			const list = page.locator('#goals .goal-list');
-			await expect(list).not.toHaveClass(/wiper-list--paged/u);
 			await expect(list.locator('> li')).toHaveCount(publicGoals.length);
-			await expect(list.locator('.goal-edit a')).toHaveCount(publicGoals.length);
-			for (const row of await list.locator('> li').all()) await expect(row).toHaveCSS('opacity', '1');
-
-			const geometry = await region.evaluate((el) => {
-				const bounds = (node: Element) => {
-					const { left, right, width } = node.getBoundingClientRect();
-					return { left, right, width };
-				};
-				const list = el.querySelector('.goal-list')!;
-				const rect = el.getBoundingClientRect();
-				const style = getComputedStyle(el);
-				return {
-					list: bounds(list),
-					rows: Array.from(list.children, bounds),
-					controls: Array.from(el.querySelectorAll('.goal-list a, .wiper-controls button, .source-link a'), bounds),
-					paneLeft: rect.left + Number.parseFloat(style.borderLeftWidth),
-					paneRight: rect.right - Number.parseFloat(style.borderRightWidth),
-					overflow: document.documentElement.scrollWidth - window.innerWidth,
-				};
+			// Nothing may be clipped by the viewport: rows and links stay inside
+			// the 320px width (the per-row Edit link keeps its 0.15rem optical
+			// overhang past the column, which is why the section box is not the
+			// reference; the responsive sweep's viewport rule is).
+			const bounds = await page.evaluate(() => {
+				const offenders: string[] = [];
+				for (const el of document.querySelectorAll<HTMLElement>('#goals .goal-list > li, #goals .goal-list a')) {
+					const r = el.getBoundingClientRect();
+					if (r.width === 0 || r.height === 0) continue;
+					if (r.left < -1 || r.right > window.innerWidth + 1)
+						offenders.push(el.tagName + ':' + (el.textContent ?? '').trim().slice(0, 30));
+				}
+				return offenders;
 			});
-			expect(geometry.list.width).toBeGreaterThan(0);
-			expect(geometry.rows).toHaveLength(publicGoals.length);
-			for (const row of geometry.rows) {
-				expect(row.width).toBeGreaterThan(0);
-				expect(row.left).toBeGreaterThanOrEqual(geometry.list.left - 1);
-				expect(row.right).toBeLessThanOrEqual(geometry.list.right + 1);
-			}
-			expect(geometry.controls.length).toBeGreaterThan(publicGoals.length);
-			for (const control of geometry.controls) {
-				expect(control.width).toBeGreaterThan(0);
-				expect(control.left).toBeGreaterThanOrEqual(geometry.paneLeft - 1);
-				expect(control.right).toBeLessThanOrEqual(geometry.paneRight + 1);
-			}
-			expect(geometry.overflow).toBeLessThanOrEqual(0);
+			expect(bounds).toEqual([]);
+			expect(await list.evaluate((el) => getComputedStyle(el).overflowX)).toBe('visible');
 		});
 	});
 }
 
-const AA = 4.5;
-const LARGE = 3;
-
 for (const scheme of ['light', 'dark'] as const) {
-	test(`the pane's ink clears its floor against the real rendered glass (${scheme})`, async ({ page }) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/');
-		await page.waitForLoadState('networkidle');
-		await setScheme(page, scheme);
-		await fitPaneBelowHeader(page, 1440);
-		await pointerAway(page);
-		expect(await pane(page).evaluate((el) => getComputedStyle(el).backdropFilter)).toContain('blur');
-
-		// Any pixel of the pane can sit behind any of its ink, so every pair
-		// is held to the worse of the two extremes.
-		// A 16px inset keeps the pane's own 1px --rule border (the same border
-		// .hero-glass carries) out of the scan; no ink ever sits on it.
-		const extremes = await measureGlassExtremes(page, '#goals .wiper', 16);
-		const worst = async (role: string) => {
-			const ink = await resolveRoleRgb(page, role);
-			return Math.min(
-				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
-				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
-			);
-		};
-		expect(await worst('--fg'), 'body copy on the pane').toBeGreaterThanOrEqual(AA);
-		expect(await worst('--fg-muted'), 'window / edit copy on the pane').toBeGreaterThanOrEqual(AA);
-		expect(await worst('--link'), 'CTA and edit links on the pane').toBeGreaterThanOrEqual(AA);
-		expect(await worst('--heading'), 'note titles on the pane').toBeGreaterThanOrEqual(LARGE);
-		expect(await worst('--accent'), 'dash control boundaries on the pane').toBeGreaterThanOrEqual(LARGE);
-	});
-}
-
-// The blob layer (operator ruling 2026-09-09: opacity 0.15, pointer physics
-// off) tints the bare ground under body copy. The GATE for that opacity is
-// analytic: src/lib/blob-ground-contrast.test.ts composites every blob colour
-// at the layer's opacity with the scheme's blend mode over --bg and holds
-// the ink roles to their floors. The rows below are a
-// one-frame smoke over a randomly seeded, moving layer: they catch a gross
-// regression, they do not prove the worst case.
-for (const scheme of ['light', 'dark'] as const) {
-	test(`body copy on bare ground clears its floor over the blob layer (${scheme})`, async ({ page }) => {
+	test(`content glass clears its floor over the blob layer (${scheme})`, async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -683,7 +411,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pointerAway(page);
 		const extremes = await measureGlassExtremes(page, '#goals .goal-asides', 2);
 		const worst = async (role: string) => {
-			const ink = await resolveRoleRgb(page, role);
+			const ink = await resolveRoleRgb(page, role, '#goals .goal-asides');
 			return Math.min(
 				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
 				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
@@ -696,273 +424,38 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 }
 
-// The instruments (PR-3): rain accumulates over the dwell, the posbar fills
-// toward the next wipe, the sheen crosses with the blades. All of it is CSS
-// keyed on the pane's state, so Off is dead still, a resting pointer freezes
-// the gauge and the rain where they are, and the sheen exists only during a
-// wipe.
-test('nothing runs while the wipers are off', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'Off');
-	await expect(pane(page)).toHaveAttribute('data-state', 'off');
-	await page.waitForTimeout(600);
-	const running = await page.evaluate(() =>
-		document
-			.getAnimations()
-			.filter((a) => a.playState === 'running')
-			.map((a) => (a.effect as KeyframeEffect | null)?.target)
-			.filter((target): target is Element => target instanceof Element && target.closest('#goals') !== null)
-			.map((el) => el.className.toString()),
-	);
-	expect(running).toEqual([]);
-	expect(await pane(page).evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
-});
-
-test('the rain and the gauge fill toward the next wipe and freeze under the pointer', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'Intermittent');
-	const region = pane(page);
-	// Sample a fresh dwell (the one that follows the next wipe), so the two
-	// readings never straddle a wipe: the rain resets to 0.15 at the return
-	// stroke and the gauge to empty.
-	await region.evaluate(
-		(el) =>
-			new Promise<void>((resolve) => {
-				// A mutation observer, not requestAnimationFrame: the blob layer
-				// can starve animation frames on a loaded runner.
-				let wiped = false;
-				const observer = new MutationObserver(() => {
-					const state = el.getAttribute('data-state');
-					if (state === 'wiping') wiped = true;
-					if (wiped && state === 'dwell') {
-						observer.disconnect();
-						resolve();
-					}
-				});
-				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
-			}),
-	);
-	const sample = () =>
-		region.evaluate((el) => ({
-			rain: Number(getComputedStyle(el, '::before').opacity),
-			gauge: getComputedStyle(el.querySelector('.wiper-gauge') as Element, '::before').transform,
-		}));
-	// A busy main thread (the blob layer's physics) can hold a CSS animation's
-	// start for a while on a loaded runner; wait until the accumulation is
-	// visibly under way (past the 0.15 floor, short of full), then sample.
-	// Two readings inside ONE dwell (a wipe between them resets both
-	// instruments, so a pair that straddles a wipe is discarded and retaken).
-	const pair = async () => {
-		await expect.poll(async () => (await sample()).rain, { timeout: 6000 }).toBeGreaterThan(0.16);
-		const first = await sample();
-		await page.waitForTimeout(600);
-		const second = await sample();
-		const state = await region.getAttribute('data-state');
-		return { first, second, sameDwell: state === 'dwell' && second.rain >= first.rain };
-	};
-	let reading = await pair();
-	for (let attempt = 0; attempt < 3 && !reading.sameDwell; attempt += 1) reading = await pair();
-	const { first: a, second: b } = reading;
-	expect(a.rain).toBeLessThan(0.95);
-	// Both instruments move during the dwell.
-	expect(b.rain).toBeGreaterThan(a.rain);
-	expect(b.gauge).not.toBe(a.gauge);
-	// A resting pointer freezes them where they are.
-	await region.hover();
-	await expect(region).toHaveAttribute('data-state', 'paused');
-	const c = await sample();
-	await page.waitForTimeout(700);
-	const d = await sample();
-	expect(d.rain).toBeCloseTo(c.rain, 2);
-	expect(d.gauge).toBe(c.gauge);
-	await pointerAway(page);
-	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	// After the resume the instruments and the wipe share one clock: the
-	// gauge must not sit pegged at full while nothing happens (the pre-fix
-	// failure was up to a whole dwell of a full gauge before the wipe).
-	const dwell = await dwellOf(page);
-	let pegged = 0;
-	const started = Date.now();
-	while (Date.now() - started < dwell + 3000) {
-		if ((await region.getAttribute('data-state')) !== 'dwell') break;
-		if (/matrix\(1, 0, 0, 1, 0, 0\)/u.test((await sample()).gauge)) pegged += 1;
-		await page.waitForTimeout(250);
-	}
-	expect(pegged, 'quarter-second samples with a full gauge before the wipe').toBeLessThanOrEqual(3);
-});
-
-test('the sheen exists only during a wipe', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'Intermittent');
-	const region = pane(page);
-	await expect(region).toHaveAttribute('data-skin', /^(aero|deck)$/u);
-	await expect(region).toHaveAttribute('data-state', 'dwell');
-	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
-	const seen = await region.evaluate(
-		(el) =>
-			new Promise<{ content: string; animation: string }>((resolve) => {
-				const observer = new MutationObserver(() => {
-					if (el.getAttribute('data-state') !== 'wiping') return;
-					observer.disconnect();
-					const s = getComputedStyle(el, '::after');
-					resolve({ content: s.content, animation: s.animationName });
-				});
-				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
-			}),
-	);
-	expect(seen.content).not.toBe('none');
-	expect(seen.animation).toContain('wiper-sheen');
-	await expect(region).toHaveAttribute('data-state', 'dwell', { timeout: 10_000 });
-	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
-});
-
-// The deck skin (ruled 2026-09-09): the dash strip is the one sanctioned opaque
-// chassis; its keys keep the amber light-pipe as their measurable boundary,
-// the LCD counts the dwell down, the VU bars step once per wipe, and the
-// marquee moves only while the wipers run.
-test('the deck chassis keys keep a measurable boundary and every deck element is square', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await pointerAway(page);
-	const region = pane(page);
-	await expect(region).toHaveAttribute('data-skin', 'deck');
-	// Rendered colours through a canvas (computed styles are oklch()).
-	const painted = await region.locator('.wiper-switch, .wiper-stalk__detent').evaluateAll((els) => {
-		const canvas = document.createElement('canvas');
-		canvas.width = canvas.height = 1;
-		const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-		const rgb = (css: string) => {
-			ctx.clearRect(0, 0, 1, 1);
-			ctx.fillStyle = css;
-			ctx.fillRect(0, 0, 1, 1);
-			const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
-			return { red, green, blue, alpha: alpha / 255 };
-		};
-		const chassis = els[0].closest('.wiper-controls') as Element;
-		return {
-			ground: rgb(getComputedStyle(chassis).backgroundColor),
-			keys: els.map((el) => {
-				const s = getComputedStyle(el);
-				return {
-					top: Number.parseFloat(s.borderTopWidth),
-					sides: [s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth],
-					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius],
-					pipe: rgb(s.borderTopColor),
-				};
-			}),
-		};
-	});
-	expect(painted.ground.alpha, 'the deck chassis is opaque').toBe(1);
-	expect(painted.keys).toHaveLength(5);
-	for (const key of painted.keys) {
-		expect(key.top).toBe(2);
-		expect(key.sides).toEqual(['0px', '0px', '0px']);
-		expect(key.radius).toEqual(['0px', '0px', '0px', '0px']);
-		expect(key.pipe.alpha).toBe(1);
-		expect(
-			roundRatio(contrastRatio(key.pipe, painted.ground)),
-			'rendered light-pipe on the rendered chassis',
-		).toBeGreaterThanOrEqual(3);
-	}
-	for (const selector of ['.wiper-lcd', '.wiper-vu i', '.wiper-switch__lamp', '.wiper-marquee']) {
-		for (const el of await region.locator(selector).all()) {
-			expect(await el.evaluate((node) => getComputedStyle(node).borderRadius), selector).toBe('0px');
-		}
-	}
-});
-
-test('the LCD counts the dwell down and the VU bars step at the turnaround', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await selectDetent(page, 'Intermittent');
-	const region = pane(page);
-	const digits = region.locator('.wiper-lcd__digits');
-	// The counter's rendered digits are not observable through computed
-	// style (content stays the counter() expression); the registered
-	// integer that feeds it is.
-	const readout = () => digits.evaluate((el) => getComputedStyle(el).getPropertyValue('--wiper-left').trim());
-	const bars = () =>
-		region.locator('.wiper-vu i').evaluateAll((els) => els.map((el) => getComputedStyle(el).transform));
-	// A fresh dwell, then two readings a second apart: the count falls.
-	await region.evaluate(
-		(el) =>
-			new Promise<void>((resolve) => {
-				let wiped = false;
-				const observer = new MutationObserver(() => {
-					const state = el.getAttribute('data-state');
-					if (state === 'wiping') wiped = true;
-					if (wiped && state === 'dwell') {
-						observer.disconnect();
-						resolve();
-					}
-				});
-				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
-			}),
-	);
-	const barsBefore = await bars();
-	await expect.poll(readout, { timeout: 4000 }).toMatch(/^[1-4]$/u);
-	const a = Number(await readout());
-	await page.waitForTimeout(1200);
-	const b = Number(await readout());
-	expect(b).toBeLessThan(a);
-	// After the next turnaround the bars stand at new heights.
-	const pageBefore = await region.getAttribute('data-page');
-	await expect.poll(async () => region.getAttribute('data-page'), { timeout: 12_000 }).not.toBe(pageBefore);
-	await page.waitForTimeout(900);
-	expect(await bars()).not.toEqual(barsBefore);
-});
-
-test('the marquee moves only while the wipers run', async ({ page }) => {
-	await page.setViewportSize(WIDE);
-	await page.goto('/');
-	await pointerAway(page);
-	const region = pane(page);
-	const track = region.locator('.wiper-marquee__track');
-	const state = () =>
-		track.evaluate((el) => `${getComputedStyle(el).animationName}/${getComputedStyle(el).animationPlayState}`);
-	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
-	expect(await state()).toBe('wiper-marquee/running');
-	await region.hover();
-	await expect(region).toHaveAttribute('data-state', 'paused');
-	expect(await state()).toBe('wiper-marquee/paused');
-	await selectDetent(page, 'Off');
-	await expect(region).toHaveAttribute('data-state', 'off');
-	expect(await state()).toBe('none/running');
-});
-
 test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
 
-	test('the served HTML is the resting grid with no dead chrome', async ({ page }) => {
+	test('the served HTML is the grid with no dead chrome', async ({ page }) => {
 		await page.goto('/');
 		const list = page.locator('#goals .goal-list');
 		await expect(list.locator('> li')).toHaveCount(publicGoals.length);
-		// No rotator chrome in the static document: no buttons, no switch, no
-		// stalk, no arms, no inline style on the list, no hidden rows.
+		// No chrome in the static document: no buttons, no switch, no stalk, no
+		// canvas, no inline style on the list, no hidden rows.
 		await expect(page.locator('#goals button')).toHaveCount(0);
-		await expect(page.locator('#goals [role="switch"], #goals [role="radiogroup"]')).toHaveCount(0);
-		await expect(page.locator('#goals .wiper svg')).toHaveCount(0);
+		await expect(page.locator('#goals [role="switch"], #goals [role="radiogroup"], #goals .wiper-stalk')).toHaveCount(
+			0,
+		);
+		await expect(page.locator('#goals svg, #goals canvas')).toHaveCount(0);
+		await expect(list).not.toHaveClass(/goal-list--paged/u);
 		await expect(list).not.toHaveAttribute('style', /./u);
 		await expect(page.locator('#goals [aria-hidden="true"]')).toHaveCount(0);
-		await expect(pane(page)).toHaveAttribute('data-state', 'off');
-		// The resting layout is the ratified borderless grid inside the pane,
-		// not a scroller; the edit links are already there.
+		// The resting layout is the ratified borderless grid, not a scroller;
+		// the edit links are already there.
 		expect(await list.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
 		expect(await list.evaluate((el) => getComputedStyle(el).overflowX)).toBe('visible');
 		await expect(page.locator('#goals .goal-edit a')).toHaveCount(publicGoals.length);
 	});
 });
 
-test('the hero carries one spelling of the Friday hours', async ({ page }) => {
+test('the hero carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
 	const session = page.locator('.hero .hero-session');
 	await expect(session.getByRole('heading', { level: 3 })).toHaveText('Public work sessions');
-	await expect(session).toContainText('Fridays, about 3 to 5 PM ET');
+	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
 	await expect(session).not.toContainText('3–5');
-	await expect(page.getByText(/Fridays, about 3 to 5 PM ET/u)).toHaveCount(1);
+	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 });
 
 test('GitHub sits in the header as an outbound link and the AX footer row is gone', async ({ page }) => {

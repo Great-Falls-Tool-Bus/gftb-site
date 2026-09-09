@@ -74,19 +74,23 @@ describe('tinyvectors default-motion contract', () => {
 		// Canvas propagation contract (CSS Backgrounds 3 §2.11.2): a
 		// negative-z layer paints above the canvas background but below every
 		// in-flow background, so the page ground must live on the CANVAS —
-		// body propagates it there — and no root-level rule may declare a
-		// background of its own. A background on :root (or html) stops the
+		// body propagates it there. Skeleton imports an html background, so
+		// merely omitting one here does not clear it. An opaque root stops the
 		// propagation: body's opaque ground then paints on body's own box,
 		// which stacks OVER all negative-z layers, and the blobs render fully
 		// occluded while their physics loop keeps burning frames (the PR #62
 		// round-3 regression). The print block's `html, body` reset is a
 		// different selector shape and stays exempt: paper hides the layer
 		// outright.
-		for (const match of appCss.matchAll(/^(?::root|html)\s*\{([\s\S]*?)\n\}/gmu)) {
+		for (const match of appCss.matchAll(/^:root\s*\{([\s\S]*?)\n\}/gmu)) {
 			expect(match[1], `root-level rule must not declare a background (canvas propagation):\n${match[0]}`).not.toMatch(
-				/^\s*background\s*:/mu,
+				/^\s*background(?:-color|-image)?\s*:/mu,
 			);
 		}
+		const htmlBlock = /^html\s*\{([\s\S]*?)\n\}/mu.exec(appCss)?.[1] ?? '';
+		expect(htmlBlock, 'clear the imported root fill and image').toMatch(/^\s*background:\s*transparent;/mu);
+		// The registered browser spec checks the compiled cascade and paint,
+		// including imported CSS that this source-level seam cannot inspect.
 		const bodyBlock = /^body\s*\{([\s\S]*?)\n\}/mu.exec(appCss)?.[1] ?? '';
 		expect(bodyBlock, 'body owns the propagated canvas background').toMatch(/^\s*background:/mu);
 	});

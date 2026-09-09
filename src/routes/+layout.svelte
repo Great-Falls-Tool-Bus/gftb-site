@@ -225,10 +225,8 @@
 		<div class="site-footer__inner">
 			<div class="site-footer__intro">
 				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
-				<!-- Build provenance (D10, demo #140 fe32de1): the short sha plus the
-				     "GitHub-verified" label — main is merged through GitHub, so its
-				     commits are signed by GitHub's web-flow key (committer =
-				     GitHub), not the author's own key. Degrade-to-nothing on
+				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
+				     Degrade-to-nothing on
 				     local/unstamped builds is already the build-info contract.
 				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
 				     /commit page because that repo is public; this carrier is
@@ -242,12 +240,11 @@
 				     ruling that would widen the sanctioned exception. -->
 				{#if buildShaShort}
 					<p class="site-footer__provenance">
-						built from <code>{buildShaShort}</code>, GitHub-verified
+						built from <code>{buildShaShort}</code>
 					</p>
 				{/if}
 				<p class="site-footer__licensing">
-					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · visual credits are listed with
-					each image.
+					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
 				</p>
 			</div>
 			{#each footerNavGroups as group (group.heading)}

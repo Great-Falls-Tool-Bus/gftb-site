@@ -32,7 +32,7 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		loadComponent: () => import('../../content/log/2026-08-06-drafts-out-and-a-scope-expansion.svx'),
 	},
 	{
-		slug: '2026-08-11-how-tools-will-move',
+		slug: '2026-08-11-semaphore',
 		metadata: {
 			date: '2026-08-11',
 			title: 'Sweet semaphores and lore',
@@ -43,8 +43,8 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 			image_alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
 			image_aspect: '4/3',
 		},
-		sourcePath: 'src/content/log/2026-08-11-how-tools-will-move.svx',
-		loadComponent: () => import('../../content/log/2026-08-11-how-tools-will-move.svx'),
+		sourcePath: 'src/content/log/2026-08-11-semaphore.svx',
+		loadComponent: () => import('../../content/log/2026-08-11-semaphore.svx'),
 	},
 	{
 		slug: '2026-08-13-networking-options-for-the-bus',
@@ -57,18 +57,6 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		},
 		sourcePath: 'src/content/log/2026-08-13-networking-options-for-the-bus.svx',
 		loadComponent: () => import('../../content/log/2026-08-13-networking-options-for-the-bus.svx'),
-	},
-	{
-		slug: '2026-08-14-the-system-in-diagrams',
-		metadata: {
-			date: '2026-08-14',
-			title: 'We laugh, we graph, we diagramming the system',
-			summary: 'I love graphs almost as much as I love email',
-			tags: ['diagrams', 'ricing'],
-			published: true,
-		},
-		sourcePath: 'src/content/log/2026-08-14-the-system-in-diagrams.svx',
-		loadComponent: () => import('../../content/log/2026-08-14-the-system-in-diagrams.svx'),
 	},
 	{
 		slug: '2026-09-07-alex-the-wheel-maven',

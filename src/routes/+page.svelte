@@ -12,12 +12,8 @@
 	// failsafe, so no-JS / reduced-motion / dead-bundle visitors always see
 	// content at rest — see src/lib/motion.svelte.ts.
 
-	// The front page is the ratified spec §3 page order (:83-93), eight rows,
-	// nothing else. Rows render from files/data (the log pipeline, the photo
-	// record, the nav SSOT); every string an operator has not authored is a
-	// TODO(jess) slot (addendum B1.3: the baked prose sections are killed,
-	// their swept text preserved in the comment slots restoration PR-5
-	// recorded).
+	// Front-page copy follows the operator's current content selections.
+	// Logs, goals and navigation render from their source files and manifests.
 
 	// Operator ruling 2026-09-01: latest five minified logs on home —
 	// supersedes the 2026-08-30 single-row scope (the citation form and
@@ -44,28 +40,10 @@
 	// docs/attribution.md; a phone now pulls the 640 or 1280 candidate instead.
 	const photoBase = '/photos/great-falls-lewiston-1930s';
 	const photoWidths = [640, 1280, 1920];
-	const historyPhoto = {
-		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
-		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
-		fallback: `${photoBase}-1280.jpg`,
-		sizes: '(min-width: 76rem) 604px, (min-width: 48rem) 52vw, 100vw',
-	};
 
-	// ── HERO SOURCE SWAP POINT ────────────────────────────────────────────
-	// The hero backdrop reuses the licensed Great Falls postcard renditions
-	// the history figure already ships (credits recorded in NOTICE and
-	// docs/attribution.md). The bus-photo corpus is pending its
-	// colorspace/EXIF audit; when an audited photo lands, swap ONLY this
-	// constant. The layer is decorative: empty alt, aria-hidden wrapper.
-	//
-	// `sizes` is its OWN value (apex-gaps diagnosis 2026-08-20 item 1),
-	// NOT historyPhoto.sizes: this picture fills `.hero`, which breaks out
-	// to the full 100vw band (app.css `.hero { width: 100vw; margin-left:
-	// calc(50% - 50vw); }`), not the ~604px-capped column the History
-	// thumbnail renders in. Reusing History's sizes told the browser this
-	// was a small, column-capped image, so at a 1440px viewport it picked
-	// the 640w candidate and stretched it ~2.3x via object-fit: cover —
-	// compounding the crush the scrim/blur tuning above fixes.
+	// The decorative hero uses the licensed postcard renditions credited in
+	// NOTICE and docs/attribution.md. Its sizes value matches the full viewport
+	// width so the browser selects a rendition large enough for the backdrop.
 	const heroPhoto = {
 		webp: photoWidths.map((width) => `${photoBase}-${width}.webp ${width}w`).join(', '),
 		jpeg: photoWidths.map((width) => `${photoBase}-${width}.jpg ${width}w`).join(', '),
@@ -109,7 +87,7 @@
 			     the meta description carriers, pinned by
 			     e2e/acceptance-copy-deslop.spec.ts) and the triad tail was
 			     removed as motion slop. -->
-			<p class="lede">The Great Falls Tool Bus is becoming a community-run tool library.</p>
+			<p class="lede">The Great Falls Tool Bus is a community-run tool library.</p>
 			<!-- Row 3 (spec §3 :87): the one primary interest/help CTA, pointing
 			     at the contact page (B1.4: the form lives on its own page).
 			     TODO(jess): CTA wording (interim label salvaged from PR-5). -->
@@ -126,13 +104,12 @@
 			     statement. -->
 			<h2 id="status-title">Current status</h2>
 			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
-			<p class="muted">Updates here describe completed work.</p>
 			<!-- Current operator placement: the recurring hours belong in the
 			     hero, once. Naming consent covers the schedule, not a live location. -->
 			<section class="hero-session" aria-labelledby="next-title">
 				<h3 id="next-title">Public work sessions</h3>
 				<p>
-					Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the
+					Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the
 					<a href="/contact">contact form</a> to confirm before traveling.
 				</p>
 				<p class="muted">
@@ -151,22 +128,19 @@
 		</div>
 
 		{#if publicGoals.length > 0}
-			<!-- Notes & Goals: the borderless timeline rows (never-cards stands:
-			     title, plain window, one sentence, at most one CTA per row) now
-			     ride the wiper rotator. Without JavaScript, with wipers off, under
-			     reduced motion and on paper the served HTML is the same resting
-			     grid as before; hydration adds the frosted pane's paging, the
-			     wiper arms and the dash controls. See
-			     src/lib/components/WiperRotator.svelte for the whole contract and
+			<!-- Notes & Goals: the borderless rows (never-cards stands: title,
+			     plain window, one sentence, at most one CTA per row) as a plain grid
+			     in every state. Operator ruling 2026-09-09: the wiper rotator is off
+			     the public surface until the ratified replacement lands; the served
+			     HTML, reduced motion and paper all show this same grid. See
 			     NotesAndGoals.svelte for the goal rows and their Edit links.
 
-			     The designed `media` snippet below is unchanged: it still consumes
-			     ONLY the schema's frontmatter group (src/lib/featured-image-schema.ts)
-			     and is graceful in absence (an imageless goal renders no figure
-			     and no reserved box). The .goal-media crop box (app.css) fixes the
-			     media height from CSS before any bytes arrive, so lazy-loading
-			     cannot shift layout and the rotator's one-item-tall mobile budget
-			     holds; a goal's own image_aspect overrides the default crop inline. -->
+			     The designed `media` snippet below consumes ONLY the schema's
+			     frontmatter group (src/lib/featured-image-schema.ts) and is graceful
+			     in absence (an imageless goal renders no figure and no reserved box).
+			     The .goal-media crop box (app.css) fixes the media height from CSS
+			     before any bytes arrive, so lazy-loading cannot shift layout; a goal's
+			     own image_aspect overrides the default crop inline. -->
 			<NotesAndGoals goals={publicGoals} labelledby="goals-title">
 				{#snippet media(goal)}
 					{#if goal.metadata.image}
@@ -273,42 +247,7 @@
 		<p><a href="/log">Older log entries</a></p>
 	</section>
 
-	<!-- Row 7 (spec §3 :92): short history. -->
-	<section class="section reveal-armed" use:reveal={{ delay: 210 }} id="history" aria-labelledby="history-title">
-		<div class="history-card">
-			<figure>
-				<picture>
-					<source type="image/webp" srcset={historyPhoto.webp} sizes={historyPhoto.sizes} />
-					<img
-						src={historyPhoto.fallback}
-						srcset={historyPhoto.jpeg}
-						sizes={historyPhoto.sizes}
-						alt="Historic postcard view of Great Falls between Auburn and Lewiston"
-						width="1280"
-						height="771"
-						loading="lazy"
-						decoding="async"
-					/>
-				</picture>
-				<figcaption>
-					Tichnor Brothers, Inc., Boston Public Library collection no. 69902. Public domain; no known restrictions.
-				</figcaption>
-			</figure>
-			<div class="history-card__copy">
-				<!-- TODO(jess): history copy. "A name shaped by this place." and
-				     its body were swept (the body's "useful things moving between
-				     neighbors" is motion copy — the bus is parked; salvage of the
-				     PR-5 sweep). The interim heading is the spec row's own term;
-				     the short history is yours to write. -->
-				<h2 id="history-title">History</h2>
-				<p>The falls and working river connect Lewiston and Auburn; the bus borrows that local name.</p>
-			</div>
-		</div>
-	</section>
-
-	<!-- Row 8 (spec §3 :93): contact and discussion information — a LINK to
-	     the contact page (B1.4: the form lives on its own page, never the
-	     root). -->
+	<!-- The contact form lives on its own page; home links to it. -->
 	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="contact" aria-labelledby="contact-title">
 		<div class="section-heading">
 			<h2 id="contact-title">Contact and discussion</h2>

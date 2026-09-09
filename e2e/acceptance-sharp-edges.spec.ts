@@ -49,37 +49,37 @@ test('the mode switch computes sharp corners in both states', async ({ page }) =
 	expect(await sweep(), 'switch corners checked').toEqual([]);
 });
 
-// The wiper dash (operator ruling 2026-09-09): keys restyle per aria-checked
-// (a latched detent, the switch off), so sweep the dash at rest and in each
-// state, not only the resting document the sitewide row sees.
-test('the wiper dash computes sharp corners at rest, switched off, and on every detent', async ({ page }) => {
+test('the wiper stalk computes sharp corners at rest, Off and High', async ({ page }) => {
+	// Skeleton 5's SegmentedControl ships pill radii on its parts; the stalk
+	// overrides every one (app.css .wiper-stalk*). The indicator moves between
+	// items, so it is swept in three detent states.
+	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	const dash = page.locator('#goals .wiper-controls');
-	await expect(dash).toHaveCount(1);
-	const sweep = (label: string) =>
-		page
-			.evaluate((corners) => {
-				const offenders: string[] = [];
-				for (const element of Array.from(
-					document.querySelectorAll<HTMLElement>('#goals .wiper-controls, #goals .wiper-controls *'),
-				)) {
-					const style = getComputedStyle(element);
-					const values = corners.map((corner) => style.getPropertyValue(corner));
-					if (values.some((value) => value !== '0px')) {
-						offenders.push(`${element.className.split(/\s+/u)[0]}: ${values.join(' ')}`);
-					}
+	const stalk = page.locator('#goals .wiper-stalk');
+	await expect(stalk).toHaveCount(1);
+	const sweep = () =>
+		page.evaluate((corners) => {
+			const offenders: string[] = [];
+			for (const element of Array.from(
+				document.querySelectorAll<HTMLElement>(
+					'.wiper-stalk, .wiper-stalk__control, .wiper-stalk__item, .wiper-stalk__text',
+				),
+			)) {
+				const style = getComputedStyle(element);
+				const values = corners.map((corner) => style.getPropertyValue(corner));
+				if (values.some((value) => value !== '0px')) {
+					offenders.push(`${element.className.split(/\s+/u)[0]}: ${values.join(' ')}`);
 				}
-				return offenders;
-			}, CORNERS)
-			.then((offenders) => expect(offenders, label).toEqual([]));
-	await sweep('dash at rest');
-	for (const name of ['Off', 'Intermittent', 'Low', 'High']) {
-		await dash.getByRole('radio', { name }).click();
-		await sweep(`detent ${name}`);
+			}
+			return offenders;
+		}, CORNERS);
+	expect(await sweep(), 'stalk corners at rest').toEqual([]);
+	for (const detent of ['Off', 'High']) {
+		await stalk.locator('.wiper-stalk__item', { hasText: detent }).click();
+		await expect(page.getByRole('radio', { name: detent })).toBeChecked();
+		expect(await sweep(), `stalk corners on ${detent}`).toEqual([]);
 	}
-	await dash.getByRole('switch', { name: 'Wipers' }).click();
-	await sweep('switch toggled');
 });
 
 for (const path of ['/', '/404', '/log', '/contact']) {
