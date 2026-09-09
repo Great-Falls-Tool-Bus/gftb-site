@@ -90,8 +90,19 @@ export interface InkSampleRect {
  * text boxes, relative to the element). Returns the darkest and lightest
  * pixel by WCAG relative luminance across all rects.
  */
+/**
+ * A second capture that marks where an element's own paint is present: the
+ * probe style paints a sentinel colour where the element paints at all (a
+ * masked-away region shows whatever lies beneath instead), and `isPresent`
+ * reads the sentinel back. Pixels that fail it are left out of a measure.
+ */
+export interface PresenceProbe {
+	style: string;
+	isPresent: (rgb: Rgb) => boolean;
+}
+
 /** Screenshot one element's box with `hideSelector` hidden, decoded, with the CSS to PNG scale. */
-async function captureElement(page: Page, selector: string, hideSelector?: string) {
+async function captureElement(page: Page, selector: string, hideSelector?: string, extraStyle?: string) {
 	const box = await page.evaluate((sel) => {
 		const el = document.querySelector(sel);
 		if (!el) return null;
@@ -100,14 +111,23 @@ async function captureElement(page: Page, selector: string, hideSelector?: strin
 	}, selector);
 	if (!box) throw new Error(`${selector} is not present on the page`);
 	// The notes paint over the scene; hide them for the capture so only the
-	// scene's own pixels are read under their boxes.
-	if (hideSelector) await page.addStyleTag({ content: `${hideSelector} { visibility: hidden !important; }` });
+	// scene's own pixels are read under their boxes. One tagged style tag
+	// carries the hide rule and any probe style, and is removed afterwards.
+	const css = [hideSelector ? `${hideSelector} { visibility: hidden !important; }` : '', extraStyle ?? '']
+		.filter(Boolean)
+		.join('\n');
+	if (css) {
+		await page.evaluate((content) => {
+			const style = document.createElement('style');
+			style.dataset.glassProbe = '1';
+			style.textContent = content;
+			document.head.append(style);
+		}, css);
+	}
 	const buffer = await page.screenshot({ clip: box });
-	if (hideSelector) {
+	if (css) {
 		await page.evaluate(() => {
-			document.querySelectorAll('style').forEach((s) => {
-				if (s.textContent?.includes('visibility: hidden !important')) s.remove();
-			});
+			document.querySelectorAll('style[data-glass-probe]').forEach((s) => s.remove());
 		});
 	}
 	const image = decodePng(buffer);
@@ -141,8 +161,10 @@ export async function measureExtremesInRects(
 	selector: string,
 	rects: InkSampleRect[],
 	hideSelector?: string,
+	presence?: PresenceProbe,
 ) {
 	const { image, scaleX, scaleY } = await captureElement(page, selector, hideSelector);
+	const marks = presence ? (await captureElement(page, selector, hideSelector, presence.style)).image : null;
 	let darkest: { luminance: number; rgb: Rgb } | null = null;
 	let lightest: { luminance: number; rgb: Rgb } | null = null;
 	let sampled = 0;
@@ -150,6 +172,7 @@ export async function measureExtremesInRects(
 		const { x0, y0, x1, y1 } = pngBounds(rect, image, scaleX, scaleY);
 		for (let y = y0; y < y1; y += 1) {
 			for (let x = x0; x < x1; x += 1) {
+				if (marks && presence && !presence.isPresent(pixelLuminance(marks, x, y).rgb)) continue;
 				const pixel = pixelLuminance(image, x, y);
 				sampled += 1;
 				if (!darkest || pixel.luminance < darkest.luminance) darkest = pixel;

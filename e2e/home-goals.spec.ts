@@ -478,6 +478,15 @@ for (const scheme of ['light', 'dark'] as const) {
 		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 		await page.waitForTimeout(1500);
+		// Mid-sweep a pane is masked along with its text, so a text box can lie
+		// over bare scene where no glyph is painted: those pixels owe nothing.
+		// A second capture paints the pane's fill magenta wherever the pane is
+		// present and the measure keeps only those pixels.
+		const panePresent = {
+			style: '#goals .goal-list > li::before { background: #ff00ff !important; backdrop-filter: none !important; }',
+			isPresent: (rgb: { red: number; green: number; blue: number }) =>
+				rgb.red > 180 && rgb.green < 100 && rgb.blue > 180,
+		};
 		const check = async (label: string) => {
 			const rects = await paneTextRects(page);
 			expect(rects.length, `${label}: text rects`).toBeGreaterThan(3);
@@ -486,7 +495,9 @@ for (const scheme of ['light', 'dark'] as const) {
 				'#goals .goal-list',
 				rects,
 				'#goals .goal-list > li > *, #goals canvas.wiper__blades',
+				panePresent,
 			);
+			expect(extremes.sampled, `${label}: pixels where a pane is present`).toBeGreaterThan(2000);
 			const worst = async (role: string) => {
 				const ink = await resolveRoleRgb(page, role, '#goals .goal-list > li');
 				return Math.min(
