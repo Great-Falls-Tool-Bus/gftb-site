@@ -1,20 +1,19 @@
 # Great Falls Tool Bus public site
 
-This private repository builds the public website for the Great Falls Tool Bus
-in Lewiston and Auburn, Maine. It holds page copy, goals, and reviewed daily
+This repository builds the public apex website for the Great Falls Tool Bus
+in Lewiston and Auburn, Maine. It holds page copy, goals, and build 
 logs. SvelteKit produces static files with `adapter-static`.
 
 Member accounts, payments, mail services, and deployment belong to other
-repositories. The contact form sends requests to the separately operated
-`forms.latoolb.us` service.
+repositories. The contact form sends requests to the `forms.latoolb.us` service.
 
 Jess's internal tooling and the Linear system used to manage this work are
-presently private. GloriousFlywheel infrastructure is provided by Tinyland,
-Inc.
+presently private.  Infrastructure is provided by Tinyland,
+Inc.  GFTB is an alpha adopter of the GloriousFlywheel build system. 
 
 ## Start work
 
-You need Git, Nix, and GitHub access to this private repository. Clone it and
+You need Git, Nix, and GitHub access.  Clone and
 enter the pinned Nix shell. Then use Just for repository operations:
 
 ```bash
@@ -77,9 +76,8 @@ checks, and `site-build` requests the scanned deployment bundle. See
 The existing candidate workflow calls `just container-image-publish` on Linux.
 It packages the static build as
 `ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>`. It does not
-deploy. The operator release lane may make this web image package publicly
-readable after review and must prove a digest pull before cutover. Source stays
-private.
+deploy. The release lane may make this web image package publicly
+readable after review and must prove a digest pull before cutover. 
 
 The infra repository owns the existing attended release: select the reviewed
 source and digest, apply them, and read back the running and served site.
@@ -88,7 +86,7 @@ merge or image push alone does not prove that production serves that version.
 
 ## Content and licensing
 
-Daily logs live in `src/content/log/`. Use only the frontmatter fields allowed
+Static build logs live in `src/content/log/`. Use only the frontmatter fields allowed
 by [the content contract](AGENTS.md#public-content-boundary), including its
 optional image group. Follow [the content guide](docs/content-train.md) for the
 review process. Only `published: true` entries enter the public manifest.

@@ -95,7 +95,7 @@ test.describe('JavaScript disabled', () => {
 		);
 
 		await page.goto('/log');
-		await expect(page.locator('.log-list li')).toHaveCount(4);
+		await expect(page.locator('.log-list li')).toHaveCount(publicLogs.length);
 		const html = await page.content();
 		expect(html).not.toContain('Mapping MVP, V0 and beyond');
 	});

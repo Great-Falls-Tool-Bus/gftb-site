@@ -14,6 +14,7 @@
 - [ ] No new gitleaks findings
 - [ ] GFTB Skeleton `5.0.0` exact pin preserved
 - [ ] Bazel graph / RBE proof evidence is linked when Bazel authority changes
+- [ ] QA review requested (out of band; QA reviewers hold Triage).
 
 ## Screenshots / Output
 

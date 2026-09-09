@@ -102,6 +102,26 @@ async function pointerAway(page: Page) {
 	await page.mouse.move(0, 0);
 }
 
+// The glass capture is viewport-relative and the sticky header paints over
+// whatever scrolls under it, so a pane taller than the viewport would put the
+// header's ink and its white ground inside the scan and read as a 1:1 floor.
+// The notes grow at the operator's pace; the rail grows the viewport to fit
+// the whole pane below the header, then proves that it did.
+async function fitPaneBelowHeader(page: Page, width: number) {
+	const headerBottom = await page.locator('.site-header').evaluate((el) => el.getBoundingClientRect().bottom);
+	const paneHeight = await pane(page).evaluate((el) => el.getBoundingClientRect().height);
+	await page.setViewportSize({ width, height: Math.max(900, Math.ceil(paneHeight + headerBottom * 2 + 32)) });
+	await pane(page).evaluate((el, offset) => {
+		window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - offset);
+	}, headerBottom + 16);
+	const rect = await pane(page).evaluate((el) => {
+		const r = el.getBoundingClientRect();
+		return { top: r.top, bottom: r.bottom, inner: window.innerHeight };
+	});
+	expect(rect.top, 'the pane sits below the sticky header').toBeGreaterThanOrEqual(headerBottom);
+	expect(rect.bottom, 'the whole pane sits inside the viewport').toBeLessThanOrEqual(rect.inner);
+}
+
 async function selectDetent(page: Page, name: string) {
 	await pane(page).getByRole('radiogroup', { name: 'Wiper speed' }).getByRole('radio', { name }).click();
 	await pointerAway(page);
@@ -618,7 +638,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		await setScheme(page, scheme);
-		await pane(page).scrollIntoViewIfNeeded();
+		await fitPaneBelowHeader(page, 1440);
 		await pointerAway(page);
 		expect(await pane(page).evaluate((el) => getComputedStyle(el).backdropFilter)).toContain('blur');
 
