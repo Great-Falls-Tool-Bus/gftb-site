@@ -206,15 +206,4 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		text: '',
 		sourcePath: 'src/content/goals/83-benefit-tools.md',
 	},
-	{
-		slug: '84-benefit-activities',
-		metadata: {
-			kind: 'benefit',
-			order: 50,
-			title: 'Activities. Science. Things built together.',
-			published: true,
-		},
-		text: '',
-		sourcePath: 'src/content/goals/84-benefit-activities.md',
-	},
 ];

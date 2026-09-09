@@ -79,7 +79,6 @@ test('member benefits and help asks render with their CTAs', async ({ page }) =>
 	await expect(page.getByRole('heading', { name: 'What members get' })).toBeVisible();
 	await expect(page.locator('#benefits li')).toHaveCount(memberBenefits.length);
 	await expect(page.locator('#benefits')).toContainText('latoolb.us');
-	await expect(page.locator('#benefits')).toContainText('once the mail system is proved');
 	await expect(page.locator('#help li')).toHaveCount(publicHelpAsks.length);
 	expect(publishedGoalEntries.length).toBe(publicGoals.length + memberBenefits.length + publicHelpAsks.length);
 	for (const link of await page.locator('#help a, #goals .goal-cta a').all()) {
