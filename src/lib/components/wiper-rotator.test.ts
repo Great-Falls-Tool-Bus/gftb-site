@@ -283,8 +283,10 @@ describe('the instruments (rain accumulation, dwell gauge)', () => {
 	it('mounts the gauge inside the dash, after the hydration gate, hidden from AT', () => {
 		const gate = rotator.indexOf('{#if enhanced && cycle.rotatable');
 		const gauge = rotator.indexOf('<span class="wiper-gauge" aria-hidden="true"></span>');
-		expect(gauge).toBeGreaterThan(gate);
-		expect(rotator.indexOf('<div class="wiper-controls"')).toBeLessThan(gauge);
+		const dash = rotator.indexOf('<div class="wiper-controls"');
+		expect(gate).toBeGreaterThan(-1);
+		expect(dash).toBeGreaterThan(gate);
+		expect(gauge).toBeGreaterThan(dash);
 	});
 
 	it('times the rain and the gauge only inside the no-preference block and keys them on the pane state', () => {
@@ -307,5 +309,21 @@ describe('the instruments (rain accumulation, dwell gauge)', () => {
 		expect(outside).toMatch(/\.wiper--rain\[data-stroke='back'\]::before \{\s*opacity: 0\.15;/u);
 		expect(outside).toMatch(/\.wiper-gauge::before \{[^}]*transform: scaleX\(0\);/u);
 		expect(outside).toMatch(/\.wiper\[data-state='wiping'\] \.wiper-gauge::before \{\s*transform: scaleX\(1\);/u);
+	});
+});
+
+describe('the dwell timer and the instruments share one clock', () => {
+	const rotator = read('src/lib/components/WiperRotator.svelte');
+	const cycle = read('src/lib/components/wiper-rotator.svelte.ts');
+
+	it('banks the remaining dwell on a pause and resumes from it', () => {
+		expect(cycle).toContain('dwellRemainingMs: number | null = $state(null);');
+		expect(rotator).toContain('const remaining = untrack(() => cycle.dwellRemainingMs) ?? cycle.dwellMs;');
+		expect(rotator).toContain('cycle.dwellRemainingMs = Math.max(0, remaining - (performance.now() - armedAt));');
+	});
+
+	it('wipes at once on a detent change so every clock restarts together', () => {
+		expect(cycle).toContain("if (changed && next !== 'off' && this.phase === 'dwell') this.startWipe(true);");
+		expect(cycle).toContain('if (force ? !(this.rotatable && this.enabled) : !this.running) return;');
 	});
 });

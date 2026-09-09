@@ -42,7 +42,9 @@
 	//   wipe is `animationend`/`animationcancel`, and a timer failsafe covers a
 	//   throttled tab. The old page fades out under the outbound stroke and
 	//   the new page fades in under the return stroke (data-stroke), so the
-	//   two never overprint each other. The only JS timer is the dwell between wipes, an
+	//   two never overprint each other. A pause banks the dwell time still
+	//   owed and resumes from it, matching the frozen CSS instruments; a
+	//   detent change wipes at once so every clock restarts together; The only JS timer is the dwell between wipes, an
 	//   $effect whose teardown IS the pause;
 	// - rotation pauses while the pointer (mouse, touch or pen) is over the
 	//   pane, while focus is inside the list, and while the document is
@@ -133,8 +135,18 @@
 	// this effect; its teardown clears the pending wipe.
 	$effect(() => {
 		if (!cycle.running || cycle.phase !== 'dwell') return;
-		const handle = setTimeout(() => cycle.startWipe(), cycle.dwellMs);
-		return () => clearTimeout(handle);
+		// Resume from the time still owed (the CSS instruments froze in place
+		// under the pause and resume from the same point), else a full dwell.
+		const remaining = untrack(() => cycle.dwellRemainingMs) ?? cycle.dwellMs;
+		const armedAt = performance.now();
+		const handle = setTimeout(() => cycle.startWipe(), remaining);
+		return () => {
+			clearTimeout(handle);
+			// Teardown while still dwelling is a pause: bank the remainder.
+			if (untrack(() => cycle.phase) === 'dwell') {
+				cycle.dwellRemainingMs = Math.max(0, remaining - (performance.now() - armedAt));
+			}
+		};
 	});
 
 	// Failsafe: if the animation events never arrive (display: none, a

@@ -737,6 +737,18 @@ test('the rain and the gauge fill toward the next wipe and freeze under the poin
 	expect(d.gauge).toBe(c.gauge);
 	await pointerAway(page);
 	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	// After the resume the instruments and the wipe share one clock: the
+	// gauge must not sit pegged at full while nothing happens (the pre-fix
+	// failure was up to a whole dwell of a full gauge before the wipe).
+	const dwell = await dwellOf(page);
+	let pegged = 0;
+	const started = Date.now();
+	while (Date.now() - started < dwell + 3000) {
+		if ((await region.getAttribute('data-state')) !== 'dwell') break;
+		if (/matrix\(1, 0, 0, 1, 0, 0\)/u.test((await sample()).gauge)) pegged += 1;
+		await page.waitForTimeout(250);
+	}
+	expect(pegged, 'quarter-second samples with a full gauge before the wipe').toBeLessThanOrEqual(3);
 });
 
 test('the sheen exists only during a wipe', async ({ page }) => {
