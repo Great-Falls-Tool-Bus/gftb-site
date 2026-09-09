@@ -448,13 +448,15 @@ test('paper gets every note and none of the dash', async ({ page }) => {
 });
 
 // Operator ruling 2026-09-09 (light-pipe): each dash key keeps exactly one
-// border, a 2px --accent top edge, because the browser 1.4.11 collector
+// border, a 2px top edge (accent on the glass skins, destination-sign amber
+// on the deck), because the browser 1.4.11 collector
 // (e2e/acceptance-contrast.spec.ts) reads fills and border-TOP only and
-// visits only /contact. This row runs the collector's own math at / against
-// the real rendered pane in both schemes: max(fill, top edge) against the
-// darkest and the lightest pane pixel must clear 3:1 for every dash key.
+// visits only /contact. This row runs the collector's own math at / in both
+// schemes: max(fill, top edge) against the ground the key sits on must clear
+// 3:1 for every dash key. On the deck that ground is the opaque chassis; on
+// the glass skins it is the darkest and the lightest pane pixel.
 for (const scheme of ['light', 'dark'] as const) {
-	test(`the dash keys are borderless except their light-pipe and clear 3:1 on the real glass (${scheme})`, async ({
+	test(`the dash keys are borderless except their light-pipe and clear 3:1 on their ground (${scheme})`, async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
@@ -463,7 +465,8 @@ for (const scheme of ['light', 'dark'] as const) {
 		await setScheme(page, scheme);
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
-		await expect(pane(page)).toHaveAttribute('data-skin', 'aero');
+		const skin = await pane(page).getAttribute('data-skin');
+		expect(['aero', 'deck']).toContain(skin);
 		const keys = page.locator('#goals .wiper-controls button');
 		await expect(keys).toHaveCount(5);
 		const boxes = await keys.evaluateAll((els) =>
@@ -475,7 +478,6 @@ for (const scheme of ['light', 'dark'] as const) {
 					right: s.borderRightWidth,
 					bottom: s.borderBottomWidth,
 					left: s.borderLeftWidth,
-					topColor: s.borderTopColor,
 					fill: s.backgroundColor,
 					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius],
 				};
@@ -490,27 +492,31 @@ for (const scheme of ['light', 'dark'] as const) {
 			'0px',
 		);
 
-		const extremes = await measureGlassExtremes(page, '#goals .wiper', 16);
-		const accent = await resolveRoleRgb(page, '--accent');
+		// Role colours compute as oklch() here, so grounds and pipes resolve
+		// through the role resolver; only an rgb() fill is parsed directly.
 		const parse = (value: string) => {
 			const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/u.exec(value);
 			if (!m) return null;
 			const alpha = m[4] === undefined ? 1 : Number(m[4]);
 			return alpha === 0 ? null : { red: Number(m[1]), green: Number(m[2]), blue: Number(m[3]) };
 		};
+		const grounds =
+			skin === 'deck'
+				? [await resolveRoleRgb(page, '--inverse-panel')]
+				: await measureGlassExtremes(page, '#goals .wiper', 16).then((x) => [x.darkest.rgb, x.lightest.rgb]);
+		if (skin === 'deck') {
+			const chassis = await page
+				.locator('#goals .wiper-controls')
+				.evaluate((el) => getComputedStyle(el).backgroundColor);
+			expect(chassis, 'the deck chassis is opaque').not.toBe('rgba(0, 0, 0, 0)');
+		}
+		const pipe = await resolveRoleRgb(page, skin === 'deck' ? '--highlight' : '--accent');
 		for (const box of boxes) {
-			// The collector takes the better of the fill and the top edge; the
-			// top edge is always --accent here, so the pipe alone must clear 3:1.
-			const candidates = [accent, parse(box.fill)].filter((c): c is NonNullable<typeof c> => c !== null);
-			const best = Math.max(
-				...candidates.map((c) =>
-					Math.min(
-						roundRatio(contrastRatio(c, extremes.darkest.rgb)),
-						roundRatio(contrastRatio(c, extremes.lightest.rgb)),
-					),
-				),
-			);
-			expect(best, `${box.label} boundary on the pane`).toBeGreaterThanOrEqual(LARGE);
+			// The collector takes the better of the fill and the top edge, so the
+			// pipe alone must clear 3:1 against every ground pixel behind the key.
+			const candidates = [pipe, parse(box.fill)].filter((c): c is NonNullable<typeof c> => c !== null);
+			const best = Math.max(...candidates.map((c) => Math.min(...grounds.map((g) => roundRatio(contrastRatio(c, g))))));
+			expect(best, `${box.label} boundary on its ground`).toBeGreaterThanOrEqual(LARGE);
 		}
 		// The pane's own pseudo paint (droplets, sheen) is square too.
 		for (const pseudo of ['::before', '::after'] as const) {
@@ -756,7 +762,7 @@ test('the sheen exists only during a wipe', async ({ page }) => {
 	await page.goto('/');
 	await selectDetent(page, 'Intermittent');
 	const region = pane(page);
-	await expect(region).toHaveAttribute('data-skin', 'aero');
+	await expect(region).toHaveAttribute('data-skin', /^(aero|deck)$/u);
 	await expect(region).toHaveAttribute('data-state', 'dwell');
 	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
 	const seen = await region.evaluate(
@@ -775,6 +781,104 @@ test('the sheen exists only during a wipe', async ({ page }) => {
 	expect(seen.animation).toContain('wiper-sheen');
 	await expect(region).toHaveAttribute('data-state', 'dwell', { timeout: 10_000 });
 	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+});
+
+// The deck skin (TIN-4338 ruled): the dash strip is the one sanctioned opaque
+// chassis; its keys keep the amber light-pipe as their measurable boundary,
+// the LCD counts the dwell down, the VU bars step once per wipe, and the
+// marquee moves only while the wipers run.
+test('the deck chassis keys keep a measurable boundary and every deck element is square', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await pointerAway(page);
+	const region = pane(page);
+	await expect(region).toHaveAttribute('data-skin', 'deck');
+	const chassis = region.locator('.wiper-controls');
+	expect(await chassis.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+	// Role colours compute as oklch(); resolve them through the role resolver.
+	const ground = await resolveRoleRgb(page, '--inverse-panel');
+	const pipe = await resolveRoleRgb(page, '--highlight');
+	expect(roundRatio(contrastRatio(pipe, ground)), 'amber light-pipe on the chassis').toBeGreaterThanOrEqual(3);
+	const keys = await region.locator('.wiper-switch, .wiper-stalk__detent').evaluateAll((els) =>
+		els.map((el) => {
+			const s = getComputedStyle(el);
+			return {
+				top: Number.parseFloat(s.borderTopWidth),
+				sides: [s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth],
+				radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius],
+			};
+		}),
+	);
+	expect(keys).toHaveLength(5);
+	for (const key of keys) {
+		expect(key.top).toBe(2);
+		expect(key.sides).toEqual(['0px', '0px', '0px']);
+		expect(key.radius).toEqual(['0px', '0px', '0px', '0px']);
+	}
+	for (const selector of ['.wiper-lcd', '.wiper-vu i', '.wiper-switch__lamp', '.wiper-marquee']) {
+		for (const el of await region.locator(selector).all()) {
+			expect(await el.evaluate((node) => getComputedStyle(node).borderRadius), selector).toBe('0px');
+		}
+	}
+});
+
+test('the LCD counts the dwell down and the VU bars step at the turnaround', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Intermittent');
+	const region = pane(page);
+	const digits = region.locator('.wiper-lcd__digits');
+	// The counter's rendered digits are not observable through computed
+	// style (content stays the counter() expression); the registered
+	// integer that feeds it is.
+	const readout = () => digits.evaluate((el) => getComputedStyle(el).getPropertyValue('--wiper-left').trim());
+	const bars = () =>
+		region.locator('.wiper-vu i').evaluateAll((els) => els.map((el) => getComputedStyle(el).transform));
+	// A fresh dwell, then two readings a second apart: the count falls.
+	await region.evaluate(
+		(el) =>
+			new Promise<void>((resolve) => {
+				let wiped = false;
+				const observer = new MutationObserver(() => {
+					const state = el.getAttribute('data-state');
+					if (state === 'wiping') wiped = true;
+					if (wiped && state === 'dwell') {
+						observer.disconnect();
+						resolve();
+					}
+				});
+				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+			}),
+	);
+	const barsBefore = await bars();
+	await expect.poll(readout, { timeout: 4000 }).toMatch(/^[1-4]$/u);
+	const a = Number(await readout());
+	await page.waitForTimeout(1200);
+	const b = Number(await readout());
+	expect(b).toBeLessThan(a);
+	// After the next turnaround the bars stand at new heights.
+	const pageBefore = await region.getAttribute('data-page');
+	await expect.poll(async () => region.getAttribute('data-page'), { timeout: 12_000 }).not.toBe(pageBefore);
+	await page.waitForTimeout(900);
+	expect(await bars()).not.toEqual(barsBefore);
+});
+
+test('the marquee moves only while the wipers run', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await pointerAway(page);
+	const region = pane(page);
+	const track = region.locator('.wiper-marquee__track');
+	const state = () =>
+		track.evaluate((el) => `${getComputedStyle(el).animationName}/${getComputedStyle(el).animationPlayState}`);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+	expect(await state()).toBe('wiper-marquee/running');
+	await region.hover();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	expect(await state()).toBe('wiper-marquee/paused');
+	await selectDetent(page, 'Off');
+	await expect(region).toHaveAttribute('data-state', 'off');
+	expect(await state()).toBe('none/running');
 });
 
 test.describe('without JavaScript', () => {
