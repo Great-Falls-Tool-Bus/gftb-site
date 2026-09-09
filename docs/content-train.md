@@ -50,22 +50,65 @@ moment they know it's still true.
 
 ## The frontmatter contract
 
-Five required keys, one optional, enforced by
-`src/lib/public-log-schema.ts`:
+Five required keys, with optional `updated` and the flat featured-image group,
+are enforced by `src/lib/public-log-schema.ts`:
 
 ```yaml
 ---
-date: '2026-08-20' # YYYY-MM-DD
+date: '2026-08-20'
 title: 'A real title'
 summary: 'One useful sentence, at least 12 characters.'
 tags:
   - website
-published: false # see below
-updated: '2026-08-21' # optional; cannot predate date
+published: false
+updated: '2026-08-21'
 ---
 ```
 
-No other keys are allowed. The schema throws on anything else.
+Dates are quoted `YYYY-MM-DD` strings. The filename must be
+`YYYY-MM-DD-lowercase-slug.svx`, with the same date as the frontmatter. Every
+entry, including a draft, needs its own date; duplicate dates or slugs fail
+validation. A title needs at least three characters, a summary at least twelve,
+and `tags` must be a nonempty list of nonempty strings. Omit `updated` until
+needed; when present, it cannot predate `date`.
+
+The optional image fields are `image`, `image_alt`, `image_caption`, and
+`image_aspect`. `image` and useful alt text travel together. A caption or aspect
+requires that pair. Use a site-relative image path such as
+`/photos/log/a-shelf-1280.jpg`, with a `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`,
+or `.svg` extension; external URLs and traversal paths are refused.
+`image_caption`, if present, must be nonempty. `image_aspect` is a quoted
+fraction such as `'3/2'`, with each positive integer at most three digits.
+Alt text and captions follow the existing copy and naming-consent rules.
+
+For an unpublished entry, `image` may name the asset's future `static/` path
+while its source waits under `src/content/log/_assets-pending/<slug>/`.
+Before publication, complete the image and attribution review in
+[the attribution guide](attribution.md) and move the approved asset into its
+declared `static/` location. A published entry with a missing asset is refused.
+
+No other frontmatter keys are allowed. Use top-level scalars and the simple tag
+list shown above; the parser does not support nested objects or inline YAML
+comments. Put editing instructions in the body or this guide.
+
+## Start from a template
+
+- [Plain log draft](../src/content/templates/public-log.svx)
+- [Log draft with an image](../src/content/templates/public-log-with-image.svx)
+
+Open either literal SVX file in your editor and save a copy under
+`src/content/log/` with the dated filename described above. Replace the example
+date, title, summary, tags, and body; replace the image fields when used, and
+omit optional fields you do not need. Keep `published: false` and the
+`TODO(jess)` marker while the draft awaits review. The templates are ordinary
+SVX examples, with no editor-specific variables or configuration.
+
+The originals live outside the log directory and never become log entries.
+Their actual bytes are checked through the shared frontmatter parser and
+schema by the existing `//:unit_tests` target (`just test-unit` and the remote
+`validate` action). A copied draft also enters the normal log, manifest, and
+build-output checks. No manifest regeneration is needed for an unpublished
+draft; publishing still follows the operator review below.
 
 ## `published: false`, always, from an agent
 
@@ -109,13 +152,14 @@ PR; only the operator merges it.
 
 ## What an agent PR looks like
 
-- One `.svx` file per entry (or a small batch of related entries), each
-  carrying real facts pulled from merged work: program-board receipts, PR
-  numbers, commit SHAs, ticket numbers. Never invented details.
+- One `.svx` file per entry (or a small batch of related entries), with verified
+  public facts. Put supporting program-board receipts, PR numbers, commit SHAs,
+  and ticket references in the PR description, never in the SVX file. Drafts
+  are not private mail storage; do not copy private identities or correspondence
+  into them. Never invent details.
 - `published: false` on every entry, no exceptions.
 - A short `<!-- TODO(jess): ... -->` comment at the top of the body,
-  matching the existing placeholder pattern in
-  `src/content/log/2026-08-16-public-front-door.svx`, so it's obvious at a
+  matching the templates above, so it's obvious at a
   glance that the body is a draft awaiting the operator's own words.
 - `just check` and `just build` both green, including the leak-scan pass
   that runs over every draft in the tree, published or not (drafts are
@@ -130,8 +174,9 @@ one file per row, through `src/lib/generated/goals-manifest.ts`
 (`just goals-manifest-build`, drift-checked by `just goals-manifest-check`
 inside `just check`). Frontmatter keys: `kind` (`goal`, `help`, or `benefit`),
 `order`, `title`, `published`, and optionally `window` (plain-English timing),
-`cta_label` + `cta_href` (travel together), and `source` (internal provenance,
-read at build time and never emitted). The body is one or two plain sentences.
+`cta_label` + `cta_href` (travel together), `source` (internal provenance,
+read at build time and never emitted), and the same optional flat image group
+described above. The body is one or two plain sentences.
 Unpublished entries never reach the manifest, and their text joins the
 build-output leak denylist like draft log entries. Operator ruling 2026-08-31:
 these rows are operator-authored and may carry penciled-in dates.
