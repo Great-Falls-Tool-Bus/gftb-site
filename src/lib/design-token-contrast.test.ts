@@ -306,15 +306,7 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		// silent one.
 		expect(appCss).toMatch(/--inverse-panel:\s*var\(--color-primary-900\)/u);
 		expect(appCss).toMatch(/\.contact-card \{\s*border-radius: 0;\s*\}/u);
-		// Bounded to the contact card's own rule: the one surface that paints
-		// --inverse-panel again is the Notes & Goals deck dash strip, ruled in
-		// on 2026-09-09 as a scoped amendment to the flattening (recorded on
-		// PR #32), and pinned as the ONLY such surface just below.
-		expect(appCss).not.toMatch(/\.contact-card \{[^}]*background: var\(--inverse-panel\);/u);
-		const inversePanelPaints = [...appCss.matchAll(/([^{}]+)\{[^{}]*background: var\(--inverse-panel\);/gu)].map((m) =>
-			m[1].trim().split('\n').pop()?.trim(),
-		);
-		expect(inversePanelPaints).toEqual([".wiper[data-skin='deck'] .wiper-controls"]);
+		expect(appCss).not.toMatch(/\.contact-card \{[\s\S]*?background: var\(--inverse-panel\);/u);
 		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?border: 1px solid var\(--accent\);/u);
 		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?background: var\(--panel\);/u);
 		expect(appCss).toMatch(/\.contact-form input,[\s\S]*?color: var\(--fg\);/u);
