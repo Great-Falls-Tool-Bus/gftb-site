@@ -1,6 +1,6 @@
 ---
 date: '2026-08-14'
-title: 'We laugh, we graph, we diagramming the system'
+title: 'The life of a tool'
 summary: 'I love graphs almost as much as I love email'
 tags:
   - diagrams
@@ -8,13 +8,9 @@ tags:
 published: true
 ---
 
-Three diagrams are shown below.
-
-***Colors have been attempted to recycle the CityLink pallete oWo***
 
 
-
-**How tool moves** 
+**How tool go:** 
 
 <img src="/diagrams/launch-member-v0/inventory-custody-flow.svg" alt="Inventory custody flow: scan a tool, check its availability and condition, finalize a loan, then scan it back in, inspect it, and route it to available or quarantine." />
 
