@@ -137,6 +137,39 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		sourcePath: 'src/content/goals/60-axles.md',
 	},
 	{
+		slug: '62-drafting-skillshare',
+		metadata: {
+			kind: 'goal',
+			order: 62,
+			title: 'Engineering drafting and printing skillshare / class on the regular?',
+			cta_label: 'Sign me up',
+			cta_href: '/contact',
+			image: '/photos/great-falls-lewiston-1930s-1280.webp',
+			image_alt: 'Historic postcard view of Great Falls between Auburn and Lewiston',
+			image_aspect: '5/3',
+			published: true,
+		},
+		text: 'Yes please, I want to draft, draw and learn to sketch with the engineering legends of Great Falls with you, my wonderful neighbor ^w^',
+		sourcePath: 'src/content/goals/62-drafting-skillshare.md',
+	},
+	{
+		slug: '64-legacy-hardware-hangout',
+		metadata: {
+			kind: 'goal',
+			order: 64,
+			title: 'Legacy hardware hangout',
+			cta_label: 'Count me in',
+			cta_href: '/contact',
+			image: '/photos/goals/legacy-hardware-in-hand-1280.webp',
+			image_alt:
+				'A hand holding up a palm-sized electronic device in a clear acrylic case in front of a rack of audio gear with lit displays',
+			image_aspect: '4/3',
+			published: true,
+		},
+		text: 'Do you crack, hack and breathe new life into your old electronics? Wanna become dangerous with Ghidra, Frida and Wireshark? Wish you had a buddy to dump xram, decompile bugs made by our foreprogrammers and bend bits to your will? Lets get something going, regular meetup times TBD.',
+		sourcePath: 'src/content/goals/64-legacy-hardware-hangout.md',
+	},
+	{
 		slug: '70-help-proofread',
 		metadata: {
 			kind: 'help',

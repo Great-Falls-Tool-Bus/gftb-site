@@ -70,4 +70,19 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		sourcePath: 'src/content/log/2026-08-14-the-system-in-diagrams.svx',
 		loadComponent: () => import('../../content/log/2026-08-14-the-system-in-diagrams.svx'),
 	},
+	{
+		slug: '2026-09-07-alex-the-wheel-maven',
+		metadata: {
+			date: '2026-09-07',
+			title: 'Alex the wheel maven grinding away',
+			summary: 'Alex the wheel maven grinding away',
+			tags: ['bus'],
+			published: true,
+			image: '/photos/log/2026-09-07-alex-the-wheel-maven-1280.webp',
+			image_alt:
+				'Alex kneeling on the ridged bus floor in ear defenders and safety glasses, an angle grinder throwing sparks at the foot of a grey seat frame',
+		},
+		sourcePath: 'src/content/log/2026-09-07-alex-the-wheel-maven.svx',
+		loadComponent: () => import('../../content/log/2026-09-07-alex-the-wheel-maven.svx'),
+	},
 ];
