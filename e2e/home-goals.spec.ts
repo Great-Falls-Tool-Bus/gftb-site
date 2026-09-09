@@ -170,6 +170,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await pane(page).scrollIntoViewIfNeeded();
 	const firstPage = await currentTitles(page);
 	expect(firstPage).toHaveLength(3);
+	const expectedSecondPage = publicGoals.slice(3, 6).map((goal) => goal.metadata.title);
 	// Observe from inside the page: every data-wipe flip and every page turn,
 	// with the mask progress sampled while the out-stroke runs.
 	await page.evaluate(() => {
@@ -200,7 +201,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await selectDetent(page, 'High');
 	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
 	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(3);
-	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(3);
+	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(expectedSecondPage.length);
 	const outMask = await page
 		.locator('#goals li[data-wipe="out"]')
 		.first()
@@ -217,7 +218,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	});
 	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 15_000 });
 	const secondPage = await currentTitles(page);
-	expect(secondPage).toHaveLength(3);
+	expect(secondPage).toEqual(expectedSecondPage);
 	expect(secondPage).not.toEqual(firstPage);
 	expect(secondPage[0]).toBe(publicGoals[3].metadata.title);
 	const log = await page.evaluate(
