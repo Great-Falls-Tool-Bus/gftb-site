@@ -1,212 +1,218 @@
-// Chromium loopback smoke candidate over the Bazel-declared site build.
-//
-// Shape follows GloriousFlywheel's browser-RBE candidate template
-// (examples/web-rbe/run-static-browser-smoke.mjs + the browser-rbe-candidate
-// guide): the site is built through declared Bazel inputs (//:build), served
-// from INSIDE the test action on 127.0.0.1, and loaded by an
-// already-provisioned Chromium named via GF_RBE_CHROMIUM_EXECUTABLE (or its
-// fallbacks) through playwright's explicit `executablePath`. No browser binary
-// is ever downloaded inside the action — MODULE.bazel pins
-// PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD at npm lifecycle time. HOME and the XDG
-// dirs are created writable under the test scratch area before Chromium
-// starts.
-//
-// Smoke assertions: the document title carries the site name, the page loads
-// with zero console errors / page errors, and — when
-// GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=1 — the footer build-sha provenance
-// element exists (a stamped-build precondition; see the BUILD.bazel target
-// comment).
-//
-// `chromium` is imported from @playwright/test (the repo's declared Playwright
-// dependency, which re-exports playwright-core's browser types); the guide's
-// preferred bare `playwright-core` is not a direct npm dependency here, and
-// this harness deliberately reuses what the lockfile already carries.
+// Finite browser acceptance over Bazel's declared //:build, using GF's
+// provisioned Chromium authority (TIN-1131). No download, preview rebuild,
+// ambient server, or installed-browser search. This is not a deployed LOOK.
+import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { accessSync, constants, createReadStream, existsSync, mkdirSync, mkdtempSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { extname, join, normalize, resolve, sep } from 'node:path';
-import { chromium } from '@playwright/test';
+import {
+	accessSync,
+	constants,
+	createReadStream,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	statSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const buildDir = resolve(process.env.GF_BROWSER_SMOKE_BUILD_DIR || 'build');
-const smokePath = process.env.GF_BROWSER_SMOKE_PATH || '/';
-const expectedTitle = process.env.GF_BROWSER_SMOKE_TITLE || 'Great Falls Tool Bus';
-const requireProvenance = process.env.GF_BROWSER_SMOKE_REQUIRE_PROVENANCE === '1';
-const provenanceSelector = process.env.GF_BROWSER_SMOKE_PROVENANCE_SELECTOR || '.site-footer__provenance';
-
-// Writable browser scratch under the Bazel test scratch area (TEST_TMPDIR)
-// rather than the worker's ambient (possibly read-only) HOME.
-const scratchRoot = process.env.TEST_TMPDIR || tmpdir();
-const chromiumRuntimeDir = mkdtempSync(join(scratchRoot, 'gf-browser-smoke-'));
-ensureWritableEnvDir('HOME', join(chromiumRuntimeDir, 'home'));
-ensureWritableEnvDir('XDG_CONFIG_HOME', join(chromiumRuntimeDir, 'xdg-config'));
-ensureWritableEnvDir('XDG_CACHE_HOME', join(chromiumRuntimeDir, 'xdg-cache'));
-
-if (!existsSync(join(buildDir, 'index.html'))) {
-	console.error(`browser smoke requires ${join(buildDir, 'index.html')} (declared //:build output)`);
-	process.exit(1);
+const require = createRequire(import.meta.url);
+const harnessDir = dirname(fileURLToPath(import.meta.url));
+const buildInput = process.env.GF_BROWSER_SMOKE_BUILD_DIR;
+const scratchRoot = process.env.TEST_TMPDIR;
+const chromiumPath = process.env.GF_RBE_CHROMIUM_EXECUTABLE;
+if (!buildInput || !scratchRoot || !isAbsolute(scratchRoot)) {
+	throw new Error('the Bazel-declared build and absolute TEST_TMPDIR are required');
+}
+if (chromiumPath !== '/bin/chromium') {
+	throw new Error('GF_RBE_CHROMIUM_EXECUTABLE must name the provisioned /bin/chromium runtime');
+}
+accessSync(chromiumPath, constants.X_OK);
+const buildDir = resolve(buildInput);
+if (!statSync(join(buildDir, 'index.html')).isFile() || !statSync(join(buildDir, '404.html')).isFile()) {
+	throw new Error('the declared static build must contain index.html and 404.html');
 }
 
-const chromiumPath = findChromiumExecutable();
-if (!chromiumPath) {
-	console.error(
-		'set GF_RBE_CHROMIUM_EXECUTABLE, PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, PUPPETEER_EXECUTABLE_PATH, or CHROME_BIN',
-	);
-	process.exit(1);
+const scratch = mkdtempSync(join(scratchRoot, 'gftb-browser-'));
+// Discard browser-debug/remote-connect steering before either Playwright
+// import. The enclosing action supplies execution authority, not an ambient
+// browser connection or a user profile. Every writable directory is ours.
+for (const name of Object.keys(process.env)) {
+	if (name.startsWith('PW_') || name.startsWith('PWTEST_') || name.startsWith('PLAYWRIGHT_') || name === 'PWDEBUG') {
+		delete process.env[name];
+	}
 }
+for (const [name, leaf] of [
+	['HOME', 'home'],
+	['XDG_CONFIG_HOME', 'config'],
+	['XDG_CACHE_HOME', 'cache'],
+	['TMPDIR', 'tmp'],
+	['PWTEST_CACHE_DIR', 'transform-cache'],
+]) {
+	const directory = join(scratch, leaf);
+	mkdirSync(directory, { mode: 0o700 });
+	process.env[name] = directory;
+}
+process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1';
 
 const server = createServer((request, response) => {
-	const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-	const filePath = resolvePath(url.pathname);
-	if (!filePath) {
-		response.writeHead(403);
-		response.end('forbidden');
+	if (request.method !== 'GET' && request.method !== 'HEAD') {
+		response.writeHead(405).end();
 		return;
 	}
-
-	const pathToRead = existsSync(filePath) ? filePath : join(buildDir, 'index.html');
-	response.setHeader('content-type', contentType(pathToRead));
-	createReadStream(pathToRead).pipe(response);
+	let filePath;
+	try {
+		filePath = resolvePath(new URL(request.url ?? '/', 'http://127.0.0.1').pathname);
+	} catch {
+		response.writeHead(400).end();
+		return;
+	}
+	if (!filePath) {
+		response.writeHead(403).end();
+		return;
+	}
+	const found = existsSync(filePath) && statSync(filePath).isFile();
+	const pathToRead = found ? filePath : join(buildDir, '404.html');
+	response.writeHead(found ? 200 : 404, { 'content-type': contentType(pathToRead) });
+	if (request.method === 'HEAD') {
+		response.end();
+		return;
+	}
+	createReadStream(pathToRead).on('error', () => response.destroy()).pipe(response);
 });
+server.requestTimeout = 15_000;
+server.headersTimeout = 10_000;
 
-await new Promise((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
-
-const address = server.address();
-const baseURL = `http://127.0.0.1:${address.port}`;
 let browser;
-
 try {
+	await new Promise((resolveListen, rejectListen) => {
+		server.once('error', rejectListen);
+		server.listen(0, '127.0.0.1', () => {
+			server.removeListener('error', rejectListen);
+			resolveListen();
+		});
+	});
+	const baseURL = `http://127.0.0.1:${server.address().port}`;
+	const { chromium } = await import('@playwright/test');
 	browser = await chromium.launch({
 		executablePath: chromiumPath,
 		headless: true,
+		timeout: 15_000,
 		args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
 	});
-
 	const page = await browser.newPage();
-	const consoleErrors = [];
+	const errors = [];
 	page.on('console', (message) => {
-		if (message.type() === 'error') {
-			consoleErrors.push(message.text());
-		}
+		if (message.type() === 'error') errors.push(message.text());
 	});
-	page.on('pageerror', (error) => {
-		consoleErrors.push(String(error));
-	});
-
-	await page.goto(`${baseURL}${smokePath}`, { waitUntil: 'networkidle' });
-
-	const pageTitle = await page.title();
-	if (!pageTitle.includes(expectedTitle)) {
-		throw new Error(`document title ${JSON.stringify(pageTitle)} does not carry ${JSON.stringify(expectedTitle)}`);
+	page.on('pageerror', (error) => errors.push(String(error)));
+	await page.goto(baseURL, { waitUntil: 'networkidle', timeout: 15_000 });
+	if (!(await page.title()).includes('Great Falls Tool Bus')) {
+		throw new Error('the declared build has the wrong document title');
 	}
-
-	if (requireProvenance) {
-		const provenanceCount = await page.locator(provenanceSelector).count();
-		if (provenanceCount === 0) {
-			throw new Error(
-				`footer build-sha provenance element (${provenanceSelector}) is absent — the //:build stamp carried no ` +
-					'commit identity (BUILD_COMMIT_SHA / GITHUB_SHA). Fabric and CI invocations stamp a real sha; for an ' +
-					'identity-less local run relax with --test_env=GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=0.',
-			);
-		}
+	if ((await page.locator('.site-footer__provenance').count()) !== 1) {
+		throw new Error('the declared build is missing its stamped footer provenance');
 	}
+	if (errors.length > 0) throw new Error(`built page emitted errors:\n${errors.join('\n')}`);
+	await browser.close();
+	browser = undefined;
 
-	if (consoleErrors.length > 0) {
-		throw new Error(`page emitted ${consoleErrors.length} console error(s):\n${consoleErrors.join('\n')}`);
-	}
-
-	console.log(`browser smoke passed for ${smokePath} with ${chromiumPath}`);
+	await runAcceptance(baseURL);
+	console.log(`declared-build Chromium smoke and five acceptance specs passed via ${chromiumPath}`);
 } finally {
-	await browser?.close();
-	await new Promise((resolveClose) => server.close(resolveClose));
+	try {
+		await browser?.close();
+	} finally {
+		server.closeAllConnections();
+		await new Promise((resolveClose) => server.close(resolveClose));
+		// Only the exact nonempty directory created above is removed.
+		rmSync(scratch, { recursive: true, force: true });
+	}
+}
+
+async function runAcceptance(baseURL) {
+	const cli = require.resolve('@playwright/test/cli');
+	const child = spawn(
+		process.execPath,
+		[
+			cli,
+			'test',
+			'--config',
+			join(harnessDir, 'browser-acceptance.config.ts'),
+			'--tsconfig',
+			join(harnessDir, 'tsconfig.json'),
+		],
+		{
+			cwd: resolve(harnessDir, '../..'),
+			stdio: ['ignore', 'inherit', 'inherit'],
+			detached: true,
+			env: {
+				...process.env,
+				GF_BROWSER_ACCEPTANCE_BASE_URL: baseURL,
+				GF_BROWSER_ACCEPTANCE_OUTPUT_DIR: join(scratch, 'results'),
+			},
+		},
+	);
+	let timedOut = false;
+	let killTimer;
+	const stop = () => {
+		if (!child.pid) return;
+		try {
+			process.kill(-child.pid, 'SIGKILL');
+		} catch (error) {
+			if (error.code !== 'ESRCH') throw error;
+		}
+	};
+	const onSignal = () => {
+		timedOut = true;
+		stop();
+	};
+	process.once('SIGINT', onSignal);
+	process.once('SIGTERM', onSignal);
+	try {
+		const code = await new Promise((resolveExit, rejectExit) => {
+			child.once('error', rejectExit);
+			child.once('close', (exitCode) => resolveExit(exitCode));
+			// Playwright owns the ordinary 180s suite deadline and browser
+			// teardown. This outer bound also terminates a wedged CLI/process
+			// group, without touching another action's browser or server.
+			killTimer = setTimeout(() => {
+				timedOut = true;
+				stop();
+			}, 240_000);
+		});
+		if (timedOut || code !== 0) throw new Error('the five-spec browser acceptance suite failed');
+	} finally {
+		clearTimeout(killTimer);
+		process.removeListener('SIGINT', onSignal);
+		process.removeListener('SIGTERM', onSignal);
+	}
 }
 
 function resolvePath(pathname) {
-	const candidate = normalize(decodeURIComponent(pathname)).replace(/^\/+/, '');
-	const target = resolve(buildDir, candidate || 'index.html');
-	if (target !== buildDir && !target.startsWith(`${buildDir}${sep}`)) {
-		return undefined;
-	}
-
-	if (existsSync(target) && statSync(target).isDirectory()) {
-		return join(target, 'index.html');
-	}
-
-	if (!existsSync(target) && existsSync(`${target}.html`)) {
-		return `${target}.html`;
-	}
-
+	const target = resolve(buildDir, decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html');
+	if (target !== buildDir && !target.startsWith(`${buildDir}${sep}`)) return undefined;
+	if (existsSync(target) && statSync(target).isDirectory()) return join(target, 'index.html');
+	if (!existsSync(target) && existsSync(`${target}.html`)) return `${target}.html`;
 	return target;
 }
 
 function contentType(path) {
-	switch (extname(path)) {
-		case '.css':
-			return 'text/css; charset=utf-8';
-		case '.html':
-			return 'text/html; charset=utf-8';
-		case '.js':
-			return 'text/javascript; charset=utf-8';
-		case '.json':
-			return 'application/json; charset=utf-8';
-		case '.md':
-			return 'text/markdown; charset=utf-8';
-		case '.svg':
-			return 'image/svg+xml';
-		case '.txt':
-			return 'text/plain; charset=utf-8';
-		case '.webmanifest':
-			return 'application/manifest+json; charset=utf-8';
-		case '.woff2':
-			return 'font/woff2';
-		default:
-			return 'application/octet-stream';
-	}
-}
-
-function findChromiumExecutable() {
-	const candidates = [
-		process.env.GF_RBE_CHROMIUM_EXECUTABLE,
-		process.env.GF_CHROMIUM_EXECUTABLE_PATH,
-		process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-		process.env.PUPPETEER_EXECUTABLE_PATH,
-		process.env.CHROME_BIN,
-		'/bin/chromium',
-		'/usr/bin/chromium',
-		'/usr/bin/chromium-browser',
-		'/usr/bin/google-chrome',
-		'/usr/bin/google-chrome-stable',
-		'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-		'/Applications/Chromium.app/Contents/MacOS/Chromium',
-	].filter(Boolean);
-
-	for (const candidate of candidates) {
-		if (existsSync(candidate)) {
-			return candidate;
-		}
-	}
-
-	return '';
-}
-
-function ensureWritableEnvDir(name, fallback) {
-	const current = process.env[name];
-	if (current && isWritableDirectory(current)) {
-		return current;
-	}
-
-	mkdirSync(fallback, { recursive: true });
-	process.env[name] = fallback;
-	return fallback;
-}
-
-function isWritableDirectory(path) {
-	try {
-		if (!existsSync(path) || !statSync(path).isDirectory()) {
-			return false;
-		}
-		accessSync(path, constants.W_OK);
-		return true;
-	} catch {
-		return false;
-	}
+	return (
+		{
+			'.css': 'text/css; charset=utf-8',
+			'.html': 'text/html; charset=utf-8',
+			'.js': 'text/javascript; charset=utf-8',
+			'.json': 'application/json; charset=utf-8',
+			'.svg': 'image/svg+xml',
+			'.png': 'image/png',
+			'.jpg': 'image/jpeg',
+			'.jpeg': 'image/jpeg',
+			'.webp': 'image/webp',
+			'.txt': 'text/plain; charset=utf-8',
+			'.webmanifest': 'application/manifest+json; charset=utf-8',
+			'.woff2': 'font/woff2',
+		}[extname(path)] ?? 'application/octet-stream'
+	);
 }
