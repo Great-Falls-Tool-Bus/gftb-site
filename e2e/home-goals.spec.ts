@@ -249,7 +249,10 @@ test("a wipe turns the page at the blades' turnaround and every note gets its tu
 	expect([...new Set(turns.flatMap((t) => t.titles))].sort()).toEqual(
 		publicGoals.map((goal) => goal.metadata.title).sort(),
 	);
-	// The pane never becomes a scroller and the arms stay inside it.
+	// The pane never becomes a scroller and the arms stay inside it (measured
+	// at rest: a sheen band crossing mid-wipe widens the clipped overflow the
+	// browser reports, which no visitor can scroll into).
+	await expect(region).toHaveAttribute('data-state', /^(dwell|paused)$/u);
 	expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
 
@@ -650,6 +653,117 @@ for (const scheme of ['light', 'dark'] as const) {
 		expect(await worst('--heading'), 'headings on the ground').toBeGreaterThanOrEqual(LARGE);
 	});
 }
+
+// The instruments (PR-3): rain accumulates over the dwell, the posbar fills
+// toward the next wipe, the sheen crosses with the blades. All of it is CSS
+// keyed on the pane's state, so Off is dead still, a resting pointer freezes
+// the gauge and the rain where they are, and the sheen exists only during a
+// wipe.
+test('nothing runs while the wipers are off', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Off');
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
+	await page.waitForTimeout(600);
+	const running = await page.evaluate(() =>
+		document
+			.getAnimations()
+			.filter((a) => a.playState === 'running')
+			.map((a) => (a.effect as KeyframeEffect | null)?.target)
+			.filter((target): target is Element => target instanceof Element && target.closest('#goals') !== null)
+			.map((el) => el.className.toString()),
+	);
+	expect(running).toEqual([]);
+	expect(await pane(page).evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+});
+
+test('the rain and the gauge fill toward the next wipe and freeze under the pointer', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Intermittent');
+	const region = pane(page);
+	// Sample a fresh dwell (the one that follows the next wipe), so the two
+	// readings never straddle a wipe: the rain resets to 0.15 at the return
+	// stroke and the gauge to empty.
+	await region.evaluate(
+		(el) =>
+			new Promise<void>((resolve) => {
+				// A mutation observer, not requestAnimationFrame: the blob layer
+				// can starve animation frames on a loaded runner.
+				let wiped = false;
+				const observer = new MutationObserver(() => {
+					const state = el.getAttribute('data-state');
+					if (state === 'wiping') wiped = true;
+					if (wiped && state === 'dwell') {
+						observer.disconnect();
+						resolve();
+					}
+				});
+				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+			}),
+	);
+	const sample = () =>
+		region.evaluate((el) => ({
+			rain: Number(getComputedStyle(el, '::before').opacity),
+			gauge: getComputedStyle(el.querySelector('.wiper-gauge') as Element, '::before').transform,
+		}));
+	// A busy main thread (the blob layer's physics) can hold a CSS animation's
+	// start for a while on a loaded runner; wait until the accumulation is
+	// visibly under way (past the 0.15 floor, short of full), then sample.
+	// Two readings inside ONE dwell (a wipe between them resets both
+	// instruments, so a pair that straddles a wipe is discarded and retaken).
+	const pair = async () => {
+		await expect.poll(async () => (await sample()).rain, { timeout: 6000 }).toBeGreaterThan(0.16);
+		const first = await sample();
+		await page.waitForTimeout(600);
+		const second = await sample();
+		const state = await region.getAttribute('data-state');
+		return { first, second, sameDwell: state === 'dwell' && second.rain >= first.rain };
+	};
+	let reading = await pair();
+	for (let attempt = 0; attempt < 3 && !reading.sameDwell; attempt += 1) reading = await pair();
+	const { first: a, second: b } = reading;
+	expect(a.rain).toBeLessThan(0.95);
+	// Both instruments move during the dwell.
+	expect(b.rain).toBeGreaterThan(a.rain);
+	expect(b.gauge).not.toBe(a.gauge);
+	// A resting pointer freezes them where they are.
+	await region.hover();
+	await expect(region).toHaveAttribute('data-state', 'paused');
+	const c = await sample();
+	await page.waitForTimeout(700);
+	const d = await sample();
+	expect(d.rain).toBeCloseTo(c.rain, 2);
+	expect(d.gauge).toBe(c.gauge);
+	await pointerAway(page);
+	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
+});
+
+test('the sheen exists only during a wipe', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await selectDetent(page, 'Intermittent');
+	const region = pane(page);
+	await expect(region).toHaveAttribute('data-skin', 'aero');
+	await expect(region).toHaveAttribute('data-state', 'dwell');
+	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+	const seen = await region.evaluate(
+		(el) =>
+			new Promise<{ content: string; animation: string }>((resolve) => {
+				const observer = new MutationObserver(() => {
+					if (el.getAttribute('data-state') !== 'wiping') return;
+					observer.disconnect();
+					const s = getComputedStyle(el, '::after');
+					resolve({ content: s.content, animation: s.animationName });
+				});
+				observer.observe(el, { attributes: true, attributeFilter: ['data-state'] });
+			}),
+	);
+	expect(seen.content).not.toBe('none');
+	expect(seen.animation).toContain('wiper-sheen');
+	await expect(region).toHaveAttribute('data-state', 'dwell', { timeout: 10_000 });
+	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+});
 
 test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
