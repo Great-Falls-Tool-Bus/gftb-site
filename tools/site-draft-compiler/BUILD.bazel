@@ -1,0 +1,15 @@
+"""Source exports for the root-scoped compiler graph; no registry release is asserted."""
+
+filegroup(
+    name = "source_inputs",
+    srcs = ["BUILD.bazel", "compiler.test.mjs", "compiler.ts", "defs.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "format_inputs",
+    srcs = ["compiler.ts", "compiler.test.mjs"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(["BUILD.bazel", "compiler.ts", "compiler.test.mjs", "defs.bzl"])
