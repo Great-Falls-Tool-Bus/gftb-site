@@ -4,11 +4,13 @@
 	import { WiperCycle } from './wiper-rotator.svelte';
 	import {
 		DEFAULT_WIPER_POSITION,
+		DEFAULT_WIPER_SKIN,
 		WIPER_POSITIONS,
 		pageCountFor,
 		pageOf,
 		stepWiperPosition,
 		type WiperPosition,
+		type WiperSkin,
 	} from './wiper-rotator';
 
 	// A generic "windshield wiper" rotator: a frosted pane (the house
@@ -72,6 +74,8 @@
 		initialPosition?: WiperPosition;
 		/** Static droplet texture on the glass (CSS only, never animated). */
 		rain?: boolean;
+		/** Named skin; every skin rule is scoped under data-skin in app.css. */
+		skin?: WiperSkin;
 		/** Rendered after the controls, inside the pane. */
 		footer?: Snippet;
 	}
@@ -85,6 +89,7 @@
 		noun = 'items',
 		initialPosition = DEFAULT_WIPER_POSITION,
 		rain = false,
+		skin = DEFAULT_WIPER_SKIN,
 		footer,
 	}: Props = $props();
 
@@ -130,10 +135,14 @@
 
 	// Failsafe: if the animation events never arrive (display: none, a
 	// throttled background tab, the arms unmounted mid-sweep), end the wipe
-	// a beat after it should have finished so the dwell timer can re-arm.
+	// after it should have finished so the dwell timer can re-arm. The budget
+	// leaves room for a delayed animation start: a busy main thread (the
+	// full-viewport blob layer's physics on a slow device) can hold a CSS
+	// animation's start for several hundred milliseconds, and cutting a wipe
+	// short there would drop the turnaround along with the trail.
 	$effect(() => {
 		if (cycle.phase !== 'wiping') return;
-		const handle = setTimeout(() => cycle.finish(), cycle.activeSweepMs + 300);
+		const handle = setTimeout(() => cycle.finish(), cycle.activeSweepMs + 1200);
 		return () => clearTimeout(handle);
 	});
 
@@ -164,13 +173,17 @@
 		cycle.focus = false;
 	}
 
-	// Only the left arm carries the handlers, so each phase change fires
-	// once; only the sweep animation counts. (animationcancel is not typed
-	// on svg elements; the failsafe effect above covers a cancelled sweep.)
-	function onSweepEvent(event: AnimationEvent) {
-		if (event.animationName !== 'wiper-sweep') return;
-		if (event.type === 'animationiteration') cycle.apex();
-		else cycle.finish();
+	// Each phase change fires once, from a named arm: the leader (left,
+	// undelayed) reports the turnaround, the last ghost (the most delayed
+	// blade) reports the end so the trail is never cut off mid-return. Only
+	// the sweep animation counts. (animationcancel is not typed on svg
+	// elements; the failsafe effect above covers a cancelled sweep.)
+	function onSweepIteration(event: AnimationEvent) {
+		if (event.animationName === 'wiper-sweep') cycle.apex();
+	}
+
+	function onSweepEnd(event: AnimationEvent) {
+		if (event.animationName === 'wiper-sweep') cycle.finish();
 	}
 
 	async function onStalkKey(event: KeyboardEvent) {
@@ -211,6 +224,7 @@
 		paneState === 'wiping' && 'wiper--wiping',
 		rain && 'wiper--rain',
 	]}
+	data-skin={skin}
 	role="group"
 	aria-labelledby={labelledby}
 	data-state={paneState}
@@ -252,33 +266,33 @@
 		</p>
 
 		{#if paged}
-			<!-- Two arms, parked near horizontal, sweeping in tandem. Decorative:
-			     hidden from AT, inert to the pointer, painted above the rows and
-			     clipped by the pane. The narrow layout shows one centred arm
-			     (app.css). -->
+			<!-- Two arms, parked near horizontal, sweeping in tandem, each with two
+			     ghost blades lagging it (a motion trail, delayed copies of the
+			     same sweep). Decorative: hidden from AT, inert to the pointer,
+			     painted above the rows and clipped by the pane. Rect-only chrome
+			     (square hub, highlight and shadow stripes): no defs, no ids, no
+			     round forms. The narrow layout shows one centred arm (app.css). -->
 			<div class="wiper-arms" aria-hidden="true">
-				<svg
-					class="wiper-arm wiper-arm--left"
-					viewBox="0 0 24 320"
-					preserveAspectRatio="xMidYMax meet"
-					focusable="false"
-					onanimationiteration={onSweepEvent}
-					onanimationend={onSweepEvent}
-				>
-					<rect class="wiper-arm__blade" x="8" y="0" width="8" height="196" />
-					<rect class="wiper-arm__shaft" x="10.5" y="180" width="3" height="132" />
-					<circle class="wiper-arm__hub" cx="12" cy="311" r="9" />
-				</svg>
-				<svg
-					class="wiper-arm wiper-arm--right"
-					viewBox="0 0 24 320"
-					preserveAspectRatio="xMidYMax meet"
-					focusable="false"
-				>
-					<rect class="wiper-arm__blade" x="8" y="0" width="8" height="196" />
-					<rect class="wiper-arm__shaft" x="10.5" y="180" width="3" height="132" />
-					<circle class="wiper-arm__hub" cx="12" cy="311" r="9" />
-				</svg>
+				{#each ['left', 'right'] as side (side)}
+					{#each [0, 1, 2] as ghost (ghost)}
+						<svg
+							class={['wiper-arm', `wiper-arm--${side}`, ghost > 0 && `wiper-arm--ghost wiper-arm--ghost-${ghost}`]}
+							viewBox="0 0 24 320"
+							preserveAspectRatio="xMidYMax meet"
+							focusable="false"
+							onanimationiteration={side === 'left' && ghost === 0 ? onSweepIteration : undefined}
+							onanimationend={side === 'left' && ghost === 2 ? onSweepEnd : undefined}
+						>
+							<rect class="wiper-arm__blade" x="8" y="0" width="8" height="196" />
+							<rect class="wiper-arm__blade-hi" x="8" y="0" width="2" height="196" />
+							<rect class="wiper-arm__blade-lo" x="14" y="0" width="2" height="196" />
+							<rect class="wiper-arm__shaft" x="10.5" y="180" width="3" height="132" />
+							<rect class="wiper-arm__hub" x="3" y="302" width="18" height="18" />
+							<rect class="wiper-arm__stripe-hi" x="3" y="302" width="18" height="2" />
+							<rect class="wiper-arm__stripe-lo" x="3" y="318" width="18" height="2" />
+						</svg>
+					{/each}
+				{/each}
 			</div>
 		{/if}
 

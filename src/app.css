@@ -1363,6 +1363,12 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--wiper-length: min(70%, 55cqw);
 	--wiper-pivot-left: 50%;
 	--wiper-pivot-right: 50%;
+	/* Dash-skin key chrome: flat keys, no bevel. A valid (invisible) shadow
+	 * so `ring, var(--wiper-bevel)` never invalidates the focus ring. */
+	--wiper-key: transparent;
+	--wiper-bevel: 0 0 #0000;
+	--wiper-key-hi: #fff;
+	--wiper-key-lo: #000;
 }
 
 @media (min-width: 48rem) {
@@ -1520,9 +1526,37 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	fill: color-mix(in oklab, var(--fg) 82%, transparent);
 }
 
-/* The dash: a wipers switch and the speed stalk. Both reuse the ratified
- * secondary-button boundary (2px --accent, the proven 1.4.11 pair) with the
- * sharp-edges radius re-pin and the .button focus ring. */
+/* Rect-only chrome: a highlight and a shadow stripe down the blade, a
+ * square hub with its own two stripes. Decorative, unmeasured (the glass
+ * sampler hides descendants), no round forms anywhere in the arm. */
+.wiper-arm__blade-hi,
+.wiper-arm__stripe-hi {
+	fill: color-mix(in oklab, #fff 55%, transparent);
+}
+
+.wiper-arm__blade-lo,
+.wiper-arm__stripe-lo {
+	fill: color-mix(in oklab, #000 42%, transparent);
+}
+
+/* Ghost blades: delayed copies of the leader's sweep (delays live in the
+ * no-preference block), fading behind it as a motion trail. */
+.wiper-arm--ghost-1 {
+	opacity: 0.35;
+}
+
+.wiper-arm--ghost-2 {
+	opacity: 0.18;
+}
+
+/* The dash: a wipers switch and the speed stalk (operator ruling
+ * 2026-09-09, light-pipe). Each key carries exactly ONE border: a 2px
+ * --accent top edge, the edge the browser 1.4.11 collector reads
+ * (e2e/acceptance-contrast.spec.ts reads fills and border-TOP only; a
+ * transparent, borderless key would score 1.0:1). The switch's box, the
+ * track hairline and the controls' rule are gone; inset square box-shadows
+ * (--wiper-bevel) carry the Win95/Winamp 3D edge with no radius. Never move
+ * the pipe to border-bottom: the collector would report width 0. */
 .wiper-controls {
 	position: relative;
 	z-index: 1;
@@ -1532,7 +1566,6 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	gap: 0.75rem 1.25rem;
 	margin-top: 1.25rem;
 	padding-top: 1rem;
-	border-top: 1px solid var(--rule);
 	font-family: var(--font-sans);
 }
 
@@ -1542,9 +1575,11 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	gap: 0.6rem;
 	min-height: 2.75rem;
 	padding: 0.35rem 0.85rem;
-	border: 2px solid var(--accent);
+	border: 0;
+	border-top: 2px solid var(--accent);
 	border-radius: 0;
-	background: transparent;
+	background: var(--wiper-key);
+	box-shadow: var(--wiper-bevel);
 	color: var(--heading);
 	font: inherit;
 	font-size: 0.95rem;
@@ -1558,12 +1593,15 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	width: 2.75rem;
 	height: 1.5rem;
 	padding: 3px;
-	border: 1px solid var(--rule);
+	border: 0;
 	border-radius: 0;
 	background: var(--control-track);
+	box-shadow:
+		inset 0 1px 0 color-mix(in oklab, var(--wiper-key-lo) 18%, transparent),
+		inset 0 -1px 0 color-mix(in oklab, var(--wiper-key-hi) 40%, transparent);
 }
 
-/* The thumb is the switch's second 1.4.11 boundary: --accent on
+/* The thumb is the switch's other 1.4.11 boundary: --accent on
  * --control-track, the pair the mode switch already proves. */
 .wiper-switch__thumb {
 	display: block;
@@ -1588,15 +1626,18 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 .wiper-stalk {
 	display: inline-flex;
 	flex-wrap: wrap;
+	gap: 2px;
 }
 
 .wiper-stalk__detent {
 	min-height: 2.75rem;
 	min-width: 2.75rem;
 	padding: 0.35rem 0.85rem;
-	border: 2px solid var(--accent);
+	border: 0;
+	border-top: 2px solid var(--accent);
 	border-radius: 0;
-	background: transparent;
+	background: var(--wiper-key);
+	box-shadow: var(--wiper-bevel);
 	color: var(--heading);
 	font: inherit;
 	font-size: 0.9rem;
@@ -1604,11 +1645,9 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	cursor: pointer;
 }
 
-.wiper-stalk__detent + .wiper-stalk__detent {
-	margin-left: -2px;
-}
-
+/* The latched detent: accent fill (its own 1.4.11 boundary) pressed in. */
 .wiper-stalk__detent[aria-checked='true'] {
+	--wiper-bevel: inset 0 2px 0 color-mix(in oklab, #000 22%, transparent);
 	background: var(--accent);
 	color: var(--accent-contrast);
 }
@@ -1623,7 +1662,19 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	position: relative;
 	z-index: 1;
 	outline: none;
-	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
+	box-shadow:
+		0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent),
+		var(--wiper-bevel);
+}
+
+/* Forced colours erase every fill and shadow; give the keys back a border
+ * only there. */
+@media (forced-colors: active) {
+	.wiper-switch,
+	.wiper-stalk__detent {
+		border: 1px solid ButtonText;
+		border-top-width: 2px;
+	}
 }
 
 /* Per-row edit link (operator ruling 2026-09-08): the SourceLink affordance
@@ -1660,6 +1711,105 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: 1rem;
 }
 
+/* ===== Skin: aero (operator ruling 2026-09-09) =====
+ * Frutiger-Aero wet glass carrying the deck's instruments. Every rule is
+ * scoped under [data-skin='aero'] so the dash skin's computed styles are
+ * untouched. Direction contract, the thing that keeps the five glass rows
+ * green mid-wipe: in light mode the pane's own paint may only LIGHTEN the
+ * glass (gel highlight, sheen), in dark mode it may only DARKEN (the
+ * --wiper-drop precedent above). Keys are descendants and unmeasured, so
+ * their bevel keeps a light highlight in both schemes. */
+.wiper[data-skin='aero'] {
+	--wiper-gloss: #fff;
+	--wiper-key: color-mix(in oklab, var(--panel) 42%, transparent);
+	--wiper-key-hi: #fff;
+	--wiper-key-lo: var(--fg);
+	--wiper-bevel:
+		inset 0 1px 0 color-mix(in oklab, var(--wiper-key-hi) 55%, transparent),
+		inset 0 -1px 0 color-mix(in oklab, var(--wiper-key-lo) 14%, transparent);
+	/* Gel highlight: a hard-stop band across the top quarter of the pane. */
+	background-image: linear-gradient(
+		180deg,
+		color-mix(in oklab, var(--wiper-gloss) 12%, transparent) 0,
+		color-mix(in oklab, var(--wiper-gloss) 4%, transparent) 26%,
+		transparent 26.01%
+	);
+}
+
+[data-mode='dark'] .wiper[data-skin='aero'] {
+	--wiper-gloss: #000;
+	--wiper-key-hi: #fff;
+	--wiper-key-lo: #000;
+	background-image: linear-gradient(0deg, color-mix(in oklab, #000 10%, transparent) 0, transparent 30%);
+}
+
+/* Bead specks: one offset lightening speck per droplet tile in light mode
+ * (the rain is dark-drop, so the pair reads as a bead), none in dark. */
+.wiper[data-skin='aero'].wiper--rain::before {
+	background-image:
+		radial-gradient(
+			circle at 30% 40%,
+			color-mix(in oklab, var(--wiper-drop) 5%, transparent) 0 1.5px,
+			transparent 2.5px
+		),
+		radial-gradient(
+			circle at 29% 38%,
+			color-mix(in oklab, var(--wiper-gloss) 9%, transparent) 0 0.7px,
+			transparent 1.4px
+		),
+		radial-gradient(circle at 70% 65%, color-mix(in oklab, var(--wiper-drop) 4%, transparent) 0 1px, transparent 2px),
+		radial-gradient(
+			circle at 69% 63%,
+			color-mix(in oklab, var(--wiper-gloss) 7%, transparent) 0 0.6px,
+			transparent 1.2px
+		),
+		radial-gradient(circle at 15% 80%, color-mix(in oklab, var(--wiper-drop) 3%, transparent) 0 2px, transparent 3px);
+	background-size:
+		37px 41px,
+		37px 41px,
+		53px 47px,
+		53px 47px,
+		71px 67px;
+}
+
+[data-mode='dark'] .wiper[data-skin='aero'].wiper--rain::before {
+	background-image:
+		radial-gradient(
+			circle at 30% 40%,
+			color-mix(in oklab, var(--wiper-drop) 5%, transparent) 0 1.5px,
+			transparent 2.5px
+		),
+		radial-gradient(circle at 70% 65%, color-mix(in oklab, var(--wiper-drop) 4%, transparent) 0 1px, transparent 2px),
+		radial-gradient(circle at 15% 80%, color-mix(in oklab, var(--wiper-drop) 3%, transparent) 0 2px, transparent 3px);
+	background-size:
+		37px 41px,
+		53px 47px,
+		71px 67px;
+}
+
+/* Sheen: a 28%-wide band that exists only while a wipe runs and crosses the
+ * pane with the blades (transform only; keyframes in the block below).
+ * Behind the rows (z 0 vs the list's 1). */
+.wiper[data-skin='aero']::after {
+	content: none;
+}
+
+.wiper[data-skin='aero'].wiper--wiping::after {
+	content: '';
+	position: absolute;
+	inset: 0 auto 0 0;
+	z-index: 0;
+	width: 28%;
+	pointer-events: none;
+	transform: translateX(-100%);
+	background-image: linear-gradient(
+		104deg,
+		transparent 30%,
+		color-mix(in oklab, var(--wiper-gloss) 10%, transparent) 50%,
+		transparent 70%
+	);
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	@keyframes wiper-sweep {
 		from {
@@ -1677,6 +1827,30 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	 * enhanced; `both` holds the blade at the far end at the turnaround. */
 	.wiper--wiping .wiper-arm {
 		animation: wiper-sweep var(--wiper-stroke) cubic-bezier(0.45, 0, 0.55, 1) 2 alternate both;
+		/* Blade slap: a separate longhand so a browser without linear() keeps
+		 * the shorthand's bezier and still fires animationiteration. Two
+		 * degrees of overshoot at each end, inside the documented geometry. */
+		animation-timing-function: linear(0, 0.05 8%, 0.34 30%, 0.8 62%, 1.02 84%, 0.995 93%, 1);
+	}
+
+	/* Ghosts lag the leader on both strokes; `both` parks them until the
+	 * delay elapses. The last ghost ends the wipe (WiperRotator.svelte). */
+	.wiper--wiping .wiper-arm--ghost-1 {
+		animation-delay: calc(var(--wiper-stroke) * 0.06);
+	}
+
+	.wiper--wiping .wiper-arm--ghost-2 {
+		animation-delay: calc(var(--wiper-stroke) * 0.12);
+	}
+
+	@keyframes wiper-sheen {
+		to {
+			transform: translateX(357.15%);
+		}
+	}
+
+	.wiper[data-skin='aero'].wiper--wiping::after {
+		animation: wiper-sheen var(--wiper-stroke) cubic-bezier(0.45, 0, 0.55, 1) 2 alternate both;
 	}
 
 	/* Sequenced, never overprinted: the old page fades out under the
@@ -2210,6 +2384,7 @@ figcaption {
 	}
 
 	.wiper::before,
+	.wiper::after,
 	.wiper-arms,
 	.wiper-controls,
 	.wiper-status,

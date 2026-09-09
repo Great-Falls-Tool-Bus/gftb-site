@@ -31,6 +31,16 @@ export const WIPER_POSITIONS: readonly WiperPositionEntry[] = [
 /** The calmest cadence: closest to the retired carousel's 7 s auto-advance. */
 export const DEFAULT_WIPER_POSITION: ActiveWiperPosition = 'intermittent';
 
+/**
+ * Named skins (operator ruling 2026-09-09). `dash` is the tranche-1 look and
+ * the rollback; `aero` is the wet-glass pane with the deck's instruments.
+ * Every skin rule in app.css is scoped under `[data-skin='<name>']`, so the
+ * default skin's computed styles never change when a new skin lands.
+ */
+export const WIPER_SKINS = ['dash', 'aero'] as const;
+export type WiperSkin = (typeof WIPER_SKINS)[number];
+export const DEFAULT_WIPER_SKIN: WiperSkin = 'dash';
+
 export function wiperEntry(id: WiperPosition): WiperPositionEntry {
 	const entry = WIPER_POSITIONS.find((candidate) => candidate.id === id);
 	if (!entry) throw new Error(`wiper-rotator: unknown position ${id}`);
