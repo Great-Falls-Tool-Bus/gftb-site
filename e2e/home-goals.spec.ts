@@ -452,9 +452,11 @@ test('paper gets every note and none of the dash', async ({ page }) => {
 // on the deck), because the browser 1.4.11 collector
 // (e2e/acceptance-contrast.spec.ts) reads fills and border-TOP only and
 // visits only /contact. This row runs the collector's own math at / in both
-// schemes: max(fill, top edge) against the ground the key sits on must clear
-// 3:1 for every dash key. On the deck that ground is the opaque chassis; on
-// the glass skins it is the darkest and the lightest pane pixel.
+// schemes on what the browser actually painted: the RENDERED border-top
+// colour and fill of every key (converted from their computed oklch through
+// a canvas), max(fill, top edge) against the ground the key sits on, 3:1. On
+// the deck that ground is the rendered chassis; on the glass skins it is the
+// darkest and the lightest pane pixel.
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the dash keys are borderless except their light-pipe and clear 3:1 on their ground (${scheme})`, async ({
 		page,
@@ -469,8 +471,20 @@ for (const scheme of ['light', 'dark'] as const) {
 		expect(['aero', 'deck']).toContain(skin);
 		const keys = page.locator('#goals .wiper-controls button');
 		await expect(keys).toHaveCount(5);
-		const boxes = await keys.evaluateAll((els) =>
-			els.map((el) => {
+		// Rendered colours: computed styles come back as oklch(); a 1x1 canvas
+		// resolves them to the sRGB the browser painted (alpha 0 = no paint).
+		const boxes = await keys.evaluateAll((els) => {
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = 1;
+			const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+			const rgb = (css: string) => {
+				ctx.clearRect(0, 0, 1, 1);
+				ctx.fillStyle = css;
+				ctx.fillRect(0, 0, 1, 1);
+				const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
+				return alpha === 0 ? null : { red, green, blue, alpha: alpha / 255 };
+			};
+			return els.map((el) => {
 				const s = getComputedStyle(el);
 				return {
 					label: el.textContent?.trim() ?? '',
@@ -478,11 +492,13 @@ for (const scheme of ['light', 'dark'] as const) {
 					right: s.borderRightWidth,
 					bottom: s.borderBottomWidth,
 					left: s.borderLeftWidth,
-					fill: s.backgroundColor,
 					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius],
+					topRgb: rgb(s.borderTopColor),
+					fillRgb: rgb(s.backgroundColor),
+					groundRgb: rgb(getComputedStyle(el.closest('.wiper-controls') as Element).backgroundColor),
 				};
-			}),
-		);
+			});
+		});
 		for (const box of boxes) {
 			expect(box.top, `${box.label} top edge`).toBe('2px');
 			expect([box.right, box.bottom, box.left], `${box.label} other edges`).toEqual(['0px', '0px', '0px']);
@@ -491,31 +507,31 @@ for (const scheme of ['light', 'dark'] as const) {
 		expect(await page.locator('#goals .wiper-controls').evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe(
 			'0px',
 		);
-
-		// Role colours compute as oklch() here, so grounds and pipes resolve
-		// through the role resolver; only an rgb() fill is parsed directly.
-		const parse = (value: string) => {
-			const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/u.exec(value);
-			if (!m) return null;
-			const alpha = m[4] === undefined ? 1 : Number(m[4]);
-			return alpha === 0 ? null : { red: Number(m[1]), green: Number(m[2]), blue: Number(m[3]) };
-		};
-		const grounds =
+		const glass =
 			skin === 'deck'
-				? [await resolveRoleRgb(page, '--inverse-panel')]
+				? null
 				: await measureGlassExtremes(page, '#goals .wiper', 16).then((x) => [x.darkest.rgb, x.lightest.rgb]);
-		if (skin === 'deck') {
-			const chassis = await page
-				.locator('#goals .wiper-controls')
-				.evaluate((el) => getComputedStyle(el).backgroundColor);
-			expect(chassis, 'the deck chassis is opaque').not.toBe('rgba(0, 0, 0, 0)');
-		}
-		const pipe = await resolveRoleRgb(page, skin === 'deck' ? '--highlight' : '--accent');
 		for (const box of boxes) {
-			// The collector takes the better of the fill and the top edge, so the
-			// pipe alone must clear 3:1 against every ground pixel behind the key.
-			const candidates = [pipe, parse(box.fill)].filter((c): c is NonNullable<typeof c> => c !== null);
-			const best = Math.max(...candidates.map((c) => Math.min(...grounds.map((g) => roundRatio(contrastRatio(c, g))))));
+			const grounds = skin === 'deck' ? [box.groundRgb] : glass;
+			expect(grounds?.[0], `${box.label} ground`).toBeTruthy();
+			if (skin === 'deck') expect(box.groundRgb?.alpha, 'the deck chassis is opaque').toBe(1);
+			// The collector takes the better of the fill and the top edge; a
+			// translucent fill is composited over the ground first.
+			const candidates = [box.topRgb, box.fillRgb]
+				.filter((c): c is NonNullable<typeof c> => c !== null)
+				.map((c) =>
+					c.alpha >= 1
+						? c
+						: {
+								red: Math.round(c.red * c.alpha + grounds![0]!.red * (1 - c.alpha)),
+								green: Math.round(c.green * c.alpha + grounds![0]!.green * (1 - c.alpha)),
+								blue: Math.round(c.blue * c.alpha + grounds![0]!.blue * (1 - c.alpha)),
+							},
+				);
+			expect(candidates.length, `${box.label} paints a boundary`).toBeGreaterThan(0);
+			const best = Math.max(
+				...candidates.map((c) => Math.min(...grounds!.map((g) => roundRatio(contrastRatio(c, g!))))),
+			);
 			expect(best, `${box.label} boundary on its ground`).toBeGreaterThanOrEqual(LARGE);
 		}
 		// The pane's own pseudo paint (droplets, sheen) is square too.
@@ -793,27 +809,43 @@ test('the deck chassis keys keep a measurable boundary and every deck element is
 	await pointerAway(page);
 	const region = pane(page);
 	await expect(region).toHaveAttribute('data-skin', 'deck');
-	const chassis = region.locator('.wiper-controls');
-	expect(await chassis.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
-	// Role colours compute as oklch(); resolve them through the role resolver.
-	const ground = await resolveRoleRgb(page, '--inverse-panel');
-	const pipe = await resolveRoleRgb(page, '--highlight');
-	expect(roundRatio(contrastRatio(pipe, ground)), 'amber light-pipe on the chassis').toBeGreaterThanOrEqual(3);
-	const keys = await region.locator('.wiper-switch, .wiper-stalk__detent').evaluateAll((els) =>
-		els.map((el) => {
-			const s = getComputedStyle(el);
-			return {
-				top: Number.parseFloat(s.borderTopWidth),
-				sides: [s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth],
-				radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius],
-			};
-		}),
-	);
-	expect(keys).toHaveLength(5);
-	for (const key of keys) {
+	// Rendered colours through a canvas (computed styles are oklch()).
+	const painted = await region.locator('.wiper-switch, .wiper-stalk__detent').evaluateAll((els) => {
+		const canvas = document.createElement('canvas');
+		canvas.width = canvas.height = 1;
+		const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+		const rgb = (css: string) => {
+			ctx.clearRect(0, 0, 1, 1);
+			ctx.fillStyle = css;
+			ctx.fillRect(0, 0, 1, 1);
+			const [red, green, blue, alpha] = ctx.getImageData(0, 0, 1, 1).data;
+			return { red, green, blue, alpha: alpha / 255 };
+		};
+		const chassis = els[0].closest('.wiper-controls') as Element;
+		return {
+			ground: rgb(getComputedStyle(chassis).backgroundColor),
+			keys: els.map((el) => {
+				const s = getComputedStyle(el);
+				return {
+					top: Number.parseFloat(s.borderTopWidth),
+					sides: [s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth],
+					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius],
+					pipe: rgb(s.borderTopColor),
+				};
+			}),
+		};
+	});
+	expect(painted.ground.alpha, 'the deck chassis is opaque').toBe(1);
+	expect(painted.keys).toHaveLength(5);
+	for (const key of painted.keys) {
 		expect(key.top).toBe(2);
 		expect(key.sides).toEqual(['0px', '0px', '0px']);
 		expect(key.radius).toEqual(['0px', '0px', '0px', '0px']);
+		expect(key.pipe.alpha).toBe(1);
+		expect(
+			roundRatio(contrastRatio(key.pipe, painted.ground)),
+			'rendered light-pipe on the rendered chassis',
+		).toBeGreaterThanOrEqual(3);
 	}
 	for (const selector of ['.wiper-lcd', '.wiper-vu i', '.wiper-switch__lamp', '.wiper-marquee']) {
 		for (const el of await region.locator(selector).all()) {
