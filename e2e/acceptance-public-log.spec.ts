@@ -8,10 +8,6 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const published = [
 	{ slug: '2026-09-07-alex-the-wheel-maven', title: 'Alex the wheel maven grinding away' },
 	{
-		slug: '2026-08-14-the-system-in-diagrams',
-		title: 'The life of a tool',
-	},
-	{
 		slug: '2026-08-13-networking-options-for-the-bus',
 		title: 'Sizing up networkies for the bus',
 	},
@@ -23,6 +19,7 @@ const published = [
 ] as const;
 
 const removed = [
+	'2026-08-11-how-tools-will-move',
 	'2026-08-15-waterproofing-seats-and-a-wants-list',
 	'2026-08-16-public-front-door',
 	'2026-08-17-starting-a-real-public-log',
@@ -66,7 +63,6 @@ const imagedEntries = [
 		alt: 'Alex kneeling on the ridged bus floor in ear defenders and safety glasses, an angle grinder throwing sparks at the foot of a grey seat frame',
 	},
 	{
-		// Renamed on main (092b0ea); the photo file kept its name.
 		slug: '2026-08-11-semaphore',
 		src: '/photos/log/2026-08-11-how-tools-will-move-1280.webp',
 		alt: 'Looking down the aisle of the bus interior with a bicycle strapped in the wheelchair bay',
@@ -113,37 +109,26 @@ test('imageless permalinks render no hero between header and body', async ({ pag
 	await expect(page.locator('.log-entry .featured-image')).toHaveCount(0);
 });
 
-test('the approved public diagrams are served from the static carrier', async ({ request }) => {
+test('the retired public diagram assets are no longer served', async ({ request }) => {
 	for (const name of [
 		'inventory-custody-flow.svg',
 		'release-proof-flow-public.svg',
 		'launch-authority-flow-public.svg',
 	]) {
 		const response = await request.get(`/diagrams/launch-member-v0/${name}`);
-		expect(response.status(), name).toBe(200);
+		expect(response.status(), name).toBe(404);
 	}
 });
 
-test('the diagram post keeps its figures inside a phone viewport', async ({ page }) => {
-	await page.setViewportSize({ width: 320, height: 800 });
-	await page.goto('/log/2026-08-14-the-system-in-diagrams');
-	// Operator edit 9ccf26d removed the full-size links and their descriptions;
-	// the figures themselves stay and must never widen the page.
-	const figures = page.locator('.log-entry img');
-	await expect(figures).toHaveCount(1);
-	for (const figure of await figures.all()) {
-		await figure.scrollIntoViewIfNeeded();
-		const box = await figure.boundingBox();
-		expect(box).not.toBeNull();
-		expect(box!.x).toBeGreaterThanOrEqual(-1);
-		expect(box!.x + box!.width).toBeLessThanOrEqual(321);
-	}
-});
-
-test('removed entries stay deleted and the remaining draft stays unpublished', async ({ page }) => {
+test('removed entries stay deleted and retained drafts stay unpublished', async ({ page }) => {
 	for (const slug of removed) {
 		expect(existsSync(path.join(repoRoot, 'src', 'content', 'log', `${slug}.svx`)), slug).toBe(false);
+		const response = await page.goto(`/log/${slug}`);
+		expect(response?.status(), slug).toBe(404);
 	}
-	const response = await page.goto('/log/2026-08-21-the-road-map-plainly');
-	expect(response?.status()).toBe(404);
+	for (const slug of ['2026-08-14-the-system-in-diagrams', '2026-08-21-the-road-map-plainly']) {
+		expect(existsSync(path.join(repoRoot, 'src', 'content', 'log', `${slug}.svx`)), slug).toBe(true);
+		const response = await page.goto(`/log/${slug}`);
+		expect(response?.status(), slug).toBe(404);
+	}
 });

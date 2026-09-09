@@ -32,7 +32,7 @@ describe('featured-image contract mirror', () => {
 			expect(SKIP_EXTENSIONS.has(extension), `${extension} must stay a classified skip extension`).toBe(true);
 		}
 		// .svg is admitted because the scanner TEXT-scans it, not skips it.
-		expect(IMAGE_SRC_PATTERN.test('/diagrams/launch-member-v0/inventory-custody-flow.svg')).toBe(true);
+		expect(IMAGE_SRC_PATTERN.test('/logo/bus-silhouette.svg')).toBe(true);
 		expect(TEXT_EXTENSIONS.has('.svg')).toBe(true);
 		// Anything else would make the leak scan exit 2, so the schema refuses it.
 		expect(IMAGE_SRC_PATTERN.test('/photos/log/x.gif')).toBe(false);

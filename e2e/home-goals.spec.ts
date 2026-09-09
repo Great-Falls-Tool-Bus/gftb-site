@@ -46,11 +46,11 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	await expect(list).toHaveAttribute('role', 'list');
 	const rows = list.locator('> li');
 	await expect(rows).toHaveCount(publicGoals.length);
-	expect(publicGoals.length).toBeGreaterThanOrEqual(6);
+	expect(publicGoals.length).toBe(5);
 	// The rendered order IS the SSOT's sort (order asc, then slug), and the
 	// first row is the operator's first penciled goal.
 	await expect(rows.locator('h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	await expect(rows.first().locator('h3')).toHaveText('Form the club');
+	await expect(rows.first().locator('h3')).toHaveText('Soft opening at the block party');
 	await expect(page.locator('#goals')).toContainText('Sunday, September 20, 2026');
 	// Featured-image home integration (the 2026-09-01 batch's deferred item):
 	// a goal that ships the frontmatter image group renders that exact image
@@ -170,6 +170,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await pane(page).scrollIntoViewIfNeeded();
 	const firstPage = await currentTitles(page);
 	expect(firstPage).toHaveLength(3);
+	const expectedSecondPage = publicGoals.slice(3, 6).map((goal) => goal.metadata.title);
 	// Observe from inside the page: every data-wipe flip and every page turn,
 	// with the mask progress sampled while the out-stroke runs.
 	await page.evaluate(() => {
@@ -200,7 +201,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await selectDetent(page, 'High');
 	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
 	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(3);
-	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(3);
+	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(expectedSecondPage.length);
 	const outMask = await page
 		.locator('#goals li[data-wipe="out"]')
 		.first()
@@ -217,7 +218,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	});
 	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 15_000 });
 	const secondPage = await currentTitles(page);
-	expect(secondPage).toHaveLength(3);
+	expect(secondPage).toEqual(expectedSecondPage);
 	expect(secondPage).not.toEqual(firstPage);
 	expect(secondPage[0]).toBe(publicGoals[3].metadata.title);
 	const log = await page.evaluate(
@@ -531,7 +532,7 @@ for (const mode of ['enhanced', 'no-js'] as const) {
 }
 
 for (const scheme of ['light', 'dark'] as const) {
-	test(`body copy on bare ground clears its floor over the blob layer (${scheme})`, async ({ page }) => {
+	test(`content glass clears its floor over the blob layer (${scheme})`, async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -544,7 +545,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pointerAway(page);
 		const extremes = await measureGlassExtremes(page, '#goals .goal-asides', 2);
 		const worst = async (role: string) => {
-			const ink = await resolveRoleRgb(page, role);
+			const ink = await resolveRoleRgb(page, role, '#goals .goal-asides');
 			return Math.min(
 				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
 				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
@@ -588,7 +589,7 @@ test('the hero carries one spelling of the Thursday hours', async ({ page }) => 
 	await expect(session.getByRole('heading', { level: 3 })).toHaveText('Public work sessions');
 	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
 	await expect(session).not.toContainText('3–5');
-	await expect(page.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
+	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 });
 
 test('GitHub sits in the header as an outbound link and the AX footer row is gone', async ({ page }) => {

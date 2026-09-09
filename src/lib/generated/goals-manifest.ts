@@ -16,46 +16,6 @@ export interface GeneratedGoalEntry {
 
 export const publishedGoalEntries: GeneratedGoalEntry[] = [
 	{
-		slug: '10-form-the-club',
-		metadata: {
-			kind: 'goal',
-			order: 10,
-			title: 'Form the club',
-			window: 'Objections until September 4, 2026',
-			cta_label: 'Go to Augusta with Jess',
-			cta_href: '/contact',
-			published: true,
-		},
-		text: 'Founding members were asked to agree to forming a Maine nonprofit club that would apply for 501(c)(7) status. If no one objects, the next steps are a name check and the founding paperwork in Augusta. Nothing is filed yet.',
-		sourcePath: 'src/content/goals/10-form-the-club.md',
-	},
-	{
-		slug: '20-tax-id',
-		metadata: {
-			kind: 'goal',
-			order: 20,
-			title: 'Get the club its own tax ID',
-			window: 'Only after the state accepts the founding papers',
-			published: true,
-		},
-		text: 'The club will need a federal tax ID (EIN) before it can hold money in its own name.',
-		sourcePath: 'src/content/goals/20-tax-id.md',
-	},
-	{
-		slug: '30-bank-account',
-		metadata: {
-			kind: 'goal',
-			order: 30,
-			title: 'Open a club bank account',
-			window: 'After the tax ID',
-			cta_label: 'Tell us your favorite Lewiston bank',
-			cta_href: '/contact',
-			published: true,
-		},
-		text: 'The account will belong to the club, not to any one person. Online membership payments follow it.',
-		sourcePath: 'src/content/goals/30-bank-account.md',
-	},
-	{
 		slug: '40-block-party',
 		metadata: {
 			kind: 'goal',
@@ -69,37 +29,8 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			image_aspect: '4/3',
 			published: true,
 		},
-		text: 'Come to the block party and meet the people building the bus. Tool lending is not part of the day yet. See you on the 20th.',
+		text: 'See you on the 20th :-)',
 		sourcePath: 'src/content/goals/40-block-party.md',
-	},
-	{
-		slug: '45-checkout-rehearsal',
-		metadata: {
-			kind: 'goal',
-			order: 45,
-			title: 'Test the borrowing system before anything is lent out',
-			window: 'No date yet',
-			image: '/photos/goals/bus-interior-seats-1280.webp',
-			image_alt: 'Empty transit seats inside the bus beside large windows looking out on grass and trees',
-			image_aspect: '4/3',
-			published: true,
-		},
-		text: 'A small invited group will try the checkout flow on real phones first. No tool leaves the bus during that test.',
-		sourcePath: 'src/content/goals/45-checkout-rehearsal.md',
-	},
-	{
-		slug: '47-online-applications',
-		metadata: {
-			kind: 'goal',
-			order: 47,
-			title: 'Open online membership applications',
-			window: 'No date yet',
-			cta_label: 'Ask to hear when they open',
-			cta_href: '/contact',
-			published: true,
-		},
-		text: 'The application, member accounts, and payments are being built and tested. Applications are not open yet.',
-		sourcePath: 'src/content/goals/47-online-applications.md',
 	},
 	{
 		slug: '50-shelves',
@@ -116,7 +47,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			image_aspect: '4/3',
 			published: true,
 		},
-		text: 'Shelving turns a bus into a library. Hands and lumber both help.',
+		text: 'Drawing for shelving is underway!',
 		sourcePath: 'src/content/goals/50-shelves.md',
 	},
 	{
@@ -126,14 +57,14 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			order: 60,
 			title: 'Reinstall the axles',
 			window: 'Thursdays, about 3 to 5 PM ET',
-			cta_label: 'Help with the axles',
+			cta_label: 'Help with the axles plz',
 			cta_href: '/contact',
 			image: '/photos/goals/bus-on-lawn-1280.webp',
 			image_alt: 'Rear half of the purple bus resting on grass under maple trees, wheels sunk into the lawn',
 			image_aspect: '4/3',
 			published: true,
 		},
-		text: 'The axles have to go back in. This is heavy work and needs extra hands.',
+		text: 'The axles should be reunited with the wheels.',
 		sourcePath: 'src/content/goals/60-axles.md',
 	},
 	{
@@ -174,7 +105,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		metadata: {
 			kind: 'help',
 			order: 10,
-			title: 'Good with words? We will need proofreaders for the member documents.',
+			title: 'Good with words? Help us draft copy, proofread docs and share the word!',
 			cta_label: 'Offer an hour',
 			cta_href: '/contact',
 			published: true,
@@ -194,6 +125,19 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		},
 		text: '',
 		sourcePath: 'src/content/goals/71-help-band.md',
+	},
+	{
+		slug: '73-help-bank',
+		metadata: {
+			kind: 'help',
+			order: 10,
+			title: 'What is your favorite local banking institution?',
+			cta_label: 'Tell us where we should park our money',
+			cta_href: '/contact',
+			published: true,
+		},
+		text: '',
+		sourcePath: 'src/content/goals/73-help-bank.md',
 	},
 	{
 		slug: '80-benefit-membership',
@@ -227,16 +171,5 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		},
 		text: '',
 		sourcePath: 'src/content/goals/82-benefit-discuss.md',
-	},
-	{
-		slug: '83-benefit-tools',
-		metadata: {
-			kind: 'benefit',
-			order: 40,
-			title: 'Tools, infrastructure, and resources for the biggest and smallest projects.',
-			published: true,
-		},
-		text: '',
-		sourcePath: 'src/content/goals/83-benefit-tools.md',
 	},
 ];
