@@ -197,7 +197,6 @@
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>
 							{/each}
 						</ul>
-						<p class="muted">Email and list access switch on once the mail system is proved.</p>
 					</div>
 				{/if}
 				{#if publicHelpAsks.length > 0}
