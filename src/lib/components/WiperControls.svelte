@@ -9,6 +9,10 @@
 	import type { WiperEngine } from '$lib/wiper/engine.svelte';
 	import { WIPER_DETENTS, isWiperDetent } from '$lib/wiper/schedule';
 
+	// Stable references let Svelte call these parts directly. Compound getter
+	// arrows can resemble private-name prose in minified public output.
+	const { Label: StalkLabel, Control: StalkControl, Item: StalkItem } = SegmentedControl;
+
 	const { engine }: { engine: WiperEngine } = $props();
 
 	function onValueChange(details: { value: string | null }) {
@@ -23,13 +27,13 @@
 	orientation="horizontal"
 	name="wiper-speed"
 >
-	<SegmentedControl.Label class="sr-only">Wiper speed</SegmentedControl.Label>
-	<SegmentedControl.Control class="wiper-stalk__control">
+	<StalkLabel class="sr-only">Wiper speed</StalkLabel>
+	<StalkControl class="wiper-stalk__control">
 		{#each WIPER_DETENTS as detent (detent.id)}
-			<SegmentedControl.Item value={detent.id} class="wiper-stalk__item">
+			<StalkItem value={detent.id} class="wiper-stalk__item">
 				<SegmentedControl.ItemText class="wiper-stalk__text">{detent.label}</SegmentedControl.ItemText>
 				<SegmentedControl.ItemHiddenInput />
-			</SegmentedControl.Item>
+			</StalkItem>
 		{/each}
-	</SegmentedControl.Control>
+	</StalkControl>
 </SegmentedControl>
