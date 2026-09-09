@@ -233,6 +233,73 @@ describe('the wiper source contract', () => {
 		}
 	});
 
+	it('keeps the two tiers in lockstep: one uniform set, one block, the WebGPU rung silent and last to the canvas', () => {
+		const glsl = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
+		const wgsl = read('src/lib/wiper/renderer/shaders/scene.wgsl.ts');
+		const glslUniforms = [...glsl.matchAll(/^uniform\s+(?:highp\s+)?\w+\s+(u_\w+)/gmu)].map((m) => m[1]);
+		expect(glslUniforms.length).toBeGreaterThan(10);
+		for (const name of glslUniforms) {
+			expect(wgsl, name).toMatch(new RegExp(`(?:^|\\s)(?:var\\s+)?${name}\\s*:`, 'mu'));
+		}
+		const wgslNames = [...wgsl.matchAll(/^\s*(?:@group\(0\) @binding\(\d\) var(?:<uniform>)?\s+)?(u_\w+)\s*:/gmu)].map(
+			(m) => m[1],
+		);
+		for (const name of wgslNames) {
+			if (name === 'u' || name === 'u_fieldSampler' || /^u_pad\d$/u.test(name)) continue;
+			expect(glslUniforms, name).toContain(name);
+		}
+		expect(wgsl.match(/@binding\((\d)\)/gu)).toEqual(['@binding(0)', '@binding(1)', '@binding(2)', '@binding(3)']);
+		// Sampling stays in uniform control flow; the bead field is fetched by texel.
+		expect(wgsl.match(/textureSampleLevel\(/gu)).toHaveLength(1);
+		expect(wgsl.match(/textureLoad\(/gu)).toHaveLength(1);
+		expect(wgsl).not.toMatch(/textureSample\(/u);
+		expect(wgsl).not.toMatch(/https?:|[\w.-]+@[\w.-]+\.\w{2,}/u);
+		// The WGSL splits at the same layer test and keeps the glass on layer 0.
+		const [, wgslRest] = wgsl.split('if (u.u_layer == 0) {');
+		const [wgslScene, wgslBlades] = wgslRest.split('\n\t}\n');
+		for (const call of ['sweptNow(', 'frost(', 'droplets(']) expect(wgslScene).toContain(call);
+		expect(wgslBlades).not.toMatch(/u_drops|u_frostTex|u_armEdge|u_armFan/u);
+		// Both renderers read the one block.
+		const webgl2 = read('src/lib/wiper/renderer/webgl2.ts');
+		const webgpu = read('src/lib/wiper/renderer/webgpu.ts');
+		expect(webgl2).toContain("from './uniform-block'");
+		expect(webgpu).toContain("from './uniform-block'");
+		expect(webgpu).not.toMatch(/console\./u);
+		expect(webgpu).not.toContain('createFramebuffer');
+		expect(webgpu).not.toContain('copyBufferToTexture');
+		// Silence by construction: handlers before resources, scopes around
+		// creation, the compile log read, the canvas claimed last.
+		const order = [
+			'onuncapturederror',
+			'device.lost',
+			"pushErrorScope('validation')",
+			'createShaderModule',
+			'getCompilationInfo()',
+			'createRenderPipelineAsync',
+			"canvas.getContext('webgpu')",
+		];
+		const positions = order.map((needle) => webgpu.indexOf(needle));
+		for (let index = 1; index < positions.length; index += 1) {
+			expect(positions[index], `${order[index]} after ${order[index - 1]}`).toBeGreaterThan(positions[index - 1]);
+		}
+		expect(webgpu).toContain('preventDefault()');
+		expect(webgpu).toContain("reason === 'destroyed'");
+		expect(webgpu).toContain("'unfilterable-float'");
+		expect(webgpu).toContain("alphaMode: options.layer === 'blades' ? 'premultiplied' : 'opaque'");
+		expect(webgpu.match(/requestDevice\(/gu)).toHaveLength(1);
+		// The ladder: the hook, the order, nothing static.
+		const select = read('src/lib/wiper/renderer/select.ts');
+		expect(select).toContain('dataset.wiperTierMax');
+		expect(select.indexOf("import('./webgpu')")).toBeLessThan(select.indexOf("import('./webgl2')"));
+		expect(select).not.toMatch(/^import .* from '\.\/(webgpu|webgl2)';/mu);
+		// The host follows the rung and refuses a mixed pair.
+		const host = read('src/lib/components/WiperScene.svelte');
+		expect(host).toContain('tier = renderer.tier;');
+		expect(host).toContain('engine.tier = renderer.tier;');
+		expect(host).toContain('if (blades.tier !== renderer.tier) {');
+		expect(host).not.toMatch(/'webgpu'/u);
+	});
+
 	it('ships shaders as strings with no host or mailbox in them and no console in the renderer', () => {
 		const shader = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
 		expect(shader).not.toMatch(/https?:|[\w.-]+@[\w.-]+\.\w{2,}/u);

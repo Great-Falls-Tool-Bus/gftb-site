@@ -22,6 +22,7 @@ import { publishedGoalEntries } from '../src/lib/generated/goals-manifest';
 import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-goals';
 import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
+import { awaitTier, forceTierMax } from './support/wiper-tier';
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub
@@ -336,12 +337,14 @@ test('the scene canvas exists only while the notes page, fills the list box, and
 	await pane(page).scrollIntoViewIfNeeded();
 	await pointerAway(page);
 	await expect(scene(page)).toHaveCount(1);
-	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	const tier = await awaitTier(page);
 	await expect(scene(page)).toHaveAttribute('aria-hidden', 'true');
-	// The blade layer: one transparent canvas over the notes, same box, inert.
+	// The blade layer: one transparent canvas over the notes, same box, inert,
+	// on the same rung as the scene.
 	const blades = page.locator('#goals canvas.wiper__blades');
 	await expect(blades).toHaveCount(1);
 	await expect(blades).toHaveAttribute('aria-hidden', 'true');
+	await expect(blades).toHaveAttribute('data-tier', tier);
 	const layering = await page.evaluate(() => {
 		const scene = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
 		const over = document.querySelector('#goals canvas.wiper__blades')!;
@@ -391,6 +394,41 @@ test('the scene canvas exists only while the notes page, fills the list box, and
 	await expect(scene(page)).toHaveCount(0);
 	await selectDetent(page, 'Intermittent');
 	await expect(scene(page)).toHaveCount(1);
+});
+
+// The ladder can be capped from outside before the page mounts: capped at
+// WebGL2 on a WebGPU-capable browser both canvases run WebGL2 with nothing
+// in the console; capped at none there is no canvas and the notes still page
+// under the DOM wipe with the stalk in place.
+test('the ladder honours a ceiling set before mount, silently', async ({ browser }) => {
+	const capped = await browser.newContext({ viewport: WIDE });
+	const page = await capped.newPage();
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await forceTierMax(page, 'webgl2');
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+	await capped.close();
+
+	const bare = await browser.newContext({ viewport: WIDE });
+	const grid = await bare.newPage();
+	await forceTierMax(grid, 'none');
+	await grid.goto('/');
+	await grid.waitForLoadState('networkidle');
+	await pane(grid).scrollIntoViewIfNeeded();
+	await expect(grid.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u, { timeout: 15_000 });
+	await expect(grid.locator('#goals canvas')).toHaveCount(0);
+	await expect(grid.locator('#goals .wiper-stalk')).toBeVisible();
+	await bare.close();
 });
 
 test('the scene is absent under reduced motion and hidden on paper and under forced colours', async ({ page }) => {
@@ -472,7 +510,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await setScheme(page, scheme);
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
-		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		await awaitTier(page);
 		// A rest held open: no note moves while the pixels are read.
 		await holdRest(page);
 		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
@@ -543,7 +581,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await setScheme(page, scheme);
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
-		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		await awaitTier(page);
 		const box = await page.locator('#goals .goal-list').evaluate((el) => {
 			const r = el.getBoundingClientRect();
 			return { width: r.width, height: r.height };
@@ -645,7 +683,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await setScheme(page, scheme);
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
-		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		await awaitTier(page);
 		// A fresh rest after a stroke, then held open. A starved rig counts the
 		// rest slowly (a frame advances it a second at most), so allow a while.
 		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
@@ -685,7 +723,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await setScheme(page, scheme);
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
-		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		await awaitTier(page);
 		// Fill the glass under a held rest, then hold the next out-stroke at its
 		// midpoint: both blades stand near vertical over their span midpoints,
 		// so the left gutter lies behind the left blade and the right gutter

@@ -36,7 +36,8 @@ uniform int u_blend;
 uniform float u_time;
 uniform int u_blobCount;
 uniform vec4 u_blobs[${MAX_BLOBS}];
-uniform vec3 u_blobColors[${MAX_BLOBS}];
+// rgb in xyz; vec4 so the shared uniform block's 16-byte stride binds directly.
+uniform vec4 u_blobColors[${MAX_BLOBS}];
 uniform int u_armCount;
 // pivot.xy (device px), phi (radians, conic convention), length (device px)
 uniform vec4 u_arms[${MAX_ARMS}];
@@ -73,7 +74,7 @@ float blobField(vec2 p, out vec3 tint) {
 		float f = (b.z * b.z) / (dot(d, d) + 1.0);
 		field += f;
 		weight += f;
-		sum += u_blobColors[i] * f;
+		sum += u_blobColors[i].xyz * f;
 	}
 	tint = sum / max(weight, 1e-4);
 	return field;
