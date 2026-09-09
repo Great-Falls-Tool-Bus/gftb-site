@@ -124,10 +124,14 @@ test('the notes ride a wiper rotator with exactly two controls, and Off is the p
 	// hidden in place, never mounted and unmounted.
 	const list = page.locator('#goals .goal-list');
 	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	// A loaded runner may already have turned a page: compare against the page shown.
-	const shown = Number(await region.getAttribute('data-page'));
-	expect(await visibleTitles(page)).toEqual(
-		publicGoals.slice(shown * 3, shown * 3 + 3).map((goal) => goal.metadata.title),
+	// A loaded runner may already have turned a page: read the page and its
+	// titles in one evaluate and compare against that page's slice.
+	const shown = await region.evaluate((el) => ({
+		page: Number(el.getAttribute('data-page')),
+		titles: Array.from(el.querySelectorAll('.goal-list > li.is-current h3')).map((h) => h.textContent),
+	}));
+	expect(shown.titles).toEqual(
+		publicGoals.slice(shown.page * 3, shown.page * 3 + 3).map((goal) => goal.metadata.title),
 	);
 
 	// Exactly two controls: the switch and the four-detent stalk. No
@@ -208,28 +212,43 @@ test("a wipe turns the page at the blades' turnaround and every note gets its tu
 	await page.goto('/');
 	await selectDetent(page, 'High');
 	const region = pane(page);
-	await region.scrollIntoViewIfNeeded();
 	const pageCount = Math.ceil(publicGoals.length / 3);
-	// One dwell plus a full sweep per turn, with generous slack: under a
-	// loaded parallel run Chromium throttles timers and animation events.
-	const cycleMs = 3 * ((await dwellOf(page)) + 2 * (await strokeOf(page))) + 3000;
+	const cycleMs = (await dwellOf(page)) + 2 * (await strokeOf(page)) + 1500;
 
-	// Page index and the titles under it are read in one evaluate: a
-	// turnaround between two separate reads would credit a page's titles to
-	// its predecessor and skip one.
-	const snapshot = () =>
-		region.evaluate((el) => ({
-			page: el.getAttribute('data-page'),
-			titles: Array.from(el.querySelectorAll('li.is-current h3'), (h3) => h3.textContent ?? ''),
-		}));
-	const seen = new Set<string>();
-	// Under a loaded runner a poll can miss a fast page; allow a few laps.
-	for (let turn = 0; turn < pageCount * 3 && seen.size < publicGoals.length; turn += 1) {
-		const snap = await snapshot();
-		for (const title of snap.titles) seen.add(title);
-		await expect.poll(async () => (await snapshot()).page, { timeout: cycleMs }).not.toBe(snap.page);
+	// Observe the turns from inside the page (a poll from outside can miss a
+	// page on a loaded runner): every data-page mutation records the page and
+	// the titles it shows, atomically.
+	await region.evaluate((el) => {
+		const seen: Array<{ page: string | null; titles: string[] }> = [];
+		const record = () =>
+			seen.push({
+				page: el.getAttribute('data-page'),
+				titles: Array.from(el.querySelectorAll('.goal-list > li.is-current h3')).map((h) => h.textContent ?? ''),
+			});
+		record();
+		new MutationObserver(record).observe(el, { attributes: true, attributeFilter: ['data-page'] });
+		(window as unknown as { __wiperTurns: typeof seen }).__wiperTurns = seen;
+	});
+	await expect
+		.poll(
+			async () =>
+				page.evaluate(() => {
+					const seen = (window as unknown as { __wiperTurns: Array<{ titles: string[] }> }).__wiperTurns;
+					return new Set(seen.flatMap((s) => s.titles)).size;
+				}),
+			{ timeout: cycleMs * (pageCount + 2) },
+		)
+		.toBe(publicGoals.length);
+	const turns = await page.evaluate(
+		() => (window as unknown as { __wiperTurns: Array<{ page: string | null; titles: string[] }> }).__wiperTurns,
+	);
+	// Pages advance one at a time and wrap; no page is ever skipped.
+	for (let i = 1; i < turns.length; i += 1) {
+		expect(Number(turns[i].page)).toBe((Number(turns[i - 1].page) + 1) % pageCount);
 	}
-	expect([...seen].sort()).toEqual(publicGoals.map((goal) => goal.metadata.title).sort());
+	expect([...new Set(turns.flatMap((t) => t.titles))].sort()).toEqual(
+		publicGoals.map((goal) => goal.metadata.title).sort(),
+	);
 	// The pane never becomes a scroller and the arms stay inside it.
 	expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
@@ -256,8 +275,9 @@ test('a pointer over the pane pauses the wipers and leaving resumes them', async
 	await pointerAway(page);
 	await expect(region).toHaveAttribute('data-state', /^(dwell|wiping)$/u);
 	await expect(status).toHaveAttribute('aria-live', 'off');
+	// Resume budget covers a delayed animation start on a loaded runner.
 	await expect
-		.poll(async () => region.getAttribute('data-page'), { timeout: dwell + 2 * stroke + 1500 })
+		.poll(async () => region.getAttribute('data-page'), { timeout: 2 * (dwell + 2 * stroke) + 2500 })
 		.not.toBe(before);
 });
 
@@ -390,6 +410,10 @@ test('reduced motion never rotates and offers no rotation controls', async ({ pa
 		),
 	).toBe(0);
 	expect(await region.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe('none');
+	// The aero skin's own pseudo paint is static under reduce: no sheen exists,
+	// the droplet layer carries no filter.
+	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+	expect(await region.evaluate((el) => getComputedStyle(el, '::before').filter)).toBe('none');
 });
 
 test('paper gets every note and none of the dash', async ({ page }) => {
@@ -416,7 +440,81 @@ test('paper gets every note and none of the dash', async ({ page }) => {
 			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
 		}
 	}
+	// A print begun mid-wipe carries no sheen band.
+	expect(await pane(page).evaluate((el) => getComputedStyle(el, '::after').display)).toBe('none');
 });
+
+// Operator ruling 2026-09-09 (light-pipe): each dash key keeps exactly one
+// border, a 2px --accent top edge, because the browser 1.4.11 collector
+// (e2e/acceptance-contrast.spec.ts) reads fills and border-TOP only and
+// visits only /contact. This row runs the collector's own math at / against
+// the real rendered pane in both schemes: max(fill, top edge) against the
+// darkest and the lightest pane pixel must clear 3:1 for every dash key.
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the dash keys are borderless except their light-pipe and clear 3:1 on the real glass (${scheme})`, async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(pane(page)).toHaveAttribute('data-skin', 'aero');
+		const keys = page.locator('#goals .wiper-controls button');
+		await expect(keys).toHaveCount(5);
+		const boxes = await keys.evaluateAll((els) =>
+			els.map((el) => {
+				const s = getComputedStyle(el);
+				return {
+					label: el.textContent?.trim() ?? '',
+					top: s.borderTopWidth,
+					right: s.borderRightWidth,
+					bottom: s.borderBottomWidth,
+					left: s.borderLeftWidth,
+					topColor: s.borderTopColor,
+					fill: s.backgroundColor,
+					radius: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius],
+				};
+			}),
+		);
+		for (const box of boxes) {
+			expect(box.top, `${box.label} top edge`).toBe('2px');
+			expect([box.right, box.bottom, box.left], `${box.label} other edges`).toEqual(['0px', '0px', '0px']);
+			expect(box.radius, `${box.label} corners`).toEqual(['0px', '0px', '0px', '0px']);
+		}
+		expect(await page.locator('#goals .wiper-controls').evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe(
+			'0px',
+		);
+
+		const extremes = await measureGlassExtremes(page, '#goals .wiper', 16);
+		const accent = await resolveRoleRgb(page, '--accent');
+		const parse = (value: string) => {
+			const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/u.exec(value);
+			if (!m) return null;
+			const alpha = m[4] === undefined ? 1 : Number(m[4]);
+			return alpha === 0 ? null : { red: Number(m[1]), green: Number(m[2]), blue: Number(m[3]) };
+		};
+		for (const box of boxes) {
+			// The collector takes the better of the fill and the top edge; the
+			// top edge is always --accent here, so the pipe alone must clear 3:1.
+			const candidates = [accent, parse(box.fill)].filter((c): c is NonNullable<typeof c> => c !== null);
+			const best = Math.max(
+				...candidates.map((c) =>
+					Math.min(
+						roundRatio(contrastRatio(c, extremes.darkest.rgb)),
+						roundRatio(contrastRatio(c, extremes.lightest.rgb)),
+					),
+				),
+			);
+			expect(best, `${box.label} boundary on the pane`).toBeGreaterThanOrEqual(LARGE);
+		}
+		// The pane's own pseudo paint (droplets, sheen) is square too.
+		for (const pseudo of ['::before', '::after'] as const) {
+			expect(await pane(page).evaluate((el, p) => getComputedStyle(el, p).borderTopLeftRadius, pseudo)).toBe('0px');
+		}
+	});
+}
 
 test('the pane never widens the page on a narrow phone', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 700 });
