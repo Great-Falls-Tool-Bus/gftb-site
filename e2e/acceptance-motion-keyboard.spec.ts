@@ -1,29 +1,5 @@
-import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { stubContactEndpoint } from './support/network';
-
-// The Notes & Goals wipers page the list after hydration; with the wipers
-// off every note is a plain grid row, so the keyboard sweeps below meet a
-// stable document. The rotator's own keyboard rows (focus-follow, the
-// stalk's roving tabindex) live in e2e/home-goals.spec.ts.
-async function switchWipersOff(page: Page) {
-	const wipers = page.locator('#goals').getByRole('switch', { name: 'Wipers' });
-	if ((await wipers.count()) === 0) return;
-	// Operate the switch from the keyboard, not the pointer: a real mouse
-	// click would flip Chromium into pointer modality (programmatic focus
-	// then paints no :focus-visible ring for the indicator sweep) and leave
-	// the pointer resting on the pane. Then hand focus back to the document
-	// body so the sequential-focus starting point is the top of the page.
-	await wipers.focus();
-	await page.keyboard.press('Space');
-	await expect(wipers).toHaveAttribute('aria-checked', 'false');
-	await page.evaluate(() => {
-		const body = document.body;
-		body.tabIndex = -1;
-		body.focus();
-		body.removeAttribute('tabindex');
-	});
-}
 
 // Acceptance rows (§3): prefers-reduced-motion is respected (no non-essential
 // animation), and the page is fully keyboard operable with a visible, ordered
@@ -101,7 +77,6 @@ test.describe('prefers-reduced-motion', () => {
 test.describe('keyboard operability', () => {
 	test('tab order follows document order and reaches every control', async ({ page, guardedPage }) => {
 		await guardedPage();
-		await switchWipersOff(page);
 
 		const expected = await page.evaluate(() => {
 			const focusable = Array.from(
@@ -145,7 +120,6 @@ test.describe('keyboard operability', () => {
 	test('every focused control shows a visible indicator', async ({ page, guardedPage }) => {
 		await guardedPage();
 		await page.waitForLoadState('networkidle');
-		await switchWipersOff(page);
 
 		const invisible = await page.evaluate(async () => {
 			// Declare keyboard modality before the sweep: the switch's ring is

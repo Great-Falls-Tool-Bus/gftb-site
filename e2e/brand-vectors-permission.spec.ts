@@ -70,10 +70,19 @@ for (const permission of ['granted', 'denied'] as const) {
 		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 
-		// A tap on a control (the wiper switch) does its own job and is never borrowed.
-		const wipers = page.locator('#goals').getByRole('switch', { name: 'Wipers' });
-		await wipers.click();
-		await expect(wipers).toHaveAttribute('aria-checked', 'false');
+		// A tap on a control inside main does its own job and is never borrowed.
+		// The home page's main carries no native button today, so the row
+		// plants one for the assertion (the guard is DOM-generic: it reads the
+		// tap target, not a component) and removes it afterwards.
+		await page.evaluate(() => {
+			const probe = document.createElement('button');
+			probe.type = 'button';
+			probe.id = 'handshake-probe';
+			probe.textContent = 'probe';
+			document.getElementById('main-content')?.append(probe);
+		});
+		await page.locator('#handshake-probe').click();
+		await page.evaluate(() => document.getElementById('handshake-probe')?.remove());
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 		// A tap on a link is never borrowed either (prevent navigation for the assertion only).

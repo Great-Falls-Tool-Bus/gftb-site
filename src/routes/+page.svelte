@@ -151,22 +151,19 @@
 		</div>
 
 		{#if publicGoals.length > 0}
-			<!-- Notes & Goals: the borderless timeline rows (never-cards stands:
-			     title, plain window, one sentence, at most one CTA per row) now
-			     ride the wiper rotator. Without JavaScript, with wipers off, under
-			     reduced motion and on paper the served HTML is the same resting
-			     grid as before; hydration adds the frosted pane's paging, the
-			     wiper arms and the dash controls. See
-			     src/lib/components/WiperRotator.svelte for the whole contract and
+			<!-- Notes & Goals: the borderless rows (never-cards stands: title,
+			     plain window, one sentence, at most one CTA per row) as a plain grid
+			     in every state. Operator ruling 2026-09-09: the wiper rotator is off
+			     the public surface until the ratified replacement lands; the served
+			     HTML, reduced motion and paper all show this same grid. See
 			     NotesAndGoals.svelte for the goal rows and their Edit links.
 
-			     The designed `media` snippet below is unchanged: it still consumes
-			     ONLY the schema's frontmatter group (src/lib/featured-image-schema.ts)
-			     and is graceful in absence (an imageless goal renders no figure
-			     and no reserved box). The .goal-media crop box (app.css) fixes the
-			     media height from CSS before any bytes arrive, so lazy-loading
-			     cannot shift layout and the rotator's one-item-tall mobile budget
-			     holds; a goal's own image_aspect overrides the default crop inline. -->
+			     The designed `media` snippet below consumes ONLY the schema's
+			     frontmatter group (src/lib/featured-image-schema.ts) and is graceful
+			     in absence (an imageless goal renders no figure and no reserved box).
+			     The .goal-media crop box (app.css) fixes the media height from CSS
+			     before any bytes arrive, so lazy-loading cannot shift layout; a goal's
+			     own image_aspect overrides the default crop inline. -->
 			<NotesAndGoals goals={publicGoals} labelledby="goals-title">
 				{#snippet media(goal)}
 					{#if goal.metadata.image}
