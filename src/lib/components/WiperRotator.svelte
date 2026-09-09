@@ -5,10 +5,12 @@
 	import {
 		DEFAULT_WIPER_POSITION,
 		DEFAULT_WIPER_SKIN,
+		VU_COLUMNS,
 		WIPER_POSITIONS,
 		pageCountFor,
 		pageOf,
 		stepWiperPosition,
+		vuHeight,
 		type WiperPosition,
 		type WiperSkin,
 	} from './wiper-rotator';
@@ -82,6 +84,8 @@
 		rain?: boolean;
 		/** Named skin; every skin rule is scoped under data-skin in app.css. */
 		skin?: WiperSkin;
+		/** Marquee text per item (deck skin); omitted = no marquee. */
+		marquee?: (item: T) => string;
 		/** Rendered after the controls, inside the pane. */
 		footer?: Snippet;
 	}
@@ -96,6 +100,7 @@
 		initialPosition = DEFAULT_WIPER_POSITION,
 		rain = false,
 		skin = DEFAULT_WIPER_SKIN,
+		marquee,
 		footer,
 	}: Props = $props();
 
@@ -128,6 +133,19 @@
 	const paneState = $derived(!paged ? 'off' : cycle.phase === 'wiping' ? 'wiping' : cycle.paused ? 'paused' : 'dwell');
 	const first = $derived(cycle.currentPage * pageSize + 1);
 	const last = $derived(Math.min(items.length, (cycle.currentPage + 1) * pageSize));
+	// Deck instruments, all derived from the page (deterministic, testable):
+	// the VU strip's column heights step once per wipe, the marquee carries
+	// the current page's labels, the LCD counts the dwell down in seconds.
+	const vu = $derived(Array.from({ length: VU_COLUMNS }, (_, column) => vuHeight(cycle.currentPage, column)));
+	const marqueeText = $derived(
+		marquee
+			? items
+					.slice(first - 1, last)
+					.map(marquee)
+					.join('  \u2022  ')
+			: '',
+	);
+	const lcdFrom = $derived(Math.ceil(cycle.dwellMs / 1000));
 
 	let listEl = $state<HTMLOListElement>();
 
@@ -248,6 +266,7 @@
 	data-page={paged ? cycle.currentPage : undefined}
 	style:--wiper-dwell={enhanced ? `${cycle.dwellMs}ms` : undefined}
 	style:--wiper-stroke={enhanced ? `${cycle.activeSweepMs / 2}ms` : undefined}
+	style:--wiper-lcd-from={enhanced ? lcdFrom : undefined}
 	onpointerenter={onPaneEnter}
 	onpointerleave={onPaneLeave}
 	onpointercancel={onPaneLeave}
@@ -317,6 +336,13 @@
 		     detent. Detents are buttons with role="radio" and a roving
 		     tabindex (one Tab stop; arrows move and select). -->
 		<div class="wiper-controls" role="group" aria-label="Wipers">
+			{#if skin === 'deck' && marquee}
+				<!-- Marquee (deck): the current page's labels crossing the chassis,
+				     moving only while the wipers run; decorative. -->
+				<span class="wiper-marquee" aria-hidden="true">
+					<span class="wiper-marquee__track">{marqueeText}</span>
+				</span>
+			{/if}
 			<button
 				type="button"
 				class="wiper-switch"
@@ -325,11 +351,27 @@
 				aria-label="Wipers"
 				onclick={() => cycle.toggle()}
 			>
+				<span class="wiper-switch__lamp" aria-hidden="true"></span>
 				<span class="wiper-switch__track" aria-hidden="true"><span class="wiper-switch__thumb"></span></span>
 				<span class="wiper-switch__text" aria-hidden="true">
 					Wipers <span class="wiper-switch__state">{cycle.enabled ? 'On' : 'Off'}</span>
 				</span>
 			</button>
+			{#if skin === 'deck'}
+				<!-- LCD (deck): seconds to the next wipe, counted down by a
+				     registered custom property and rendered through a CSS counter;
+				     decorative. -->
+				<span class="wiper-lcd" aria-hidden="true">
+					<span class="wiper-lcd__label">Next wipe</span>
+					<span class="wiper-lcd__digits"></span>
+				</span>
+				<!-- VU strip (deck): twelve bars whose heights step once per wipe. -->
+				<span class="wiper-vu" aria-hidden="true">
+					{#each vu as height, column (column)}
+						<i style:--vu={height}></i>
+					{/each}
+				</span>
+			{/if}
 			<!-- The posbar: a dwell gauge that fills toward the next wipe (CSS
 			     keyed on data-state, paused with the pane; decorative). -->
 			<span class="wiper-gauge" aria-hidden="true"></span>

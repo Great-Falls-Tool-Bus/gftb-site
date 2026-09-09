@@ -181,18 +181,20 @@ describe('the dash light-pipe and the aero skin (operator rulings 2026-09-09)', 
 		return appCss.slice(at + marker.length, close);
 	};
 
-	it('names its skins and ships the aero skin on the goals surface with dash as the rollback', () => {
-		expect(WIPER_SKINS).toEqual(['dash', 'aero']);
+	it('names its skins and ships the deck skin on the goals surface with dash as the rollback', () => {
+		expect(WIPER_SKINS).toEqual(['dash', 'aero', 'deck']);
 		expect(DEFAULT_WIPER_SKIN).toBe('dash');
 		expect(rotator).toContain('data-skin={skin}');
-		expect(goals).toContain('skin="aero"');
+		expect(goals).toContain('skin="deck"');
 		// Every aero rule is scoped; the dash skin never inherits one. Counting
 		// scoped rules cannot prove that, so this pins the converse: no rule
 		// whose selector lacks data-skin declares an aero-only property (the
 		// gloss token, the gel background-image on the pane, a painted ::after),
 		// and the dash keys keep their transparent fill and invisible bevel.
 		const aeroRules =
-			appCss.match(/^\.wiper\[data-skin='aero'\]|^\[data-mode='dark'\] \.wiper\[data-skin='aero'\]/gmu) ?? [];
+			appCss.match(
+				/^\.wiper:is\(\[data-skin='aero'\], \[data-skin='deck'\]\)|^\[data-mode='dark'\] \.wiper:is\(\[data-skin='aero'\], \[data-skin='deck'\]\)/gmu,
+			) ?? [];
 		expect(aeroRules.length).toBeGreaterThanOrEqual(4);
 		const stripped = appCss.replace(/\/\*[\s\S]*?\*\//gu, '');
 		for (const rule of stripped.matchAll(/([^{}]+)\{([^{}]*)\}/gu)) {
@@ -230,14 +232,14 @@ describe('the dash light-pipe and the aero skin (operator rulings 2026-09-09)', 
 	});
 
 	it('darkens only in dark mode inside the glass (the direction contract)', () => {
-		const dark = rule("[data-mode='dark'] .wiper[data-skin='aero']");
+		const dark = rule("[data-mode='dark'] .wiper:is([data-skin='aero'], [data-skin='deck'])");
 		expect(dark).toMatch(/--wiper-gloss: #000;/u);
 		// The pane's own paint (the measured surface) darkens only; the key
 		// bevel highlight is a descendant and may stay light.
 		const paint = dark.match(/background-image:[^;]*;/u)?.[0] ?? '';
 		expect(paint).toMatch(/color-mix\(in oklab, #000 10%, transparent\)/u);
 		expect(paint).not.toMatch(/#fff|var\(--wiper-gloss\)/u);
-		const light = rule(".wiper[data-skin='aero']");
+		const light = rule(".wiper:is([data-skin='aero'], [data-skin='deck'])");
 		expect(light).toMatch(/--wiper-gloss: #fff;/u);
 	});
 
@@ -271,7 +273,7 @@ describe('the dash light-pipe and the aero skin (operator rulings 2026-09-09)', 
 		expect(inside).toMatch(/@keyframes wiper-sheen/u);
 		expect(outside).not.toMatch(/wiper-sheen/u);
 		// The sheen pseudo exists only while wiping, and paper drops it.
-		expect(appCss).toMatch(/\.wiper\[data-skin='aero'\]::after \{\n\tcontent: none;\n\}/u);
+		expect(appCss).toMatch(/\.wiper:is\(\[data-skin='aero'\], \[data-skin='deck'\]\)::after \{\n\tcontent: none;\n\}/u);
 		expect(appCss).toMatch(/\.wiper::before,\n\t\.wiper::after,\n\t\.wiper-arms,/u);
 	});
 });
@@ -325,5 +327,79 @@ describe('the dwell timer and the instruments share one clock', () => {
 	it('wipes at once on a detent change so every clock restarts together', () => {
 		expect(cycle).toContain("if (changed && next !== 'off' && this.phase === 'dwell') this.startWipe(true);");
 		expect(cycle).toContain('if (force ? !(this.rotatable && this.enabled) : !this.running) return;');
+	});
+});
+
+describe('the deck skin (operator rulings 2026-09-09)', () => {
+	const rotator = read('src/lib/components/WiperRotator.svelte');
+	const appCss = read('src/app.css');
+	const stripped = appCss.replace(/\/\*[\s\S]*?\*\//gu, '');
+
+	it('mounts the chassis instruments only inside the hydration gate and only for the deck', () => {
+		const gate = rotator.indexOf('{#if enhanced && cycle.rotatable');
+		for (const marker of [
+			'class="wiper-marquee"',
+			'class="wiper-lcd"',
+			'class="wiper-vu"',
+			'class="wiper-switch__lamp"',
+		]) {
+			expect(rotator.indexOf(marker), marker).toBeGreaterThan(gate);
+		}
+		expect(rotator).toContain("{#if skin === 'deck' && marquee}");
+		expect(rotator).toContain("{#if skin === 'deck'}");
+		expect(read('src/lib/components/NotesAndGoals.svelte')).toContain('marquee={(goal) => goal.metadata.title}');
+	});
+
+	it('paints the chassis and its instruments only in inverse-panel role tokens', () => {
+		const chassis = stripped.match(/\.wiper\[data-skin='deck'\] \.wiper-controls \{[^}]*\}/u)?.[0] ?? '';
+		expect(chassis).toMatch(/background: var\(--inverse-panel\);/u);
+		expect(chassis).toMatch(/color: var\(--inverse-fg\);/u);
+		expect(stripped).toMatch(
+			/\.wiper\[data-skin='deck'\] \.wiper-switch,\s*\.wiper\[data-skin='deck'\] \.wiper-stalk__detent \{\s*border-top-color: var\(--highlight\);/u,
+		);
+		expect(stripped).toMatch(/\.wiper-lcd \{[^}]*color: var\(--highlight\);/u);
+		// No raw hex besides the black/white mix partners, no non-role colours.
+		for (const block of [chassis, stripped.match(/\.wiper-lcd \{[^}]*\}/u)?.[0] ?? '']) {
+			expect(block.replace(/#000|#fff/gu, '')).not.toMatch(/#[0-9a-f]{3,8}\b/iu);
+		}
+	});
+
+	it('registers the countdown property once, at the top level, and animates it only inside the block', () => {
+		expect(stripped.match(/@property --wiper-left \{/gu)).toHaveLength(1);
+		expect(stripped).toMatch(
+			/@property --wiper-left \{\s*syntax: '<integer>';\s*inherits: false;\s*initial-value: 0;\s*\}/u,
+		);
+		const { inside, outside } = splitMotionBlocks(stripped);
+		expect(inside).toMatch(/@keyframes wiper-lcd\b/u);
+		expect(inside).toMatch(/@keyframes wiper-marquee\b/u);
+		expect(outside).not.toMatch(/@keyframes wiper-(lcd|marquee)\b/u);
+		expect(stripped).toMatch(/counter-reset: wiper-left var\(--wiper-left\);/u);
+		expect(stripped).toMatch(/content: counter\(wiper-left, decimal-leading-zero\);/u);
+	});
+
+	it('runs the marquee only while the wipers run and freezes it under the pointer', () => {
+		const { inside, outside } = splitMotionBlocks(stripped);
+		expect(inside).toMatch(
+			/\.wiper\[data-skin='deck'\]:is\(\[data-state='dwell'\], \[data-state='wiping'\], \[data-state='paused'\]\)\s+\.wiper-marquee__track \{\s*animation: wiper-marquee/u,
+		);
+		expect(inside).toMatch(
+			/\.wiper\[data-skin='deck'\]\[data-state='paused'\] \.wiper-marquee__track \{\s*animation-play-state: paused;/u,
+		);
+		expect(inside).toMatch(
+			/\.wiper\[data-skin='deck'\]\[data-state='paused'\] \.wiper-lcd__digits \{\s*animation-play-state: paused;/u,
+		);
+		// Nothing about the marquee, the LCD or the VU is timed outside the block.
+		for (const rule of outside.matchAll(/\.wiper-(marquee|lcd|vu)[^{]*\{([^}]*)\}/gu)) {
+			expect(rule[2]).not.toMatch(/\banimation\b/u);
+			expect(rule[2]).not.toMatch(/\btransition:(?!\s*none\b)/u);
+		}
+	});
+
+	it('keeps every deck element square', () => {
+		const esc = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+		for (const selector of ['.wiper-switch__lamp', '.wiper-lcd', '.wiper-vu i']) {
+			const block = stripped.match(new RegExp(`${esc(selector)} \\{[^}]*\\}`, 'u'))?.[0] ?? '';
+			expect(block, selector).toMatch(/border-radius: 0;/u);
+		}
 	});
 });
