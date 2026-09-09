@@ -35,6 +35,31 @@ describe('the ink field raster', () => {
 		expect(at(520, 150)).toBe(0);
 	});
 
+	it('takes the max over overlapping rects and leaves far texels untouched', () => {
+		const field = rasterizeInkField(
+			[
+				{ left: 100, top: 100, width: 100, height: 50 },
+				{ left: 150, top: 120, width: 200, height: 50 },
+			],
+			box,
+			{ dilatePx: 4, featherPx: 20 },
+		);
+		const cellW = box.width / INK_FIELD_WIDTH;
+		const cellH = box.height / INK_FIELD_HEIGHT;
+		const at = (x: number, y: number) => field[Math.floor(y / cellH) * INK_FIELD_WIDTH + Math.floor(x / cellW)];
+		expect(at(175, 130)).toBe(255); // inside both
+		expect(at(340, 160)).toBe(255); // inside the second only
+		expect(at(105, 105)).toBe(255); // inside the first only
+		expect(at(700, 500)).toBe(0);
+		// The moving field's coarser grid rasterises the same way.
+		const coarse = rasterizeInkField([{ left: 100, top: 100, width: 100, height: 50 }], box, {
+			width: 128,
+			height: 64,
+		});
+		expect(coarse).toHaveLength(128 * 64);
+		expect(coarse[Math.floor(125 / 10) * 128 + Math.floor(150 / 10)]).toBe(255);
+	});
+
 	it('measures distance to a rect edge as zero inside and Euclidean outside', () => {
 		const rect = { left: 10, top: 10, width: 20, height: 20 };
 		expect(distanceToRect(20, 20, rect)).toBe(0);
@@ -52,7 +77,7 @@ describe('the ink field raster', () => {
 		// its last operation; layer 1 never samples it and writes premultiplied
 		// alpha over the notes instead.
 		const [sceneBranch, bladeBranch] = SCENE_FRAGMENT.split('if (u_layer == 0) {')[1].split('return;\n\t}');
-		expect(sceneBranch).toContain('float k = texture(u_ink, uv).r;');
+		expect(sceneBranch).toContain('float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);');
 		expect(sceneBranch).toContain('outColor = vec4(mix(u_ground, blobs, 1.0 - k * (1.0 - u_inkAlpha)), 1.0);');
 		expect(bladeBranch).not.toContain('u_ink');
 		expect(bladeBranch).not.toContain('u_inkAlpha');

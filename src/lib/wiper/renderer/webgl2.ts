@@ -10,6 +10,7 @@ interface Program {
 	program: WebGLProgram;
 	uniforms: Record<string, WebGLUniformLocation | null>;
 	inkTexture: WebGLTexture;
+	movingTexture: WebGLTexture;
 }
 
 const UNIFORMS = [
@@ -26,6 +27,7 @@ const UNIFORMS = [
 	'u_arms',
 	'u_armStyle',
 	'u_ink',
+	'u_inkMoving',
 ];
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null {
@@ -61,19 +63,29 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 	}
 	const uniforms: Record<string, WebGLUniformLocation | null> = {};
 	for (const name of UNIFORMS) uniforms[name] = gl.getUniformLocation(program, name);
-	const inkTexture = gl.createTexture();
-	if (!inkTexture) {
+	const makeField = (width: number, height: number): WebGLTexture | null => {
+		const texture = gl.createTexture();
+		if (!texture) return null;
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		return texture;
+	};
+	const inkTexture = makeField(INK_FIELD_WIDTH, INK_FIELD_HEIGHT);
+	const movingTexture = inkTexture ? makeField(1, 1) : null;
+	if (!inkTexture || !movingTexture) {
+		if (inkTexture) gl.deleteTexture(inkTexture);
 		gl.deleteProgram(program);
 		return { kind: 'compile', stage: 'link' };
 	}
-	gl.bindTexture(gl.TEXTURE_2D, inkTexture);
-	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, INK_FIELD_WIDTH, INK_FIELD_HEIGHT, 0, gl.RED, gl.UNSIGNED_BYTE, null);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	return { program, uniforms, inkTexture };
+	// An empty moving field: one zero texel until a stroke fills it.
+	gl.bindTexture(gl.TEXTURE_2D, movingTexture);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1));
+	return { program, uniforms, inkTexture, movingTexture };
 }
 
 export function createWebGL2Renderer(
@@ -141,6 +153,13 @@ export function createWebGL2Renderer(
 			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
 		},
+		uploadMovingInk(field, width, height) {
+			if (lost) return;
+			gl.bindTexture(gl.TEXTURE_2D, program.movingTexture);
+			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+			if (field) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
+			else gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1));
+		},
 		render(frame: SceneFrame) {
 			if (lost || cssWidth <= 0 || cssHeight <= 0) return;
 			gl.viewport(0, 0, canvas.width, canvas.height);
@@ -202,6 +221,9 @@ export function createWebGL2Renderer(
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
 			gl.uniform1i(u.u_ink, 0);
+			gl.activeTexture(gl.TEXTURE1);
+			gl.bindTexture(gl.TEXTURE_2D, program.movingTexture);
+			gl.uniform1i(u.u_inkMoving, 1);
 			gl.drawArrays(gl.TRIANGLES, 0, 3);
 		},
 		onLost(callback) {
@@ -212,6 +234,7 @@ export function createWebGL2Renderer(
 			canvas.removeEventListener('webglcontextrestored', onContextRestored);
 			if (!lost) {
 				gl.deleteTexture(program.inkTexture);
+				gl.deleteTexture(program.movingTexture);
 				gl.deleteProgram(program.program);
 				gl.getExtension('WEBGL_lose_context')?.loseContext();
 			}

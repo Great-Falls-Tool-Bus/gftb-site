@@ -38,6 +38,8 @@ uniform vec4 u_arms[${MAX_ARMS}];
 // width, bladeFrom (device px), flex (-1..1), unused
 uniform vec4 u_armStyle[${MAX_ARMS}];
 uniform sampler2D u_ink;
+// The outgoing notes' text while the blade shoves them, refreshed per frame.
+uniform sampler2D u_inkMoving;
 out vec4 outColor;
 
 const float PI = 3.14159265;
@@ -220,7 +222,7 @@ void main() {
 		vec3 blobs = blobScene(p, cover);
 		// The ink clamp, last: under measured text the field may leave the
 		// ground by at most u_inkAlpha of its own deviation.
-		float k = texture(u_ink, uv).r;
+		float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);
 		outColor = vec4(mix(u_ground, blobs, 1.0 - k * (1.0 - u_inkAlpha)), 1.0);
 		return;
 	}
