@@ -951,21 +951,6 @@ li {
 	color: var(--heading);
 }
 
-.motion-permission {
-	position: fixed;
-	left: 1rem;
-	bottom: 1rem;
-	z-index: var(--z-dropdown);
-	max-width: calc(100% - 2rem);
-	font-size: 0.85rem;
-	text-align: left;
-	cursor: pointer;
-}
-
-.motion-permission:disabled {
-	cursor: wait;
-}
-
 /* The sole button focus indicator (the decorative hover glow was stripped,
  * de-slop ruling 2026-08-19). The ring adjoins two colours — the button's
  * accent fill and the ground behind it — and SC 1.4.11 asks it to separate
@@ -2163,8 +2148,7 @@ figcaption {
 	.site-footer,
 	.skip-link,
 	.hero__media,
-	.brand-vectors-bg,
-	.motion-permission {
+	.brand-vectors-bg {
 		display: none !important;
 	}
 

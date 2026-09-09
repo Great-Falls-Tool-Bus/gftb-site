@@ -2,21 +2,31 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 
 // Registered in the finite browser target within the validate action.
-// Hold the actual layout's idle mount, rather than testing an already-bound
-// component that would also pass an erroneous onMount-only capability check.
-async function holdVectorMount(page: Page, permission: 'granted' | 'denied' = 'granted') {
+//
+// The phone-motion permission is a silent first-gesture handshake (operator
+// ruling 2026-09-09): no control is rendered, the visitor's first
+// neutral tap inside main is borrowed once, and taps on links, buttons and
+// fields are never borrowed. Headless Chromium has no
+// `DeviceOrientationEvent.requestPermission`, so the harness below installs
+// one that counts calls, and holds the layout's idle mount so the deferred
+// binding (the moment the handshake can arm) is under test control.
+type PermissionApi = 'granted' | 'denied' | 'absent';
+
+async function holdVectorMount(page: Page, permission: PermissionApi = 'granted') {
 	await page.addInitScript((result) => {
-		let permissionCalls = 0;
-		Object.defineProperty(window, 'DeviceOrientationEvent', {
-			configurable: true,
-			value: class extends Event {
-				static requestPermission() {
-					permissionCalls += 1;
-					document.documentElement.dataset.motionPermissionCalls = String(permissionCalls);
-					return Promise.resolve(result);
-				}
-			},
-		});
+		if (result !== 'absent') {
+			let permissionCalls = 0;
+			Object.defineProperty(window, 'DeviceOrientationEvent', {
+				configurable: true,
+				value: class extends Event {
+					static requestPermission() {
+						permissionCalls += 1;
+						document.documentElement.dataset.motionPermissionCalls = String(permissionCalls);
+						return Promise.resolve(result);
+					}
+				},
+			});
+		}
 		const pending = new Map<number, IdleRequestCallback>();
 		let nextId = 0;
 		window.requestIdleCallback = (callback) => {
@@ -34,45 +44,101 @@ async function holdVectorMount(page: Page, permission: 'granted' | 'denied' = 'g
 	}, permission);
 }
 
+const releaseMount = (page: Page) => page.evaluate(() => window.dispatchEvent(new Event('release-vector-mount')));
+const html = (page: Page) => page.locator('html');
+const noControl = (page: Page) => page.getByRole('button', { name: /blobs|phone|motion/iu });
+/** A neutral tap: the section heading is plain text inside main. */
+const neutralSpot = (page: Page) => page.locator('#goals h2');
+
 for (const permission of ['granted', 'denied'] as const) {
-	test(`the deferred phone control requests permission only on click: ${permission}`, async ({ page, guardedPage }) => {
+	test(`the first neutral tap inside main asks once, interactive taps never do: ${permission}`, async ({
+		page,
+		guardedPage,
+	}) => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await holdVectorMount(page, permission);
 		const errors: string[] = [];
 		page.on('pageerror', (error) => errors.push(error.message));
 		await guardedPage();
-		await expect(page.locator('html')).toHaveAttribute('data-vector-mount-waiting', 'true');
-		const control = page.getByRole('button', { name: 'Let the blobs feel your phone move', exact: true });
+		await expect(html(page)).toHaveAttribute('data-vector-mount-waiting', 'true');
 		await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(0);
-		await expect(control).toHaveCount(0);
-		await page.evaluate(() => window.dispatchEvent(new Event('release-vector-mount')));
+		await expect(html(page)).not.toHaveAttribute('data-motion-handshake');
+		await releaseMount(page);
 		await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
-		await expect(control).toBeVisible();
-		await expect(control).not.toHaveAttribute('aria-hidden', 'true');
-		await expect(page.locator('html')).not.toHaveAttribute('data-motion-permission-calls');
-		await control.click();
-		await expect(page.locator('html')).toHaveAttribute('data-motion-permission-calls', '1');
-		await expect(control).toHaveCount(0);
+		// Nothing rendered; the handshake is armed on the deferred binding.
+		await expect(noControl(page)).toHaveCount(0);
+		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
+		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+
+		// A tap on a control (the wiper switch) does its own job and is never borrowed.
+		const wipers = page.locator('#goals').getByRole('switch', { name: 'Wipers' });
+		await wipers.click();
+		await expect(wipers).toHaveAttribute('aria-checked', 'false');
+		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
+		// A tap on a link is never borrowed either (prevent navigation for the assertion only).
+		const link = page.locator('#goals .goal-cta a').first();
+		await link.evaluate((el) => el.addEventListener('click', (event) => event.preventDefault(), { once: true }));
+		await link.click();
+		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+
+		// The first neutral tap asks exactly once; later taps never ask again.
+		await neutralSpot(page).click();
+		await expect(html(page)).toHaveAttribute('data-motion-permission-calls', '1');
+		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'asked');
+		await neutralSpot(page).click();
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
-		await expect(control).toHaveCount(0);
-		await expect(page.locator('html')).toHaveAttribute('data-motion-permission-calls', '1');
+		await neutralSpot(page).click();
+		await expect(html(page)).toHaveAttribute('data-motion-permission-calls', '1');
+		await expect(noControl(page)).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 }
 
-test('tracks reduced motion after the deferred mount without prompting', async ({ page, guardedPage }) => {
+test('reduced motion never arms; lifting it arms without asking', async ({ page, guardedPage }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await holdVectorMount(page);
 	await guardedPage();
-	await expect(page.locator('html')).toHaveAttribute('data-vector-mount-waiting', 'true');
-	await page.evaluate(() => window.dispatchEvent(new Event('release-vector-mount')));
+	await expect(html(page)).toHaveAttribute('data-vector-mount-waiting', 'true');
+	await releaseMount(page);
 	await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
-	const control = page.getByRole('button', { name: 'Let the blobs feel your phone move', exact: true });
-	await expect(control).toHaveCount(0);
+	await expect(html(page)).not.toHaveAttribute('data-motion-handshake');
+	await neutralSpot(page).click();
+	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
-	await expect(control).toBeVisible();
+	await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
+	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 	await page.emulateMedia({ reducedMotion: 'reduce' });
-	await expect(control).toHaveCount(0);
-	await expect(page.locator('html')).not.toHaveAttribute('data-motion-permission-calls');
+	await expect(html(page)).not.toHaveAttribute('data-motion-handshake');
+	await neutralSpot(page).click();
+	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+	await expect(noControl(page)).toHaveCount(0);
+});
+
+test('browsers without a permission API never arm and still mount the layer', async ({ page, guardedPage }) => {
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await holdVectorMount(page, 'absent');
+	await guardedPage();
+	await releaseMount(page);
+	await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
+	await neutralSpot(page).click();
+	await page.waitForTimeout(300);
+	await expect(html(page)).not.toHaveAttribute('data-motion-handshake');
+	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+	await expect(noControl(page)).toHaveCount(0);
+});
+
+test('the contact page never borrows a tap', async ({ page, guardedPage }) => {
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await holdVectorMount(page, 'granted');
+	await guardedPage('/contact');
+	await releaseMount(page);
+	await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
+	await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
+	await page.locator('main h1').first().click();
+	await page.waitForTimeout(300);
+	await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+	await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
+	await expect(noControl(page)).toHaveCount(0);
 });
