@@ -2,7 +2,7 @@
 // no render targets. Every failure returns through the handle or the
 // selection result; nothing here ever writes to the console (the no-JS spec
 // fails the home page on any console error or warning).
-import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, MAX_BLOBS } from './shaders/constants';
+import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, MAX_ARMS, MAX_BLOBS } from './shaders/constants';
 import { SCENE_FRAGMENT, SCENE_VERTEX } from './shaders/scene.glsl';
 import type { RendererFailure, RendererHandle, RendererSelection, SceneFrame } from './types';
 
@@ -21,6 +21,9 @@ const UNIFORMS = [
 	'u_blobCount',
 	'u_blobs',
 	'u_blobColors',
+	'u_armCount',
+	'u_arms',
+	'u_armStyle',
 	'u_ink',
 ];
 
@@ -91,6 +94,8 @@ export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelecti
 	let dpr = 1;
 	const blobData = new Float32Array(MAX_BLOBS * 4);
 	const colorData = new Float32Array(MAX_BLOBS * 3);
+	const armData = new Float32Array(MAX_ARMS * 4);
+	const armStyle = new Float32Array(MAX_ARMS * 4);
 	const lostCallbacks: Array<(failure: RendererFailure) => void> = [];
 	let pendingInk: { field: Uint8Array; width: number; height: number } | null = null;
 
@@ -152,6 +157,21 @@ export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelecti
 			gl.uniform1i(u.u_blobCount, count);
 			gl.uniform4fv(u.u_blobs, blobData);
 			gl.uniform3fv(u.u_blobColors, colorData);
+			const armCount = Math.min(frame.arms.length, MAX_ARMS);
+			for (let index = 0; index < armCount; index += 1) {
+				const arm = frame.arms[index];
+				armData[index * 4] = arm.pivotX * dpr;
+				armData[index * 4 + 1] = arm.pivotY * dpr;
+				armData[index * 4 + 2] = arm.phi;
+				armData[index * 4 + 3] = arm.length * dpr;
+				armStyle[index * 4] = arm.width * dpr;
+				armStyle[index * 4 + 1] = arm.bladeFrom * dpr;
+				armStyle[index * 4 + 2] = arm.flex;
+				armStyle[index * 4 + 3] = arm.dir;
+			}
+			gl.uniform1i(u.u_armCount, armCount);
+			gl.uniform4fv(u.u_arms, armData);
+			gl.uniform4fv(u.u_armStyle, armStyle);
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
 			gl.uniform1i(u.u_ink, 0);

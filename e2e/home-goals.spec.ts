@@ -14,7 +14,7 @@ const sourceMap = JSON.parse(
 
 import { publishedGoalEntries } from '../src/lib/generated/goals-manifest';
 import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-goals';
-import { coversPane, deriveGeometry, halfSweepDeg } from '../src/lib/wiper/geometry';
+import { bladePoseAt, coversPane, deriveGeometry, halfSweepDeg, parkAngle } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
@@ -275,7 +275,7 @@ for (const width of [320, 390, 768, 1280, 1440]) {
 			const arm =
 				geometry.arms.find((candidate) => item.centerX >= candidate.span[0] && item.centerX < candidate.span[1]) ??
 				geometry.arms.at(-1)!;
-			expect(item.from).toBeCloseTo(-halfSweepDeg(arm), 1);
+			expect(item.from).toBeCloseTo(-arm.dir * halfSweepDeg(arm), 1);
 			expect(item.span).toBeCloseTo(2 * halfSweepDeg(arm), 1);
 			expect(Number.isFinite(item.x) && Number.isFinite(item.y)).toBe(true);
 			// The hub hangs below the list, never below the stalk or the footer.
@@ -400,6 +400,86 @@ for (const scheme of ['light', 'dark'] as const) {
 		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
 		await page.waitForTimeout(300);
 		await check('mid-sweep');
+		await page.evaluate(() => {
+			delete document.documentElement.dataset.wiperFreeze;
+		});
+	});
+}
+
+// The drawn blade and the mask edge share one clock and one easing. Hold the
+// out-stroke where the left arm's ray crosses the left gutter (no ink within
+// the clamp's reach there) and read the scene's own pixels: something far
+// from the ground (rubber in light, chrome in dark) sits on the ray; move the
+// hold to the vertical and the same spot is ground and blobs again. The
+// right arm mirrors it from the right gutter, which is the opposed pair.
+const BLADE_CONTRAST = 6;
+
+function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi: number, x: number) {
+	const sin = Math.sin(phi);
+	if (Math.abs(sin) < 1e-6) return null;
+	const t = (x - arm.pivotX) / sin;
+	if (t <= 0) return null;
+	return { x, y: arm.pivotY - t * Math.cos(phi) };
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		const box = await page.locator('#goals .goal-list').evaluate((el) => {
+			const r = el.getBoundingClientRect();
+			return { width: r.width, height: r.height };
+		});
+		const geometry = deriveGeometry(box);
+		expect(geometry.arms).toHaveLength(2);
+		const ground = await resolveRoleRgb(page, '--bg');
+		const sampleX = 24;
+		// The first held unit at which each arm's ray crosses its own gutter
+		// inside the glass; the pose is what the scene draws at that hold.
+		const targets = geometry.arms.map((arm) => {
+			const x = arm.dir > 0 ? sampleX : box.width - sampleX;
+			for (let unit = 0.02; unit <= 0.3; unit += 0.01) {
+				const pose = bladePoseAt(arm, box, 'out', unit, unit);
+				const point = rayPointAtX(arm, pose.phi, x);
+				if (point && point.y > box.height * 0.15 && point.y < box.height * 0.9) {
+					const half = 1.4 * pose.width;
+					return {
+						unit: unit.toFixed(2),
+						rect: { left: Math.max(0, x - half), top: point.y - half, width: 2 * half, height: 2 * half },
+					};
+				}
+			}
+			throw new Error(`no gutter crossing for the arm parked at ${parkAngle(arm)}`);
+		});
+		const peak = async (rect: (typeof targets)[number]['rect']) => {
+			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__scene', [rect], '#goals .goal-list');
+			return Math.max(
+				roundRatio(contrastRatio(ground, extremes.darkest.rgb)),
+				roundRatio(contrastRatio(ground, extremes.lightest.rgb)),
+			);
+		};
+		const hold = async (unit: string) => {
+			await page.evaluate((value) => {
+				document.documentElement.dataset.wiperFreeze = value;
+			}, unit);
+			await page.waitForTimeout(250);
+		};
+		await hold(targets[0].unit);
+		await selectDetent(page, 'High');
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+		await hold(targets[0].unit);
+		expect(await peak(targets[0].rect), 'left blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		await hold(targets[1].unit);
+		expect(await peak(targets[1].rect), 'right blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		// At the vertical both blades stand over the span midpoints, far from either gutter.
+		await hold('0.5');
+		expect(await peak(targets[0].rect), 'left gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+		expect(await peak(targets[1].rect), 'right gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
 		await page.evaluate(() => {
 			delete document.documentElement.dataset.wiperFreeze;
 		});

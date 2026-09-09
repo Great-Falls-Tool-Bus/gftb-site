@@ -1414,21 +1414,78 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	pointer-events: none;
 }
 
+/* The swept wedge starts one feather before the park angle for a clockwise
+ * arm, and one feather before the moving edge for a counter-clockwise arm
+ * (the second of an opposed pair: the engine marks its notes data-wipe-dir),
+ * so the same two gradients serve both directions with the soft edge on the
+ * blade's side. */
+.goal-list--paged > li {
+	--wipe-start: calc(var(--wipe-from) - var(--wipe-feather));
+	--wipe-start-2: calc(var(--wipe-from-2) - var(--wipe-feather));
+}
+
+.goal-list--paged > li[data-wipe-dir='ccw'] {
+	--wipe-start: calc(var(--wipe-from) - var(--wipe-u) * var(--wipe-span) - var(--wipe-feather));
+}
+
+.goal-list--paged > li[data-wipe-dir-2='ccw'] {
+	--wipe-start-2: calc(var(--wipe-from-2) - var(--wipe-u) * var(--wipe-span-2) - var(--wipe-feather));
+}
+
 .goal-list--paged > li[data-wipe='out'] {
 	z-index: 1;
 	mask-image: conic-gradient(
-		from var(--wipe-from) at var(--wipe-x) var(--wipe-y),
-		transparent 0 calc(var(--wipe-u) * var(--wipe-span)),
-		#000 calc(var(--wipe-u) * var(--wipe-span) + var(--wipe-feather)) 360deg
+		from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+		#000 0,
+		transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+		#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
 	);
 }
 
 .goal-list--paged > li[data-wipe='in'] {
 	mask-image: conic-gradient(
-		from var(--wipe-from) at var(--wipe-x) var(--wipe-y),
-		#000 0 calc(var(--wipe-u) * var(--wipe-span)),
-		transparent calc(var(--wipe-u) * var(--wipe-span) + var(--wipe-feather)) 360deg
+		from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+		transparent 0,
+		#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+		transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
 	);
+}
+
+/* A note straddling an opposed pair: gone where either blade has passed
+ * (the two clearing masks intersect), revealed where either has passed
+ * (the two revealing masks add). */
+.goal-list--paged > li[data-wipe='out'][data-wipe-arms='both'] {
+	mask-image:
+		conic-gradient(
+			from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+			#000 0,
+			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
+		),
+		conic-gradient(
+			from var(--wipe-start-2) at var(--wipe-x-2) var(--wipe-y-2),
+			#000 0,
+			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
+			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
+		);
+	mask-composite: intersect;
+}
+
+.goal-list--paged > li[data-wipe='in'][data-wipe-arms='both'] {
+	mask-image:
+		conic-gradient(
+			from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+			transparent 0,
+			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
+		),
+		conic-gradient(
+			from var(--wipe-start-2) at var(--wipe-x-2) var(--wipe-y-2),
+			transparent 0,
+			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
+			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
+		);
+	mask-composite: add;
 }
 
 /* The stalk: one Skeleton SegmentedControl (a radio group), Off first.

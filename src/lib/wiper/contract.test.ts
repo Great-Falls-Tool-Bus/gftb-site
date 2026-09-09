@@ -31,9 +31,25 @@ describe('the wiper source contract', () => {
 
 	it('masks only paged notes, only by their wipe role, with the shared unit and span', () => {
 		const masks = [...block.matchAll(/^([^\n{]+)\{\n[^}]*mask-image:/gmu)].map((match) => match[1].trim());
-		expect(masks).toEqual([".goal-list--paged > li[data-wipe='out']", ".goal-list--paged > li[data-wipe='in']"]);
-		expect(block).toMatch(/transparent 0 calc\(var\(--wipe-u\) \* var\(--wipe-span\)\)/u);
-		expect(block).toMatch(/#000 0 calc\(var\(--wipe-u\) \* var\(--wipe-span\)\)/u);
+		expect(masks).toEqual([
+			".goal-list--paged > li[data-wipe='out']",
+			".goal-list--paged > li[data-wipe='in']",
+			".goal-list--paged > li[data-wipe='out'][data-wipe-arms='both']",
+			".goal-list--paged > li[data-wipe='in'][data-wipe-arms='both']",
+		]);
+		// A straddling note: clearing masks intersect, revealing masks add.
+		expect(block).toMatch(/\[data-wipe='out'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: intersect;/u);
+		expect(block).toMatch(/\[data-wipe='in'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: add;/u);
+		expect(block).toMatch(
+			/transparent var\(--wipe-feather\) calc\(var\(--wipe-feather\) \+ var\(--wipe-u\) \* var\(--wipe-span\)\)/u,
+		);
+		expect(block).toMatch(
+			/#000 var\(--wipe-feather\) calc\(var\(--wipe-feather\) \+ var\(--wipe-u\) \* var\(--wipe-span\)\)/u,
+		);
+		// Both directions share the gradients; only the start angle differs.
+		expect(block).toMatch(/\[data-wipe-dir='ccw'\] \{\n\t--wipe-start: calc\(var\(--wipe-from\) - var\(--wipe-u\)/u);
+		expect(block.match(/from var\(--wipe-start\)/gu)).toHaveLength(4);
+		expect(block.match(/from var\(--wipe-start-2\)/gu)).toHaveLength(2);
 		expect(css).not.toMatch(/\.goal-list > li[^{]*\{[^}]*mask-image/u);
 	});
 

@@ -3,9 +3,18 @@
 // the per-item mask geometry, and a reactive view for the template. Coarse
 // state changes a few times per cycle and lives in $state; the 60 Hz channel
 // never touches reactivity. Every listener hangs off one AbortSignal.
-import { armAt, deriveGeometry, halfSweepDeg, maskVarsFor, type WiperGeometry } from './geometry';
+import {
+	armsAcross,
+	bladePoseAt,
+	deriveGeometry,
+	halfSweepDeg,
+	maskVarsFor,
+	type ArmSpec,
+	type BladePose,
+	type WiperGeometry,
+} from './geometry';
 import { WiperMachine, type WiperMachineOptions, type WiperView } from './machine';
-import type { WiperDetent } from './schedule';
+import { strokeEase, type WiperDetent } from './schedule';
 
 export type RendererTier = 'webgpu' | 'webgl2' | 'none';
 
@@ -96,12 +105,56 @@ export class WiperEngine {
 		pane.style.setProperty('--wipe-feather', `${geometry.featherDeg}deg`);
 		for (const item of glass.querySelectorAll<HTMLElement>(':scope > li')) {
 			const rect = item.getBoundingClientRect();
-			const arm = armAt(geometry, rect.left - box.left + rect.width / 2);
-			const vars = maskVarsFor(arm, rect, box);
-			for (const [name, value] of Object.entries(vars)) item.style.setProperty(name, value);
-			item.style.setProperty('--wipe-span', `${Math.round(2 * halfSweepDeg(arm) * 100) / 100}deg`);
+			const [owner, second] = armsAcross(geometry, rect.left - box.left, rect.right - box.left);
+			this.#writeArmVars(item, owner, rect, box, '');
+			// A note reaching into both spans is wiped by both blades, each where
+			// it passes: a second set of variables and a composited second mask.
+			if (second) {
+				this.#writeArmVars(item, second, rect, box, '-2');
+				item.dataset.wipeArms = 'both';
+			} else {
+				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2'])
+					item.style.removeProperty(name);
+				delete item.dataset.wipeArms;
+				item.removeAttribute('data-wipe-dir-2');
+			}
 		}
 		this.refresh();
+	}
+
+	#writeArmVars(item: HTMLElement, arm: ArmSpec, rect: DOMRect, box: DOMRect, suffix: '' | '-2'): void {
+		const vars = maskVarsFor(arm, rect, box);
+		for (const [name, value] of Object.entries(vars)) item.style.setProperty(`${name}${suffix}`, value);
+		item.style.setProperty(`--wipe-span${suffix}`, `${Math.round(2 * halfSweepDeg(arm) * 100) / 100}deg`);
+		// A counter-clockwise arm's mask grows from park the other way (app.css
+		// --wipe-start). Plain attributes: dataset would spell the suffix
+		// without its hyphen, and the stylesheet selects data-wipe-dir-2.
+		const name = `data-wipe-dir${suffix}`;
+		if (arm.dir < 0) item.setAttribute(name, 'ccw');
+		else item.removeAttribute(name);
+	}
+
+	/**
+	 * The blades as they stand at `now` (the animation frame's own timestamp),
+	 * for the scene to draw in the same frame the mask moves. Both read the
+	 * machine's clock through the same easing, and a LOOK or test hold
+	 * (data-wiper-freeze) pins both to the held unit, so the drawn blade and
+	 * the mask edge cannot come apart.
+	 */
+	blades(now: number): BladePose[] {
+		const geometry = this.#geometry;
+		if (!geometry) return [];
+		const phase = this.machine.phase;
+		const frozen = document.documentElement.dataset[FREEZE_ATTR];
+		const held = frozen !== undefined && phase === 'out';
+		const t = held ? this.#heldProgress(frozen) : this.machine.strokeProgress(now);
+		const unit = phase === 'dwell' ? 0 : held ? this.machine.unit : strokeEase(t);
+		return geometry.arms.map((arm) => bladePoseAt(arm, geometry.box, phase, unit, t));
+	}
+
+	#heldProgress(frozen: string): number {
+		const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
+		return Math.acos(1 - 2 * unit) / Math.PI;
 	}
 
 	/** Re-read the machine after an external input changed (page size, motion preference). */

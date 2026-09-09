@@ -1,7 +1,9 @@
 <script lang="ts">
 	// The GPU scene behind the notes: an opaque canvas sized to the glass (the
 	// list box), clearing to the page ground, drawing tinyvectors' blob field
-	// under an ink clamp (M2); the blades, frost and droplets join at M3/M4.
+	// and the chrome arms and blades (posed by the engine from the same clock
+	// and easing as the DOM mask) under an ink clamp; frost and droplets join
+	// at M4.
 	// It sits behind the DOM notes, never over them; it is pointer-inert,
 	// aria-hidden, absent under reduce, no-JS, print and forced colours, and
 	// it never writes to the console: every failure demotes to the plain grid.
@@ -20,7 +22,7 @@
 		INK_SAFE_ALPHA,
 		MAX_BLOBS,
 	} from '$lib/wiper/renderer/shaders/constants';
-	import type { RendererHandle, SceneBlob } from '$lib/wiper/renderer/types';
+	import type { RendererHandle, SceneArm, SceneBlob } from '$lib/wiper/renderer/types';
 
 	interface Props {
 		engine: WiperEngine;
@@ -141,7 +143,11 @@
 					r: blob.size * BLOB_RENDER_SCALE * scale,
 					color: palette[index % palette.length],
 				}));
-			renderer.render({ time: now / 1000, ground, blend, blobs, inkAlpha: INK_SAFE_ALPHA });
+			// The blades at this frame's timestamp: the engine derives them from
+			// the machine clock through the mask's own easing, so the drawn blade
+			// sits on the mask edge whichever callback the browser runs first.
+			const arms: SceneArm[] = engine.blades(now);
+			renderer.render({ time: now / 1000, ground, blend, blobs, arms, inkAlpha: INK_SAFE_ALPHA });
 		};
 
 		const frame = (now: number) => {

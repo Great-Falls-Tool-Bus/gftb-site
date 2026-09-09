@@ -10,6 +10,24 @@ export interface SceneBlob {
 	color: readonly [number, number, number];
 }
 
+/** One wiper arm as the scene draws it; CSS px and radians, pane-local. */
+export interface SceneArm {
+	pivotX: number;
+	pivotY: number;
+	/** Blade angle in the conic convention: from straight up, clockwise positive. */
+	phi: number;
+	/** Hub to blade tip. */
+	length: number;
+	/** Arm width at the hinge; every part scales from it. */
+	width: number;
+	/** Where the rubber starts along the arm, from the hub. */
+	bladeFrom: number;
+	/** Rubber lag against travel, -1..1. */
+	flex: number;
+	/** Sweep direction; the anatomy mirrors with it. */
+	dir: 1 | -1;
+}
+
 export interface SceneFrame {
 	/** Seconds. */
 	time: number;
@@ -17,6 +35,7 @@ export interface SceneFrame {
 	/** The SVG layer's own convention: multiply in light, screen in dark. */
 	blend: 'multiply' | 'screen';
 	blobs: readonly SceneBlob[];
+	arms: readonly SceneArm[];
 	inkAlpha: number;
 }
 
