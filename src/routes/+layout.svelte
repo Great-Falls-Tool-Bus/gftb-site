@@ -9,11 +9,7 @@
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import { theme } from '$lib/theme.svelte';
-	import {
-		createDeviceMotionPermission,
-		type DeviceMotionTarget,
-		type MotionPermissionState,
-	} from '$lib/device-motion-permission';
+	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '$lib/device-motion-permission';
 	import sourceMap from '$lib/generated/source-map.json';
 	import '../app.css';
 
@@ -29,23 +25,38 @@
 	// timeline while changing nothing the visitor can interact with.
 	let brandVectorsReady = $state(false);
 	let tinyVectorsRef = $state<DeviceMotionTarget>();
-	let motionPermission = $state<ReturnType<typeof createDeviceMotionPermission>>();
-	let motionPermissionState = $state<MotionPermissionState>({ visible: false, busy: false });
+	let motionHandshake = $state<ReturnType<typeof createDeviceMotionHandshake>>();
 
 	// The component binds after the idle callback, potentially long after
 	// onMount. Track that binding rather than sampling an absent ref once.
 	$effect(() => {
-		const control = motionPermission;
+		const handshake = motionHandshake;
 		const target = tinyVectorsRef;
-		untrack(() => control?.setTarget(target));
+		untrack(() => handshake?.setTarget(target));
 	});
 
 	onMount(() => {
-		const control = createDeviceMotionPermission(window.matchMedia('(prefers-reduced-motion: reduce)'), (state) => {
-			motionPermissionState = state;
-		});
-		motionPermission = control;
-		return () => control.destroy();
+		// First-gesture phone-motion handshake (operator ruling 2026-09-09): no control is rendered. Browsers that gate the sensor
+		// behind a gesture (iOS Safari) borrow the visitor's first neutral tap
+		// inside main; taps on links, buttons and fields are never borrowed,
+		// the contact page never prompts, reduced motion never arms, and
+		// desktop/Android never need it (the package self-starts there). The
+		// state is published on <html data-motion-handshake> for the e2e.
+		const main = document.getElementById('main-content');
+		const handshake = createDeviceMotionHandshake(
+			window.matchMedia('(prefers-reduced-motion: reduce)'),
+			main ?? document,
+			{
+				root: main,
+				eligible: () => !window.location.pathname.startsWith('/contact'),
+				publish: (state) => {
+					if (state === 'idle') delete document.documentElement.dataset.motionHandshake;
+					else document.documentElement.dataset.motionHandshake = state;
+				},
+			},
+		);
+		motionHandshake = handshake;
+		return () => handshake.destroy();
 	});
 
 	onMount(() => {
@@ -157,30 +168,26 @@
 	     opacity, behind the hero's own isolated backdrop stack. v0.3.7 makes
 	     idle drift/bounce the desktop default and honors
 	     prefers-reduced-motion internally, so this call site adds NO motion
-	     logic — config only. Browsers requiring a sensor permission gesture
-	     receive the separate, accessible control below after this mount. -->
+	     logic — config only. Pointer physics is OFF: in the package the
+	     pointer field is a cursor attractor that also steers the scroll
+	     physics toward the cursor, which pooled the blobs under a resting
+	     mouse; with it off the scroll effect pulls toward the field centre
+	     instead, the way the operator's blog runs (a centre attraction, not
+	     a sweep). Browsers that gate the sensor behind a gesture get the
+	     silent first-tap handshake wired in onMount above. -->
 	{#if brandVectorsReady}
 		<div class="brand-vectors-bg" aria-hidden="true" data-testid="brand-vectors-bg">
 			<TinyVectors
 				bind:this={tinyVectorsRef}
 				theme="custom"
 				colors={['#cb6738', '#d99d6a', '#a14a52', '#6b4f3a', '#3d6b8c']}
-				opacity={0.1}
+				opacity={0.15}
 				blobCount={5}
 				enableScrollPhysics={true}
 				enableDeviceMotion={true}
+				enablePointerPhysics={false}
 			/>
 		</div>
-	{/if}
-	{#if motionPermissionState.visible}
-		<button
-			type="button"
-			class="button motion-permission"
-			disabled={motionPermissionState.busy}
-			onclick={() => motionPermission?.request()}
-		>
-			Let the blobs feel your phone move
-		</button>
 	{/if}
 	<a class="skip-link" href="#main-content">Skip to content</a>
 

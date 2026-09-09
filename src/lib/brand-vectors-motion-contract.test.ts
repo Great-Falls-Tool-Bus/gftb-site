@@ -101,8 +101,20 @@ describe('tinyvectors default-motion contract', () => {
 		expect(block![0]).not.toMatch(/animated=\{false\}/);
 		expect(block![0]).not.toMatch(/respectReducedMotion=\{false\}/);
 		// Devicemotion stays the enhancement layer. The bound instance's
-		// existing permission API supplies the separate user-gesture control.
+		// existing permission API feeds the silent first-gesture handshake
+		// (operator ruling 2026-09-09); no permission control is rendered anywhere.
 		expect(block![0]).toMatch(/enableDeviceMotion=\{true\}/);
 		expect(block![0]).toMatch(/bind:this=\{tinyVectorsRef\}/);
+		expect(layout).not.toMatch(/class="[^"]*motion-permission/u);
+		expect(layout).not.toContain('MotionPermissionState');
+		expect(layout).not.toContain('Let the blobs feel');
+		expect(layout).toContain('createDeviceMotionHandshake(');
+		// Desktop roam (operator ruling 2026-09-09): pointer physics off, so the
+		// scroll effect pulls the blobs toward the field centre (the blog's
+		// behaviour) instead of pooling them under a resting cursor; the 0.3.7
+		// idle cruise needs no sensor and no gesture.
+		expect(block![0]).toMatch(/enablePointerPhysics=\{false\}/);
+		const appCss = readFileSync(path.join(repoRoot, 'src', 'app.css'), 'utf8');
+		expect(appCss).not.toContain('.motion-permission');
 	});
 });
