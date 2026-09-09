@@ -6,7 +6,7 @@ import { contrastRatio, roundRatio } from '../../../scripts/lib/color-contrast.m
 import { resolveRole, schemes } from '../../../scripts/lib/css-tokens.mjs';
 
 // The notes are glass panes: the content-surface fill at 70% over whatever
-// the scene paints (src/app.css `.goal-list > li`). The scene owes the text
+// the scene paints (src/app.css `.goal-list > li::before`). The scene owes the text
 // nothing (operator ruling at the M4 ratification: the former ink clamp
 // darkened blocks under the copy and lagged the shoved notes), so the panes
 // alone must carry the inks. This pin composites the pane over the two
@@ -23,7 +23,7 @@ type Rgb = { red: number; green: number; blue: number; alpha: number };
 const PANE_FILL = 0.7;
 
 function paneFill(): number {
-	const rule = /\.goal-list > li,\n\.goal-asides \{([^}]*)\}/u.exec(appCss);
+	const rule = /\.goal-list > li::before \{([^}]*)\}/u.exec(appCss);
 	const match = rule && /color-mix\(in oklab, var\(--glass-panel\) (\d+)%, transparent\)/u.exec(rule[1]);
 	return match ? Number(match[1]) / 100 : Number.NaN;
 }

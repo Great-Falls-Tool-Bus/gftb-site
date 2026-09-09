@@ -127,13 +127,6 @@
 	 * way — the propagated background is painted from the same tokens.
 	 * brand-vectors-motion-contract.test.ts pins this contract. */
 
-	/* The two full-bleed bands (the hero above, the windshield below) carry
-	 * one mirrored radius pair: the hero's bottom corners and the band's top
-	 * corners (operator ruling at the M4 ratification, 2026-09-09). Every
-	 * control, pane and card stays at radius 0 (never-cards, sharp edges);
-	 * e2e/acceptance-sharp-edges.spec.ts exempts exactly these two boxes. */
-	--bleed-radius: clamp(1.75rem, 5vw, 3.5rem);
-
 	--bg: var(--color-surface-100);
 	--panel: var(--color-surface-50);
 	--fg: var(--color-surface-950);
@@ -805,6 +798,17 @@ li {
  * palette spec Appendix A via theme-gftb.css + palette.ts) — the scrim
  * mixes var(--bg), so it flips with the scheme without a dark-block
  * restatement. */
+/* The two full-bleed bands (the hero above, the windshield below) carry one
+ * mirrored radius pair: the hero's bottom corners and the band's top corners
+ * (operator ruling at the M4 ratification, 2026-09-09). One token on the two
+ * boxes that use it (a geometry token, not a scheme role, so not on :root).
+ * Every control, pane and card stays at radius 0 (never-cards, sharp edges);
+ * e2e/acceptance-sharp-edges.spec.ts exempts exactly these two boxes. */
+.hero__media,
+.wiper--paged .wiper__glass {
+	--bleed-radius: clamp(1.75rem, 5vw, 3.5rem);
+}
+
 .hero__media {
 	position: absolute;
 	inset: 0;
@@ -1268,7 +1272,12 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * inner room on every edge. The goals section itself is bare (.section--bare)
  * so the full-bleed glass runs through the page ground, and the asides below
  * the stalk carry the same pane. Paper drops the fill; forced colours paint
- * system colours anyway. */
+ * system colours anyway.
+ *
+ * The note's fill and blur live on a ::before under its content, not on the
+ * note itself: Chromium ignores mask-image on an element that carries a
+ * backdrop-filter (measured 2026-09-09: every wiping pane stayed whole), and
+ * the wipe masks the note. A pseudo under the note is masked with it. */
 .goal-list > li,
 .goal-asides {
 	--fg: var(--glass-fg);
@@ -1280,26 +1289,37 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--danger: var(--glass-danger);
 	color: var(--fg);
 	border-radius: 0;
-	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
-}
-
-.goal-list > li {
-	padding: 1rem 1.1rem 1.25rem;
 }
 
 .goal-asides {
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
 	padding: clamp(1rem, 3vw, 2rem);
 }
 
+.goal-list > li {
+	position: relative;
+	isolation: isolate;
+	padding: 1rem 1.1rem 1.25rem;
+}
+
+.goal-list > li::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: 0;
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
+}
+
 @supports (backdrop-filter: blur(1px)) {
-	.goal-list > li,
+	.goal-list > li::before,
 	.goal-asides {
 		backdrop-filter: blur(12px) saturate(118%);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.goal-list > li,
+	.goal-list > li::before,
 	.goal-asides {
 		backdrop-filter: none;
 	}
@@ -2180,6 +2200,10 @@ figcaption {
 		background: none !important;
 		backdrop-filter: none !important;
 		transform: none !important;
+	}
+
+	.goal-list > li::before {
+		display: none !important;
 	}
 
 	/* A print begun before the reveal IO ever fires must still show every

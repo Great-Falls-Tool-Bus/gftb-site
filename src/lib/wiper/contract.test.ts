@@ -102,18 +102,28 @@ describe('the wiper source contract', () => {
 	});
 
 	it('gives every note and the asides one glass pane, and the goals section none', () => {
-		const pane = /\.goal-list > li,\n\.goal-asides \{([^}]*)\}/u.exec(css);
+		const inks = /\.goal-list > li,\n\.goal-asides \{([^}]*)\}/u.exec(css);
+		expect(inks).not.toBeNull();
+		expect(inks![1]).toMatch(/border-radius: 0;/u);
+		expect(inks![1]).toMatch(/--fg: var\(--glass-fg\);/u);
+		expect(inks![1]).not.toMatch(/border(?!-radius)|box-shadow|background|backdrop/u);
+		// The fill and the blur sit on a pseudo under the note: Chromium drops
+		// mask-image on an element that carries a backdrop-filter.
+		const pane = /\.goal-list > li::before \{([^}]*)\}/u.exec(css);
 		expect(pane).not.toBeNull();
 		expect(pane![1]).toMatch(/background: color-mix\(in oklab, var\(--glass-panel\) 70%, transparent\);/u);
-		expect(pane![1]).toMatch(/border-radius: 0;/u);
-		expect(pane![1]).toMatch(/--fg: var\(--glass-fg\);/u);
-		expect(pane![1]).not.toMatch(/border(?!-radius)|box-shadow/u);
+		expect(pane![1]).toMatch(/z-index: -1;/u);
+		expect(css).toMatch(
+			/\.goal-list > li::before,\n\t\.goal-asides \{\n\t\tbackdrop-filter: blur\(12px\) saturate\(118%\);/u,
+		);
+		expect(css).not.toMatch(/\.goal-list > li[^:,{]*\{[^}]*backdrop-filter:(?! none)/u);
 		expect(css).toMatch(/\.page-shell > \.section:not\(\.section--bare\),/u);
 		expect(css).not.toMatch(/\.page-shell > \.section,/u);
 		const page = read('src/routes/+page.svelte');
 		expect(page).toMatch(/class="section section--bare reveal-armed"[\s\S]{0,120}id="goals"/u);
 		const print = css.slice(css.indexOf('@media print {'));
 		expect(print).toMatch(/\.goal-list > li,\n\t\.goal-asides \{\n\t\tbackground: none !important;/u);
+		expect(print).toMatch(/\.goal-list > li::before \{\n\t\tdisplay: none !important;/u);
 	});
 
 	it('unwinds the paging on paper and hides the stalk', () => {
@@ -251,7 +261,7 @@ describe('the wiper source contract', () => {
 		const pane = /\.wiper \{([^}]*)\}/u.exec(block);
 		expect(pane![1]).not.toMatch(/100vw/u);
 		// Inner room lives on every note now that each note is a pane.
-		expect(css).toMatch(/\.goal-list > li \{\n\tpadding: 1rem 1\.1rem 1\.25rem;\n\}/u);
+		expect(css).toMatch(/\.goal-list > li \{[^}]*padding: 1rem 1\.1rem 1\.25rem;\n\}/u);
 		expect(block).not.toMatch(/\.goal-list--paged > li \{[^}]*padding/u);
 		const print = css.slice(css.indexOf('@media print {'));
 		expect(print).toMatch(/\.wiper--paged \{\n\t\twidth: auto !important;/u);

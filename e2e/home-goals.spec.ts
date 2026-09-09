@@ -82,10 +82,13 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	// any side of any row; every row is one translucent glass pane (the site's
 	// content-surface fill at 70%), the same for all, so photos and copy share
 	// one uniform occlusion over the scene rather than floating on it.
+	// The fill lives on the note's ::before (Chromium drops a mask on an
+	// element that carries a backdrop-filter), so it is read there.
 	const boxes = await rows.evaluateAll((els) =>
 		els.map((el) => {
 			const s = getComputedStyle(el);
-			return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.backgroundColor];
+			const fill = getComputedStyle(el, '::before').backgroundColor;
+			return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, fill];
 		}),
 	);
 	const fills = new Set<string>();
