@@ -63,18 +63,45 @@ export function rasterizeFrostField(
  * Frost strength from the stroke clock: age since the glass was last wiped
  * (the last back-stroke while resting or wiping out, the out-stroke just
  * run while wiping back), zero for FROST_DELAY_S, then 1 - exp(-age / tau).
+ *
+ * Stamps come from the stroke sample's counters, not from catching a
+ * stroke's first frame: a slow rig can run a whole stroke, or a whole
+ * cycle, between two frames, and a clock that only stamped what it saw
+ * begin would keep the glass frosted through every rest after that.
  */
 export class FrostClock {
 	lastOutStart = FROST_PRESEED_S;
 	lastBackStart = FROST_PRESEED_S;
-	#seen = -1;
+	#seenIndex = -1;
+	#seenPasses = -1;
 
-	/** Stamp stroke starts on the field clock. Call once per frame before value(). */
+	/** Read the sample's counters against the last frame's. Call once per frame before value(). */
 	note(sample: StrokeSample, time: number): void {
-		if (sample.strokeIndex === this.#seen) return;
-		this.#seen = sample.strokeIndex;
-		if (sample.phase === 'out') this.lastOutStart = time;
-		else if (sample.phase === 'back') this.lastBackStart = time;
+		if (this.#seenIndex < 0) {
+			this.#seenIndex = sample.strokeIndex;
+			this.#seenPasses = sample.passesDone;
+			return;
+		}
+		const strokes = sample.strokeIndex - this.#seenIndex;
+		const passes = sample.passesDone - this.#seenPasses;
+		this.#seenIndex = sample.strokeIndex;
+		this.#seenPasses = sample.passesDone;
+		if (strokes <= 0) return;
+		// Whatever ran since the last frame ran no earlier than then; stamping
+		// it at this frame errs toward a little less frost, never more.
+		if (sample.phase === 'out') {
+			this.lastOutStart = time;
+			// An out-stroke that began after the previous cycle finished.
+			if (passes >= 1 || strokes >= 2) this.lastBackStart = time;
+		} else if (sample.phase === 'back') {
+			this.lastBackStart = time;
+			// The out-stroke of this cycle began since the last frame too.
+			if (strokes >= 2) this.lastOutStart = time;
+		} else if (passes >= 1) {
+			// Resting, with at least one pass completed unseen: the glass was wiped.
+			this.lastOutStart = time;
+			this.lastBackStart = time;
+		}
 	}
 
 	value(phase: StrokeSample['phase'], time: number): number {

@@ -18,12 +18,20 @@ describe('the frost raster', () => {
 });
 
 describe('FrostClock', () => {
+	const sample = (phase: 'dwell' | 'out' | 'back', strokeIndex: number, passesDone: number) => ({
+		phase,
+		t: 0,
+		strokeIndex,
+		passesDone,
+	});
+
 	it('stays at zero for the delay after a pass and grows through a rest', () => {
 		const clock = new FrostClock();
 		// Preseeded: the field mounts already frosted.
 		expect(clock.value('dwell', 0)).toBeGreaterThan(0);
-		clock.note({ phase: 'out', t: 0, strokeIndex: 1, passesDone: 0 }, 10);
-		clock.note({ phase: 'back', t: 0, strokeIndex: 2, passesDone: 1 }, 11.3);
+		clock.note(sample('dwell', 0, 0), 0);
+		clock.note(sample('out', 1, 0), 10);
+		clock.note(sample('back', 2, 1), 11.3);
 		expect(clock.value('back', 11.3)).toBeCloseTo(0, 6);
 		expect(clock.value('dwell', 12.6)).toBeCloseTo(0, 9);
 		expect(clock.value('dwell', 11.3 + FROST_DELAY_S)).toBeCloseTo(0, 9);
@@ -33,7 +41,25 @@ describe('FrostClock', () => {
 		expect(late).toBeGreaterThan(early);
 		expect(late).toBeLessThan(1);
 		// A second note of the same stroke changes nothing.
-		clock.note({ phase: 'back', t: 0.5, strokeIndex: 2, passesDone: 1 }, 12);
+		clock.note(sample('back', 2, 1), 12);
 		expect(clock.lastBackStart).toBe(11.3);
+	});
+
+	it('resets when a whole stroke or cycle ran between two frames', () => {
+		const clock = new FrostClock();
+		clock.note(sample('dwell', 0, 0), 0);
+		expect(clock.value('dwell', 9)).toBeGreaterThan(0.8);
+		// The next frame lands in the rest after an unseen out and back stroke.
+		clock.note(sample('dwell', 2, 2), 9.5);
+		expect(clock.lastBackStart).toBe(9.5);
+		expect(clock.value('dwell', 9.6)).toBeCloseTo(0, 9);
+		// A frame that lands mid back-stroke after an unseen out-stroke.
+		clock.note(sample('back', 4, 3), 20);
+		expect(clock.lastOutStart).toBe(20);
+		expect(clock.lastBackStart).toBe(20);
+		// A frame that lands in a new out-stroke after the previous cycle finished unseen.
+		clock.note(sample('out', 5, 4), 30);
+		expect(clock.lastOutStart).toBe(30);
+		expect(clock.lastBackStart).toBe(30);
 	});
 });
