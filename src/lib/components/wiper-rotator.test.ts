@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	DEFAULT_WIPER_POSITION,
+	DEFAULT_WIPER_SKIN,
 	WIPER_POSITIONS,
+	WIPER_SKINS,
 	pageCountFor,
 	pageOf,
 	stepWiperPosition,
@@ -163,5 +165,98 @@ describe('the wiper rotator source contract', () => {
 		expect(appCss).toMatch(
 			/\.goal-list \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(min\(17rem, 100%\), 1fr\)\);/u,
 		);
+	});
+});
+
+describe('the dash light-pipe and the aero skin (operator rulings 2026-09-09)', () => {
+	const rotator = read('src/lib/components/WiperRotator.svelte');
+	const goals = read('src/lib/components/NotesAndGoals.svelte');
+	const appCss = read('src/app.css');
+	const rule = (selector: string) => {
+		// The body of the first top-level rule whose selector line is exactly `selector {`.
+		const marker = `\n${selector} {\n`;
+		const at = appCss.indexOf(marker);
+		expect(at, `a rule for ${selector}`).toBeGreaterThan(-1);
+		const close = appCss.indexOf('\n}', at);
+		return appCss.slice(at + marker.length, close);
+	};
+
+	it('names its skins and ships the aero skin on the goals surface with dash as the rollback', () => {
+		expect(WIPER_SKINS).toEqual(['dash', 'aero']);
+		expect(DEFAULT_WIPER_SKIN).toBe('dash');
+		expect(rotator).toContain('data-skin={skin}');
+		expect(goals).toContain('skin="aero"');
+		// Every aero rule is scoped; the dash skin never inherits one.
+		const aeroRules =
+			appCss.match(/^\.wiper\[data-skin='aero'\]|^\[data-mode='dark'\] \.wiper\[data-skin='aero'\]/gmu) ?? [];
+		expect(aeroRules.length).toBeGreaterThanOrEqual(4);
+	});
+
+	it('gives each dash key exactly one border, the 2px accent top edge the 1.4.11 collector reads', () => {
+		for (const selector of ['.wiper-switch', '.wiper-stalk__detent']) {
+			const body = rule(selector);
+			expect(body, selector).toMatch(/\n\tborder: 0;\n/u);
+			expect(body, selector).toMatch(/\n\tborder-top: 2px solid var\(--accent\);\n/u);
+			expect(body, selector).not.toMatch(/border-(left|right|bottom)/u);
+			expect(body, selector).toMatch(/\n\tborder-radius: 0;\n/u);
+			expect(body, selector).toMatch(/box-shadow: var\(--wiper-bevel\)/u);
+		}
+		expect(rule('.wiper-controls')).not.toMatch(/border-top/u);
+		expect(rule('.wiper-switch__track')).toMatch(/\n\tborder: 0;\n/u);
+		expect(appCss).not.toMatch(/\.wiper-stalk__detent \+ \.wiper-stalk__detent/u);
+		// The invisible base keeps `ring, var(--wiper-bevel)` a valid shadow list.
+		expect(rule('.wiper')).toMatch(/--wiper-bevel: 0 0 #0000;/u);
+		expect(appCss).toMatch(
+			/\n\t\t0 0 0 4px color-mix\(in oklab, var\(--highlight\) 56%, transparent\),\n\t\tvar\(--wiper-bevel\);/u,
+		);
+		expect(appCss).toMatch(
+			/@media \(forced-colors: active\) \{\n\t\.wiper-switch,\n\t\.wiper-stalk__detent \{\n\t\tborder: 1px solid ButtonText;/u,
+		);
+	});
+
+	it('darkens only in dark mode inside the glass (the direction contract)', () => {
+		const dark = rule("[data-mode='dark'] .wiper[data-skin='aero']");
+		expect(dark).toMatch(/--wiper-gloss: #000;/u);
+		// The pane's own paint (the measured surface) darkens only; the key
+		// bevel highlight is a descendant and may stay light.
+		const paint = dark.match(/background-image:[^;]*;/u)?.[0] ?? '';
+		expect(paint).toMatch(/color-mix\(in oklab, #000 10%, transparent\)/u);
+		expect(paint).not.toMatch(/#fff|var\(--wiper-gloss\)/u);
+		const light = rule(".wiper[data-skin='aero']");
+		expect(light).toMatch(/--wiper-gloss: #fff;/u);
+	});
+
+	it('keeps the round forms out of the arms and names one arm for each phase event', () => {
+		expect(rotator).not.toContain('<circle');
+		expect(rotator.match(/onanimationiteration=/gu)).toHaveLength(1);
+		expect(rotator.match(/onanimationend=/gu)).toHaveLength(1);
+		expect(rotator).toContain("side === 'left' && ghost === 0 ? onSweepIteration");
+		expect(rotator).toContain("side === 'left' && ghost === 2 ? onSweepEnd");
+		expect(rotator).toContain('wiper-arm--ghost-${ghost}');
+	});
+
+	it('puts the slap easing, the ghost delays and the sheen inside the no-preference block', () => {
+		const { inside, outside } = splitMotionBlocks(appCss.replace(/\/\*[\s\S]*?\*\//gu, ''));
+		const slap = inside.match(/animation-timing-function: linear\(/gu) ?? [];
+		expect(slap).toHaveLength(1);
+		expect(outside).not.toMatch(/linear\(/u);
+		// The longhand follows the sweep shorthand so a browser without linear() keeps the bezier.
+		const shorthandAt = inside.indexOf(
+			'animation: wiper-sweep var(--wiper-stroke) cubic-bezier(0.45, 0, 0.55, 1) 2 alternate both;',
+		);
+		const longhandAt = inside.indexOf('animation-timing-function: linear(');
+		expect(shorthandAt).toBeGreaterThan(-1);
+		expect(longhandAt).toBeGreaterThan(shorthandAt);
+		expect(inside).toMatch(
+			/\.wiper--wiping \.wiper-arm--ghost-1 \{\s*animation-delay: calc\(var\(--wiper-stroke\) \* 0\.06\);/u,
+		);
+		expect(inside).toMatch(
+			/\.wiper--wiping \.wiper-arm--ghost-2 \{\s*animation-delay: calc\(var\(--wiper-stroke\) \* 0\.12\);/u,
+		);
+		expect(inside).toMatch(/@keyframes wiper-sheen/u);
+		expect(outside).not.toMatch(/wiper-sheen/u);
+		// The sheen pseudo exists only while wiping, and paper drops it.
+		expect(appCss).toMatch(/\.wiper\[data-skin='aero'\]::after \{\n\tcontent: none;\n\}/u);
+		expect(appCss).toMatch(/\.wiper::before,\n\t\.wiper::after,\n\t\.wiper-arms,/u);
 	});
 });
