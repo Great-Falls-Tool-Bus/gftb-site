@@ -156,7 +156,7 @@ async function collectControlSamples(page: Page): Promise<ControlSample[]> {
 			// token pair by src/lib/design-token-contrast.test.ts ('mode
 			// switch thumb on its track') in both schemes. Nothing else in
 			// the switch subtree gets a pass.
-			if (element.tagName === 'INPUT' && element.closest('.mode-switch')) continue;
+			if (element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')) continue;
 			if (element.disabled) continue;
 			if (!visible(element)) continue;
 			const style = getComputedStyle(element);

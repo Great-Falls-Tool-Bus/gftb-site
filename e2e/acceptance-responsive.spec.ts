@@ -74,11 +74,11 @@ async function clippedControls(page: Page, selector: string) {
 		const results: Array<{ label: string; left: number; right: number; width: number; height: number }> = [];
 		for (const element of Array.from(document.querySelectorAll<HTMLElement>(interactive))) {
 			if (element.closest('.honeypot')) continue;
-			// Exactly the mode switch's <input> — Zag's deliberately clipped
-			// 1px a11y channel — is exempt; the visitor-facing target is the
-			// 52x28 control box, asserted by e2e/acceptance-mode-switch.spec.ts.
-			// Nothing else inside the switch subtree gets a pass.
-			if (element.tagName === 'INPUT' && element.closest('.mode-switch')) continue;
+			// Exactly the Zag hidden inputs (the mode switch's checkbox and the
+			// wiper stalk's radios, deliberately clipped 1px a11y channels) are
+			// exempt; the visitor-facing targets are the 52x28 switch box and
+			// the stalk's labelled items. Nothing else in either subtree gets a pass.
+			if (element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')) continue;
 			if (element.offsetParent === null && getComputedStyle(element).position !== 'fixed') continue;
 			const box = element.getBoundingClientRect();
 			const label = `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24) || element.id}`;
@@ -135,7 +135,7 @@ test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ pag
 			// by e2e/acceptance-mode-switch.spec.ts. Nothing else inside the
 			// switch subtree gets a pass.
 			.filter((element) => !element.closest('.honeypot'))
-			.filter((element) => !(element.tagName === 'INPUT' && element.closest('.mode-switch')))
+			.filter((element) => !(element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')))
 			.map((element) => ({ element, box: element.getBoundingClientRect() }))
 			.filter((target) => target.box.width > 0 && target.box.height > 0);
 
