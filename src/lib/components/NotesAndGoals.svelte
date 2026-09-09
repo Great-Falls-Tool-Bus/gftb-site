@@ -18,9 +18,11 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import sourceMap from '$lib/generated/source-map.json';
 	import type { PublicGoal } from '$lib/public-goals';
+	import { BRAND_BLOB_COLORS } from '$lib/brand-blob-colors';
 	import { WiperEngine } from '$lib/wiper/engine.svelte';
 	import { pageOf } from '$lib/wiper/schedule';
 	import WiperControls from './WiperControls.svelte';
+	import WiperScene from './WiperScene.svelte';
 
 	interface Props {
 		goals: PublicGoal[];
@@ -51,6 +53,7 @@
 	});
 	const view = $derived(engine.view);
 	let paneEl = $state<HTMLElement>();
+	let glassEl = $state<HTMLElement>();
 	let listEl = $state<HTMLOListElement>();
 
 	onMount(() => {
@@ -108,46 +111,51 @@
 	onpointerenter={() => engine.setHover(true)}
 	onpointerleave={() => engine.setHover(false)}
 >
-	<ol
-		class="goal-list"
-		class:goal-list--paged={view.paged}
-		role="list"
-		aria-labelledby={labelledby}
-		style:--wipe-columns={view.paged ? view.pageSize : undefined}
-		bind:this={listEl}
-		onfocusin={onListFocusIn}
-		onfocusout={onListFocusOut}
-	>
-		{#each goals as goal, index (goal.slug)}
-			<li
-				class:is-current={view.paged && pageOf(index, view.pageSize) === view.currentPage}
-				data-wipe={wipeRole(index)}
-				style:grid-column={view.paged ? (index % view.pageSize) + 1 : undefined}
-			>
-				{#if media}
-					{@render media(goal)}
-				{/if}
-				<h3>{goal.metadata.title}</h3>
-				{#if goal.metadata.window}
-					<p class="log-meta">{goal.metadata.window}</p>
-				{/if}
-				{#if goal.text}
-					<p>{goal.text}</p>
-				{/if}
-				{#if goal.metadata.cta_label && goal.metadata.cta_href}
-					<p class="goal-cta"><a href={goal.metadata.cta_href}>{goal.metadata.cta_label}</a></p>
-				{/if}
-				<p class="goal-edit">
-					<a
-						href={editUrl(goal)}
-						target="_blank"
-						rel="noopener external"
-						aria-label="Edit {goal.metadata.title} on GitHub">Edit</a
-					>
-				</p>
-			</li>
-		{/each}
-	</ol>
+	<div class="wiper__glass" bind:this={glassEl}>
+		{#if view.paged && glassEl}
+			<WiperScene {engine} colors={BRAND_BLOB_COLORS} glass={glassEl} />
+		{/if}
+		<ol
+			class="goal-list"
+			class:goal-list--paged={view.paged}
+			role="list"
+			aria-labelledby={labelledby}
+			style:--wipe-columns={view.paged ? view.pageSize : undefined}
+			bind:this={listEl}
+			onfocusin={onListFocusIn}
+			onfocusout={onListFocusOut}
+		>
+			{#each goals as goal, index (goal.slug)}
+				<li
+					class:is-current={view.paged && pageOf(index, view.pageSize) === view.currentPage}
+					data-wipe={wipeRole(index)}
+					style:grid-column={view.paged ? (index % view.pageSize) + 1 : undefined}
+				>
+					{#if media}
+						{@render media(goal)}
+					{/if}
+					<h3>{goal.metadata.title}</h3>
+					{#if goal.metadata.window}
+						<p class="log-meta">{goal.metadata.window}</p>
+					{/if}
+					{#if goal.text}
+						<p>{goal.text}</p>
+					{/if}
+					{#if goal.metadata.cta_label && goal.metadata.cta_href}
+						<p class="goal-cta"><a href={goal.metadata.cta_href}>{goal.metadata.cta_label}</a></p>
+					{/if}
+					<p class="goal-edit">
+						<a
+							href={editUrl(goal)}
+							target="_blank"
+							rel="noopener external"
+							aria-label="Edit {goal.metadata.title} on GitHub">Edit</a
+						>
+					</p>
+				</li>
+			{/each}
+		</ol>
+	</div>
 	{#if view.rotatable}
 		<p class="sr-only" aria-live={view.running ? 'off' : 'polite'} aria-atomic="true">
 			{#if view.paged}Showing goals {first} to {last} of {goals.length}{:else}Showing all {goals.length} goals{/if}
