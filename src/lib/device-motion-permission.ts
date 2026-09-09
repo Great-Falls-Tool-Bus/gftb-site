@@ -12,7 +12,7 @@
  *   listening on its own, `available()` is false, and nothing ever arms.
  * - Reduced motion: nothing arms; turning Reduce Motion on mid-session
  *   disarms, turning it off re-arms only if no request was ever made.
- * - Interactive targets (links, buttons, form fields, the wiper stalk) never
+ * - Interactive targets (links, buttons, form fields, the mode switch) never
  *   trigger the handshake: a navigation tap must not raise a system dialog.
  * - The native call is made synchronously inside the click stack (awaiting a
  *   tick first forfeits transient activation). `attempted` latches only once

@@ -1,14 +1,14 @@
 <script lang="ts">
 	// The home page's Notes & Goals surface: the goals collection
-	// (src/content/goals/*.md, via the generated manifest) rendered through
-	// the generic WiperRotator. This file owns everything goal-shaped: the
+	// (src/content/goals/*.md, via the generated manifest) as a plain,
+	// borderless grid. Operator ruling 2026-09-09: the wiper rotator is off
+	// the public surface until a real one exists; this file keeps the
 	// ratified row markup (never-cards stands: title, plain window, one
 	// sentence, at most one CTA), the per-goal "Edit" link, and the
-	// section-level link to the collection tree. The rotator itself knows
-	// nothing about goals or GitHub.
+	// section-level link to the collection tree.
 	//
 	// Edit affordances (operator ruling 2026-09-08): every row links to its
-	// own source file through GitHub's web editor, and the pane's footer
+	// own source file through GitHub's web editor, and the section's footer
 	// links the whole collection. No org/repo string is hardcoded: repo URL
 	// and branch flow from src/lib/generated/source-map.json (the SourceLink
 	// pattern), the per-row path from the manifest's `sourcePath`. The links
@@ -17,7 +17,6 @@
 	import type { Snippet } from 'svelte';
 	import sourceMap from '$lib/generated/source-map.json';
 	import type { PublicGoal } from '$lib/public-goals';
-	import WiperRotator from './WiperRotator.svelte';
 
 	interface Props {
 		goals: PublicGoal[];
@@ -37,31 +36,34 @@
 	const collectionUrl = `${sourceMap.repoUrl}/tree/${sourceMap.branch}/src/content/goals`;
 </script>
 
-<WiperRotator items={goals} key={(goal) => goal.slug} {labelledby} listClass="goal-list" noun="goals" rain>
-	{#snippet item(goal)}
-		{#if media}
-			{@render media(goal)}
-		{/if}
-		<h3>{goal.metadata.title}</h3>
-		{#if goal.metadata.window}
-			<p class="log-meta">{goal.metadata.window}</p>
-		{/if}
-		{#if goal.text}
-			<p>{goal.text}</p>
-		{/if}
-		{#if goal.metadata.cta_label && goal.metadata.cta_href}
-			<p class="goal-cta"><a href={goal.metadata.cta_href}>{goal.metadata.cta_label}</a></p>
-		{/if}
-		<p class="goal-edit">
-			<a href={editUrl(goal)} target="_blank" rel="noopener external" aria-label="Edit {goal.metadata.title} on GitHub"
-				>Edit</a
-			>
-		</p>
-	{/snippet}
-	{#snippet footer()}
-		<p class="source-link">
-			<span>These notes live in git. Anyone can propose an edit.</span>
-			<a href={collectionUrl} target="_blank" rel="noopener external">Edit these notes on GitHub</a>
-		</p>
-	{/snippet}
-</WiperRotator>
+<ol class="goal-list" role="list" aria-labelledby={labelledby}>
+	{#each goals as goal (goal.slug)}
+		<li>
+			{#if media}
+				{@render media(goal)}
+			{/if}
+			<h3>{goal.metadata.title}</h3>
+			{#if goal.metadata.window}
+				<p class="log-meta">{goal.metadata.window}</p>
+			{/if}
+			{#if goal.text}
+				<p>{goal.text}</p>
+			{/if}
+			{#if goal.metadata.cta_label && goal.metadata.cta_href}
+				<p class="goal-cta"><a href={goal.metadata.cta_href}>{goal.metadata.cta_label}</a></p>
+			{/if}
+			<p class="goal-edit">
+				<a
+					href={editUrl(goal)}
+					target="_blank"
+					rel="noopener external"
+					aria-label="Edit {goal.metadata.title} on GitHub">Edit</a
+				>
+			</p>
+		</li>
+	{/each}
+</ol>
+<p class="source-link goal-list__source">
+	<span>These notes live in git. Anyone can propose an edit.</span>
+	<a href={collectionUrl} target="_blank" rel="noopener external">Edit these notes on GitHub</a>
+</p>
