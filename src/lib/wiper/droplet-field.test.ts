@@ -162,6 +162,34 @@ describe('DropletField', () => {
 		expect(field.occupancy()).toBeGreaterThan(0.15);
 	});
 
+	it('leaves no bead hanging over the park ray or the turnaround after a full cycle', () => {
+		const { machine, field } = make(5);
+		const dwell = wiperDetent('high').dwellMs;
+		drive(machine, field, 0, dwell - 100, 50);
+		drive(machine, field, dwell - 100, dwell + wiperDetent('high').sweepMs + 200, 40);
+		expect(machine.phase).toBe('dwell');
+		const stride = field.cols + 2;
+		let hanging = 0;
+		for (const arm of geometry.arms) {
+			for (let j = 1; j <= field.rows; j += 1) {
+				for (let i = 1; i <= field.cols; i += 1) {
+					const offset = (j * stride + i) * 4;
+					if (field.data[offset + 3] <= 0) continue;
+					const bead = polar(arm, field.data[offset], field.data[offset + 1]);
+					if (bead.distance > arm.length) continue;
+					const m = field.data[offset + 2] / bead.distance;
+					if (
+						bead.phi >= -arm.park &&
+						bead.phi <= arm.halfSweep &&
+						(bead.phi - m < -arm.park || bead.phi + m > arm.halfSweep)
+					)
+						hanging += 1;
+				}
+			}
+		}
+		expect(hanging).toBe(0);
+	});
+
 	it('survives a frame gap that swallows a whole stroke', () => {
 		const { machine, field } = make(9);
 		const dwell = wiperDetent('high').dwellMs;

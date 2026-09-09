@@ -166,7 +166,20 @@ export class DropletField {
 	#sweep(legs: StrokeLeg[], arms: readonly ArmSpec[]): boolean {
 		const cells = this.#cells;
 		let changed = false;
-		const ranges = arms.map((arm) => legs.map((leg) => ({ leg, ...legAngles(arm, leg) })));
+		// A leg that reaches the end of its stroke also takes the beads whose
+		// extent hangs past that end of the fan: the blade parks on them or
+		// turns around over them, so nothing survives at the corners.
+		const ranges = arms.map((arm) =>
+			legs.map((leg) => {
+				const angles = legAngles(arm, leg);
+				const reachesEnd = leg.to >= 1 - 1e-9;
+				return {
+					leg,
+					lo: reachesEnd && leg.stroke === 'back' ? -Infinity : angles.lo,
+					hi: reachesEnd && leg.stroke === 'out' ? Infinity : angles.hi,
+				};
+			}),
+		);
 		for (let index = 0; index < cells.rFinal.length; index += 1) {
 			const cx = ((index % this.cols) + 0.5) * this.cellCss;
 			const cy = (Math.floor(index / this.cols) + 0.5) * this.cellCss;

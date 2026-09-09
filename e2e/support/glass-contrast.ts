@@ -184,12 +184,17 @@ export async function measureExtremesInRects(
 	return { darkest, lightest, sampled };
 }
 
+/** A horizontal step in linear luminance above this counts as a strong edge. */
+export const STRONG_EDGE = 0.006;
+
 /**
  * Texture of the scene inside rects: mean luminance, its standard deviation,
- * and the mean absolute luminance step between horizontal neighbours (edge
- * energy). The blob field is smooth, so its edge energy is low; droplets and
- * frost grain are small and sharp, so theirs is high. A blade pass that
- * clears them drops the edge energy behind it.
+ * the mean absolute luminance step between horizontal neighbours (edge
+ * energy) and the share of neighbour pairs whose step is a strong edge. The
+ * blob field is smooth, so its edges are weak; droplets are small and sharp,
+ * so theirs are strong. A blade pass that clears them drops both behind it.
+ * On a near-black ground the mean step is mostly 8-bit quantisation, so the
+ * strong-edge share is the measure that survives the dark scheme.
  */
 export async function measureTextureInRects(
 	page: Page,
@@ -204,6 +209,7 @@ export async function measureTextureInRects(
 		let sumSquares = 0;
 		let steps = 0;
 		let stepSum = 0;
+		let strong = 0;
 		let count = 0;
 		for (let y = y0; y < y1; y += 1) {
 			let previous: number | null = null;
@@ -213,7 +219,9 @@ export async function measureTextureInRects(
 				sumSquares += luminance * luminance;
 				count += 1;
 				if (previous !== null) {
-					stepSum += Math.abs(luminance - previous);
+					const step = Math.abs(luminance - previous);
+					stepSum += step;
+					if (step > STRONG_EDGE) strong += 1;
 					steps += 1;
 				}
 				previous = luminance;
@@ -221,6 +229,12 @@ export async function measureTextureInRects(
 		}
 		const mean = count ? sum / count : 0;
 		const variance = count ? Math.max(0, sumSquares / count - mean * mean) : 0;
-		return { mean, stddev: Math.sqrt(variance), edge: steps ? stepSum / steps : 0, sampled: count };
+		return {
+			mean,
+			stddev: Math.sqrt(variance),
+			edge: steps ? stepSum / steps : 0,
+			strong: steps ? strong / steps : 0,
+			sampled: count,
+		};
 	});
 }

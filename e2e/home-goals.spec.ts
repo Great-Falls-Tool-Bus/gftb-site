@@ -663,15 +663,19 @@ for (const scheme of ['light', 'dark'] as const) {
 		expect(await pane(page).getAttribute('data-state'), 'the held rest').toMatch(/dwell|paused/u);
 		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
 		await releaseHold(page);
-		// Edge energy is the measure: beads are sharp. Deviation is not, since
-		// frost softens the smooth field toward the ground as the beads arrive.
-		for (const side of [0, 1]) {
-			expect(
-				late[side].edge,
-				`edge energy, side ${side}: ${early[side].edge.toExponential(3)} early, ${late[side].edge.toExponential(3)} late`,
-			).toBeGreaterThanOrEqual(early[side].edge * 1.2);
-			expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
-		}
+		// The strong-edge share is the measure: beads are small and sharp,
+		// the field is smooth, and on a near-black ground the mean step is
+		// mostly 8-bit quantisation. Summed over both gutters (dark beads are
+		// gentle by ruling), it rises through the rest and ends with beads
+		// present; calibrated on the rail 2026-09-09 (light 0.05 to 0.11, dark
+		// 0.04 to 0.05).
+		const sum = (t: typeof early) => t[0].strong + t[1].strong;
+		expect(
+			sum(late),
+			`strong edges: ${sum(early).toFixed(4)} early, ${sum(late).toFixed(4)} late`,
+		).toBeGreaterThanOrEqual(sum(early) * 1.15);
+		expect(sum(late), 'beads present late in the rest').toBeGreaterThan(0.03);
+		for (const side of [0, 1]) expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
 	});
 
 	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }) => {
@@ -698,18 +702,21 @@ for (const scheme of ['light', 'dark'] as const) {
 			[rests.left, rests.right, rests.rightLow],
 			GLASS_HIDE,
 		);
+		// Behind a blade the strong-edge share falls to nothing (probe: 0.002
+		// light, 0 dark) while ahead it carries the beads (0.05 light, 0.03 dark).
 		expect(
-			mid[0].edge,
-			`behind the left blade: ${mid[0].edge.toExponential(3)} vs ahead ${mid[1].edge.toExponential(3)}`,
-		).toBeLessThan(mid[1].edge * 0.6);
+			mid[0].strong,
+			`behind the left blade: ${mid[0].strong.toFixed(4)} vs ahead ${mid[1].strong.toFixed(4)}`,
+		).toBeLessThan(mid[1].strong * 0.3);
+		expect(mid[1].strong, 'beads ahead of the right blade').toBeGreaterThan(0.01);
 		// Move the hold near the turnaround: the right blade has passed the
 		// lower right gutter too.
 		await holdStroke(page, '0.98');
 		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.rightLow], GLASS_HIDE);
 		expect(
-			late[0].edge,
-			`behind the right blade: ${late[0].edge.toExponential(3)} vs ahead ${mid[2].edge.toExponential(3)}`,
-		).toBeLessThan(mid[2].edge * 0.6);
+			late[0].strong,
+			`behind the right blade: ${late[0].strong.toFixed(4)} vs ahead ${mid[2].strong.toFixed(4)}`,
+		).toBeLessThan(mid[2].strong * 0.3);
 		await releaseHold(page);
 	});
 }
