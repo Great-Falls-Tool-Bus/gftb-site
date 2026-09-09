@@ -330,7 +330,7 @@ describe('the dwell timer and the instruments share one clock', () => {
 	});
 });
 
-describe('the deck skin (operator rulings 2026-09-09, TIN-4338 ruled)', () => {
+describe('the deck skin (operator rulings 2026-09-09)', () => {
 	const rotator = read('src/lib/components/WiperRotator.svelte');
 	const appCss = read('src/app.css');
 	const stripped = appCss.replace(/\/\*[\s\S]*?\*\//gu, '');
