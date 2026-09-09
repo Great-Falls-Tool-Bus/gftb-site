@@ -799,7 +799,7 @@ test('the sheen exists only during a wipe', async ({ page }) => {
 	expect(await region.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
 });
 
-// The deck skin (TIN-4338 ruled): the dash strip is the one sanctioned opaque
+// The deck skin (ruled 2026-09-09): the dash strip is the one sanctioned opaque
 // chassis; its keys keep the amber light-pipe as their measurable boundary,
 // the LCD counts the dwell down, the VU bars step once per wipe, and the
 // marquee moves only while the wipers run.
