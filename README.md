@@ -1,53 +1,100 @@
 # Great Falls Tool Bus public site
 
-The static public front door for the Great Falls Tool Bus in
-Lewiston–Auburn, Maine. The site explains what the project is, what is happening
-next, how to help, and publishes a small reviewed build log.
+This private repository builds the public website for the Great Falls Tool Bus
+in Lewiston and Auburn, Maine. It holds page copy, goals, and reviewed daily
+logs. SvelteKit produces static files with `adapter-static`.
 
-## Boundaries
+Member accounts, payments, mail services, and deployment belong to other
+repositories. The contact form sends requests to the separately operated
+`forms.latoolb.us` service.
 
-- Static SvelteKit output (`adapter-static`); no runtime server.
-- No auth, member records, payments, mail operations, private content, or
-  infrastructure authority.
-- The browser posts the public contact form to the separately operated
-  `forms.latoolb.us` API, with an email fallback. This repo owns neither service.
-- Daily logs are checked-in `.svx` documents. Their frontmatter is limited to
-  `date`, `title`, `summary`, `tags`, `published`, and optional `updated`.
-  Entries with `published: true` enter the generated public manifest. An
-  operator-pending `published: false` draft may remain in `src/content/log/`;
-  the manifest excludes it and the built-output leak scan verifies that its
-  content did not ship. Drafts are still scanned and must contain no private
-  text.
-- Internal tracker IDs, PRs, SHAs, repo pointers, and private locations never
-  appear in public logs.
+Jess's internal tooling and the Linear system used to manage this work are
+presently private. GloriousFlywheel infrastructure is provided by Tinyland,
+Inc.
 
-## Stack and commands
+## Start work
 
-This spoke follows the Tinyland repository contract: Just is the only operator
-entrypoint, Nix supplies the shell, and Bazel/GloriousFlywheel provide the
-finite build and test graph. This repo carries an explicit Skeleton 5.0.0
-exception based on the proven `jesssullivan.github.io` Svelte 5 pattern.
+You need Git, Nix, and GitHub access to this private repository. Clone it and
+enter the pinned Nix shell. Then use Just for repository operations:
 
 ```bash
-direnv allow
+git clone git@github.com:Great-Falls-Tool-Bus/gftb-site.git
+cd gftb-site
+nix develop
 just setup
-just check
-just build
+just dev
 ```
 
-`just build` materializes the deployable static site under `build/`.
+`just setup` installs the locked dependencies. `just dev` starts the development
+server. Run `just` to list all recipes. Do not run package or build tools
+directly. Nix supplies the tools; the Justfile supplies the commands.
 
-`just container-image-publish` is a Linux CI-only entrypoint that publishes the
-same static artifact as an immutable
-`ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>` candidate. It
-does not deploy or select the image for production.
+| Task | Command |
+| --- | --- |
+| Run unit tests | `just test-unit` |
+| Check repository contracts | `just conformance` |
+| Run the full validation suite | `just check` |
+| Build and scan the static site | `just build` |
+| Update the daily-log manifest | `just log-manifest-build` |
+| Update the goals manifest | `just goals-manifest-build` |
+| Update page source links | `just source-map-build` |
 
-The source repository remains private. After review, the operator release lane
-may make only this public web image package anonymous-readable and must prove a
-digest pull before cutover; this repo carries no registry pull credentials.
+The full validation suite includes browser tests that require GF's supplied
+Chromium. Local results do not replace a refused remote action or prove a
+deployment. `just build` writes to `build/` and refuses an existing destination.
+`just entrypoint-contract` and `just repo-manifest-validate` are compatibility
+names for `just conformance`.
+
+## Variables and credentials
+
+Content editing does not require a site `.env` file. Keep private GitHub access
+in your account's credential configuration. Never commit credentials or put
+them in site content, build output, or PR text.
+
+| Name | When it is needed |
+| --- | --- |
+| `BASE_PATH` | Optional build prefix. Leave it unset for the apex site. |
+| `BUILD_COMMIT_SHA`, `BUILD_COMMIT_REF` | The candidate publisher supplies the exact source commit and ref. Ordinary development may use the default unknown stamp. |
+| `GFTB_LEAK_SCAN_DENY` | Optional comma-separated private literals for `just leak-scan`. Supply them privately; never commit the values. |
+| `GHCR_USER`, `GHCR_TOKEN` | Candidate publication only. The workflow uses the GitHub actor and its temporary `GITHUB_TOKEN`. These are not developer setup inputs. |
+
+Deployment credentials belong to `great-falls-tool-bus-infra`. Its attended
+release uses `WEB_APPLY_SHA` and `WEB_APPLY_IMAGE` for the source and image
+digest, and `WEB_APPLY_KUBECONFIG` for apply access. Separate proof access uses
+`WEB_RELEASE_KUBECONFIG`. These kubeconfigs must be private, operator-owned
+mode-0600 files outside every Git repository. A gated served check also needs
+`CF_ACCESS_COOKIE_JAR` with the same private file custody. See the
+[owner release runbook](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/blob/main/docs/runbooks/oncluster-web-cutover.md)
+for the full input list and checks. Do not copy those credentials into this
+repository or use apply access as independent proof access.
+
+## Source, publication, and deployment
+
+The current source declares two GF actions: `validate` runs the registered
+checks, and `site-build` requests the scanned deployment bundle. See
+[the CI contract](docs/CI-SCHEMA.md) for their exact targets and output rules.
+
+The existing candidate workflow calls `just container-image-publish` on Linux.
+It packages the static build as
+`ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>`. It does not
+deploy. The operator release lane may make this web image package publicly
+readable after review and must prove a digest pull before cutover. Source stays
+private.
+
+The infra repository owns the existing attended release: select the reviewed
+source and digest, apply them, and read back the running and served site.
+Automatic GF deployment from `main` to production is still pending. A source
+merge or image push alone does not prove that production serves that version.
 
 ## Content and licensing
 
-Public logs live in `src/content/log/`. Software is licensed under zlib; GFTB
-written content is CC BY-SA 4.0. Third-party visual provenance is recorded in
-`NOTICE` and `docs/attribution.md`.
+Daily logs live in `src/content/log/`. Use only the frontmatter fields allowed
+by [the content contract](AGENTS.md#public-content-boundary), including its
+optional image group. Follow [the content guide](docs/content-train.md) for the
+review process. Only `published: true` entries enter the public manifest.
+Unpublished drafts are still public build inputs: they must contain no private
+text, and the output scan checks that their content does not ship. Keep tracker
+IDs, PR numbers, commit IDs, and private operational notes out of public logs.
+
+Software uses the zlib license. GFTB writing uses CC BY-SA 4.0. Third-party
+credits are in [NOTICE](NOTICE) and [the attribution record](docs/attribution.md).
