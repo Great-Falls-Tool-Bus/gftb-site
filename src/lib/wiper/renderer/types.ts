@@ -63,6 +63,8 @@ export interface RendererHandle {
 	/** CSS size and device pixel ratio; the backing store follows. */
 	resize(cssWidth: number, cssHeight: number, dpr: number): void;
 	uploadInk(field: Uint8Array, width: number, height: number): void;
+	/** The moving field for shoved notes; null clears it (a single zero texel). */
+	uploadMovingInk(field: Uint8Array | null, width: number, height: number): void;
 	render(frame: SceneFrame): void;
 	onLost(callback: (failure: RendererFailure) => void): void;
 	destroy(): void;

@@ -416,8 +416,18 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		// At rest means at rest: a stroke shoves the notes across the glass
+		// while the pixels are read. A slower detent keeps the dwell already
+		// counting, so the only guaranteed window is the fresh dwell after a
+		// stroke ends: take Intermittent (at least 5.2 s of rest), let the next
+		// stroke run to its end, then sample.
+		await selectDetent(page, 'Intermittent');
+		await pointerAway(page);
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 20_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 20_000 });
+		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 		// Let the blobs cruise into the glass before sampling.
-		await page.waitForTimeout(1500);
+		await page.waitForTimeout(1200);
 		const check = async (label: string) => {
 			const rects = await inkRects(page);
 			expect(rects.length, `${label}: text rects`).toBeGreaterThan(3);

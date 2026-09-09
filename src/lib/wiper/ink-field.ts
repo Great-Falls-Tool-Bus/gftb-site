@@ -1,6 +1,8 @@
-// The ink field: a small alpha raster of where text sits over the scene,
-// rebuilt on relayout (never per frame). The shader samples it once per
-// fragment and clamps the scene toward the page ground under ink.
+// The ink field: a small alpha raster of where text sits over the scene.
+// The static field is rebuilt on relayout and page turns; a coarser moving
+// field follows the outgoing notes every frame of the out-stroke while the
+// blade shoves them. The shader samples both and clamps the scene toward
+// the page ground under the greater.
 import { INK_DILATE_PX, INK_FEATHER_PX, INK_FIELD_HEIGHT, INK_FIELD_WIDTH } from './renderer/shaders/constants';
 
 export interface InkRect {
@@ -42,18 +44,25 @@ export function rasterizeInkField(
 	if (rects.length === 0 || box.width <= 0 || box.height <= 0) return out;
 	const cellW = box.width / width;
 	const cellH = box.height / height;
-	for (let ty = 0; ty < height; ty += 1) {
-		const y = (ty + 0.5) * cellH;
-		for (let tx = 0; tx < width; tx += 1) {
-			const x = (tx + 0.5) * cellW;
-			let nearest = Infinity;
-			for (const rect of rects) {
+	const reach = dilate + feather;
+	// Each rect touches only the texels within its dilation and feather; the
+	// field is the max over rects, so a rect never lowers what another set.
+	for (const rect of rects) {
+		const tx0 = Math.max(0, Math.floor((rect.left - reach) / cellW));
+		const tx1 = Math.min(width - 1, Math.ceil((rect.left + rect.width + reach) / cellW));
+		const ty0 = Math.max(0, Math.floor((rect.top - reach) / cellH));
+		const ty1 = Math.min(height - 1, Math.ceil((rect.top + rect.height + reach) / cellH));
+		for (let ty = ty0; ty <= ty1; ty += 1) {
+			const y = (ty + 0.5) * cellH;
+			const row = ty * width;
+			for (let tx = tx0; tx <= tx1; tx += 1) {
+				const x = (tx + 0.5) * cellW;
 				const d = distanceToRect(x, y, rect);
-				if (d < nearest) nearest = d;
-				if (nearest <= dilate) break;
+				if (d >= reach) continue;
+				const alpha = Math.min(Math.max(1 - (d - dilate) / feather, 0), 1);
+				const value = Math.round(alpha * 255);
+				if (value > out[row + tx]) out[row + tx] = value;
 			}
-			const alpha = Math.min(Math.max(1 - (nearest - dilate) / feather, 0), 1);
-			out[ty * width + tx] = Math.round(alpha * 255);
 		}
 	}
 	return out;

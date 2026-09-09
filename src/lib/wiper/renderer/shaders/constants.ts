@@ -8,6 +8,13 @@ export const INK_SAFE_ALPHA = 0.15;
 export const INK_FIELD_WIDTH = 256;
 export const INK_FIELD_HEIGHT = 128;
 /**
+ * The moving ink field: the outgoing notes' text while the blade shoves them
+ * across the glass, rasterised every frame of the out-stroke at a coarser
+ * grid (the shove is horizontal and fast; the feather hides the grid).
+ */
+export const INK_MOVING_WIDTH = 128;
+export const INK_MOVING_HEIGHT = 64;
+/**
  * Text rects grow by this many CSS px before the feather starts: more than
  * one texel of the field at a 2560px glass, so bilinear sampling never lets
  * the clamp soften inside a text box (the blades are darker than any blob;

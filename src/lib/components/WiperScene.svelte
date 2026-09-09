@@ -19,6 +19,8 @@
 		BLOB_WINDOW_ORIGIN,
 		INK_FIELD_HEIGHT,
 		INK_FIELD_WIDTH,
+		INK_MOVING_HEIGHT,
+		INK_MOVING_WIDTH,
 		INK_SAFE_ALPHA,
 		MAX_BLOBS,
 	} from '$lib/wiper/renderer/shaders/constants';
@@ -90,10 +92,13 @@
 		return { x, y, width: x2 - x, height: y2 - y };
 	}
 
-	function inkRects(host: HTMLElement): InkRect[] {
+	function inkRects(
+		host: HTMLElement,
+		rowSelector = '.goal-list > li.is-current, .goal-list > li[data-wipe]',
+	): InkRect[] {
 		const box = host.getBoundingClientRect();
 		const rects: InkRect[] = [];
-		const rows = host.querySelectorAll<HTMLElement>('.goal-list > li.is-current, .goal-list > li[data-wipe]');
+		const rows = host.querySelectorAll<HTMLElement>(rowSelector);
 		for (const row of rows) {
 			for (const el of row.querySelectorAll<HTMLElement>('h3, p, a')) {
 				const r = el.getBoundingClientRect();
@@ -157,12 +162,33 @@
 			inkDirty = false;
 		};
 
+		// While the blade shoves the outgoing notes their text moves every
+		// frame; the static field was rasterised where they started, so a
+		// coarse moving field follows them and is cleared when they are gone.
+		let movingOn = false;
+		const uploadMovingInk = () => {
+			if (!renderer || width <= 0 || height <= 0) return;
+			const outgoing = inkRects(host, '.goal-list > li[data-wipe="out"]');
+			if (outgoing.length === 0) {
+				if (movingOn) renderer.uploadMovingInk(null, 1, 1);
+				movingOn = false;
+				return;
+			}
+			renderer.uploadMovingInk(
+				rasterizeInkField(outgoing, { width, height }, { width: INK_MOVING_WIDTH, height: INK_MOVING_HEIGHT }),
+				INK_MOVING_WIDTH,
+				INK_MOVING_HEIGHT,
+			);
+			movingOn = true;
+		};
+
 		const needsFrames = () => alive && visible && !hidden && renderer !== null && blades !== null && field !== null;
 
 		/** Draw the scene as it stands; the physics is advanced by the loop, not here. */
 		const paint = (now: number) => {
 			if (!renderer || !blades || !field) return;
 			if (inkDirty) uploadInk();
+			uploadMovingInk();
 			// The field's window covers the glass the way the SVG's viewBox does (slice).
 			const scale = Math.max(width, height) / BLOB_WINDOW_EXTENT;
 			const offsetX = (width - BLOB_WINDOW_EXTENT * scale) / 2;

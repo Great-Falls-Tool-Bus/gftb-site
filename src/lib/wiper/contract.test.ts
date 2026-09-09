@@ -174,6 +174,8 @@ describe('the wiper source contract', () => {
 		expect(host).toContain("selectRenderer(element, { layer: 'scene' })");
 		expect(host).toContain("selectRenderer(bladesElement, { layer: 'blades' })");
 		expect(host).toContain('renderer.render({ ...frame, arms: [] });');
+		expect(host).toContain('uploadMovingInk();');
+		expect(host).toContain(`inkRects(host, '.goal-list > li[data-wipe="out"]')`);
 		expect(host).toContain('blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });');
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
@@ -185,6 +187,8 @@ describe('the wiper source contract', () => {
 		const shader = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
 		expect(shader).not.toMatch(/https?:|[\w.-]+@[\w.-]+\.\w{2,}/u);
 		expect(shader).toContain('u_inkAlpha');
+		// The clamp reads the static field and the moving field for shoved notes.
+		expect(shader).toContain('float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);');
 		const renderer = read('src/lib/wiper/renderer/webgl2.ts');
 		expect(renderer).not.toMatch(/console\./u);
 		expect(renderer).toContain("addEventListener('webglcontextlost'");
