@@ -1,0 +1,51 @@
+name: Signed commits
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: signed-commits-${{ github.ref }}
+  cancel-in-progress: true
+
+# TIN-4341 / decision 0028: a visibility signal, not a merge gate. GitHub Free
+# cannot require signatures on a private repository; the repository role model
+# is the merge control. Every commit in a pull request must carry a signature
+# that GitHub verifies against a registered key (verification.reason == valid).
+jobs:
+  verify:
+    runs-on: tinyland-nix
+    timeout-minutes: 10
+    steps:
+      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@d8d178c022a0f84853d53a2c8fe0fc90115f0949
+        with:
+          attic-public-read: 'true'
+      - name: Require every pull-request commit to be GitHub-verified
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          bad=0
+          page=1
+          while :; do
+            commits="$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/pulls/$PR/commits?per_page=100&page=$page")"
+            count="$(jq 'length' <<<"$commits")"
+            [[ "$count" -gt 0 ]] || break
+            while IFS=$'\t' read -r sha verified reason; do
+              if [[ "$verified" == "true" && "$reason" == "valid" ]]; then
+                echo "verified $sha"
+              else
+                echo "::error::commit $sha is not GitHub-verified (verified=$verified reason=$reason)"
+                bad=1
+              fi
+            done < <(jq -r '.[] | [.sha, (.commit.verification.verified | tostring), .commit.verification.reason] | @tsv' <<<"$commits")
+            [[ "$count" -lt 100 ]] && break
+            page=$((page + 1))
+          done
+          exit "$bad"
