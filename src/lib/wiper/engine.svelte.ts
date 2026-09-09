@@ -41,8 +41,14 @@ export interface WiperEngineOptions extends WiperMachineOptions {
 	now?: () => number;
 }
 
-/** Test and LOOK hook: `<html data-wiper-freeze="0.5">` holds the out-stroke at that unit. */
+/**
+ * Test and LOOK hook: `<html data-wiper-freeze="0.5">` holds the out-stroke
+ * at that unit; `data-wiper-freeze="rest"` holds a rest open (the dwell
+ * stops counting) while the scene keeps running, so beads and frost build
+ * for as long as a row needs to look at them.
+ */
 const FREEZE_ATTR = 'wiperFreeze';
+const REST_HOLD = 'rest';
 /** Smallest unit change worth a style write. */
 const UNIT_EPSILON = 0.002;
 
@@ -163,7 +169,7 @@ export class WiperEngine {
 	strokeClock(now: number): StrokeClock {
 		const sample = this.machine.strokeSample(now);
 		const frozen = document.documentElement.dataset[FREEZE_ATTR];
-		const held = frozen !== undefined && sample.phase === 'out';
+		const held = frozen !== undefined && frozen !== REST_HOLD && sample.phase === 'out';
 		const heldUnit = held ? Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1) : 0;
 		const t = held ? strokeEaseInverse(heldUnit) : sample.t;
 		const unit = sample.phase === 'dwell' ? 0 : held ? heldUnit : strokeEase(t);
@@ -229,7 +235,13 @@ export class WiperEngine {
 		this.#raf = 0;
 		if (this.#controller.signal.aborted) return;
 		const frozen = document.documentElement.dataset[FREEZE_ATTR];
-		if (frozen !== undefined && this.machine.phase === 'out') {
+		if (frozen === REST_HOLD && this.machine.phase === 'dwell') {
+			// A rest held open: the dwell does not count down, frames keep coming.
+			this.machine.resume(now);
+			this.#raf = requestAnimationFrame(this.#frame);
+			return;
+		}
+		if (frozen !== undefined && frozen !== REST_HOLD && this.machine.phase === 'out') {
 			// Held for a test or a LOOK: the blade stays where the attribute says
 			// and the stroke resumes from there once the hold lifts.
 			const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);

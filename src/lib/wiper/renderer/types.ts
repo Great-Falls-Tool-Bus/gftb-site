@@ -47,7 +47,6 @@ export interface SceneFrame {
 	blend: 'multiply' | 'screen';
 	blobs: readonly SceneBlob[];
 	arms: readonly SceneArm[];
-	inkAlpha: number;
 	/** Frost strength ahead of the blades, 0..1 (M4). */
 	frost: number;
 	/**
@@ -69,9 +68,6 @@ export interface RendererHandle {
 	readonly layer: RendererLayer;
 	/** CSS size and device pixel ratio; the backing store follows. */
 	resize(cssWidth: number, cssHeight: number, dpr: number): void;
-	uploadInk(field: Uint8Array, width: number, height: number): void;
-	/** The moving field for shoved notes; null clears it (a single zero texel). */
-	uploadMovingInk(field: Uint8Array | null, width: number, height: number): void;
 	/**
 	 * The bead field: (cols + 2) x (rows + 2) texels of x, y, r in CSS px and
 	 * alpha, a zero border around the grid; the renderer scales to device px.

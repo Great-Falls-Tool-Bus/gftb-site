@@ -1,9 +1,10 @@
 <script lang="ts">
 	// The GPU scene behind the notes: an opaque canvas sized to the glass (the
-	// list box), clearing to the page ground, drawing tinyvectors' blob field
-	// and the chrome arms and blades (posed by the engine from the same clock
-	// and easing as the DOM mask) under an ink clamp; frost and droplets join
-	// at M4.
+	// list box), clearing to the page ground, drawing tinyvectors' blob field,
+	// frost and beads; a second, transparent canvas over the notes draws the
+	// chrome arms and blades, posed by the engine from the same clock and
+	// easing as the DOM mask. The notes are glass panes whose inks read over
+	// any backdrop, so no clamp under text (operator ruling, M4 ratification).
 	// It sits behind the DOM notes, never over them; it is pointer-inert,
 	// aria-hidden, absent under reduce, no-JS, print and forced colours, and
 	// it never writes to the console: every failure demotes to the plain grid.
@@ -14,7 +15,6 @@
 	import { FrostClock, rasterizeFrostField } from '$lib/wiper/frost-field';
 	import { MAX_STEP_MS } from '$lib/wiper/machine';
 	import type { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { rasterizeInkField, type InkRect } from '$lib/wiper/ink-field';
 	import { selectRenderer } from '$lib/wiper/renderer/select';
 	import {
 		BLOB_RENDER_SCALE,
@@ -23,11 +23,6 @@
 		FROST_FIELD_HEIGHT,
 		FROST_FIELD_WIDTH,
 		FROST_SCALES_PX,
-		INK_FIELD_HEIGHT,
-		INK_FIELD_WIDTH,
-		INK_MOVING_HEIGHT,
-		INK_MOVING_WIDTH,
-		INK_SAFE_ALPHA,
 		MAX_BLOBS,
 	} from '$lib/wiper/renderer/shaders/constants';
 	import type { RendererHandle, SceneArm, SceneBlob } from '$lib/wiper/renderer/types';
@@ -45,16 +40,6 @@
 	let bladesCanvas = $state<HTMLCanvasElement>();
 	let tier = $state<'pending' | 'webgl2' | 'none'>('pending');
 	const view = $derived(engine.view);
-	let inkDirty = true;
-
-	// The visible notes change at every page turn and during the out-stroke.
-	$effect(() => {
-		void view.page;
-		void view.outgoing;
-		void view.incoming;
-		inkDirty = true;
-	});
-
 	function hexToRgb(hex: string): [number, number, number] {
 		const value = Number.parseInt(hex.replace('#', ''), 16);
 		return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
@@ -96,23 +81,6 @@
 		const y2 = Math.min(height, bottom);
 		if (!(x2 > x && y2 > y)) return null;
 		return { x, y, width: x2 - x, height: y2 - y };
-	}
-
-	function inkRects(
-		host: HTMLElement,
-		rowSelector = '.goal-list > li.is-current, .goal-list > li[data-wipe]',
-	): InkRect[] {
-		const box = host.getBoundingClientRect();
-		const rects: InkRect[] = [];
-		const rows = host.querySelectorAll<HTMLElement>(rowSelector);
-		for (const row of rows) {
-			for (const el of row.querySelectorAll<HTMLElement>('h3, p, a')) {
-				const r = el.getBoundingClientRect();
-				if (r.width <= 0 || r.height <= 0) continue;
-				rects.push({ left: r.left - box.left, top: r.top - box.top, width: r.width, height: r.height });
-			}
-		}
-		return rects;
 	}
 
 	onMount(() => {
@@ -164,33 +132,6 @@
 			const ratio = Math.min(window.devicePixelRatio || 1, 2);
 			renderer?.resize(width, height, ratio);
 			blades?.resize(width, height, ratio);
-			inkDirty = true;
-		};
-
-		const uploadInk = () => {
-			if (!renderer || width <= 0 || height <= 0) return;
-			renderer.uploadInk(rasterizeInkField(inkRects(host), { width, height }), INK_FIELD_WIDTH, INK_FIELD_HEIGHT);
-			inkDirty = false;
-		};
-
-		// While the blade shoves the outgoing notes their text moves every
-		// frame; the static field was rasterised where they started, so a
-		// coarse moving field follows them and is cleared when they are gone.
-		let movingOn = false;
-		const uploadMovingInk = () => {
-			if (!renderer || width <= 0 || height <= 0) return;
-			const outgoing = inkRects(host, '.goal-list > li[data-wipe="out"]');
-			if (outgoing.length === 0) {
-				if (movingOn) renderer.uploadMovingInk(null, 1, 1);
-				movingOn = false;
-				return;
-			}
-			renderer.uploadMovingInk(
-				rasterizeInkField(outgoing, { width, height }, { width: INK_MOVING_WIDTH, height: INK_MOVING_HEIGHT }),
-				INK_MOVING_WIDTH,
-				INK_MOVING_HEIGHT,
-			);
-			movingOn = true;
 		};
 
 		const needsFrames = () => alive && visible && !hidden && renderer !== null && blades !== null && field !== null;
@@ -220,8 +161,6 @@
 		/** Draw the scene as it stands; the physics is advanced by the loop, not here. */
 		const paint = (now: number) => {
 			if (!renderer || !blades || !field) return;
-			if (inkDirty) uploadInk();
-			uploadMovingInk();
 			const geometry = syncGlass();
 			const clock = engine.strokeClock(now);
 			const frost = drops && geometry ? frostClock.value(clock.phase, drops.time) : 0;
@@ -242,7 +181,7 @@
 			// the machine clock through the mask's own easing, so the drawn blade
 			// sits on the mask edge whichever callback the browser runs first.
 			const arms: SceneArm[] = engine.blades(now);
-			const frame = { time: now / 1000, ground, blend, blobs, inkAlpha: INK_SAFE_ALPHA, frost };
+			const frame = { time: now / 1000, ground, blend, blobs, frost };
 			// Layer 0 reads the arms for its swept edge only; it draws no blade.
 			renderer.render({ ...frame, arms });
 			blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });
@@ -343,9 +282,6 @@
 			blend = document.documentElement.dataset.mode === 'dark' ? 'screen' : 'multiply';
 		});
 		modeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode', 'data-theme'] });
-		document.fonts?.ready.then(() => {
-			inkDirty = true;
-		});
 
 		return () => {
 			alive = false;

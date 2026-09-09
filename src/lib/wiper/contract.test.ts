@@ -142,6 +142,9 @@ describe('the wiper source contract', () => {
 		expect(engine).toContain("this.#pane?.style.setProperty('--wipe-u', unit.toFixed(4));");
 		expect(engine).not.toMatch(/animate\(|@keyframes/u);
 		expect(engine).toContain("const FREEZE_ATTR = 'wiperFreeze';");
+		// The rest hold: a dwell held open while the scene keeps running.
+		expect(engine).toContain("const REST_HOLD = 'rest';");
+		expect(engine).toContain("if (frozen === REST_HOLD && this.machine.phase === 'dwell') {");
 	});
 
 	it('keeps the scene behind the notes, sharp, inert, and gone on paper and under forced colours', () => {
@@ -175,17 +178,14 @@ describe('the wiper source contract', () => {
 		expect(css).toMatch(/\.wiper--paged \.wiper__glass::after \{[^}]*z-index: 0;[^}]*pointer-events: none;/u);
 		const host = read('src/lib/components/WiperScene.svelte');
 		expect(host).toContain('aria-hidden="true"');
-		expect(host).toContain('inkAlpha: INK_SAFE_ALPHA');
 		expect(host).toContain("selectRenderer(element, { layer: 'scene' })");
 		expect(host).toContain("selectRenderer(bladesElement, { layer: 'blades' })");
 		expect(host).toContain('renderer.render({ ...frame, arms });');
-		expect(host).toContain('uploadMovingInk();');
 		// M4: the bead field and the frost ride the scene's own clock.
 		expect(host).toContain('strokeClock(now)');
 		expect(host).toContain('uploadDroplets(');
 		expect(host).toContain('uploadFrost(');
 		expect(host).toContain('frostClock.note(clock, drops.time);');
-		expect(host).toContain(`inkRects(host, '.goal-list > li[data-wipe="out"]')`);
 		expect(host).toContain('blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });');
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
@@ -199,16 +199,8 @@ describe('the wiper source contract', () => {
 		const [, rest] = fragment.split('if (u_layer == 0) {');
 		const [sceneBranch, bladeBranch] = rest.split('return;\n\t}');
 		expect(shader).toContain('uniform highp sampler2D u_drops;');
-		const clampWrite = sceneBranch.indexOf('outColor = vec4(mix(u_ground, blobs');
-		expect(clampWrite).toBeGreaterThan(-1);
-		for (const call of ['sweptNow(', 'frost(', 'droplets(']) {
-			expect(sceneBranch.indexOf(call)).toBeGreaterThan(-1);
-			expect(sceneBranch.indexOf(call)).toBeLessThan(clampWrite);
-		}
-		// The glass is gated by the ink field: nothing under measured text.
-		expect(sceneBranch).toContain('float glass = 1.0 - k;');
-		expect(fragment).toContain('* (1.0 - swept) * glass;');
-		expect(fragment).toContain('drop.w * edgeAA * (1.0 - swept) * glass');
+		expect(sceneBranch).toContain('outColor = vec4(droplets(p, frost(uv, blobs, swept), swept), 1.0);');
+		for (const call of ['sweptNow(', 'frost(', 'droplets(']) expect(sceneBranch).toContain(call);
 		expect(sceneBranch).not.toMatch(/armParts\(|shadeChrome\(/u);
 		expect(bladeBranch).not.toMatch(/u_drops|u_frostTex|u_armEdge|u_armFan/u);
 		// GLSL ES reserved words never appear as identifiers.
@@ -230,9 +222,8 @@ describe('the wiper source contract', () => {
 	it('ships shaders as strings with no host or mailbox in them and no console in the renderer', () => {
 		const shader = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
 		expect(shader).not.toMatch(/https?:|[\w.-]+@[\w.-]+\.\w{2,}/u);
-		expect(shader).toContain('u_inkAlpha');
-		// The clamp reads the static field and the moving field for shoved notes.
-		expect(shader).toContain('float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);');
+		// No clamp under text: the panes carry their inks (pane-composite.test.ts).
+		expect(shader).not.toMatch(/u_ink|inkAlpha/u);
 		const renderer = read('src/lib/wiper/renderer/webgl2.ts');
 		expect(renderer).not.toMatch(/console\./u);
 		expect(renderer).toContain("addEventListener('webglcontextlost'");

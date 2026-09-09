@@ -1,28 +1,4 @@
-// Numbers shared by the shaders, the scene host and the unit tests. The ink
-// clamp is the ratified blob-ground ceiling (src/lib/blob-ground-contrast.test.ts
-// proves every text role clears its floor under one blob at this alpha), so
-// the GPU scene inherits the analytic gate verbatim.
-
-/** Under measured ink the scene may deviate from the page ground by this fraction at most. */
-export const INK_SAFE_ALPHA = 0.15;
-export const INK_FIELD_WIDTH = 256;
-export const INK_FIELD_HEIGHT = 128;
-/**
- * The moving ink field: the outgoing notes' text while the blade shoves them
- * across the glass, rasterised every frame of the out-stroke at a coarser
- * grid (the shove is horizontal and fast; the feather hides the grid).
- */
-export const INK_MOVING_WIDTH = 128;
-export const INK_MOVING_HEIGHT = 64;
-/**
- * Text rects grow by this many CSS px before the feather starts: more than
- * one texel of the field at a 2560px glass, so bilinear sampling never lets
- * the clamp soften inside a text box (the blades are darker than any blob;
- * the mid-sweep ink gate found a 4.1:1 dip at a rect edge at 6px).
- */
-export const INK_DILATE_PX = 14;
-/** The clamp fades out over this many CSS px past the dilated rect. */
-export const INK_FEATHER_PX = 96;
+// Numbers shared by the shaders, the scene host and the unit tests.
 
 export const MAX_BLOBS = 8;
 /** The window of the physics field the scene shows: the SVG's own viewBox. */

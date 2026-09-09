@@ -1,16 +1,14 @@
-// WebGL2 tier: one program, one full-viewport triangle, one R8 ink texture,
-// no render targets. Every failure returns through the handle or the
+// WebGL2 tier: one program, one full-viewport triangle, a few small data
+// textures, no render targets. Every failure returns through the handle or the
 // selection result; nothing here ever writes to the console (the no-JS spec
 // fails the home page on any console error or warning).
-import { FROST_MAX, INK_FIELD_HEIGHT, INK_FIELD_WIDTH, MAX_ARMS, MAX_BLOBS } from './shaders/constants';
+import { FROST_MAX, MAX_ARMS, MAX_BLOBS } from './shaders/constants';
 import { SCENE_FRAGMENT, SCENE_VERTEX } from './shaders/scene.glsl';
 import type { RendererFailure, RendererHandle, RendererOptions, RendererSelection, SceneFrame } from './types';
 
 interface Program {
 	program: WebGLProgram;
 	uniforms: Record<string, WebGLUniformLocation | null>;
-	inkTexture: WebGLTexture;
-	movingTexture: WebGLTexture;
 	dropsTexture: WebGLTexture;
 	frostTexture: WebGLTexture;
 }
@@ -20,7 +18,6 @@ const UNIFORMS = [
 	'u_resolution',
 	'u_ground',
 	'u_blend',
-	'u_inkAlpha',
 	'u_time',
 	'u_blobCount',
 	'u_blobs',
@@ -28,8 +25,6 @@ const UNIFORMS = [
 	'u_armCount',
 	'u_arms',
 	'u_armStyle',
-	'u_ink',
-	'u_inkMoving',
 	'u_drops',
 	'u_dropCell',
 	'u_frostTex',
@@ -84,26 +79,21 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		return texture;
 	};
-	const inkTexture = makeField(INK_FIELD_WIDTH, INK_FIELD_HEIGHT);
-	const movingTexture = inkTexture ? makeField(1, 1) : null;
-	const frostTexture = movingTexture ? makeField(1, 1) : null;
+	const frostTexture = makeField(1, 1);
 	// The bead field is float data fetched by texel: NEAREST, no filtering.
 	const dropsTexture = frostTexture ? gl.createTexture() : null;
-	if (!inkTexture || !movingTexture || !frostTexture || !dropsTexture) {
-		for (const texture of [inkTexture, movingTexture, frostTexture]) if (texture) gl.deleteTexture(texture);
+	if (!frostTexture || !dropsTexture) {
+		if (frostTexture) gl.deleteTexture(frostTexture);
 		gl.deleteProgram(program);
 		return { kind: 'compile', stage: 'link' };
 	}
-	// An empty moving field: one zero texel until a stroke fills it.
-	gl.bindTexture(gl.TEXTURE_2D, movingTexture);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1));
 	gl.bindTexture(gl.TEXTURE_2D, dropsTexture);
 	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(4));
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	return { program, uniforms, inkTexture, movingTexture, dropsTexture, frostTexture };
+	return { program, uniforms, dropsTexture, frostTexture };
 }
 
 export function createWebGL2Renderer(
@@ -139,7 +129,6 @@ export function createWebGL2Renderer(
 	let pendingDrops: { data: Float32Array; cols: number; rows: number; cellCss: number } | null = null;
 	let pendingFrost: { field: Uint8Array; width: number; height: number } | null = null;
 	const lostCallbacks: Array<(failure: RendererFailure) => void> = [];
-	let pendingInk: { field: Uint8Array; width: number; height: number } | null = null;
 
 	const onContextLost = (event: Event) => {
 		event.preventDefault();
@@ -151,7 +140,6 @@ export function createWebGL2Renderer(
 		if ('program' in built) {
 			program = built;
 			lost = false;
-			if (pendingInk) handle.uploadInk(pendingInk.field, pendingInk.width, pendingInk.height);
 			if (pendingDrops)
 				handle.uploadDroplets(pendingDrops.data, pendingDrops.cols, pendingDrops.rows, pendingDrops.cellCss);
 			if (pendingFrost) handle.uploadFrost(pendingFrost.field, pendingFrost.width, pendingFrost.height);
@@ -171,13 +159,6 @@ export function createWebGL2Renderer(
 			const backingHeight = Math.max(1, Math.round(height * ratio));
 			if (canvas.width !== backingWidth) canvas.width = backingWidth;
 			if (canvas.height !== backingHeight) canvas.height = backingHeight;
-		},
-		uploadInk(field, width, height) {
-			pendingInk = { field, width, height };
-			if (lost) return;
-			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
-			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
 		},
 		uploadDroplets(data, cols, rows, cellCss) {
 			pendingDrops = { data, cols, rows, cellCss };
@@ -201,13 +182,6 @@ export function createWebGL2Renderer(
 			gl.bindTexture(gl.TEXTURE_2D, program.frostTexture);
 			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
-		},
-		uploadMovingInk(field, width, height) {
-			if (lost) return;
-			gl.bindTexture(gl.TEXTURE_2D, program.movingTexture);
-			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-			if (field) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
-			else gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1));
 		},
 		render(frame: SceneFrame) {
 			if (lost || cssWidth <= 0 || cssHeight <= 0) return;
@@ -236,7 +210,6 @@ export function createWebGL2Renderer(
 			gl.uniform2f(u.u_resolution, canvas.width, canvas.height);
 			gl.uniform3f(u.u_ground, frame.ground[0], frame.ground[1], frame.ground[2]);
 			gl.uniform1i(u.u_blend, frame.blend === 'screen' ? 1 : 0);
-			gl.uniform1f(u.u_inkAlpha, frame.inkAlpha);
 			gl.uniform1f(u.u_time, frame.time);
 			const count = Math.min(frame.blobs.length, MAX_BLOBS);
 			for (let index = 0; index < count; index += 1) {
@@ -281,12 +254,6 @@ export function createWebGL2Renderer(
 			gl.uniform1f(u.u_dropCell, Math.max(dropCellCss * dpr, 1));
 			gl.uniform1f(u.u_frost, frame.frost);
 			gl.uniform1f(u.u_frostMax, frame.blend === 'screen' ? FROST_MAX[1] : FROST_MAX[0]);
-			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
-			gl.uniform1i(u.u_ink, 0);
-			gl.activeTexture(gl.TEXTURE1);
-			gl.bindTexture(gl.TEXTURE_2D, program.movingTexture);
-			gl.uniform1i(u.u_inkMoving, 1);
 			gl.activeTexture(gl.TEXTURE2);
 			gl.bindTexture(gl.TEXTURE_2D, program.dropsTexture);
 			gl.uniform1i(u.u_drops, 2);
@@ -302,8 +269,6 @@ export function createWebGL2Renderer(
 			canvas.removeEventListener('webglcontextlost', onContextLost);
 			canvas.removeEventListener('webglcontextrestored', onContextRestored);
 			if (!lost) {
-				gl.deleteTexture(program.inkTexture);
-				gl.deleteTexture(program.movingTexture);
 				gl.deleteTexture(program.dropsTexture);
 				gl.deleteTexture(program.frostTexture);
 				gl.deleteProgram(program.program);
