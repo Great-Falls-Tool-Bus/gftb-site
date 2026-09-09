@@ -183,7 +183,11 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await page.waitForLoadState('networkidle');
 	await pane(page).scrollIntoViewIfNeeded();
 	// High is the detent on load, so a wipe may already have turned the page
-	// by now: read whichever page is in view and expect the one after it.
+	// by now: hold the rest open, read whichever page is in view under the
+	// hold (no stroke can start), and expect the one after it.
+	await holdRest(page);
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 60_000 });
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 	const firstPage = await currentTitles(page);
 	const titles = publicGoals.map((goal) => goal.metadata.title);
 	const pageSize = 3;
@@ -215,8 +219,9 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 			attributeFilter: ['data-wipe', 'data-state', 'class', 'style'],
 		});
 	});
-	// Arm the hold before the stroke starts so the out-stroke freezes at its
-	// midpoint the moment it begins; release it after reading the masks.
+	// Swap the rest hold for a stroke hold: the rest resumes counting and the
+	// out-stroke freezes at its midpoint the moment it begins; release it
+	// after reading the masks.
 	await page.evaluate(() => {
 		document.documentElement.dataset.wiperFreeze = '0.5';
 	});
