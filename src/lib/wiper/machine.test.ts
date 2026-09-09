@@ -168,4 +168,28 @@ describe('WiperMachine', () => {
 		m.tick(50_000);
 		expect(m.dwellRemainingMs).toBeGreaterThanOrEqual(wiperDetent('low').dwellMs - 100);
 	});
+
+	it('holds an out-stroke at a unit and resumes from that angle when released', () => {
+		const m = make({ initial: 'high' });
+		const { dwellMs, sweepMs } = wiperDetent('high');
+		m.resume(0);
+		run(m, 0, dwellMs + 20);
+		expect(m.phase).toBe('out');
+		const held = m.holdStrokeAt(0.5, 10_000);
+		expect(held).toBe(0.5);
+		expect(m.unit).toBe(0.5);
+		// Released: progress continues upward from the held unit, never back.
+		const units: number[] = [];
+		for (let now = 10_016; now < 10_000 + sweepMs; now += 16) {
+			const r = m.tick(now);
+			if (r.unit !== null) units.push(r.unit);
+			if (r.apex) break;
+		}
+		expect(units.length).toBeGreaterThan(3);
+		expect(units[0]).toBeGreaterThanOrEqual(0.5);
+		for (let index = 1; index < units.length; index += 1) expect(units[index]).toBeGreaterThanOrEqual(units[index - 1]);
+		expect(m.phase).toBe('back');
+		// Holding outside an out-stroke is a no-op.
+		expect(m.holdStrokeAt(0.2, 20_000)).toBe(0);
+	});
 });

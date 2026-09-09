@@ -224,10 +224,16 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 		() =>
 			(window as unknown as { __wipeLog: Array<{ state: string; unit: number; outs: number; ins: number }> }).__wipeLog,
 	);
+	// The engine resets the unit to 0 at the apex synchronously, a microtask
+	// before Svelte drops the data-wipe attributes, so the log ends with that
+	// reset; the rise before it must be monotonic and reach the turnaround.
 	const units = log.filter((entry) => entry.state === 'wiping' && entry.outs === 3).map((entry) => entry.unit);
-	expect(units.length).toBeGreaterThan(3);
-	for (let index = 1; index < units.length; index += 1) expect(units[index]).toBeGreaterThanOrEqual(units[index - 1]);
-	expect(Math.max(...units)).toBeGreaterThan(0.5);
+	const peak = Math.max(...units);
+	const rising = units.slice(0, units.lastIndexOf(peak) + 1);
+	expect(rising.length).toBeGreaterThanOrEqual(2);
+	for (let index = 1; index < rising.length; index += 1)
+		expect(rising[index]).toBeGreaterThanOrEqual(rising[index - 1]);
+	expect(peak).toBeGreaterThan(0.9);
 	// Masks live only during the out-stroke: none once the page has turned.
 	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.0000');

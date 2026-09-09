@@ -161,6 +161,21 @@ export class WiperMachine {
 		this.#lastTick = now;
 	}
 
+	/**
+	 * Hold an out-stroke at a chosen eased unit (a test or a LOOK frame): the
+	 * stroke clock is rewound so that releasing the hold continues from the
+	 * held angle rather than snapping to wherever the wall clock got to.
+	 */
+	holdStrokeAt(unit: number, now: number): number {
+		if (this.phase !== 'out' || this.#strokeMs <= 0) return this.#unit;
+		const clamped = Math.min(Math.max(unit, 0), 1);
+		// strokeEase is 0.5 - 0.5 cos(pi t); invert it for the raw progress.
+		const t = Math.acos(1 - 2 * clamped) / Math.PI;
+		this.#strokeStart = now - t * this.#strokeMs;
+		this.#lastTick = now;
+		return this.#setUnit(clamped);
+	}
+
 	setDetent(next: WiperDetent, now: number): void {
 		if (next === this.detent) return;
 		const entry = wiperDetent(next);

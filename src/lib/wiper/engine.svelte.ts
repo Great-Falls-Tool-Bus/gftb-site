@@ -163,11 +163,11 @@ export class WiperEngine {
 		this.#raf = 0;
 		if (this.#controller.signal.aborted) return;
 		const frozen = document.documentElement.dataset[FREEZE_ATTR];
-		if (frozen !== undefined && this.machine.wiping) {
-			// Held for a test or a LOOK: the blade stays where the attribute says.
+		if (frozen !== undefined && this.machine.phase === 'out') {
+			// Held for a test or a LOOK: the blade stays where the attribute says
+			// and the stroke resumes from there once the hold lifts.
 			const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
-			this.#writeUnit(unit);
-			this.machine.resume(now);
+			this.#writeUnit(this.machine.holdStrokeAt(unit, now));
 			this.#raf = requestAnimationFrame(this.#frame);
 			return;
 		}
