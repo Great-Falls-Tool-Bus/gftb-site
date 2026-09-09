@@ -168,19 +168,20 @@
 	     opacity, behind the hero's own isolated backdrop stack. v0.3.7 makes
 	     idle drift/bounce the desktop default and honors
 	     prefers-reduced-motion internally, so this call site adds NO motion
-	     logic — config only. Pointer physics is OFF (operator ruling 2026-09-09): in the
-	     package the pointer field is a cursor attractor that also steers the
-	     scroll physics toward the cursor, which pooled the blobs under a
-	     resting mouse; with it off a scroll sweeps the whole field, the way
-	     the operator's blog runs. Browsers that gate the sensor behind a
-	     gesture get the silent first-tap handshake wired in onMount above. -->
+	     logic — config only. Pointer physics is OFF: in the package the
+	     pointer field is a cursor attractor that also steers the scroll
+	     physics toward the cursor, which pooled the blobs under a resting
+	     mouse; with it off the scroll effect pulls toward the field centre
+	     instead, the way the operator's blog runs (a centre attraction, not
+	     a sweep). Browsers that gate the sensor behind a gesture get the
+	     silent first-tap handshake wired in onMount above. -->
 	{#if brandVectorsReady}
 		<div class="brand-vectors-bg" aria-hidden="true" data-testid="brand-vectors-bg">
 			<TinyVectors
 				bind:this={tinyVectorsRef}
 				theme="custom"
 				colors={['#cb6738', '#d99d6a', '#a14a52', '#6b4f3a', '#3d6b8c']}
-				opacity={0.2}
+				opacity={0.15}
 				blobCount={5}
 				enableScrollPhysics={true}
 				enableDeviceMotion={true}

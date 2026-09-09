@@ -109,9 +109,10 @@ describe('tinyvectors default-motion contract', () => {
 		expect(layout).not.toContain('MotionPermissionState');
 		expect(layout).not.toContain('Let the blobs feel');
 		expect(layout).toContain('createDeviceMotionHandshake(');
-		// Desktop roam (operator ruling 2026-09-09): pointer physics off, so a scroll sweeps the
-		// whole field instead of pooling the blobs under a resting cursor; the
-		// 0.3.7 idle cruise needs no sensor and no gesture.
+		// Desktop roam (operator ruling 2026-09-09): pointer physics off, so the
+		// scroll effect pulls the blobs toward the field centre (the blog's
+		// behaviour) instead of pooling them under a resting cursor; the 0.3.7
+		// idle cruise needs no sensor and no gesture.
 		expect(block![0]).toMatch(/enablePointerPhysics=\{false\}/);
 		const appCss = readFileSync(path.join(repoRoot, 'src', 'app.css'), 'utf8');
 		expect(appCss).not.toContain('.motion-permission');

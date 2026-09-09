@@ -519,13 +519,13 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 }
 
-// The blob layer (operator ruling 2026-09-09: opacity 0.2, pointer physics off) tints the bare
-// page ground under every text block, and the AA text sweep resolves computed
-// background colours only, so it cannot see it. This row reads the real pixels
-// behind the goal asides (a text-free container once its descendants are
-// hidden: element children only, no bare text nodes) in both schemes and holds
-// the page's ink roles to their floors against the worst pixel. If the layer's
-// opacity ever climbs, dark mode fails here first.
+// The blob layer (operator ruling 2026-09-09: opacity 0.15, pointer physics
+// off) tints the bare ground under body copy. The GATE for that opacity is
+// analytic: src/lib/blob-ground-contrast.test.ts composites every blob colour
+// at the layer's opacity with the scheme's blend mode over --bg and holds
+// the ink roles to their floors. The rows below are a
+// one-frame smoke over a randomly seeded, moving layer: they catch a gross
+// regression, they do not prove the worst case.
 for (const scheme of ['light', 'dark'] as const) {
 	test(`body copy on bare ground clears its floor over the blob layer (${scheme})`, async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
