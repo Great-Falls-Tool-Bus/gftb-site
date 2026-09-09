@@ -14,7 +14,7 @@
 - [ ] No new gitleaks findings
 - [ ] GFTB Skeleton `5.0.0` exact pin preserved
 - [ ] Bazel graph / RBE proof evidence is linked when Bazel authority changes
-- [ ] Request review from @krosepulham for QA.
+- [ ] Request review from `@krosepulham` for QA.
 
 ## Screenshots / Output
 
