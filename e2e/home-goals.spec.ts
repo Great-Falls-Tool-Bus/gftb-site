@@ -596,13 +596,13 @@ test.describe('without JavaScript', () => {
 	});
 });
 
-test('the hero carries one spelling of the Friday hours', async ({ page }) => {
+test('the hero carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
 	const session = page.locator('.hero .hero-session');
 	await expect(session.getByRole('heading', { level: 3 })).toHaveText('Public work sessions');
-	await expect(session).toContainText('Fridays, about 3 to 5 PM ET');
+	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
 	await expect(session).not.toContainText('3–5');
-	await expect(page.getByText(/Fridays, about 3 to 5 PM ET/u)).toHaveCount(1);
+	await expect(page.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 });
 
 test('GitHub sits in the header as an outbound link and the AX footer row is gone', async ({ page }) => {

@@ -132,7 +132,7 @@
 			<section class="hero-session" aria-labelledby="next-title">
 				<h3 id="next-title">Public work sessions</h3>
 				<p>
-					Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the
+					Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the
 					<a href="/contact">contact form</a> to confirm before traveling.
 				</p>
 				<p class="muted">

@@ -169,15 +169,15 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		expect(lede).toContain('community-run tool library');
 	});
 
-	test('the hero carries the Friday hours once and retains the local contact CTA', async ({ page }) => {
+	test('the hero carries the Thursday hours once and retains the local contact CTA', async ({ page }) => {
 		// September 8 placement supersedes the earlier yellow session band.
 		await page.goto('/');
 		const session = page.locator('.hero .hero-session');
 		await expect(session).toContainText(
-			'Jess is usually working on the bus Fridays, about 3 to 5 PM ET. Please use the contact form to confirm before traveling.',
+			'Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the contact form to confirm before traveling.',
 		);
 		await expect(session.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
-		await expect(page.getByText(/Fridays, about 3 to 5 PM ET/u)).toHaveCount(1);
+		await expect(page.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 		await expect(page.locator('.next-session')).toHaveCount(0);
 		await expect(page.locator('#status > p')).toHaveCount(2);
 		await expect(page.locator('#contact a')).toHaveCount(1);
