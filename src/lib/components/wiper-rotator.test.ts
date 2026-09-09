@@ -185,17 +185,12 @@ describe('the dash light-pipe and the aero skin (operator rulings 2026-09-09)', 
 		expect(WIPER_SKINS).toEqual(['dash', 'aero', 'deck']);
 		expect(DEFAULT_WIPER_SKIN).toBe('dash');
 		expect(rotator).toContain('data-skin={skin}');
-		expect(goals).toContain('skin="aero"');
+		expect(goals).toContain('skin="deck"');
 		// Every aero rule is scoped; the dash skin never inherits one. Counting
 		// scoped rules cannot prove that, so this pins the converse: no rule
 		// whose selector lacks data-skin declares an aero-only property (the
 		// gloss token, the gel background-image on the pane, a painted ::after),
 		// and the dash keys keep their transparent fill and invisible bevel.
-||||||| parent of ccba132 (test(home): pin the deck chassis, its instruments and their motion gates (TIN-4338))
-		expect(goals).toContain('skin="aero"');
-		// Every aero rule is scoped; the dash skin never inherits one.
-		expect(goals).toContain('skin="deck"');
-		// Every aero rule is scoped; the dash skin never inherits one.
 		const aeroRules =
 			appCss.match(
 				/^\.wiper:is\(\[data-skin='aero'\], \[data-skin='deck'\]\)|^\[data-mode='dark'\] \.wiper:is\(\[data-skin='aero'\], \[data-skin='deck'\]\)/gmu,
@@ -334,7 +329,6 @@ describe('the dwell timer and the instruments share one clock', () => {
 		expect(cycle).toContain('if (force ? !(this.rotatable && this.enabled) : !this.running) return;');
 	});
 });
-||||||| parent of ccba132 (test(home): pin the deck chassis, its instruments and their motion gates (TIN-4338))
 
 describe('the deck skin (operator rulings 2026-09-09, TIN-4338 ruled)', () => {
 	const rotator = read('src/lib/components/WiperRotator.svelte');
@@ -386,7 +380,7 @@ describe('the deck skin (operator rulings 2026-09-09, TIN-4338 ruled)', () => {
 	it('runs the marquee only while the wipers run and freezes it under the pointer', () => {
 		const { inside, outside } = splitMotionBlocks(stripped);
 		expect(inside).toMatch(
-			/\.wiper\[data-skin='deck'\]:is\(\[data-state='dwell'\], \[data-state='wiping'\], \[data-state='paused'\]\) \.wiper-marquee__track \{\s*animation: wiper-marquee/u,
+			/\.wiper\[data-skin='deck'\]:is\(\[data-state='dwell'\], \[data-state='wiping'\], \[data-state='paused'\]\)\s+\.wiper-marquee__track \{\s*animation: wiper-marquee/u,
 		);
 		expect(inside).toMatch(
 			/\.wiper\[data-skin='deck'\]\[data-state='paused'\] \.wiper-marquee__track \{\s*animation-play-state: paused;/u,
