@@ -75,3 +75,70 @@ export async function measureGlassExtremes(page: Page, selector: string, margin 
 	const image = decodePng(buffer);
 	return luminanceExtremes(image, margin);
 }
+
+/** A CSS-px rect relative to the measured element's box. */
+export interface InkSampleRect {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * The scene canvas is measured as painted, with nothing hidden: screenshot
+ * the element and scan only the pixels under the given rects (the notes'
+ * text boxes, relative to the element). Returns the darkest and lightest
+ * pixel by WCAG relative luminance across all rects.
+ */
+export async function measureExtremesInRects(
+	page: Page,
+	selector: string,
+	rects: InkSampleRect[],
+	hideSelector?: string,
+) {
+	const box = await page.evaluate((sel) => {
+		const el = document.querySelector(sel);
+		if (!el) return null;
+		const r = el.getBoundingClientRect();
+		return { x: r.x, y: r.y, width: r.width, height: r.height };
+	}, selector);
+	if (!box) throw new Error(`${selector} is not present on the page`);
+	// The notes paint over the scene; hide them for the capture so only the
+	// scene's own pixels are read under their boxes.
+	if (hideSelector) await page.addStyleTag({ content: `${hideSelector} { visibility: hidden !important; }` });
+	const buffer = await page.screenshot({ clip: box });
+	if (hideSelector) {
+		await page.evaluate(() => {
+			document.querySelectorAll('style').forEach((s) => {
+				if (s.textContent?.includes('visibility: hidden !important')) s.remove();
+			});
+		});
+	}
+	const image = decodePng(buffer);
+	const scaleX = image.width / box.width;
+	const scaleY = image.height / box.height;
+	const channel = (r: number) => (r <= 0.03928 ? r / 12.92 : ((r + 0.055) / 1.055) ** 2.4);
+	let darkest: { luminance: number; rgb: Rgb } | null = null;
+	let lightest: { luminance: number; rgb: Rgb } | null = null;
+	let sampled = 0;
+	for (const rect of rects) {
+		const x0 = Math.max(0, Math.floor(rect.left * scaleX));
+		const y0 = Math.max(0, Math.floor(rect.top * scaleY));
+		const x1 = Math.min(image.width, Math.ceil((rect.left + rect.width) * scaleX));
+		const y1 = Math.min(image.height, Math.ceil((rect.top + rect.height) * scaleY));
+		for (let y = y0; y < y1; y += 1) {
+			for (let x = x0; x < x1; x += 1) {
+				const offset = (y * image.width + x) * image.channels;
+				const red = image.pixels[offset];
+				const green = image.pixels[offset + 1];
+				const blue = image.pixels[offset + 2];
+				const luminance = 0.2126 * channel(red / 255) + 0.7152 * channel(green / 255) + 0.0722 * channel(blue / 255);
+				sampled += 1;
+				if (!darkest || luminance < darkest.luminance) darkest = { luminance, rgb: { red, green, blue } };
+				if (!lightest || luminance > lightest.luminance) lightest = { luminance, rgb: { red, green, blue } };
+			}
+		}
+	}
+	if (!darkest || !lightest) throw new Error(`${selector}: no pixels sampled under ${rects.length} rects`);
+	return { darkest, lightest, sampled };
+}
