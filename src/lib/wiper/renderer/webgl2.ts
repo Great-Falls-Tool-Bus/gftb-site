@@ -2,9 +2,9 @@
 // no render targets. Every failure returns through the handle or the
 // selection result; nothing here ever writes to the console (the no-JS spec
 // fails the home page on any console error or warning).
-import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, MAX_BLOBS } from './shaders/constants';
+import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, MAX_ARMS, MAX_BLOBS } from './shaders/constants';
 import { SCENE_FRAGMENT, SCENE_VERTEX } from './shaders/scene.glsl';
-import type { RendererFailure, RendererHandle, RendererSelection, SceneFrame } from './types';
+import type { RendererFailure, RendererHandle, RendererOptions, RendererSelection, SceneFrame } from './types';
 
 interface Program {
 	program: WebGLProgram;
@@ -13,6 +13,7 @@ interface Program {
 }
 
 const UNIFORMS = [
+	'u_layer',
 	'u_resolution',
 	'u_ground',
 	'u_blend',
@@ -21,6 +22,9 @@ const UNIFORMS = [
 	'u_blobCount',
 	'u_blobs',
 	'u_blobColors',
+	'u_armCount',
+	'u_arms',
+	'u_armStyle',
 	'u_ink',
 ];
 
@@ -72,9 +76,15 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 	return { program, uniforms, inkTexture };
 }
 
-export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelection {
+export function createWebGL2Renderer(
+	canvas: HTMLCanvasElement,
+	options: RendererOptions = { layer: 'scene' },
+): RendererSelection {
+	// The scene is opaque; the blades layer composites over the notes with
+	// premultiplied alpha, which is what the fragment writes.
 	const gl = canvas.getContext('webgl2', {
-		alpha: false,
+		alpha: options.layer === 'blades',
+		premultipliedAlpha: true,
 		antialias: false,
 		depth: false,
 		stencil: false,
@@ -91,6 +101,8 @@ export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelecti
 	let dpr = 1;
 	const blobData = new Float32Array(MAX_BLOBS * 4);
 	const colorData = new Float32Array(MAX_BLOBS * 3);
+	const armData = new Float32Array(MAX_ARMS * 4);
+	const armStyle = new Float32Array(MAX_ARMS * 4);
 	const lostCallbacks: Array<(failure: RendererFailure) => void> = [];
 	let pendingInk: { field: Uint8Array; width: number; height: number } | null = null;
 
@@ -112,6 +124,7 @@ export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelecti
 
 	const handle: RendererHandle = {
 		tier: 'webgl2',
+		layer: options.layer,
 		resize(width, height, ratio) {
 			cssWidth = width;
 			cssHeight = height;
@@ -131,8 +144,27 @@ export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelecti
 		render(frame: SceneFrame) {
 			if (lost || cssWidth <= 0 || cssHeight <= 0) return;
 			gl.viewport(0, 0, canvas.width, canvas.height);
+			if (options.layer === 'blades') {
+				// Clear the whole layer, then shade only the box the arms can
+				// touch; parked blades cost nothing at all.
+				gl.disable(gl.SCISSOR_TEST);
+				gl.clearColor(0, 0, 0, 0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+				const box = frame.scissor;
+				if (!box || box.width <= 0 || box.height <= 0) return;
+				const x = Math.max(0, Math.floor(box.x * dpr));
+				const top = Math.max(0, Math.floor(box.y * dpr));
+				const right = Math.min(canvas.width, Math.ceil((box.x + box.width) * dpr));
+				const bottom = Math.min(canvas.height, Math.ceil((box.y + box.height) * dpr));
+				if (right <= x || bottom <= top) return;
+				gl.enable(gl.SCISSOR_TEST);
+				gl.scissor(x, canvas.height - bottom, right - x, bottom - top);
+			} else {
+				gl.disable(gl.SCISSOR_TEST);
+			}
 			gl.useProgram(program.program);
 			const u = program.uniforms;
+			gl.uniform1i(u.u_layer, options.layer === 'blades' ? 1 : 0);
 			gl.uniform2f(u.u_resolution, canvas.width, canvas.height);
 			gl.uniform3f(u.u_ground, frame.ground[0], frame.ground[1], frame.ground[2]);
 			gl.uniform1i(u.u_blend, frame.blend === 'screen' ? 1 : 0);
@@ -152,6 +184,21 @@ export function createWebGL2Renderer(canvas: HTMLCanvasElement): RendererSelecti
 			gl.uniform1i(u.u_blobCount, count);
 			gl.uniform4fv(u.u_blobs, blobData);
 			gl.uniform3fv(u.u_blobColors, colorData);
+			const armCount = Math.min(frame.arms.length, MAX_ARMS);
+			for (let index = 0; index < armCount; index += 1) {
+				const arm = frame.arms[index];
+				armData[index * 4] = arm.pivotX * dpr;
+				armData[index * 4 + 1] = arm.pivotY * dpr;
+				armData[index * 4 + 2] = arm.phi;
+				armData[index * 4 + 3] = arm.length * dpr;
+				armStyle[index * 4] = arm.width * dpr;
+				armStyle[index * 4 + 1] = arm.bladeFrom * dpr;
+				armStyle[index * 4 + 2] = arm.flex;
+				armStyle[index * 4 + 3] = 0;
+			}
+			gl.uniform1i(u.u_armCount, armCount);
+			gl.uniform4fv(u.u_arms, armData);
+			gl.uniform4fv(u.u_armStyle, armStyle);
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
 			gl.uniform1i(u.u_ink, 0);

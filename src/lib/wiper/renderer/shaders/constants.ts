@@ -5,10 +5,15 @@
 
 /** Under measured ink the scene may deviate from the page ground by this fraction at most. */
 export const INK_SAFE_ALPHA = 0.15;
-export const INK_FIELD_WIDTH = 128;
-export const INK_FIELD_HEIGHT = 64;
-/** Text rects grow by this many CSS px before the feather starts. */
-export const INK_DILATE_PX = 6;
+export const INK_FIELD_WIDTH = 256;
+export const INK_FIELD_HEIGHT = 128;
+/**
+ * Text rects grow by this many CSS px before the feather starts: more than
+ * one texel of the field at a 2560px glass, so bilinear sampling never lets
+ * the clamp soften inside a text box (the blades are darker than any blob;
+ * the mid-sweep ink gate found a 4.1:1 dip at a rect edge at 6px).
+ */
+export const INK_DILATE_PX = 14;
 /** The clamp fades out over this many CSS px past the dilated rect. */
 export const INK_FEATHER_PX = 96;
 
@@ -22,3 +27,6 @@ export const BLOB_GLOW_SCALE = 2.2;
 /** Terminal cruise as tinyvectors driftSpeed (units per substep gain); the package default is 0.05 to 0.10. */
 export const CRUISE_SPEED: readonly [number, number] = [0.18, 0.3];
 export const CRUISE_SPEED_COARSE: readonly [number, number] = [0.1, 0.16];
+
+/** Arms the scene can draw at once: the opposed pair. */
+export const MAX_ARMS = 2;

@@ -53,8 +53,14 @@ export interface TickResult {
 	finish: boolean;
 }
 
-/** Largest step the clock may take in one tick (a throttled tab returning). */
-const MAX_STEP_MS = 100;
+/**
+ * The most one animation frame may advance the dwell. Real time otherwise:
+ * a slow rig (software GL, a busy phone) at a few frames a second still
+ * counts its dwell at wall-clock pace instead of slow motion, while a
+ * frame that arrives after a long gap (a tab shown again) cannot swallow
+ * the whole gap at once. Hidden tabs are paused by the engine anyway.
+ */
+export const MAX_STEP_MS = 1000;
 
 export class WiperMachine {
 	detent: WiperDetent;

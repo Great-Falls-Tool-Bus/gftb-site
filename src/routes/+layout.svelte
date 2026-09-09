@@ -25,6 +25,8 @@
 	// traffic, so deferring them to idle restores the pre-blob enhancement
 	// timeline while changing nothing the visitor can interact with.
 	let brandVectorsReady = $state(false);
+	/** Longest the brand layer waits for an idle period before mounting anyway. */
+	const BRAND_VECTORS_IDLE_TIMEOUT_MS = 1500;
 	let tinyVectorsRef = $state<DeviceMotionTarget>();
 	let motionHandshake = $state<ReturnType<typeof createDeviceMotionHandshake>>();
 
@@ -75,10 +77,16 @@
 
 		// Idle deferral for the brand-vectors layer (see the state's comment).
 		// Safari still ships no requestIdleCallback, so fall back to a macrotask.
+		// The timeout bounds the wait: a page whose animation frames leave no
+		// idle period (the GPU scene on a software renderer) still mounts the
+		// layer within the budget instead of never.
 		if (typeof window.requestIdleCallback === 'function') {
-			const idleHandle = window.requestIdleCallback(() => {
-				brandVectorsReady = true;
-			});
+			const idleHandle = window.requestIdleCallback(
+				() => {
+					brandVectorsReady = true;
+				},
+				{ timeout: BRAND_VECTORS_IDLE_TIMEOUT_MS },
+			);
 			return () => window.cancelIdleCallback(idleHandle);
 		}
 		const timeoutHandle = setTimeout(() => {

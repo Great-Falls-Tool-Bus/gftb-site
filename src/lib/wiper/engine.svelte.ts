@@ -3,9 +3,18 @@
 // the per-item mask geometry, and a reactive view for the template. Coarse
 // state changes a few times per cycle and lives in $state; the 60 Hz channel
 // never touches reactivity. Every listener hangs off one AbortSignal.
-import { armAt, deriveGeometry, halfSweepDeg, maskVarsFor, type WiperGeometry } from './geometry';
+import {
+	armsOver,
+	bladePoseAt,
+	deriveGeometry,
+	maskVarsFor,
+	sweepSpanDeg,
+	type ArmSpec,
+	type BladePose,
+	type WiperGeometry,
+} from './geometry';
 import { WiperMachine, type WiperMachineOptions, type WiperView } from './machine';
-import type { WiperDetent } from './schedule';
+import { strokeEase, type WiperDetent } from './schedule';
 
 export type RendererTier = 'webgpu' | 'webgl2' | 'none';
 
@@ -96,12 +105,56 @@ export class WiperEngine {
 		pane.style.setProperty('--wipe-feather', `${geometry.featherDeg}deg`);
 		for (const item of glass.querySelectorAll<HTMLElement>(':scope > li')) {
 			const rect = item.getBoundingClientRect();
-			const arm = armAt(geometry, rect.left - box.left + rect.width / 2);
-			const vars = maskVarsFor(arm, rect, box);
-			for (const [name, value] of Object.entries(vars)) item.style.setProperty(name, value);
-			item.style.setProperty('--wipe-span', `${Math.round(2 * halfSweepDeg(arm) * 100) / 100}deg`);
+			const [owner, second] = armsOver(geometry, {
+				left: rect.left - box.left,
+				top: rect.top - box.top,
+				width: rect.width,
+				height: rect.height,
+			});
+			this.#writeArmVars(item, owner, rect, box, '');
+			// The push (app.css --wipe-push) meets the blade at the note's mid-height.
+			item.style.setProperty('--wipe-h', `${Math.round(rect.height * 100) / 100}px`);
+			// A note both blades pass over is wiped by both, each where it
+			// passes: a second set of variables and a composited second mask.
+			if (second) {
+				this.#writeArmVars(item, second, rect, box, '-2');
+				item.dataset.wipeArms = 'both';
+			} else {
+				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2'])
+					item.style.removeProperty(name);
+				delete item.dataset.wipeArms;
+			}
 		}
 		this.refresh();
+	}
+
+	#writeArmVars(item: HTMLElement, arm: ArmSpec, rect: DOMRect, box: DOMRect, suffix: '' | '-2'): void {
+		const vars = maskVarsFor(arm, rect, box);
+		for (const [name, value] of Object.entries(vars)) item.style.setProperty(`${name}${suffix}`, value);
+		item.style.setProperty(`--wipe-span${suffix}`, `${Math.round(sweepSpanDeg(arm) * 100) / 100}deg`);
+	}
+
+	/**
+	 * The blades as they stand at `now` (the animation frame's own timestamp),
+	 * for the scene to draw in the same frame the mask moves. Both read the
+	 * machine's clock through the same easing, and a LOOK or test hold
+	 * (data-wiper-freeze) pins both to the held unit, so the drawn blade and
+	 * the mask edge cannot come apart.
+	 */
+	blades(now: number): BladePose[] {
+		const geometry = this.#geometry;
+		if (!geometry) return [];
+		const phase = this.machine.phase;
+		const frozen = document.documentElement.dataset[FREEZE_ATTR];
+		const held = frozen !== undefined && phase === 'out';
+		const t = held ? this.#heldProgress(frozen) : this.machine.strokeProgress(now);
+		const unit = phase === 'dwell' ? 0 : held ? this.machine.unit : strokeEase(t);
+		return geometry.arms.map((arm) => bladePoseAt(arm, geometry.box, phase, unit, t));
+	}
+
+	#heldProgress(frozen: string): number {
+		const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
+		return Math.acos(1 - 2 * unit) / Math.PI;
 	}
 
 	/** Re-read the machine after an external input changed (page size, motion preference). */

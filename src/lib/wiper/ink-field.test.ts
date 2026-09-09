@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { distanceToRect, rasterizeInkField } from './ink-field';
 import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, INK_SAFE_ALPHA } from './renderer/shaders/constants';
+import { SCENE_FRAGMENT } from './renderer/shaders/scene.glsl';
 
 describe('the ink field raster', () => {
 	const box = { width: 1280, height: 640 };
@@ -18,13 +19,15 @@ describe('the ink field raster', () => {
 			dilatePx: 8,
 			featherPx: 10,
 		});
-		const at = (x: number, y: number) => field[Math.floor(y / 10) * INK_FIELD_WIDTH + Math.floor(x / 10)];
+		const cellW = box.width / INK_FIELD_WIDTH;
+		const cellH = box.height / INK_FIELD_HEIGHT;
+		const at = (x: number, y: number) => field[Math.floor(y / cellH) * INK_FIELD_WIDTH + Math.floor(x / cellW)];
 		expect(at(250, 150)).toBe(255); // inside
 		expect(at(405, 150)).toBe(255); // inside the dilation
 		expect(at(1200, 500)).toBe(0); // far away
 		// Feather is monotonic outward along a row through the rect.
 		let previous = 255;
-		for (let x = 400; x < 460; x += 10) {
+		for (let x = 400; x < 460; x += cellW) {
 			const value = at(x, 150);
 			expect(value).toBeLessThanOrEqual(previous);
 			previous = value;
@@ -42,5 +45,17 @@ describe('the ink field raster', () => {
 	it('keeps the clamp at the ratified blob-ground ceiling', () => {
 		expect(INK_SAFE_ALPHA).toBeLessThanOrEqual(0.15);
 		expect(INK_SAFE_ALPHA).toBeGreaterThan(0);
+	});
+
+	it('clamps the scene layer under ink and keeps the blade layer out of that budget', () => {
+		// Layer 0 is the only place the ink texture is read, and the clamp is
+		// its last operation; layer 1 never samples it and writes premultiplied
+		// alpha over the notes instead.
+		const [sceneBranch, bladeBranch] = SCENE_FRAGMENT.split('if (u_layer == 0) {')[1].split('return;\n\t}');
+		expect(sceneBranch).toContain('float k = texture(u_ink, uv).r;');
+		expect(sceneBranch).toContain('outColor = vec4(mix(u_ground, blobs, 1.0 - k * (1.0 - u_inkAlpha)), 1.0);');
+		expect(bladeBranch).not.toContain('u_ink');
+		expect(bladeBranch).not.toContain('u_inkAlpha');
+		expect(bladeBranch).toContain('outColor = vec4(rgb, alpha);');
 	});
 });
