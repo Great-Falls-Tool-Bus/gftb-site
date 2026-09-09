@@ -1833,6 +1833,42 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	);
 }
 
+/* ===== Instruments (PR-3) =====
+ * Rain state, static part: the droplet layer is full at rest and in every
+ * non-paged state, holds through the outbound stroke, and sits cleared at
+ * the return stroke; the accumulation over the dwell and the clearing sweep
+ * are timed and live in the block below. Max darkening never exceeds the
+ * ratified 5% mixes, so the glass rows cannot regress. */
+.wiper--rain[data-stroke='out']::before {
+	opacity: 1;
+}
+
+.wiper--rain[data-stroke='back']::before {
+	opacity: 0.15;
+}
+
+/* The posbar: a 4px dwell gauge under the keys, filled toward the next wipe
+ * with a compositor-only scaleX (keyframes below); full while wiping. */
+.wiper-gauge {
+	flex-basis: 100%;
+	height: 4px;
+	background: var(--control-track);
+	box-shadow: var(--wiper-bevel);
+}
+
+.wiper-gauge::before {
+	content: '';
+	display: block;
+	height: 100%;
+	background: var(--accent);
+	transform: scaleX(0);
+	transform-origin: 0 50%;
+}
+
+.wiper[data-state='wiping'] .wiper-gauge::before {
+	transform: scaleX(1);
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	@keyframes wiper-sweep {
 		from {
@@ -1874,6 +1910,47 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 	.wiper[data-skin='aero'].wiper--wiping::after {
 		animation: wiper-sheen var(--wiper-stroke) cubic-bezier(0.45, 0, 0.55, 1) 2 alternate both;
+	}
+
+	/* Rain accumulates over the dwell (0.15 to full), freezes while the pane
+	 * is paused, and clears under the returning blade. */
+	@keyframes wiper-rain-fill {
+		from {
+			opacity: 0.15;
+		}
+
+		to {
+			opacity: 1;
+		}
+	}
+
+	.wiper--paged.wiper--rain:is([data-state='dwell'], [data-state='paused'])::before {
+		animation: wiper-rain-fill var(--wiper-dwell) linear both;
+	}
+
+	/* Same specificity as the running rule above (the shorthand resets
+	 * play-state to running), and later, so the pause wins. */
+	.wiper--paged.wiper--rain[data-state='paused']::before {
+		animation-play-state: paused;
+	}
+
+	.wiper--rain[data-stroke='back']::before {
+		transition: opacity var(--wiper-stroke) linear;
+	}
+
+	/* The posbar fills over the dwell and holds while paused. */
+	@keyframes wiper-gauge {
+		to {
+			transform: scaleX(1);
+		}
+	}
+
+	.wiper:is([data-state='dwell'], [data-state='paused']) .wiper-gauge::before {
+		animation: wiper-gauge var(--wiper-dwell) linear both;
+	}
+
+	.wiper[data-state='paused'] .wiper-gauge::before {
+		animation-play-state: paused;
 	}
 
 	/* Sequenced, never overprinted: the old page fades out under the

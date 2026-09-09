@@ -42,7 +42,9 @@
 	//   wipe is `animationend`/`animationcancel`, and a timer failsafe covers a
 	//   throttled tab. The old page fades out under the outbound stroke and
 	//   the new page fades in under the return stroke (data-stroke), so the
-	//   two never overprint each other. The only JS timer is the dwell between wipes, an
+	//   two never overprint each other. A pause banks the dwell time still
+	//   owed and resumes from it, matching the frozen CSS instruments; a
+	//   detent change wipes at once so every clock restarts together; The only JS timer is the dwell between wipes, an
 	//   $effect whose teardown IS the pause;
 	// - rotation pauses while the pointer (mouse, touch or pen) is over the
 	//   pane, while focus is inside the list, and while the document is
@@ -52,7 +54,11 @@
 	// - Off (the stalk's first detent, or the switch) is the resting grid of
 	//   every item, immediately. It is also the rollback surface;
 	// - the status line is aria-live="off" while rotating and "polite" when
-	//   paused or off, which is exactly when a page change is user-caused.
+	//   paused or off, which is exactly when a page change is user-caused;
+	// - the instruments (rain accumulating over the dwell, the posbar gauge
+	//   filling toward the next wipe, the sheen crossing with the blades) are
+	//   CSS keyed on data-state / data-stroke / .wiper--wiping only; they
+	//   pause with the pane and never reach the sweep handlers.
 	//
 	// Page size is declared in two coupled places: the `wide` media query
 	// below and the `@media (min-width: 48rem)` nth-child block in app.css
@@ -129,8 +135,18 @@
 	// this effect; its teardown clears the pending wipe.
 	$effect(() => {
 		if (!cycle.running || cycle.phase !== 'dwell') return;
-		const handle = setTimeout(() => cycle.startWipe(), cycle.dwellMs);
-		return () => clearTimeout(handle);
+		// Resume from the time still owed (the CSS instruments froze in place
+		// under the pause and resume from the same point), else a full dwell.
+		const remaining = untrack(() => cycle.dwellRemainingMs) ?? cycle.dwellMs;
+		const armedAt = performance.now();
+		const handle = setTimeout(() => cycle.startWipe(), remaining);
+		return () => {
+			clearTimeout(handle);
+			// Teardown while still dwelling is a pause: bank the remainder.
+			if (untrack(() => cycle.phase) === 'dwell') {
+				cycle.dwellRemainingMs = Math.max(0, remaining - (performance.now() - armedAt));
+			}
+		};
 	});
 
 	// Failsafe: if the animation events never arrive (display: none, a
@@ -314,6 +330,9 @@
 					Wipers <span class="wiper-switch__state">{cycle.enabled ? 'On' : 'Off'}</span>
 				</span>
 			</button>
+			<!-- The posbar: a dwell gauge that fills toward the next wipe (CSS
+			     keyed on data-state, paused with the pane; decorative). -->
+			<span class="wiper-gauge" aria-hidden="true"></span>
 			<div class="wiper-stalk" role="radiogroup" aria-label="Wiper speed" tabindex="-1" onkeydown={onStalkKey}>
 				{#each WIPER_POSITIONS as detent (detent.id)}
 					<button

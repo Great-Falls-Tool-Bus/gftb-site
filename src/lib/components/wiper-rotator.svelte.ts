@@ -35,7 +35,14 @@ export class WiperCycle {
 	 * Sweep length captured when a wipe starts, so a speed change mid-sweep
 	 * cannot re-time an animation that is already running.
 	 */
-	activeSweepMs = $state(0);
+	activeSweepMs: number = $state(0);
+	/**
+	 * Dwell time still owed when a pause interrupted the dwell timer, or null
+	 * for a fresh full dwell. The CSS instruments (gauge, rain, LCD) freeze in
+	 * place under a pause and resume from there; the JS timer must resume
+	 * from the same remaining time or the two clocks drift apart.
+	 */
+	dwellRemainingMs: number | null = $state(null);
 
 	constructor(pageCount: () => number, motionOk: () => boolean, initial: WiperPosition = DEFAULT_WIPER_POSITION) {
 		this.#pageCount = pageCount;
@@ -56,12 +63,19 @@ export class WiperCycle {
 	running: boolean = $derived(this.rotatable && this.enabled && !this.paused);
 
 	setPosition(next: WiperPosition): void {
+		const changed = next !== this.position;
 		if (next !== 'off') this.#lastActive = next;
 		// Off is immediate: the grid comes back at once, so any sweep in
 		// flight is abandoned rather than finished over a list that no
 		// longer pages.
 		if (next === 'off') this.phase = 'dwell';
 		this.position = next;
+		this.dwellRemainingMs = null;
+		// A speed change wipes at once (even under the pointer resting on the
+		// stalk): immediate feedback, and every clock (timer, gauge, rain, LCD)
+		// restarts together on the new dwell instead of carrying an old
+		// fraction into it.
+		if (changed && next !== 'off' && this.phase === 'dwell') this.startWipe(true);
 	}
 
 	/** The switch: Off <-> the last non-off detent. */
@@ -73,13 +87,17 @@ export class WiperCycle {
 	reveal(index: number, pageSize: number): void {
 		// Abandon the sweep before selecting the focused page. Calling finish()
 		// would advance an outbound wipe; late sweep events must instead be inert.
+		this.dwellRemainingMs = null;
 		this.phase = 'dwell';
 		this.activeSweepMs = 0;
 		this.page = Math.floor(index / Math.max(pageSize, 1));
 	}
 
-	startWipe(): void {
-		if (this.phase !== 'dwell' || !this.running) return;
+	/** `force` lets a detent change wipe while the pane is paused; Off and reduce still refuse. */
+	startWipe(force = false): void {
+		if (this.phase !== 'dwell') return;
+		if (force ? !(this.rotatable && this.enabled) : !this.running) return;
+		this.dwellRemainingMs = null;
 		this.activeSweepMs = this.entry.sweepMs;
 		this.stroke = 'out';
 		this.phase = 'wiping';
@@ -98,6 +116,7 @@ export class WiperCycle {
 	 * the page here: every wipe shows the next page, events or not.
 	 */
 	finish(): void {
+		this.dwellRemainingMs = null;
 		if (this.phase === 'wiping' && this.stroke === 'out') this.apex();
 		this.phase = 'dwell';
 	}
