@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { TinyVectors } from '@tummycrypt/tinyvectors';
+	import { setDeviceTilt } from '$lib/motion/device-tilt.svelte';
 	import SEOHead from '$lib/components/SEOHead.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
@@ -9,6 +10,7 @@
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import { theme } from '$lib/theme.svelte';
+	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '$lib/device-motion-permission';
 	import sourceMap from '$lib/generated/source-map.json';
 	import '../app.css';
 
@@ -16,13 +18,49 @@
 
 	// TinyVectors mounts on browser idle, not during hydration. Mounting the
 	// blob layer inside the first hydration pass measurably delayed the
-	// page's progressive enhancements (the goals carousel's `enhanced` flip,
+	// page's progressive enhancements (the goals rotator's `enhanced` flip,
 	// the contact widget's onload challenge fetch) enough that the acceptance
 	// suite's post-domcontentloaded samples caught the page mid-enhancement.
 	// The blobs are pure decoration with no focusables and no network
 	// traffic, so deferring them to idle restores the pre-blob enhancement
 	// timeline while changing nothing the visitor can interact with.
 	let brandVectorsReady = $state(false);
+	/** Longest the brand layer waits for an idle period before mounting anyway. */
+	const BRAND_VECTORS_IDLE_TIMEOUT_MS = 1500;
+	let tinyVectorsRef = $state<DeviceMotionTarget>();
+	let motionHandshake = $state<ReturnType<typeof createDeviceMotionHandshake>>();
+
+	// The component binds after the idle callback, potentially long after
+	// onMount. Track that binding rather than sampling an absent ref once.
+	$effect(() => {
+		const handshake = motionHandshake;
+		const target = tinyVectorsRef;
+		untrack(() => handshake?.setTarget(target));
+	});
+
+	onMount(() => {
+		// First-gesture phone-motion handshake (operator ruling 2026-09-09): no control is rendered. Browsers that gate the sensor
+		// behind a gesture (iOS Safari) borrow the visitor's first neutral tap
+		// inside main; taps on links, buttons and fields are never borrowed,
+		// the contact page never prompts, reduced motion never arms, and
+		// desktop/Android never need it (the package self-starts there). The
+		// state is published on <html data-motion-handshake> for the e2e.
+		const main = document.getElementById('main-content');
+		const handshake = createDeviceMotionHandshake(
+			window.matchMedia('(prefers-reduced-motion: reduce)'),
+			main ?? document,
+			{
+				root: main,
+				eligible: () => !window.location.pathname.startsWith('/contact'),
+				publish: (state) => {
+					if (state === 'idle') delete document.documentElement.dataset.motionHandshake;
+					else document.documentElement.dataset.motionHandshake = state;
+				},
+			},
+		);
+		motionHandshake = handshake;
+		return () => handshake.destroy();
+	});
 
 	onMount(() => {
 		// Hydrate the theme store from localStorage so the mode switch
@@ -39,10 +77,16 @@
 
 		// Idle deferral for the brand-vectors layer (see the state's comment).
 		// Safari still ships no requestIdleCallback, so fall back to a macrotask.
+		// The timeout bounds the wait: a page whose animation frames leave no
+		// idle period (the GPU scene on a software renderer) still mounts the
+		// layer within the budget instead of never.
 		if (typeof window.requestIdleCallback === 'function') {
-			const idleHandle = window.requestIdleCallback(() => {
-				brandVectorsReady = true;
-			});
+			const idleHandle = window.requestIdleCallback(
+				() => {
+					brandVectorsReady = true;
+				},
+				{ timeout: BRAND_VECTORS_IDLE_TIMEOUT_MS },
+			);
 			return () => window.cancelIdleCallback(idleHandle);
 		}
 		const timeoutHandle = setTimeout(() => {
@@ -133,18 +177,25 @@
 	     opacity, behind the hero's own isolated backdrop stack. v0.3.7 makes
 	     idle drift/bounce the desktop default and honors
 	     prefers-reduced-motion internally, so this call site adds NO motion
-	     logic — config only. On iOS Safari the devicemotion enhancement stays
-	     dormant (0.3.7 never listens without a user-gesture permission grant
-	     this minimal surface does not offer). -->
+	     logic — config only. Pointer physics is OFF: in the package the
+	     pointer field is a cursor attractor that also steers the scroll
+	     physics toward the cursor, which pooled the blobs under a resting
+	     mouse; with it off the scroll effect pulls toward the field centre
+	     instead, the way the operator's blog runs (a centre attraction, not
+	     a sweep). Browsers that gate the sensor behind a gesture get the
+	     silent first-tap handshake wired in onMount above. -->
 	{#if brandVectorsReady}
 		<div class="brand-vectors-bg" aria-hidden="true" data-testid="brand-vectors-bg">
 			<TinyVectors
+				bind:this={tinyVectorsRef}
 				theme="custom"
 				colors={['#cb6738', '#d99d6a', '#a14a52', '#6b4f3a', '#3d6b8c']}
-				opacity={0.1}
+				opacity={0.15}
 				blobCount={5}
 				enableScrollPhysics={true}
 				enableDeviceMotion={true}
+				enablePointerPhysics={false}
+				onDeviceMotion={setDeviceTilt}
 			/>
 		</div>
 	{/if}
@@ -184,10 +235,8 @@
 		<div class="site-footer__inner">
 			<div class="site-footer__intro">
 				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
-				<!-- Build provenance (D10, demo #140 fe32de1): the short sha plus the
-				     "GitHub-verified" label — main is merged through GitHub, so its
-				     commits are signed by GitHub's web-flow key (committer =
-				     GitHub), not the author's own key. Degrade-to-nothing on
+				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
+				     Degrade-to-nothing on
 				     local/unstamped builds is already the build-info contract.
 				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
 				     /commit page because that repo is public; this carrier is
@@ -201,12 +250,11 @@
 				     ruling that would widen the sanctioned exception. -->
 				{#if buildShaShort}
 					<p class="site-footer__provenance">
-						built from <code>{buildShaShort}</code>, GitHub-verified
+						built from <code>{buildShaShort}</code>
 					</p>
 				{/if}
 				<p class="site-footer__licensing">
-					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · visual credits are listed with
-					each image.
+					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
 				</p>
 			</div>
 			{#each footerNavGroups as group (group.heading)}

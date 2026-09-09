@@ -46,16 +46,6 @@ async function horizontalOverflow(page: Page) {
 		scrollWidth: document.documentElement.scrollWidth,
 		innerWidth: window.innerWidth,
 		widest: Array.from(document.querySelectorAll<HTMLElement>('body *'))
-			// The enhanced goals carousel is a sanctioned scroll REGION (the
-			// prose-table precedent: wide content scrolls in its own
-			// container). Its off-page slides sit beyond the viewport BY
-			// DESIGN and scroll within the item group, so their layout rects
-			// are excluded here — while the document-level assertion below
-			// still proves the page itself never widens, and
-			// e2e/home-goals.spec.ts proves every slide is reachable through
-			// the carousel's own controls. At rest (no JS) the class is
-			// absent and the goals grid is swept like everything else.
-			.filter((element) => !element.closest('.goal-list--enhanced'))
 			// The brand-vectors background is a sanctioned CLIPPED layer (the
 			// same precedent as the scroll region above, for painting instead
 			// of scrolling). TinyVectors draws its blob world through a square
@@ -84,20 +74,11 @@ async function clippedControls(page: Page, selector: string) {
 		const results: Array<{ label: string; left: number; right: number; width: number; height: number }> = [];
 		for (const element of Array.from(document.querySelectorAll<HTMLElement>(interactive))) {
 			if (element.closest('.honeypot')) continue;
-			// Exactly the mode switch's <input> — Zag's deliberately clipped
-			// 1px a11y channel — is exempt; the visitor-facing target is the
-			// 52x28 control box, asserted by e2e/acceptance-mode-switch.spec.ts.
-			// Nothing else inside the switch subtree gets a pass.
-			if (element.tagName === 'INPUT' && element.closest('.mode-switch')) continue;
-			// CTAs inside the enhanced goals carousel live in slides that page
-			// through the item group's own scroller, so an off-page slide's
-			// link rect sits past the viewport without being unreachable:
-			// the visible prev/next controls (and Tab, which scrolls the
-			// focused link into view) bring it on screen. Reachability is
-			// pinned by e2e/home-goals.spec.ts and the keyboard sweep in
-			// e2e/acceptance-motion-keyboard.spec.ts; at rest (no JS) the
-			// class is absent and these links are swept like everything else.
-			if (element.closest('.goal-list--enhanced')) continue;
+			// Exactly the Zag hidden inputs (the mode switch's checkbox and the
+			// wiper stalk's radios, deliberately clipped 1px a11y channels) are
+			// exempt; the visitor-facing targets are the 52x28 switch box and
+			// the stalk's labelled items. Nothing else in either subtree gets a pass.
+			if (element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')) continue;
 			if (element.offsetParent === null && getComputedStyle(element).position !== 'fixed') continue;
 			const box = element.getBoundingClientRect();
 			const label = `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24) || element.id}`;
@@ -154,7 +135,7 @@ test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ pag
 			// by e2e/acceptance-mode-switch.spec.ts. Nothing else inside the
 			// switch subtree gets a pass.
 			.filter((element) => !element.closest('.honeypot'))
-			.filter((element) => !(element.tagName === 'INPUT' && element.closest('.mode-switch')))
+			.filter((element) => !(element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')))
 			.map((element) => ({ element, box: element.getBoundingClientRect() }))
 			.filter((target) => target.box.width > 0 && target.box.height > 0);
 
@@ -198,98 +179,6 @@ test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ pag
 	}, INTERACTIVE);
 	expect(offenders, 'targets failing SC 2.5.8 with both exceptions applied').toEqual([]);
 });
-
-/**
- * TIN-3932. `.history-card img` carried `height: 100%`, so the photo consumed
- * the whole grid row and the <figcaption> spilled out of its <figure> into the
- * next row. Above 48rem that row is empty and the card looked correct; below it
- * the row holds `.history-card__copy`, so the credit line printed across the
- * "Why Great Falls?" eyebrow — 41 CSS px of overlap at 320, 17 at 600.
- *
- * The assertion is geometric rather than visual, and both rectangles are read in
- * one evaluate so no scroll can happen between them: the caption's border box
- * and the copy block's border box may not intersect at any tested width. The
- * two-column widths are included so a future fix cannot trade the phone bug for
- * a desktop one.
- */
-test('the photo credit never overlaps the history copy', async ({ page, guardedPage }) => {
-	const collisions: Array<{ width: number; overlapX: number; overlapY: number }> = [];
-	for (const width of [320, 375, 414, 480, 600, 768, 1280]) {
-		await openPage(page, guardedPage, width);
-		await page.locator('.history-card').scrollIntoViewIfNeeded();
-		const overlap = await page.evaluate(() => {
-			const caption = document.querySelector('.history-card figcaption');
-			const copy = document.querySelector('.history-card__copy');
-			if (!caption || !copy) return null;
-			const a = caption.getBoundingClientRect();
-			const b = copy.getBoundingClientRect();
-			return {
-				overlapX: Math.min(a.right, b.right) - Math.max(a.left, b.left),
-				overlapY: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top),
-			};
-		});
-		expect(overlap, `.history-card figcaption and __copy must both exist at ${width}`).not.toBeNull();
-		if (overlap!.overlapX > 0 && overlap!.overlapY > 0) {
-			collisions.push({ width, overlapX: Math.round(overlap!.overlapX), overlapY: Math.round(overlap!.overlapY) });
-		}
-	}
-	expect(collisions, 'widths where the photo credit intersects the history copy').toEqual([]);
-});
-
-/**
- * Restoration PR-3 (inventory acceptance row): the BPL credit line must be
- * fully visible at the two-column widths, in both colour schemes. #18 fixed
- * the root cause (the figure is a flex column; the caption is normal-flow),
- * and the overlap test above guards the caption-vs-copy collision — but a
- * caption pushed past the card's own `overflow: hidden` bottom edge
- * intersects nothing and would pass it.
- *
- * Measurement discipline (review finding on this row's first cut): an
- * `overflow: hidden` box is still programmatically scrollable, so a
- * scrollIntoView aimed at the caption can scroll the CLIP BOX itself and
- * manufacture a pass over a clipped caption. Only the document scrolls here
- * — with `behavior: 'instant'` so `html { scroll-behavior: smooth }` cannot
- * animate under the measurement — and the card must prove both of its own
- * scroll offsets are still zero. Every geometry read happens inside one
- * evaluate so nothing can move between reads.
- */
-for (const scheme of ['light', 'dark'] as const) {
-	test(`the photo credit stays visible and hittable at desktop widths (${scheme})`, async ({ page, guardedPage }) => {
-		await page.emulateMedia({ colorScheme: scheme });
-		for (const width of [768, 1024, 1440]) {
-			await openPage(page, guardedPage, width);
-			const state = await page.evaluate(() => {
-				const caption = document.querySelector('.history-card figcaption');
-				const card = document.querySelector('.history-card');
-				if (!caption || !card) return null;
-				// Document-level scroll only: centre the caption's layout slot in
-				// the viewport without touching any inner scroll container.
-				const target = caption.getBoundingClientRect();
-				window.scrollBy({ top: target.top + target.height / 2 - window.innerHeight / 2, behavior: 'instant' });
-				const rect = caption.getBoundingClientRect();
-				const cardRect = card.getBoundingClientRect();
-				const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-				return {
-					cardScrollTop: card.scrollTop,
-					cardScrollLeft: card.scrollLeft,
-					captionHeight: rect.height,
-					insideClipBox:
-						rect.top >= cardRect.top - 1 &&
-						rect.bottom <= cardRect.bottom + 1 &&
-						rect.left >= cardRect.left - 1 &&
-						rect.right <= cardRect.right + 1,
-					centreHitsCaption: hit !== null && (hit === caption || caption.contains(hit)),
-				};
-			});
-			expect(state, `.history-card and its figcaption must both exist at ${width}`).not.toBeNull();
-			expect(state!.cardScrollTop, `card clip box unscrolled vertically at ${width} (${scheme})`).toBe(0);
-			expect(state!.cardScrollLeft, `card clip box unscrolled horizontally at ${width} (${scheme})`).toBe(0);
-			expect(state!.captionHeight, `caption has real height at ${width} (${scheme})`).toBeGreaterThan(0);
-			expect(state!.insideClipBox, `caption inside the card's unscrolled clip box at ${width} (${scheme})`).toBe(true);
-			expect(state!.centreHitsCaption, `caption centre receives the hit at ${width} (${scheme})`).toBe(true);
-		}
-	});
-}
 
 test('the image that dominates the page cannot force a horizontal scrollbar', async ({ page, guardedPage }) => {
 	await openPage(page, guardedPage, 320);

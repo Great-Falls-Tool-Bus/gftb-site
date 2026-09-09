@@ -1,38 +1,63 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { measureExtremesInRects, measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
+
+// The same generated map SourceLink and NotesAndGoals read (a JSON import
+// needs an import attribute under Playwright's loader; read it directly).
+const sourceMap = JSON.parse(
+	readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/lib/generated/source-map.json'), 'utf8'),
+) as { repoUrl: string; branch: string };
 
 import { publishedGoalEntries } from '../src/lib/generated/goals-manifest';
 import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-goals';
+import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
+import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub
 // joins the header; the AX footer row is retired.
 //
-// The goals list now cycles as an accessible carousel
-// (src/lib/components/GoalCarousel.svelte). Every pre-carousel pin below
-// still holds — the OL/role=list markup, the row count and order, the
-// never-cards sweep, the CTA hrefs — because every slide stays in the DOM;
-// the carousel-specific rows (region semantics, controls, pause honesty,
-// reduced-motion stillness, no-JS degradation) follow after them.
+// Operator rulings 2026-09-09: the section is "Notes & Goals"; the served
+// HTML, reduced motion, the Off detent, print and forced colours are the plain
+// borderless grid of every note; once enhanced the list pages under a wiper
+// whose wipe is a DOM mask in lockstep with the engine's clock (src/lib/wiper),
+// driven by one stalk. Every row stays in the DOM in every state, so the
+// manifest pins below hold without a JavaScript branch.
 
-test('near-term goals render from the manifest as an ordered, borderless list, soonest first', async ({ page }) => {
+const AA = 4.5;
+const LARGE = 3;
+const WIDE = { width: 1280, height: 900 };
+
+const section = (page: Page) => page.locator('#goals');
+
+// Away from the section: a resting pointer must never change what is measured.
+async function pointerAway(page: Page) {
+	await page.mouse.move(0, 0);
+}
+
+test('the notes render from the manifest as an ordered, borderless list, soonest first', async ({ page }) => {
 	await page.goto('/');
 	const list = page.locator('#goals .goal-list');
 	expect(await list.evaluate((el) => el.tagName)).toBe('OL');
 	await expect(list).toHaveAttribute('role', 'list');
 	const rows = list.locator('> li');
 	await expect(rows).toHaveCount(publicGoals.length);
-	expect(publicGoals.length).toBeGreaterThanOrEqual(6);
+	expect(publicGoals.length).toBe(5);
 	// The rendered order IS the SSOT's sort (order asc, then slug), and the
 	// first row is the operator's first penciled goal.
 	await expect(rows.locator('h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-	await expect(rows.first().locator('h3')).toHaveText('Form the club');
+	await expect(rows.first().locator('h3')).toHaveText('Soft opening at the block party');
 	await expect(page.locator('#goals')).toContainText('Sunday, September 20, 2026');
 	// Featured-image home integration (the 2026-09-01 batch's deferred item):
 	// a goal that ships the frontmatter image group renders that exact image
-	// and alt text in the carousel's designed media slot, above the title;
-	// an imageless goal renders NO figure and no reserved box (graceful
-	// absence). Every expectation derives from the manifest so the pin stays
-	// honest as goals gain or lose images.
+	// and alt text in the designed media slot, above the title; an imageless
+	// goal renders NO figure and no reserved box (graceful absence). Every
+	// expectation derives from the manifest so the pin stays honest as goals
+	// gain or lose images.
 	for (const [index, goal] of publicGoals.entries()) {
 		const media = rows.nth(index).locator('.goal-media');
 		if (goal.metadata.image) {
@@ -47,17 +72,23 @@ test('near-term goals render from the manifest as an ordered, borderless list, s
 			await expect(media).toHaveCount(0);
 		}
 	}
-	// Never-cards (2026-08-30): no border on any side of any row, no fill.
+	// Never-cards (2026-08-30) as amended at LOOK 3 (2026-09-09): no border on
+	// any side of any row; every row is one translucent glass pane (the site's
+	// content-surface fill at 70%), the same for all, so photos and copy share
+	// one uniform occlusion over the scene rather than floating on it.
 	const boxes = await rows.evaluateAll((els) =>
 		els.map((el) => {
 			const s = getComputedStyle(el);
 			return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.backgroundColor];
 		}),
 	);
+	const fills = new Set<string>();
 	for (const box of boxes) {
 		expect(box.slice(0, 4)).toEqual(['0px', '0px', '0px', '0px']);
-		expect(box[4]).toBe('rgba(0, 0, 0, 0)');
+		expect(box[4]).toMatch(/\/ 0\.7\)$|, 0\.7\)$/u);
+		fills.add(box[4]);
 	}
+	expect(fills.size).toBe(1);
 });
 
 test('member benefits and help asks render with their CTAs', async ({ page }) => {
@@ -65,7 +96,6 @@ test('member benefits and help asks render with their CTAs', async ({ page }) =>
 	await expect(page.getByRole('heading', { name: 'What members get' })).toBeVisible();
 	await expect(page.locator('#benefits li')).toHaveCount(memberBenefits.length);
 	await expect(page.locator('#benefits')).toContainText('latoolb.us');
-	await expect(page.locator('#benefits')).toContainText('once the mail system is proved');
 	await expect(page.locator('#help li')).toHaveCount(publicHelpAsks.length);
 	expect(publishedGoalEntries.length).toBe(publicGoals.length + memberBenefits.length + publicHelpAsks.length);
 	for (const link of await page.locator('#help a, #goals .goal-cta a').all()) {
@@ -73,151 +103,640 @@ test('member benefits and help asks render with their CTAs', async ({ page }) =>
 	}
 });
 
-test('the goals cycle inside an accessible carousel region with working controls', async ({ page }) => {
+test('every note carries an Edit link to its own source and the section links the collection', async ({ page }) => {
 	await page.goto('/');
-	const region = page.locator('#goals [aria-roledescription="carousel"]');
-	await expect(region).toHaveAttribute('role', 'region');
-	// The region is named by the section's own heading.
-	await expect(region).toHaveAttribute('aria-labelledby', 'goals-title');
-
-	const list = page.locator('#goals .goal-list');
-	// Every goal title stays in the DOM while the carousel cycles — slides
-	// are paged by scroll position, never mounted and unmounted.
-	await expect(list.locator('> li h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
-
-	// Auto-advance is running on load, and the live region is honest about
-	// it: "off" while cycling (Zag flips it to "polite" whenever paused).
-	await expect(list).toHaveAttribute('aria-live', 'off');
-
-	// Visible prev/next and a pause/play control.
-	const prev = region.getByRole('button', { name: 'Previous goal' });
-	const next = region.getByRole('button', { name: 'Next goal' });
-	await expect(prev).toBeVisible();
-	await expect(next).toBeVisible();
-	await expect(region.getByRole('button', { name: 'Pause auto-advance' })).toBeVisible();
-
-	// Stop rotation first so the manual-navigation assertions are
-	// deterministic, then prove the toggle is honest in both directions.
-	await region.getByRole('button', { name: 'Pause auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-
-	await next.click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
-	await prev.click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeLessThan(1);
-
-	await region.getByRole('button', { name: 'Play auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'off');
-	await region.getByRole('button', { name: 'Pause auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
+	const rows = page.locator('#goals .goal-list > li');
+	for (const [index, goal] of publicGoals.entries()) {
+		const edits = rows.nth(index).locator('.goal-edit a');
+		await expect(edits).toHaveCount(1);
+		await expect(edits).toHaveAttribute('href', `${sourceMap.repoUrl}/edit/${sourceMap.branch}/${goal.sourcePath}`);
+		await expect(edits).toHaveAttribute('aria-label', `Edit ${goal.metadata.title} on GitHub`);
+		await expect(edits).toHaveAttribute('rel', /noopener/u);
+		// Edit is not a CTA: the CTA pin above still points every .goal-cta at /contact.
+		expect(await edits.evaluate((el) => el.closest('.goal-cta'))).toBeNull();
+	}
+	const collection = section(page).getByRole('link', { name: 'Edit these notes on GitHub' });
+	await expect(collection).toHaveAttribute('href', `${sourceMap.repoUrl}/tree/${sourceMap.branch}/src/content/goals`);
+	await expect(section(page).locator('.source-link')).toContainText('These notes live in git.');
 });
 
-test('hovering the goals pauses auto-advance and leaving resumes it', async ({ page }) => {
+const pane = (page: Page) => page.locator('#goals .wiper');
+const stalk = (page: Page) => page.locator('#goals .wiper-stalk');
+const currentTitles = (page: Page) => page.locator('#goals .goal-list > li.is-current h3').allTextContents();
+
+async function selectDetent(page: Page, label: string) {
+	await stalk(page).locator('.wiper-stalk__item', { hasText: label }).click();
+	await expect(page.getByRole('radio', { name: label })).toBeChecked();
+	await pointerAway(page);
+}
+
+test('the notes page under one stalk with four detents, and Off is the plain grid', async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-	await expect(list).toHaveAttribute('aria-live', 'off');
-
-	await list.hover();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-
-	// Longer than the 7s auto-advance interval: the scroller must not move
-	// while the pointer rests on it.
-	const before = await list.evaluate((el) => el.scrollLeft);
-	await page.waitForTimeout(8000);
-	expect(await list.evaluate((el) => el.scrollLeft)).toBe(before);
-
-	// Pointer leaves — the courtesy pause lifts.
-	await page.mouse.move(0, 0);
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await pointerAway(page);
+	// One control: a radio group named for the speed, Off first, High on load.
+	const group = page.getByRole('radiogroup', { name: 'Wiper speed' });
+	await expect(group).toHaveCount(1);
+	await expect(stalk(page).locator('.wiper-stalk__item')).toHaveText(WIPER_DETENTS.map((entry) => entry.label));
+	for (const entry of WIPER_DETENTS) await expect(group.getByRole('radio', { name: entry.label })).toHaveCount(1);
+	await expect(group.getByRole('radio', { name: 'High' })).toBeChecked();
+	await expect(page.locator('#goals button')).toHaveCount(0);
+	await expect(page.locator('#goals [role="switch"]')).toHaveCount(0);
+	// Paged: three notes up on a wide viewport, the rest in the DOM but hidden.
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused|wiping/u);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await expect(page.locator('#goals .goal-list > li.is-current')).toHaveCount(3);
+	await expect(page.locator('#goals .goal-list > li')).toHaveCount(publicGoals.length);
+	// Off is the resting grid at once: every note visible, nothing paged, nothing masked.
+	await selectDetent(page, 'Off');
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
+	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	for (const row of await page.locator('#goals .goal-list > li').all()) await expect(row).toBeVisible();
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
+	// The indicator's slide is the only timed rule; once it has settled nothing animates.
+	await page.waitForTimeout(400);
+	expect(
+		await page.evaluate(
+			() =>
+				document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals')).length,
+		),
+	).toBe(0);
+	await selectDetent(page, 'Intermittent');
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 });
 
-test('keyboard focus inside the goals pauses auto-advance', async ({ page }) => {
+test('a wipe masks the outgoing page out along the arc and the incoming page in, then turns the page', async ({
+	page,
+}) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-	await expect(list).toHaveAttribute('aria-live', 'off');
-
-	const cta = page.locator('#goals .goal-cta a').first();
-	await cta.focus();
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-
-	// Focus moves on, the courtesy pause lifts.
-	await cta.blur();
-	await expect(list).toHaveAttribute('aria-live', 'off');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	const firstPage = await currentTitles(page);
+	expect(firstPage).toHaveLength(3);
+	const expectedSecondPage = publicGoals.slice(3, 6).map((goal) => goal.metadata.title);
+	// Observe from inside the page: every data-wipe flip and every page turn,
+	// with the mask progress sampled while the out-stroke runs.
+	await page.evaluate(() => {
+		const host = document.querySelector('#goals .wiper') as HTMLElement;
+		const log: Array<Record<string, unknown>> = [];
+		(window as unknown as { __wipeLog: typeof log }).__wipeLog = log;
+		const observer = new MutationObserver(() => {
+			const outs = host.querySelectorAll('li[data-wipe="out"]').length;
+			const ins = host.querySelectorAll('li[data-wipe="in"]').length;
+			log.push({
+				state: host.dataset.state,
+				outs,
+				ins,
+				unit: Number.parseFloat(host.style.getPropertyValue('--wipe-u')) || 0,
+			});
+		});
+		observer.observe(host, {
+			attributes: true,
+			subtree: true,
+			attributeFilter: ['data-wipe', 'data-state', 'class', 'style'],
+		});
+	});
+	// Arm the hold before the stroke starts so the out-stroke freezes at its
+	// midpoint the moment it begins; release it after reading the masks.
+	await page.evaluate(() => {
+		document.documentElement.dataset.wiperFreeze = '0.5';
+	});
+	await selectDetent(page, 'High');
+	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(3);
+	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(expectedSecondPage.length);
+	const outMask = await page
+		.locator('#goals li[data-wipe="out"]')
+		.first()
+		.evaluate((el) => getComputedStyle(el).maskImage);
+	expect(outMask).toContain('conic-gradient');
+	const inMask = await page
+		.locator('#goals li[data-wipe="in"]')
+		.first()
+		.evaluate((el) => getComputedStyle(el).maskImage);
+	expect(inMask).toContain('conic-gradient');
+	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.5000');
+	// Halfway, the blades stand vertical over their span midpoints: the first
+	// column's outgoing note has been shoved right by the blade's advance past
+	// its left edge, and the reveal underneath has not moved.
+	const shove = await page.evaluate(() => {
+		const out = document.querySelector<HTMLElement>('#goals li[data-wipe="out"]')!;
+		const incoming = document.querySelector<HTMLElement>('#goals li[data-wipe="in"]')!;
+		const matrix = new DOMMatrixReadOnly(getComputedStyle(out).transform);
+		return { x: matrix.e, y: matrix.f, revealX: new DOMMatrixReadOnly(getComputedStyle(incoming).transform).e };
+	});
+	expect(shove.x).toBeGreaterThan(40);
+	expect(shove.y).toBe(0);
+	expect(shove.revealX).toBe(0);
+	await page.evaluate(() => {
+		delete document.documentElement.dataset.wiperFreeze;
+	});
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 15_000 });
+	const secondPage = await currentTitles(page);
+	expect(secondPage).toEqual(expectedSecondPage);
+	expect(secondPage).not.toEqual(firstPage);
+	expect(secondPage[0]).toBe(publicGoals[3].metadata.title);
+	const log = await page.evaluate(
+		() =>
+			(window as unknown as { __wipeLog: Array<{ state: string; unit: number; outs: number; ins: number }> }).__wipeLog,
+	);
+	// The engine resets the unit to 0 at the apex synchronously, a microtask
+	// before Svelte drops the data-wipe attributes, so the log ends with that
+	// reset; the rise before it must be monotonic and reach the turnaround.
+	const units = log.filter((entry) => entry.state === 'wiping' && entry.outs === 3).map((entry) => entry.unit);
+	const peak = Math.max(...units);
+	const rising = units.slice(0, units.lastIndexOf(peak) + 1);
+	// The hold sits at 0.5 and the release continues upward; on a slow software
+	// rail the remaining half-stroke can be a single frame, so the rise is
+	// asserted, not the frame count.
+	expect(rising.length).toBeGreaterThanOrEqual(2);
+	for (let index = 1; index < rising.length; index += 1)
+		expect(rising[index]).toBeGreaterThanOrEqual(rising[index - 1]);
+	expect(peak).toBeGreaterThanOrEqual(0.5);
+	// Masks live only during the out-stroke: none once the page has turned.
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
+	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.0000');
 });
 
-test('the play control restarts rotation even after wheel engagement parks the machine', async ({ page }) => {
+for (const width of [320, 390, 768, 1280, 1440]) {
+	test(`the blade covers every note at ${width}px and the notes carry that arm's angles`, async ({ page }) => {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await pane(page).scrollIntoViewIfNeeded();
+		await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+		const measured = await page.evaluate(() => {
+			const list = document.querySelector('#goals .goal-list') as HTMLElement;
+			const box = list.getBoundingClientRect();
+			const items = Array.from(list.querySelectorAll<HTMLElement>(':scope > li')).map((li) => {
+				const style = getComputedStyle(li);
+				return {
+					centerX: li.getBoundingClientRect().left - box.left + li.getBoundingClientRect().width / 2,
+					from: Number.parseFloat(style.getPropertyValue('--wipe-from')),
+					span: Number.parseFloat(style.getPropertyValue('--wipe-span')),
+					x: Number.parseFloat(style.getPropertyValue('--wipe-x')),
+					y: Number.parseFloat(style.getPropertyValue('--wipe-y')),
+				};
+			});
+			return { width: box.width, height: box.height, items };
+		});
+		const geometry = deriveGeometry({ width: measured.width, height: measured.height });
+		expect(
+			coversPane(geometry),
+			`coverage of a ${Math.round(measured.width)}x${Math.round(measured.height)} pane`,
+		).toBe(true);
+		expect(geometry.arms).toHaveLength(width >= 768 ? 2 : 1);
+		for (const item of measured.items) {
+			const arm =
+				geometry.arms.find((candidate) => item.centerX >= candidate.span[0] && item.centerX < candidate.span[1]) ??
+				geometry.arms.at(-1)!;
+			expect(item.from).toBeCloseTo((parkAngle(arm) * 180) / Math.PI, 1);
+			expect(item.span).toBeCloseTo(sweepSpanDeg(arm), 1);
+			expect(Number.isFinite(item.x) && Number.isFinite(item.y)).toBe(true);
+			// The hub hangs below the list, never below the stalk or the footer.
+			expect(item.y).toBeLessThanOrEqual(arm.pivotY + 1);
+		}
+	});
+}
+
+const scene = (page: Page) => page.locator('#goals canvas.wiper__scene');
+
+test('the scene canvas exists only while the notes page, fills the list box, and is inert', async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-	await expect(list).toHaveAttribute('aria-live', 'off');
-
-	// A vertical wheel over the slides is direct engagement: rotation stops
-	// and stays stopped (no courtesy resume when the pointer leaves). Under
-	// the hood this is also the gesture that walks Zag into its userScroll
-	// state with no SCROLL.END ever coming — the item group never scrolled.
-	await list.hover();
-	await page.mouse.wheel(0, 1);
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-	await page.mouse.move(0, 0);
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-
-	// The Play control must genuinely restart rotation from that parked
-	// state (userScroll ignores AUTOPLAY.START; the component re-asserts
-	// the current page to reach idle first) — a Play button may not lie.
-	const region = page.locator('#goals [aria-roledescription="carousel"]');
-	await region.getByRole('button', { name: 'Play auto-advance' }).click();
-	await expect(list).toHaveAttribute('aria-live', 'off');
-	await expect(region.getByRole('button', { name: 'Pause auto-advance' })).toBeVisible();
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await pointerAway(page);
+	await expect(scene(page)).toHaveCount(1);
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(scene(page)).toHaveAttribute('aria-hidden', 'true');
+	// The blade layer: one transparent canvas over the notes, same box, inert.
+	const blades = page.locator('#goals canvas.wiper__blades');
+	await expect(blades).toHaveCount(1);
+	await expect(blades).toHaveAttribute('aria-hidden', 'true');
+	const layering = await page.evaluate(() => {
+		const scene = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
+		const over = document.querySelector('#goals canvas.wiper__blades')!;
+		const box = over.getBoundingClientRect();
+		const style = getComputedStyle(over);
+		const list = getComputedStyle(document.querySelector('#goals .goal-list')!);
+		return {
+			same: Math.abs(box.width - scene.width) < 1 && Math.abs(box.height - scene.height) < 1,
+			z: Number(style.zIndex),
+			listZ: Number(list.zIndex),
+			pointer: style.pointerEvents,
+			radius: style.borderRadius,
+		};
+	});
+	expect(layering.same).toBe(true);
+	expect(layering.z).toBeGreaterThan(layering.listZ);
+	expect(layering.pointer).toBe('none');
+	expect(layering.radius).toBe('0px');
+	const boxes = await page.evaluate(() => {
+		const canvas = document.querySelector('#goals canvas.wiper__scene')!;
+		const list = document.querySelector('#goals .goal-list')!;
+		const c = canvas.getBoundingClientRect();
+		const l = list.getBoundingClientRect();
+		const style = getComputedStyle(canvas);
+		return {
+			dx: Math.abs(c.x - l.x),
+			dy: Math.abs(c.y - l.y),
+			dw: Math.abs(c.width - l.width),
+			dh: Math.abs(c.height - l.height),
+			pointer: style.pointerEvents,
+			radius: style.borderTopLeftRadius,
+			zIndex: style.zIndex,
+			listZ: getComputedStyle(list).zIndex,
+			// The canvas is behind the notes: a point inside a note's title hits the DOM, never the canvas.
+			hit: document.elementFromPoint(l.x + 40, l.y + 20)?.tagName,
+		};
+	});
+	expect(boxes.dx).toBeLessThanOrEqual(1);
+	expect(boxes.dy).toBeLessThanOrEqual(1);
+	expect(boxes.dw).toBeLessThanOrEqual(1);
+	expect(boxes.dh).toBeLessThanOrEqual(1);
+	expect(boxes.pointer).toBe('none');
+	expect(boxes.radius).toBe('0px');
+	expect(boxes.hit).not.toBe('CANVAS');
+	// Off is the plain grid: no scene at all; back on, it returns.
+	await selectDetent(page, 'Off');
+	await expect(scene(page)).toHaveCount(0);
+	await selectDetent(page, 'Intermittent');
+	await expect(scene(page)).toHaveCount(1);
 });
 
-test('reduced motion never auto-advances; manual navigation still works', async ({ page }) => {
+test('the scene is absent under reduced motion and hidden on paper and under forced colours', async ({ page }) => {
+	await page.setViewportSize(WIDE);
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await page.goto('/');
-	const list = page.locator('#goals .goal-list');
-
-	// The machine is created without autoplay: the live region reports the
-	// paused state and the rotation control is not offered at all — there
-	// is no rotation to control under reduced motion.
-	await expect(list).toHaveAttribute('aria-live', 'polite');
-	await expect(page.locator('#goals').getByRole('button', { name: /auto-advance/u })).toHaveCount(0);
-
-	// Longer than the auto-advance interval: nothing moves on its own.
-	expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
-	await page.waitForTimeout(8000);
-	expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
-
-	// Manual prev/next still work (with instant, non-smooth scrolls).
-	const region = page.locator('#goals [aria-roledescription="carousel"]');
-	await region.getByRole('button', { name: 'Next goal' }).click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
-	await region.getByRole('button', { name: 'Previous goal' }).click();
-	await expect.poll(async () => list.evaluate((el) => el.scrollLeft)).toBeLessThan(1);
+	await page.waitForLoadState('networkidle');
+	await expect(scene(page)).toHaveCount(0);
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await page.reload();
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveCount(1);
+	await page.emulateMedia({ media: 'print' });
+	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
+	expect(await page.locator('#goals canvas.wiper__blades').evaluate((el) => getComputedStyle(el).display)).toBe('none');
+	await page.emulateMedia({ media: 'screen', forcedColors: 'active' });
+	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
+	expect(await page.locator('#goals canvas.wiper__blades').evaluate((el) => getComputedStyle(el).display)).toBe('none');
+	await expect(stalk(page)).toBeVisible();
 });
+
+// The ink clamp: the scene is measured as painted, only under the notes' text
+// boxes, at rest and with an out-stroke held at its midpoint, both schemes.
+async function inkRects(page: Page) {
+	return page.evaluate(() => {
+		const canvas = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
+		const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
+		for (const row of document.querySelectorAll(
+			'#goals .goal-list > li.is-current, #goals .goal-list > li[data-wipe]',
+		)) {
+			for (const el of row.querySelectorAll('h3, p, a')) {
+				const r = el.getBoundingClientRect();
+				if (r.width <= 0 || r.height <= 0) continue;
+				rects.push({ left: r.left - canvas.left, top: r.top - canvas.top, width: r.width, height: r.height });
+			}
+		}
+		return rects;
+	});
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the scene never lifts the notes' ink off its floor (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		// At rest means at rest: a stroke shoves the notes across the glass
+		// while the pixels are read. A slower detent keeps the dwell already
+		// counting, so the only guaranteed window is the fresh dwell after a
+		// stroke ends: take Intermittent (at least 5.2 s of rest), let the next
+		// stroke run to its end, then sample.
+		await selectDetent(page, 'Intermittent');
+		await pointerAway(page);
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 20_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 20_000 });
+		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
+		// Let the blobs cruise into the glass before sampling.
+		await page.waitForTimeout(1200);
+		const check = async (label: string) => {
+			const rects = await inkRects(page);
+			expect(rects.length, `${label}: text rects`).toBeGreaterThan(3);
+			const extremes = await measureExtremesInRects(
+				page,
+				'#goals canvas.wiper__scene',
+				rects,
+				'#goals .goal-list, #goals canvas.wiper__blades',
+			);
+			const worst = async (role: string) => {
+				const ink = await resolveRoleRgb(page, role);
+				return Math.min(
+					roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
+					roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
+				);
+			};
+			expect(await worst('--fg'), `${label}: body copy`).toBeGreaterThanOrEqual(AA);
+			expect(await worst('--fg-muted'), `${label}: window copy`).toBeGreaterThanOrEqual(AA);
+			expect(await worst('--link'), `${label}: links and the active detent`).toBeGreaterThanOrEqual(AA);
+			expect(await worst('--heading'), `${label}: titles`).toBeGreaterThanOrEqual(LARGE);
+		};
+		await check('at rest');
+		await page.evaluate(() => {
+			document.documentElement.dataset.wiperFreeze = '0.5';
+		});
+		await selectDetent(page, 'High');
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+		await page.waitForTimeout(300);
+		await check('mid-sweep');
+		await page.evaluate(() => {
+			delete document.documentElement.dataset.wiperFreeze;
+		});
+	});
+}
+
+// The drawn blade and the mask edge share one clock and one easing. Hold the
+// out-stroke where an arm's ray crosses a gutter (no ink within the clamp's
+// reach there) and read the scene's own pixels: something far from the
+// ground (rubber in light, chrome in dark) sits on the ray; move the hold to
+// the vertical and the same spot is ground and blobs again. The left arm
+// crosses the left gutter as it rises; the right arm reaches the right gutter
+// near the turnaround.
+const BLADE_CONTRAST = 6;
+
+function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi: number, x: number) {
+	const sin = Math.sin(phi);
+	if (Math.abs(sin) < 1e-6) return null;
+	const t = (x - arm.pivotX) / sin;
+	if (t <= 0) return null;
+	return { x, y: arm.pivotY - t * Math.cos(phi) };
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		const box = await page.locator('#goals .goal-list').evaluate((el) => {
+			const r = el.getBoundingClientRect();
+			return { width: r.width, height: r.height };
+		});
+		const geometry = deriveGeometry(box);
+		expect(geometry.arms).toHaveLength(2);
+		const ground = await resolveRoleRgb(page, '--bg');
+		const sampleX = 24;
+		// The first held unit at which each arm's ray crosses its own gutter
+		// inside the glass; the pose is what the scene draws at that hold.
+		const targets = geometry.arms.map((arm, index) => {
+			const x = index === 0 ? sampleX : box.width - sampleX;
+			for (let unit = 0.02; unit <= 0.98; unit += 0.01) {
+				const pose = bladePoseAt(arm, box, 'out', unit, unit);
+				const point = rayPointAtX(arm, pose.phi, x);
+				// Inside the band's own 8% feathers, where the blade layer is at full strength.
+				if (point && point.y > box.height * 0.12 && point.y < box.height * 0.88) {
+					const half = 1.4 * pose.width;
+					return {
+						unit: unit.toFixed(2),
+						rect: { left: Math.max(0, x - half), top: point.y - half, width: 2 * half, height: 2 * half },
+					};
+				}
+			}
+			throw new Error(`no gutter crossing for the arm parked at ${parkAngle(arm)}`);
+		});
+		const peak = async (rect: (typeof targets)[number]['rect']) => {
+			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__blades', [rect], '#goals .goal-list');
+			return Math.max(
+				roundRatio(contrastRatio(ground, extremes.darkest.rgb)),
+				roundRatio(contrastRatio(ground, extremes.lightest.rgb)),
+			);
+		};
+		const hold = async (unit: string) => {
+			await page.evaluate((value) => {
+				document.documentElement.dataset.wiperFreeze = value;
+			}, unit);
+			// The engine applies the hold on its next frame; wait for the mask to carry it.
+			await page.waitForFunction(
+				(value) =>
+					(document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') ===
+					Number(value).toFixed(4),
+				unit,
+				{ timeout: 20_000 },
+			);
+			await page.waitForTimeout(150);
+		};
+		await hold(targets[0].unit);
+		await selectDetent(page, 'High');
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+		await hold(targets[0].unit);
+		expect(await peak(targets[0].rect), 'left blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		await hold(targets[1].unit);
+		expect(await peak(targets[1].rect), 'right blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		// At the vertical both blades stand over the span midpoints, far from either gutter.
+		await hold('0.5');
+		expect(await peak(targets[0].rect), 'left gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+		expect(await peak(targets[1].rect), 'right gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+		await page.evaluate(() => {
+			delete document.documentElement.dataset.wiperFreeze;
+		});
+	});
+}
+
+test('a pointer over the pane pauses the wipers, leaving resumes them, and focus inside reveals the focused note', async ({
+	page,
+}) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await pointerAway(page);
+	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	await pane(page).hover();
+	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
+	await pointerAway(page);
+	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	// Focus a note on the last page: the page turns at once, no wipe, and holds.
+	const lastIndex = publicGoals.length - 1;
+	await page.locator('#goals .goal-list > li').nth(lastIndex).locator('.goal-edit a').focus();
+	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
+	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
+	await expect(page.locator('#goals .goal-list > li').nth(lastIndex)).toBeVisible();
+	await page.waitForTimeout(wiperDetent('intermittent').dwellMs + 500);
+	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
+});
+
+test('reduced motion shows the same grid, every note visible, nothing moving', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	const list = page.locator('#goals .goal-list');
+	await expect(list.locator('> li')).toHaveCount(publicGoals.length);
+	await expect(page.locator('#goals [role="radiogroup"], #goals .wiper-stalk')).toHaveCount(0);
+	await expect(list).not.toHaveClass(/goal-list--paged/u);
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
+	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
+	await page.waitForTimeout(3000);
+	for (const row of await list.locator('> li').all()) await expect(row).toBeVisible();
+	expect(
+		await page.evaluate(
+			() =>
+				document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals')).length,
+		),
+	).toBe(0);
+});
+
+test('paper gets every note, no stalk and no edit links, even mid-wipe', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await selectDetent(page, 'High');
+	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+	await page.evaluate(() => {
+		document.documentElement.dataset.wiperFreeze = '0.5';
+	});
+	await page.emulateMedia({ media: 'print' });
+	const rows = page.locator('#goals .goal-list > li');
+	for (const selector of ['.wiper-stalk']) {
+		for (const el of await page.locator(`#goals ${selector}`).all()) {
+			expect(await el.evaluate((node) => getComputedStyle(node).display), selector).toBe('none');
+		}
+	}
+	expect(await rows.evaluateAll((els) => els.map((el) => getComputedStyle(el).maskImage))).toEqual(
+		publicGoals.map(() => 'none'),
+	);
+	const shown = await rows.evaluateAll((els) =>
+		els.map((el) => {
+			const style = getComputedStyle(el);
+			return [style.display !== 'none', style.opacity, style.transitionDuration];
+		}),
+	);
+	expect(shown).toEqual(publicGoals.map(() => [true, '1', '0s']));
+	for (const el of await page.locator('#goals .goal-edit').all()) {
+		expect(await el.evaluate((node) => getComputedStyle(node).display)).toBe('none');
+	}
+	await expect(section(page).getByRole('link', { name: 'Edit these notes on GitHub' })).toHaveCount(1);
+});
+
+test('the section never widens the page on a narrow phone', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 700 });
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pointerAway(page);
+	// The paged wiper is full bleed on the hero band's idiom (html clips x
+	// overflow), so the measure is the document and every element in the
+	// section against the viewport, not the section's own scroll width.
+	const overflow = await page.evaluate(() => {
+		const offenders: string[] = [];
+		for (const el of document.querySelectorAll<HTMLElement>('#goals, #goals *')) {
+			const r = el.getBoundingClientRect();
+			if (r.width === 0 || r.height === 0) continue;
+			if (r.left < -1 || r.right > window.innerWidth + 1) offenders.push(el.tagName + '.' + el.className.split(' ')[0]);
+		}
+		return { document: document.documentElement.scrollWidth - window.innerWidth, offenders };
+	});
+	expect(overflow.document).toBeLessThanOrEqual(0);
+	expect(overflow.offenders).toEqual([]);
+});
+
+for (const mode of ['enhanced', 'no-js'] as const) {
+	test.describe(`320px grid: ${mode}`, () => {
+		test.use({ viewport: { width: 320, height: 700 }, javaScriptEnabled: mode !== 'no-js' });
+
+		test('keeps every row and its links inside the section without clipping', async ({ page }) => {
+			await page.goto('/');
+			const list = page.locator('#goals .goal-list');
+			await expect(list.locator('> li')).toHaveCount(publicGoals.length);
+			// Nothing may be clipped by the viewport: rows and links stay inside
+			// the 320px width (the per-row Edit link keeps its 0.15rem optical
+			// overhang past the column, which is why the section box is not the
+			// reference; the responsive sweep's viewport rule is).
+			const bounds = await page.evaluate(() => {
+				const offenders: string[] = [];
+				for (const el of document.querySelectorAll<HTMLElement>('#goals .goal-list > li, #goals .goal-list a')) {
+					const r = el.getBoundingClientRect();
+					if (r.width === 0 || r.height === 0) continue;
+					if (r.left < -1 || r.right > window.innerWidth + 1)
+						offenders.push(el.tagName + ':' + (el.textContent ?? '').trim().slice(0, 30));
+				}
+				return offenders;
+			});
+			expect(bounds).toEqual([]);
+			expect(await list.evaluate((el) => getComputedStyle(el).overflowX)).toBe('visible');
+		});
+	});
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`content glass clears its floor over the blob layer (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
+		// The layer fades in after its idle mount; sample once it is opaque.
+		await page.waitForTimeout(1200);
+		const ground = page.locator('#goals .goal-asides');
+		await ground.scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		const extremes = await measureGlassExtremes(page, '#goals .goal-asides', 2);
+		const worst = async (role: string) => {
+			const ink = await resolveRoleRgb(page, role, '#goals .goal-asides');
+			return Math.min(
+				roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
+				roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
+			);
+		};
+		expect(await worst('--fg'), 'body copy on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--fg-muted'), 'muted copy on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--link'), 'links on the ground').toBeGreaterThanOrEqual(AA);
+		expect(await worst('--heading'), 'headings on the ground').toBeGreaterThanOrEqual(LARGE);
+	});
+}
 
 test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
 
-	test('the served HTML degrades to the resting goals grid with no dead chrome', async ({ page }) => {
+	test('the served HTML is the grid with no dead chrome', async ({ page }) => {
 		await page.goto('/');
 		const list = page.locator('#goals .goal-list');
 		await expect(list.locator('> li')).toHaveCount(publicGoals.length);
-		// No carousel chrome in the static document: no inert buttons, no
-		// scroll-snap inline layout on the list, no hidden slides.
+		// No chrome in the static document: no buttons, no switch, no stalk, no
+		// canvas, no inline style on the list, no hidden rows.
 		await expect(page.locator('#goals button')).toHaveCount(0);
+		await expect(page.locator('#goals [role="switch"], #goals [role="radiogroup"], #goals .wiper-stalk')).toHaveCount(
+			0,
+		);
+		await expect(page.locator('#goals svg, #goals canvas')).toHaveCount(0);
+		await expect(list).not.toHaveClass(/goal-list--paged/u);
 		await expect(list).not.toHaveAttribute('style', /./u);
 		await expect(page.locator('#goals [aria-hidden="true"]')).toHaveCount(0);
-		// The resting layout is the ratified borderless grid, not a scroller.
+		// The resting layout is the ratified borderless grid, not a scroller;
+		// the edit links are already there.
 		expect(await list.evaluate((el) => getComputedStyle(el).display)).toBe('grid');
 		expect(await list.evaluate((el) => getComputedStyle(el).overflowX)).toBe('visible');
+		await expect(page.locator('#goals .goal-edit a')).toHaveCount(publicGoals.length);
 	});
 });
 
-test('the session band carries one spelling of the Friday hours', async ({ page }) => {
+test('the hero carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
-	const band = page.locator('.next-session');
-	await expect(band.getByRole('heading', { level: 2 })).toHaveText('Public work sessions');
-	await expect(band.locator('.date-chip')).toHaveText('Fridays, about 3 to 5 PM ET');
-	await expect(band).not.toContainText('3–5');
-	await expect(page.locator('#status')).not.toContainText('Fridays');
+	const session = page.locator('.hero .hero-session');
+	await expect(session.getByRole('heading', { level: 3 })).toHaveText('Public work sessions');
+	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
+	await expect(session).not.toContainText('3–5');
+	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 });
 
 test('GitHub sits in the header as an outbound link and the AX footer row is gone', async ({ page }) => {

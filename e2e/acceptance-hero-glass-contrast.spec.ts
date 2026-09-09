@@ -1,30 +1,15 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
-import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
-import { decodePng, luminanceExtremes, type Rgb } from './support/png-luminance';
+import { expect, test } from '@playwright/test';
+import { contrastRatio, parseCssColor, roundRatio } from '../scripts/lib/color-contrast.mjs';
+import type { Rgb } from './support/png-luminance';
+import { measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
 
-// Review round 2, finding B: the unit-test model of `.hero-glass`'s AA
-// contract (a hardcoded panel percent composited over synthetic
-// black/white extremes) silently diverged from what the browser actually
-// painted — first because a hand-written -webkit-backdrop-filter line made
-// the frost never render at all (Chromium rejects the bare prefixed
-// property), and second because the model kept using the 88% opaque
-// fallback even after the translucent 68%/74% became the shipped value.
-// Both bugs are fixed now (src/app.css, src/lib/design-token-contrast.
-// test.ts), but a hardcoded vitest constant cannot re-derive itself if the
-// photo, panel percent, or ink roles drift again — so this spec is the
-// actual backstop: it measures the REAL rendered pixels, in a real
-// browser, on every run, and never trusts a CSS token in isolation.
-//
-// Methodology: hide everything inside .hero-glass except its own painted
-// background (visibility:hidden on descendants leaves the parent's
-// background/backdrop-filter untouched), screenshot just that element, and
-// scan the resulting PNG for the darkest/lightest pixel by WCAG relative
-// luminance. That is the true composite — blur, saturate, panel tint, and
-// whatever the scrim contributes underneath, all already baked in by the
-// compositor. No token math re-derives it.
+// Real-pixel backstop for the shared translucent surface contract. The unit
+// gate bounds arbitrary black/white backdrops with the declared tint and local
+// palette inks; this spec verifies the compiled cascade and actual composite.
+// Descendant ink is hidden only while each background screenshot is taken.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contrastTestSource = readFileSync(path.join(repoRoot, 'src/lib/design-token-contrast.test.ts'), 'utf8');
@@ -33,63 +18,11 @@ const AA = 4.5;
 const LARGE = 3;
 const NON_TEXT = 3;
 
-async function setScheme(page: Page, scheme: 'light' | 'dark') {
-	await page.evaluate((mode) => {
-		localStorage.setItem('color-mode', mode);
-		document.documentElement.setAttribute('data-mode', mode);
-	}, scheme);
-	await page.reload();
-	await page.waitForLoadState('networkidle');
-}
-
-/** Resolves a CSS custom property to true 8-bit sRGB via a canvas round-trip
- * (getComputedStyle can hand back an oklch() string verbatim; canvas
- * fillStyle always normalizes to a paintable colour). */
-async function resolveRoleRgb(page: Page, role: string): Promise<Rgb> {
-	return page.evaluate((cssVar) => {
-		const el = document.createElement('div');
-		el.style.color = `var(${cssVar})`;
-		el.style.position = 'absolute';
-		el.style.opacity = '0';
-		document.body.appendChild(el);
-		const computed = getComputedStyle(el).color;
-		el.remove();
-		const canvas = document.createElement('canvas');
-		canvas.width = 1;
-		canvas.height = 1;
-		const ctx = canvas.getContext('2d')!;
-		ctx.fillStyle = computed;
-		ctx.fillRect(0, 0, 1, 1);
-		const [red, green, blue] = ctx.getImageData(0, 0, 1, 1).data;
-		return { red, green, blue };
-	}, role);
-}
-
-async function measureGlassExtremes(page: Page, selector: string) {
-	const rect = await page.evaluate((sel) => {
-		const el = document.querySelector(sel);
-		if (!el) return null;
-		const r = el.getBoundingClientRect();
-		return { x: r.x, y: r.y, width: r.width, height: r.height };
-	}, selector);
-	if (!rect) throw new Error(`${selector} is not present on the page`);
-
-	await page.addStyleTag({ content: `${selector} * { visibility: hidden !important; }` });
-	const buffer = await page.screenshot({ clip: rect });
-	await page.evaluate(() => {
-		document.querySelectorAll('style').forEach((s) => {
-			if (s.textContent?.includes('visibility: hidden')) s.remove();
-		});
-	});
-	const image = decodePng(buffer);
-	return luminanceExtremes(image, 6);
-}
-
 function ratioAgainst(ink: Rgb, extreme: { rgb: Rgb }): number {
 	return roundRatio(contrastRatio(ink, extreme.rgb));
 }
 
-test.describe('hero glass — real rendered contrast (review round 2, finding B)', () => {
+test.describe('glass surfaces: real rendered contrast', () => {
 	test('backdrop-filter actually computes a blur, not none', async ({ page, baseURL }) => {
 		// Regression guard for the exact bug: a hand-written
 		// -webkit-backdrop-filter line made the build emit ONLY the prefixed
@@ -104,26 +37,11 @@ test.describe('hero glass — real rendered contrast (review round 2, finding B)
 	});
 
 	for (const scheme of ['light', 'dark'] as const) {
-		test(`every hero pair clears its floor against the real rendered glass (${scheme})`, async ({ page, baseURL }) => {
+		test(`every glass pair clears its floor against the real rendered surfaces (${scheme})`, async ({ page, baseURL }) => {
 			await page.setViewportSize({ width: 1440, height: 900 });
 			await page.goto(baseURL ?? '/');
 			await page.waitForLoadState('networkidle');
 			await setScheme(page, scheme);
-
-			const heroExtremes = await measureGlassExtremes(page, '.hero-glass');
-			const statusCardExtremes = await measureGlassExtremes(page, '.status-card.hero-glass');
-
-			// The worse (less contrasty) of the two regions per extreme — this
-			// spec proves the conservative pair across both hero-glass surfaces,
-			// not an average.
-			const darkest =
-				heroExtremes.darkest.luminance < statusCardExtremes.darkest.luminance
-					? heroExtremes.darkest
-					: statusCardExtremes.darkest;
-			const lightest =
-				heroExtremes.lightest.luminance > statusCardExtremes.lightest.luminance
-					? heroExtremes.lightest
-					: statusCardExtremes.lightest;
 
 			const pairs: Array<{ name: string; role: string; minimum: number }> = [
 				{ name: 'hero lede', role: '--fg', minimum: AA },
@@ -134,19 +52,28 @@ test.describe('hero glass — real rendered contrast (review round 2, finding B)
 				{ name: 'status-card muted copy', role: '--fg-muted', minimum: AA },
 				{ name: 'status-card heading', role: '--heading', minimum: LARGE },
 				{ name: 'status-card strong', role: '--heading', minimum: AA },
+				{ name: 'contact error text', role: '--danger', minimum: AA },
 				{ name: 'primary button fill', role: '--accent', minimum: NON_TEXT },
 				{ name: 'secondary button border', role: '--accent', minimum: NON_TEXT },
 			];
 
-			for (const pair of pairs) {
-				const ink = await resolveRoleRgb(page, pair.role);
-				const ratioDark = ratioAgainst(ink, darkest);
-				const ratioLight = ratioAgainst(ink, lightest);
-				const worst = Math.min(ratioDark, ratioLight);
-				expect(
-					worst,
-					`${pair.name} (${scheme}) vs real rendered glass: darkest ${ratioDark}:1, lightest ${ratioLight}:1`,
-				).toBeGreaterThanOrEqual(pair.minimum);
+			for (const selector of ['.hero-glass', '.status-card.hero-glass', '#goals .goal-asides', '.site-footer']) {
+				const surface = page.locator(selector).first();
+				await surface.scrollIntoViewIfNeeded();
+				const extremes = await measureGlassExtremes(page, selector);
+				for (const pair of pairs) {
+					const ink = await resolveRoleRgb(page, pair.role, selector);
+					const ratioDark = ratioAgainst(ink, extremes.darkest);
+					const ratioLight = ratioAgainst(ink, extremes.lightest);
+					expect(
+						Math.min(ratioDark, ratioLight),
+						`${pair.name} (${scheme}, ${selector}): darkest ${ratioDark}:1, lightest ${ratioLight}:1`,
+					).toBeGreaterThanOrEqual(pair.minimum);
+				}
+			}
+			for (const selector of ['.hero-glass', '.status-card.hero-glass', '#goals', '.site-footer']) {
+				const fill = await page.locator(selector).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+				expect(parseCssColor(fill).alpha, `${selector} must transmit 30% of its backdrop`).toBeCloseTo(0.7, 4);
 			}
 		});
 	}

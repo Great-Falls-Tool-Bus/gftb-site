@@ -69,11 +69,11 @@ goals-manifest-build:
 
 goals-manifest-check: check
 
-entrypoint-contract: check
+entrypoint-contract: conformance
 
 workflow-validate: check
 
-repo-manifest-validate: check
+repo-manifest-validate: conformance
 
 skills-validate: check
 

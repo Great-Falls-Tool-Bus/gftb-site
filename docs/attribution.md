@@ -65,8 +65,10 @@ requests. See `NOTICE` for the concise distribution notice.
   `static/photos/goals/bus-interior-seats-1280.webp`,
   `static/photos/goals/bus-interior-cleared-1280.webp`,
   `static/photos/goals/bus-on-lawn-1280.webp`,
-  `static/photos/log/2026-08-11-how-tools-will-move-1280.webp`
-- Author: Jess Sullivan (operator-shot), August 2026
+  `static/photos/goals/legacy-hardware-in-hand-1280.webp`,
+  `static/photos/log/2026-08-11-how-tools-will-move-1280.webp`,
+  `static/photos/log/2026-09-07-alex-the-wheel-maven-1280.webp`
+- Author: Jess Sullivan (operator-shot), August and September 2026
 - Rights: project-owned photographs
 
 Published renditions are 1280w downscales of the metadata-stripped 2000w webp
@@ -76,3 +78,9 @@ then `cwebp -q 72 -m 6 -resize 1280 0 -metadata none`. Each published file was
 verified metadata-free with `webpmux -info` (no EXIF, XMP, or ICC chunks).
 The phone originals (HEIC) are never published without an EXIF/colorspace
 audit; the source masters live off-repo on operator storage.
+
+The two September 2026 files were encoded straight from the phone originals
+(Display P3 HEIC): `sips --matchTo "/System/Library/ColorSync/Profiles/sRGB
+Profile.icc" -s format png` to an sRGB PNG intermediate, then the same
+`cwebp -q 72 -m 6 -resize 1280 0 -metadata none` line, verified with
+`webpmux -info` (no EXIF, XMP, or ICC chunks).

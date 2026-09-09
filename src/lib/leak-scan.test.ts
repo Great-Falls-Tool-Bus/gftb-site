@@ -102,7 +102,7 @@ describe('leak-scan detections', () => {
 
 	it('sanctions only the SourceLink surfaces of the site repo, never its tracker pages', () => {
 		// The edit-this-page affordance (demo #94, addendum B1.2) publishes the
-		// repo root plus /edit/ and /blob/ source links and the advisory form.
+		// repo root plus /edit/, /blob/ and /tree/ source links and the advisory form.
 		// Every OTHER repo, and this repo's PR/issue/commit surfaces, stay
 		// banned repository pointers.
 		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site')).not.toContain('internal-tracker-reference');
@@ -111,6 +111,14 @@ describe('leak-scan detections', () => {
 		).not.toContain('internal-tracker-reference');
 		expect(
 			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/blob/main/src/routes/+page.svelte'),
+		).not.toContain('internal-tracker-reference');
+		// The Notes & Goals surface (operator ruling 2026-09-08) extends the
+		// same exception to the collection tree and the per-row edit links.
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/tree/main/src/content/goals')).not.toContain(
+			'internal-tracker-reference',
+		);
+		expect(
+			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/edit/main/src/content/goals/10-form-the-club.md'),
 		).not.toContain('internal-tracker-reference');
 		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/pull/25')).toContain(
 			'internal-tracker-reference',
@@ -158,7 +166,7 @@ describe('leak-scan detections', () => {
 			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/commit/deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'),
 		).toContain('internal-tracker-reference');
 		// The shape the fixed footer actually renders when stamped is clean.
-		expect([...idsFiring('built from <code>deadbee</code>, GitHub-verified')]).toEqual([]);
+		expect([...idsFiring('built from <code>deadbee</code>')]).toEqual([]);
 	});
 
 	it('keeps the layout from rebuilding a commit URL at the provenance site', () => {

@@ -51,15 +51,16 @@ test.describe('prefers-reduced-motion', () => {
 	});
 
 	test('anchor navigation still lands on its target with motion reduced', async ({ page, guardedPage }) => {
-		// The contact CTA is a page link now (B1.4); the footer's History link
-		// is the surviving same-page anchor this row exercises.
+		// The skip link remains a useful same-page anchor after content edits.
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await guardedPage();
-		await page.getByRole('link', { name: 'History', exact: true }).click();
-		await expect(page).toHaveURL(/#history$/u);
-		const settled = await page.locator('#history').evaluate((element) => element.getBoundingClientRect().top);
-		// scroll-margin-top is 5rem; the section must be at the top of the
-		// viewport immediately, not easing toward it.
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('link', { name: 'Skip to content', exact: true })).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(page).toHaveURL(/#main-content$/u);
+		await expect(page.locator('#main-content')).toBeFocused();
+		const settled = await page.locator('#main-content').evaluate((element) => element.getBoundingClientRect().top);
+		// The target lands near the viewport top without a smooth transition.
 		expect(Math.abs(settled)).toBeLessThan(120);
 	});
 
@@ -84,13 +85,25 @@ test.describe('keyboard operability', () => {
 					'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
 				),
 			);
-			return focusable
-				.filter((element) => !element.closest('.honeypot'))
-				.filter((element) => element.getAttribute('tabindex') !== '-1')
-				.map(
-					(element) =>
-						element.id || `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24)}`,
-				);
+			return (
+				focusable
+					.filter((element) => !element.closest('.honeypot'))
+					.filter((element) => element.getAttribute('tabindex') !== '-1')
+					// A native radio group is one tab stop: the checked radio, or the
+					// first when none is (the wiper stalk's four detents).
+					.filter((element) => {
+						if (!(element instanceof HTMLInputElement) || element.type !== 'radio' || !element.name) return true;
+						const group = Array.from(
+							document.querySelectorAll<HTMLInputElement>(`input[type=radio][name="${CSS.escape(element.name)}"]`),
+						);
+						const checked = group.find((radio) => radio.checked);
+						return checked ? element === checked : element === group[0];
+					})
+					.map(
+						(element) =>
+							element.id || `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24)}`,
+					)
+			);
 		});
 		expect(expected.length, 'focusable controls on the page').toBeGreaterThan(8);
 
@@ -162,8 +175,8 @@ test.describe('keyboard operability', () => {
 				// person can actually perceive, not a clipped box's computed
 				// style (review E7).
 				const indicatorHost =
-					control.tagName === 'INPUT' && control.closest('.mode-switch')
-						? (control.closest('.mode-switch') as HTMLElement)
+					control.tagName === 'INPUT' && control.closest('.mode-switch, .wiper-stalk__item')
+						? (control.closest('.mode-switch, .wiper-stalk__item') as HTMLElement)
 						: control;
 				const before = readable(indicatorHost);
 				control.focus();

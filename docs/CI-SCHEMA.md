@@ -5,12 +5,13 @@ v4 execution and serving require their separate runtime evidence below.
 
 ## Source and release admission
 
-The operator's 2026-09-08 ruling keeps GFTB on GitHub Free and this source
-repository private. GitHub branch-protection status, rulesets, and a paid-plan
-upgrade are not integration or publication gates. Meta ADR 0014 section 7 and
+The operator's 2026-09-08 ruling keeps GFTB on GitHub Free. The September 9
+public-source ruling supersedes its private-source restriction: files and
+draft PRs are readable before website publication. GitHub branch-protection
+status, rulesets, and a paid-plan upgrade are not integration or publication
+gates. Meta ADR 0014 section 7 and
 ADR 0022 Amendment 7 carry the ruling in
-[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63), pending merge
-to Meta `main`.
+[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63).
 
 Integration still requires signed commits, independent review of the exact
 head, and successful registered remote checks. GF/org admission and release
@@ -41,7 +42,11 @@ Developer operations enter through Just and the same image-custodied client
 as CI. `just check` selects `validate`; its cacheable
 `//:ci_validation_suite` includes schema/conformance and immutable caller
 contracts, current-source Gitleaks, generated source/log/goal manifest drift
-checks, checksummed actionlint, Prettier, ESLint, Svelte checks, and unit tests.
+checks, checksummed actionlint, Prettier, ESLint, Svelte checks, unit tests,
+the served TinyVectors package proof, and five Chromium acceptance specs.
+The finite browser test uses only the declared build and GF's provisioned
+Chromium. It installs no browser, uses no ambient preview, and proves no
+deployed environment or LOOK.
 `just build` selects `site-build` and exports qualified results into a new
 absolute directory; it does not run or materialize a local Bazel build.
 The checkout SHA is supplied to the client, which owns source and identity
@@ -85,9 +90,11 @@ source-independent; its Bazel deployment layer carries the exact application
 content. Neither the ActionPlan nor the developer build recipe publishes or
 deploys an image.
 
-The source repository remains private. Only the operator-authorized image
-package may become public. The repository carries no registry pull secret,
-cluster credential, production dispatch, or mutable production image tag.
+The source repository is public under the September 9 operator ruling.
+That does not establish image-package visibility or pullability. The operator
+release lane must prove anonymous manifest lookup and digest pull for the
+reviewed public image before cutover. The repository carries no registry pull
+secret, cluster credential, production dispatch, or mutable production image tag.
 The consumer deployment lifecycle selects qualified immutable results; these
 source definitions alone do not prove it is installed or serving.
 

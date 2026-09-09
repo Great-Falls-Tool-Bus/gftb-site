@@ -1,59 +1,105 @@
 # Great Falls Tool Bus public site
 
-The static public front door for the Great Falls Tool Bus in
-Lewiston–Auburn, Maine. The site explains what the project is, what is happening
-next, how to help, and publishes a small reviewed build log.
+This public repository builds the apex website for the Great Falls Tool Bus
+in Lewiston and Auburn, Maine. It holds page copy, goals, and build logs.
+SvelteKit produces static files with `adapter-static`.
 
-## Boundaries
+Member accounts, payments, mail services, and deployment belong to other
+repositories. The contact form sends requests to `forms.latoolb.us`.
 
-- Static SvelteKit output (`adapter-static`); no runtime server.
-- No auth, member records, payments, mail operations, private content, or
-  infrastructure authority.
-- The browser posts the public contact form to the separately operated
-  `forms.latoolb.us` API, with an email fallback. This repo owns neither service.
-- Daily logs are checked-in `.svx` documents. Their frontmatter is limited to
-  `date`, `title`, `summary`, `tags`, `published`, and optional `updated`.
-  Entries with `published: true` enter the generated public manifest. An
-  operator-pending `published: false` draft may remain in `src/content/log/`;
-  the manifest excludes it and the built-output leak scan verifies that its
-  content did not ship. Drafts are still scanned and must contain no private
-  text.
-- Internal tracker IDs, PRs, SHAs, repo pointers, and private locations never
-  appear in public logs.
+Jess's internal tooling and Linear management system are presently private.
+GloriousFlywheel infrastructure is provided by Tinyland, Inc.
 
-## Stack and commands
+## Start work
 
-This spoke follows the Tinyland repository contract: Just is the only operator
-entrypoint, Nix supplies the shell, and Bazel/GloriousFlywheel provide the
-finite build and test graph. This repo carries an explicit Skeleton 5.0.0
-exception based on the proven `jesssullivan.github.io` Svelte 5 pattern.
+You need Git, Nix, and the provisioned GloriousFlywheel client for remote
+checks. Clone the public source and enter the pinned Nix shell:
 
 ```bash
+git clone https://github.com/Great-Falls-Tool-Bus/gftb-site.git
+cd gftb-site
+nix develop
+just
 just check
 just build
 ```
 
-Both commands call the image-custodied GF client using this checkout's exact
-source SHA and checked-in ActionPlan. Missing client, identity, App, overlay,
-or remote execution authority fails closed; there is no local build/test path.
+Just is the entrypoint for repository operations. `just setup` installs locked
+dependencies for editing source and running the content generators. Checks
+and builds use the image-custodied GF client, this checkout's exact source
+SHA, and its checked-in ActionPlan. Missing client or owner admission fails
+closed. These recipes do not start a local development server or build.
+
+| Task | Command |
+| --- | --- |
+| Run the registered validation suite | `just check` |
+| Request the scanned deployment bundle | `just build` |
+| Update the daily-log manifest | `just log-manifest-build` |
+| Update the goals manifest | `just goals-manifest-build` |
+| Update page source links | `just source-map-build` |
+
+`just test-unit`, `just conformance`, `just lint`, and `just typecheck` select
+the same remote validation suite. It includes finite Chromium acceptance
+using GF's provisioned browser and the TinyVectors package proof. Those tests
+do not establish a deployed preview or operator LOOK.
+
 `just build` writes qualified-result audit files naming the exact CAS-backed
-deployment bundle into a new `.gf-site-build-result/` directory. Those files
-do not materialize the bundle or confer publication authority. Pass a different
-new absolute result directory for another export; existing results are not
+deployment bundle into a new `.gf-site-build-result/` directory. It does not
+materialize the bundle or confer publication authority. Pass a different new
+absolute result directory for another export; existing results are not
 overwritten.
 
-The GF-I09 publisher, not an application-repository workflow or local Nix
-build, composes and publishes the qualified layer with the runtime base.
-Publication does not itself select or deploy the image for production.
-`just setup` and the Nix shell remain source-editing conveniences, not
-prerequisites for remote execution or substitutes for its authority.
+## Variables and credentials
 
-The source repository remains private. After review, the operator release lane
-may make only this public web image package anonymous-readable and must prove a
-digest pull before cutover; this repo carries no registry pull credentials.
+Content editing needs no site `.env` file. Keep GitHub write access in your
+account's credential configuration. Never commit credentials or put them in
+site content, build output, or PR text.
+
+The provisioned GF client and owner installation supply execution identity
+and credentials. This repository does not load or store their values. GF
+binds the exact source SHA to Bazel's `BUILD_EMBED_LABEL`; the source-marker
+action produces the file consumed by Vite and the deployment bundle. A missing
+or malformed marker fails the build. There is no unknown source stamp or
+caller-supplied publication token in this repository's release path.
+
+Deployment credentials and apply recipes belong to
+`great-falls-tool-bus-infra`. Its
+[owner release runbook](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/blob/main/docs/runbooks/oncluster-web-cutover.md)
+lists the attended release inputs and their private storage requirements.
+Do not copy them here. Local shell variables do not replace GF admission or
+an owner release transaction.
+
+## Source, publication, and deployment
+
+The September 9, 2026 operator decision made this source repository public
+and superseded the earlier private-source restriction. GitHub files and pull
+requests, including draft PRs, are publicly readable.
+
+The source declares two GF actions: `validate` runs the registered checks,
+and `site-build` requests the scanned deployment bundle. See
+[the CI contract](docs/CI-SCHEMA.md) for exact targets and output rules.
+
+GF-I09 composes and publishes the qualified application layer with its runtime
+base. This repository has no separate candidate publisher or local image
+constructor. Publication does not deploy an image. Infra owns source and
+digest selection, apply, independent running and served readback, and rollback.
+The runtime must serve the expected full source SHA at `/health.sha`.
+
+These source definitions do not establish working automatic deployment from
+`main` to production. A source merge, successful check, or image push alone
+does not prove which version production serves.
 
 ## Content and licensing
 
-Public logs live in `src/content/log/`. Software is licensed under zlib; GFTB
-written content is CC BY-SA 4.0. Third-party visual provenance is recorded in
-`NOTICE` and `docs/attribution.md`.
+Build logs live in `src/content/log/`. Use only the frontmatter fields allowed
+by [the content contract](AGENTS.md#public-content-boundary), including its
+optional image group. Follow [the content guide](docs/content-train.md) for the
+review process. Only `published: true` entries enter the public manifest.
+
+Draft PRs and `published: false` sources are public on GitHub. Those states
+control website publication, not source privacy. Privacy and content checks
+must finish before a draft is written. Keep private text, tracker IDs,
+PR numbers, commit IDs, and private operational notes out of public logs.
+
+Software uses the zlib license. GFTB writing uses CC BY-SA 4.0. Third-party
+credits are in [NOTICE](NOTICE) and [the attribution record](docs/attribution.md).

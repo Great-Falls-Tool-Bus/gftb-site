@@ -2,10 +2,15 @@
 
 ## Role and authority
 
-This private repository builds the public static site at
+This public repository builds the public static site at
 `greatfallstoolbus.org`. It owns reviewed public page copy, build-time `.svx`
 daily logs, the static build graph, a qualified application layer, and its
 source-independent runtime-base definition.
+
+**Source visibility (operator ruling, 2026-09-09).** This repository's source
+is public. This explicitly supersedes the earlier instruction to keep
+`gftb-site` private. Jess's internal tooling, member data, private mail, and
+private list archives remain outside this repository.
 
 It owns no member records, auth, payments, mail administration, private
 content, DNS, Cloudflare state, cluster state, or GitOps apply authority. The
@@ -35,8 +40,10 @@ Public daily-log frontmatter is exactly:
 Every file in `src/content/log/` is public build input. Entries render only
 with `published: true`; a `published: false` file is an operator-pending
 TODO(jess) draft (restoration addendum B1.2) that the loader excludes from
-every rendered surface — a draft is still leak-scanned and is never a place
-to park private text.
+every rendered surface. Files and pull requests on this public GitHub
+repository are readable, including draft PRs and `published: false` entries.
+Those draft states do not make source private. A draft is still leak-scanned
+and is never a place to park private text.
 
 Never publish Linear IDs, PR numbers, commit SHAs, tracker pointers,
 credentials, member information, private locations, or internal operational
@@ -45,7 +52,9 @@ developer docs, or private list archives. One repository pointer is
 sanctioned (B1.2, demo #94): the SourceLink "Edit this page" affordance links
 this repo's own page sources (`/edit/`, `/blob/`, the advisory form) through
 the generated `src/lib/generated/source-map.json`, drift-gated by
-`just source-map-check`; the repo's PR/issue/commit surfaces stay banned
+`just source-map-check`, and the home Notes & Goals surface extends the same
+exception to per-row `/edit/` links and the `/tree/` collection link
+(operator ruling 2026-09-08); the repo's PR/issue/commit surfaces stay banned
 (`scripts/lib/leak-scan-rules.json`). `discuss@latoolb.us` is the public discussion
 list and archive; `keyholders@latoolb.us` is a private role list whose archive
 is not public.
@@ -65,7 +74,13 @@ is not public.
 - `just check` selects the same v4 `validate` action as CI. Its cacheable
   `//:ci_validation_suite` registers the schema/conformance and immutable-caller
   contract, current-source Gitleaks, generated source/log/goal manifest drift
-  checks, hermetic actionlint, ESLint, Prettier, Svelte checks, and unit tests.
+  checks, hermetic actionlint, ESLint, Prettier, Svelte checks, unit tests,
+  and five Chromium acceptance specs over the declared static build. The
+  browser target requires GF's provisioned Chromium; it never installs a
+  browser or attaches to an ambient preview. It does not prove a deployed LOOK.
+  The suite also carries `//:served_tinyvectors_test`, which checks the declared
+  client chunks against the TinyVectors version in `MODULE.bazel`. An ambient
+  package or a separately rebuilt tree cannot establish that package proof.
   The source SHA comes from the exact checkout; the client owns identity
   verification and refuses missing v4 authority.
 - `just conformance`, `test-unit`, `typecheck`, `lint`, and the other check
@@ -83,10 +98,10 @@ is not public.
   flow. The name `qa-look` is reserved for the PullRequestEnvironment/v1
   consumer flow: a routable, tailnet-only, reapable, exact-head QA environment
   per pull request plus the operator LOOK ("the pr-N lane IS the QA
-  evidence"). See `docs/qa-look.md`. Browser test source in `e2e/` remains
-  parked outside the two-action plan. Its former local launcher, preview
-  server, and toolchain are removed; there is no browser action or LOOK proof
-  to claim from them.
+  evidence"). See `docs/qa-look.md`. The finite Chromium acceptance target
+  belongs to the remote `validate` suite. It serves only its declared build
+  inside that test action; it does not create a deployed preview or LOOK.
+  The former local launcher and preview recipe remain removed.
 - `just leak-scan` selects `site-build`, whose build graph runs the rules in
   `scripts/lib/leak-scan-rules.json`. `scripts/check-build-output.mjs` is a thin runner over
   `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`
@@ -142,12 +157,12 @@ analysis, coverage, or candidate-publication recipe outside this plan.
 
 ## Deployment and package safety
 
-Operator ruling, 2026-09-08: GFTB stays on GitHub Free and this source
-repository stays private. GitHub branch protection, rulesets, and a paid plan
-are not prerequisites for this site's integration or publication. The ruling
+Operator ruling, 2026-09-08: GFTB stays on GitHub Free. The September 9
+public-source ruling supersedes that ruling's private-source restriction.
+GitHub branch protection, rulesets, and a paid plan are not prerequisites for
+this site's integration or publication. The ruling
 is carried by Meta ADR 0014 section 7 and ADR 0022 Amendment 7 in
-[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63), pending merge
-to Meta `main`.
+[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63).
 
 Signed commits, exact-head independent review, and successful registered
 remote checks remain required. GF/org admission must bind the exact
@@ -163,9 +178,10 @@ application-image constructor. It owns neither production dispatch nor infra,
 DNS, or edge credentials. GitHub Pages workflows are forbidden. A merge,
 green CI, or successful package push is not served-site proof.
 
-Source stays private. The operator release lane may make only the reviewed web
-image package public after publication, then must prove anonymous manifest and
-digest pull. Do not add registry credentials or image-pull secrets here.
+Public source does not establish image-package visibility or pullability. The
+operator release lane may make only the reviewed web image package public
+after publication, then must prove anonymous manifest and digest pull. Do not
+add registry credentials or image-pull secrets here.
 
 ## Delete-after-rewire policy
 
@@ -200,7 +216,6 @@ or script while any live entrypoint still references it.
   browsing/QA (gstack supersedes there); operator-attended LOOK tab-opening
   is the sanctioned exception. SSOT: `prompts-enqueue`
   `context/house-active-dialog-cadence.md`.
-- This repo stays private until an explicit visibility decision.
 
 ## Licenses and assets
 

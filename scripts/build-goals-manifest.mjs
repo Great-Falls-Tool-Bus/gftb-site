@@ -1,7 +1,7 @@
 // `just goals-manifest-build`: derive src/lib/generated/goals-manifest.ts
 // from src/content/goals/*.md, PUBLISHED entries only, the log-manifest
 // pattern (scripts/build-log-manifest.mjs) applied to the home page's
-// near-term goals, help asks, and member benefits. The internal `source`
+// Notes & Goals rows, help asks, and member benefits. The internal `source`
 // provenance key is dropped here so it never reaches the bundle.
 // `//:goals_manifest_drift_test` runs this generator read-only with `--check`.
 import { promises as fs } from 'node:fs';

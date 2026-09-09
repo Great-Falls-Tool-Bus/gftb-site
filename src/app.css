@@ -116,8 +116,8 @@
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	font-synthesis: none;
 	color: var(--fg);
-	/* DELIBERATELY NO background here. The root element must stay
-	 * background-free so `body`'s wash+ground background propagates to the
+	/* The html rule below clears Skeleton's imported root background so
+	 * `body`'s wash+ground background propagates to the
 	 * CANVAS (CSS Backgrounds 3 §2.11.2) — that is what lets the negative-z
 	 * .brand-vectors-bg layer paint ABOVE the page ground yet UNDER every
 	 * in-flow surface. A background on :root defeats the propagation: body's
@@ -151,6 +151,17 @@
 	 * thumb is the control's 1.4.11 boundary (measured 5.06:1 light / 3.74:1
 	 * dark by design-token-contrast.test.ts's swept pair) */
 	--control-track: var(--color-surface-300);
+
+	/* Glass ink uses stronger existing palette rungs so a 70% surface stays
+	 * readable even over a black or white backdrop. Global page roles stay
+	 * unchanged; the surface selector below applies these roles locally. */
+	--glass-panel: var(--color-surface-50);
+	--glass-fg: var(--color-surface-950);
+	--glass-muted: var(--color-surface-900);
+	--glass-heading: var(--color-primary-900);
+	--glass-link: var(--color-primary-900);
+	--glass-accent: var(--color-primary-700);
+	--glass-danger: var(--color-error-900);
 
 	/* ── The inverted contact panel (restored) ────────────────────────────
 	 * The ratified role table's inverse group, gen_board.py:170-179: the
@@ -221,6 +232,11 @@
 }
 
 html {
+	/* Skeleton's base layer paints html even when our :root declares no
+	 * background. Clear that imported fill and image explicitly so body's
+	 * ground propagates to the canvas below the negative-z vector layer.
+	 * The browser regression checks the compiled cascade and painted pixels. */
+	background: transparent;
 	/* Document-level guard: nothing may widen the page. `clip` rather than
 	 * `hidden` so no scroll container is created and position: sticky keeps
 	 * working. (Previous apex guard, present there since its first commit.) */
@@ -231,8 +247,8 @@ html {
 body {
 	margin: 0;
 	min-width: 320px;
-	/* This is the CANVAS background: :root deliberately declares none (see
-	 * the role block above), so this propagates to the canvas and paints
+	/* This is the CANVAS background: html explicitly clears the imported
+	 * root background, so this propagates to the canvas and paints
 	 * below every negative-z layer — the seam .brand-vectors-bg depends on. */
 	background: linear-gradient(180deg, var(--wash), transparent 22rem), var(--bg);
 	color: var(--fg);
@@ -278,8 +294,8 @@ body {
  * ladder for the same reason as .hero__media: this is a below-content layer,
  * not a UI tier. .app-shell (position: relative, z-index auto) creates no
  * stacking context, so z-index: -1 stacks against the root context. The
- * layering contract that makes -1 actually visible: :root declares NO
- * background, so body's wash+ground background propagates to the CANVAS and
+ * layering contract that makes -1 actually visible: html clears the imported
+ * root background, so body's wash+ground background propagates to the CANVAS and
  * paints below this layer, while every in-flow surface paints above it (a
  * root background would flip that — body's background would then stack over
  * all negative-z layers and occlude the blobs completely; see the :root
@@ -301,7 +317,7 @@ body {
  * reduced-motion contract is ZERO declared transition time
  * (e2e/acceptance-motion-keyboard.spec.ts sweeps every element), so kill the
  * declaration here — !important is required to beat the element-level inline
- * style, exactly the .goal-list--enhanced print precedent. */
+ * style, exactly the print unwind precedent (@media print). */
 @media (prefers-reduced-motion: reduce) {
 	.brand-vectors-bg * {
 		transition: none !important;
@@ -725,69 +741,49 @@ li {
 	padding-block: clamp(4rem, 10vw, 7rem);
 }
 
-/* The featured-glass idiom (demo #90, .hero-glass), on the role layer.
- * Opaque fallback FIRST — `--panel at 88%`, the same mix the card family
- * used to composite; this is the no-@supports fallback contract, unrelated
- * to the AA gate below (2026-08-20 correction — see the @supports block's
- * comment for why the gate no longer models this number as the translucent
- * ground). The translucent variant is progressive enhancement, free to
- * match the demo's own operating point instead of restating the fallback —
- * but neither value matches the demo's 68%/74% verbatim; see below. */
+/* Shared glass surfaces: a 70% palette tint leaves 30% of the photo or
+ * vector backdrop visible. Stronger local inks carry contrast; whole-element
+ * opacity would fade the text too. The same fill works without backdrop
+ * filters, so readability does not depend on blur or a measured photo frame.
+ * The root and body canvas-propagation rules remain untouched. */
+.hero-glass,
+.page-shell > .section:not(.section--bare),
+.page-shell > .log-entry,
+.page-shell > .contact-card,
+.site-footer {
+	--fg: var(--glass-fg);
+	--fg-muted: var(--glass-muted);
+	--heading: var(--glass-heading);
+	--link: var(--glass-link);
+	--accent: var(--glass-accent);
+	--highlight-edge: var(--glass-link);
+	--danger: var(--glass-danger);
+	color: var(--fg);
+	border-radius: 0;
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
+}
+
 .hero-glass {
 	border: 1px solid var(--rule);
-	background: color-mix(in oklab, var(--panel) 88%, transparent);
 	padding: clamp(1.35rem, 4vw, 2rem);
 }
 
-/* 2026-08-20 review round 2, finding B: a hand-written -webkit-backdrop-filter
- * line here (removed) made the build pipeline emit ONLY the prefixed
- * property — modern Chromium rejects -webkit-backdrop-filter outright, so
- * the frost never rendered (measured: stripe std-dev 63.5, same as no
- * filter at all) even though the translucent fill applied, leaking sharp
- * photo detail straight through a panel whose contrast math assumed a
- * blurred backdrop. `.site-header` (above) ships only the unprefixed
- * property, unconditionally, and works — this repo's actual browser target
- * is evergreen-only (color-mix, animation-timeline: view(), @starting-style
- * are already load-bearing elsewhere), so there is no legacy-Safari case to
- * hand-prefix for. Matched that precedent instead of re-deriving one; the
- * build's own autoprefixer now emits both properties correctly (verified:
- * computed backdrop-filter is `blur(10px) saturate(1.18)`, not `none`).
- *
- * With the frost actually rendering, the gate had to be re-measured against
- * the REAL blurred backdrop instead of the 88% opaque fallback (which
- * models a MORE opaque, hence falsely safer, panel than what ships) — see
- * design-token-contrast.test.ts's heroGrounds() and
- * e2e/acceptance-hero-glass-contrast.spec.ts (the live backstop; the
- * numbers below are its output, not a one-off hand measurement). GFTB's
- * --heading/--link/--fg-muted resolve to different colours than the demo's
- * Skeleton tokens, against a different photo, so the demo's 68%/74% do not
- * transfer: light needed 83% (68% left `status-card muted copy` at 3.76:1
- * against the darkest real pixel — the demo's own ink doesn't have this
- * pair, this repo's role table does), dark needed 95% (74% measured 4.31:1
- * per the round-2 review; 84%, this file's own round-2 fix, still only
- * reached 4.21:1 once the live e2e backstop re-measured it against a wider
- * sample than the hand check that produced 84% — see finding B history in
- * design-token-contrast.test.ts). Dark's 95% sits ABOVE the 88% opaque
- * fallback: real, not a mistake — this photo's brightest real pixel behind
- * the panel in dark mode needs more opacity than the fallback contract
- * happens to declare. It still isn't 100%: backdrop-filter blur keeps
- * applying underneath, so dark mode is subtly frosted rather than
- * genuinely flat the way the true no-@supports fallback is. */
 @supports (backdrop-filter: blur(1px)) {
-	.hero-glass {
-		background: color-mix(in oklab, var(--panel) 83%, transparent);
-		backdrop-filter: blur(10px) saturate(118%);
-	}
-
-	/* Dark re-key follows the file's existing [data-mode] convention, not a
-	 * prefers-color-scheme block (see the note at the top of this file). */
-	[data-mode='dark'] .hero-glass {
-		background: color-mix(in oklab, var(--panel) 95%, transparent);
+	.hero-glass,
+	.page-shell > .section:not(.section--bare),
+	.page-shell > .log-entry,
+	.page-shell > .contact-card,
+	.site-footer {
+		backdrop-filter: blur(12px) saturate(118%);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.hero-glass {
+	.hero-glass,
+	.page-shell > .section:not(.section--bare),
+	.page-shell > .log-entry,
+	.page-shell > .contact-card,
+	.site-footer {
 		backdrop-filter: none;
 	}
 }
@@ -848,11 +844,9 @@ li {
  * at the band's top/bottom edges (32% top / 55% bottom) and FULLY
  * TRANSPARENT through the content band, because "contrast is guaranteed by
  * the glass fill, not this scrim" — the scrim carries zero AA obligation in
- * the demo's own design. That is now true here too: `.hero-glass`'s dark
- * operating point moved from 74% to 95% (see above) specifically so the
- * glass alone clears AA against the real blurred backdrop, which is what
- * let the scrim's content band actually go to 0% instead of standing in as
- * a second, redundant AA floor. Values below port the demo's edge/
+ * the demo's own design. The current glass fill and its stronger local
+ * palette inks carry that obligation without a second opacity floor.
+ * Values below retain the demo's edge/
  * horizontal numbers exactly (citation above); content is genuinely 0.
  *
  * The content-zone stops (10%/90%) are NOT an AA boundary — the glass
@@ -960,6 +954,18 @@ li {
 	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
 }
 
+/* A solid local edge keeps keyboard focus readable over any glass backdrop. */
+:is(
+		.hero-glass,
+		.page-shell > .section:not(.section--bare),
+		.page-shell > .log-entry,
+		.page-shell > .contact-card,
+		.site-footer
+	)
+	.button:focus-visible {
+	box-shadow: 0 0 0 4px var(--highlight-edge);
+}
+
 /* Card-fill reduction, ruled 2026-08-20 (judge review on gftb-site PR #32,
  * finding D). The TODO this replaces deferred on "keep or flatten is yours
  * to rule; it stays until ruled" — the operator's 2026-08-20 checklist item
@@ -973,12 +979,12 @@ li {
  * itself — AA need or it goes), that makes the border+fill decoration, and
  * it goes; these render as page ground now (surfaces() in
  * design-token-contrast.test.ts models `card` as `page` for the same
- * reason). `.next-session` is explicitly excluded — it is the one ratified
- * coloured container (gen_board.py:166-168) and was never a candidate. */
+ * reason). The recurring work-session content now uses the hero's existing
+ * glass treatment under the September 8 placement ruling. The September 9
+ * glass request adds shared outer surfaces without filling individual rows. */
 .status-card,
 .card,
-.log-entry,
-.history-card {
+.log-entry {
 	/* Explicit 0, not an omission: Skeleton 5 ships a `card` @utility whose
 	 * border-radius: var(--radius-container) reaches the class="card"
 	 * elements through the BUILT stylesheet, where a source grep cannot see
@@ -987,19 +993,10 @@ li {
 	border-radius: 0;
 }
 
-/* The purple contact panel is FLATTENED (operator ruling 2026-08-31): every
- * surface is borderless sitewide, whitespace separates them, and
- * .next-session is the one sanctioned coloured container. This supersedes
- * the 2026-08-20 restoration (addendum B1, gen_board.py:170-179) that
- * inverted this panel to primary-900/purple with its own --inverse-* ink
- * group. The form now sits on plain page ground and picks up the ordinary
- * roles the h1/h2/h3, `a`, `.muted` and `.external-link__mark` base rules
- * above already paint every other page surface with, so no per-panel
- * override is needed. The --inverse-* role group stays declared in :root
- * (design-token-contrast.test.ts still sweeps it as an unused-but-valid
- * table) but nothing below paints it any more. Radius stays an explicit 0
- * (sharp-edges ruling; the Skeleton `card` @utility collision class
- * documented on the neutral family above applies here too). */
+/* The August 31 ruling retired the inverted purple panel and its inverse
+ * roles. The September 9 glass treatment uses the shared local ink roles;
+ * the archived inverse tokens remain declared but unused. Keep explicit
+ * sharp edges so Skeleton's card utility cannot introduce a radius. */
 .contact-card {
 	border-radius: 0;
 }
@@ -1030,16 +1027,9 @@ li {
 	font-weight: 700;
 }
 
-/* Fields on plain page ground (2026-08-31 flattening, see the .contact-card
- * comment above): the border is now the WCAG 1.4.11 boundary against --bg.
- * --accent measures 7.13:1 light / 6.06:1 dark against --bg, the same proven
- * pair as "primary button fill on the page", where --rule, the usual
- * decorative-edge token, does not clear 3:1 here (1.41:1 light / 2.39:1
- * dark) and so cannot carry this job. Fill and text ride the ordinary
- * --panel/--fg roles every other page surface uses. Against the field's own
- * --panel fill the border reads 7.96:1 light / 5.03:1 dark, and the field
- * text reads 15.25:1 / 12.66:1 on that fill; design-token-contrast.test.ts
- * sweeps all three of those pairs by name in both schemes. */
+/* Fields keep their opaque --panel fill. Their text, accent border and
+ * error border inherit the contact glass roles. The contrast gate checks
+ * the field's inner fill and the surrounding glass separately. */
 .contact-form input,
 .contact-form textarea,
 .contact-form altcha-widget {
@@ -1076,10 +1066,7 @@ li {
 	margin-top: 0.5rem;
 }
 
-/* Errors on the fields carry the ordinary --danger rung now (error-700
- * light / error-300 dark), the same role .field-error uses below. As a
- * boundary it reads 7.47:1 light / 5.89:1 dark on --bg, swept by name in
- * design-token-contrast.test.ts. */
+/* Error text and field borders share the contact glass's --danger role. */
 .contact-form :is(input, textarea)[aria-invalid='true'] {
 	border-color: var(--danger);
 }
@@ -1095,8 +1082,7 @@ li {
 	font-size: 0.86rem;
 }
 
-/* Helper text and field errors on plain page ground (2026-08-31): the same
- * --fg-muted / --danger roles every other page surface uses. */
+/* Helper text and field errors inherit their container's local roles. */
 .form-help {
 	color: var(--fg-muted);
 }
@@ -1105,9 +1091,7 @@ li {
 	color: var(--danger);
 }
 
-/* Notices on plain page ground (2026-08-31): the edge bar takes the rescue
- * edge (bare --highlight fails 3:1 on paper-side grounds; see the focus
- * ring comment above), and error text takes the ordinary --danger rung. */
+/* Notices use the local focus edge and error ink on the same glass ground. */
 .form-notice {
 	border-left: 0.4rem solid var(--highlight-edge);
 	padding: 1rem;
@@ -1148,27 +1132,18 @@ li {
 	color: var(--fg-muted);
 }
 
-/* Demo vertical rhythm (apex-gaps diagnosis 2026-08-20 item 4): the previous
- * clamp(4rem,8vw,6rem) padding-block on every section claimed to model "demo
- * section steps 4-6rem", but the demo does not apply a uniform padding block
- * per section — checked directly (fa5552c src/routes/+page.svelte:184, 218,
- * 223, 233, 246): sections carry `mt-16` (4rem) margin-top plus a thin
- * `border-y`/`border-t` divider with `py-6`/`py-8` (1.5-2rem) internal
- * padding. The old rule ran ~50% heavier than the demo on both edges and
- * dropped the divider treatment entirely. The first section keeps no extra
- * margin/rule: `.page-shell`'s own top padding-block already separates it
- * from the hero, and the demo has no equivalent of that wrapper to double up
- * against. */
+/* Keep the existing four-rem section rhythm. Inset the new glass surface
+ * on every edge, with a smaller phone inset. The first section needs no
+ * extra margin or rule because .page-shell already separates it from hero. */
 .section {
 	margin-top: 4rem;
 	border-top: 1px solid var(--rule);
-	padding-top: 2rem;
+	padding: clamp(1rem, 3vw, 2rem);
 }
 
 .section:first-child {
 	margin-top: 0;
 	border-top: none;
-	padding-top: 0;
 }
 
 /* ===== Scroll-reveal (D04, apex app.css:568-580) =====
@@ -1215,48 +1190,20 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	color: var(--accent);
 }
 
-/* The yellow livery block, restored (gen_board.py:166-168; addendum B1): the
- * next-session/status band is THE one coloured container the ratified table
- * names. --highlight is scheme-invariant (secondary-300, 9.57:1 non-text on
- * the dark page), the 1.4.11 rescue edge carries the paper-side boundary
- * (secondary-700 light / secondary-500 dark), headings pin to
- * --highlight-heading (primary-800, both schemes) and copy to the ratified
- * contrast token (--highlight-contrast = secondary-950, 7.26:1). PR #25
- * flattened this to page roles on an invalid interview; this is the
- * correction. */
-.next-session {
-	display: grid;
-	gap: 1.25rem;
-	border: 1px solid var(--highlight-edge);
-	background: var(--highlight);
-	padding: clamp(1.35rem, 4vw, 2rem);
-	color: var(--highlight-contrast);
+.hero-session {
+	margin-top: 1.5rem;
 }
 
-.next-session h2 {
-	margin-bottom: 0.75rem;
-	color: var(--highlight-heading);
-}
-
-/* Anchors on the yellow fill keep the ratified "headings on the yellow
- * fill" pair (primary-800, AA at every size there). */
-.next-session a {
-	color: var(--highlight-heading);
-}
-
-.date-chip {
-	font-size: 1.1rem;
-	font-weight: 800;
-}
-
-/* Operator ruling 2026-08-30: log surfaces are borderless. The entry sits
- * flush on the page ground; header and body are parted by whitespace, not a
- * rule. No fill, no border, no radius (never-cards stands). */
+/* Log rows remain borderless. The full entry now shares the glass treatment;
+ * header and body are still parted by whitespace. */
 .log-entry {
-	/* E1 (UI-QA 2026-08-30): visible, so focus rings are not clipped now that
-	 * the article has no padding; body wrap rules and img max-width contain
+	/* Keep focus rings visible; body wrapping and image max-width contain
 	 * wide content. */
 	overflow: visible;
+}
+
+.page-shell > .log-entry {
+	padding: clamp(1rem, 3vw, 2rem);
 }
 
 /* E3 (UI-QA 2026-08-30): air between the read-more and the next paragraph. */
@@ -1293,25 +1240,60 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	text-decoration-thickness: 2px;
 }
 
-/* Near-term goals (operator ruling 2026-08-31): borderless timeline rows.
- * Same ground, same whitespace separation as the log surfaces; the CTA
- * shares the read-more link treatment. The rows now live inside the goals
- * carousel (src/lib/components/GoalCarousel.svelte): at rest — the served
- * no-JS HTML — .goal-list lays out as the ratified grid below; once
- * hydration flips .goal-list--enhanced, Zag's inline scroll-snap layout
- * (grid-auto-flow: column, --slide-item-size, overflow-x: auto on the list
- * itself) takes over, so the enhanced state declares no competing tracks.
- * The list is its own horizontal scroller; the document never widens. */
+/* Notes & Goals: the borderless grid of every note. Operator ruling 2026-09-09:
+ * the wiper rotator is off the public surface until the ratified replacement
+ * lands (see the parent issue). No horizontal scroller in any state; the
+ * document never widens. */
 .goal-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+	gap: 1.75rem 2.5rem;
 }
 
-.goal-list:not(.goal-list--enhanced) {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-	gap: 1.75rem 2.5rem;
+/* Every note is one glass pane (operator ruling at LOOK 3: uniform occlusion
+ * under the photos and the copy, not ink floating on the scene): the site's
+ * content-surface idiom with its stronger local inks, radius 0, no border,
+ * inner room on every edge. The goals section itself is bare (.section--bare)
+ * so the full-bleed glass runs through the page ground, and the asides below
+ * the stalk carry the same pane. Paper drops the fill; forced colours paint
+ * system colours anyway. */
+.goal-list > li,
+.goal-asides {
+	--fg: var(--glass-fg);
+	--fg-muted: var(--glass-muted);
+	--heading: var(--glass-heading);
+	--link: var(--glass-link);
+	--accent: var(--glass-accent);
+	--highlight-edge: var(--glass-link);
+	--danger: var(--glass-danger);
+	color: var(--fg);
+	border-radius: 0;
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
+}
+
+.goal-list > li {
+	padding: 1rem 1.1rem 1.25rem;
+}
+
+.goal-asides {
+	padding: clamp(1rem, 3vw, 2rem);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+	.goal-list > li,
+	.goal-asides {
+		backdrop-filter: blur(12px) saturate(118%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.goal-list > li,
+	.goal-asides {
+		backdrop-filter: none;
+	}
 }
 
 .goal-list h3 {
@@ -1344,63 +1326,16 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	text-decoration-thickness: 2px;
 }
 
-/* Carousel chrome (goals carousel, D-goals): the control bar mounts only
- * after hydration. Buttons reuse the ratified secondary-button boundary
- * (2px --accent border — the proven 1.4.11 pair on page ground) at control
- * scale, with the sharp-edges radius re-pin Skeleton/UA chrome requires and
- * the .button focus ring. No transitions are declared anywhere in this
- * block, so the reduced-motion sweep stays clean by construction. */
-.goal-carousel__controls {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.75rem;
-	margin-top: 1.5rem;
-	font-family: var(--font-sans);
-}
-
-.goal-carousel__button {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 2.75rem;
-	padding: 0.35rem 1rem;
-	border: 2px solid var(--accent);
-	border-radius: 0;
-	background: transparent;
-	color: var(--heading);
-	font-family: var(--font-sans);
-	font-size: 0.95rem;
-	font-weight: 800;
-	cursor: pointer;
-}
-
-.goal-carousel__button:hover {
-	background: var(--accent);
-	color: var(--accent-contrast);
-}
-
-.goal-carousel__button:focus-visible {
-	box-shadow: 0 0 0 4px color-mix(in oklab, var(--highlight) 56%, transparent);
-}
-
-.goal-carousel__progress {
-	margin: 0;
-	color: var(--fg-muted);
-	font-size: 0.95rem;
-}
-
-/* The featured-image slot (GoalCarousel `media` snippet), mounted from the
- * home page since the 2026-09-01 batch's deferred home-integration item:
- * media still collapses to nothing for an imageless goal — no reserved box.
- * When a goal ships the frontmatter image group, the img is a fixed crop box
- * in the thumb's spirit: the 3/2 default aspect (a goal's own image_aspect
- * overrides inline, from the page) and the max-height cap size the box from
- * CSS alone, BEFORE any bytes load, so a lazy image can never shift a slide
- * (no CLS) and a tall aspect cannot blow the carousel's one-slide-tall
- * mobile height budget. object-fit keeps the crop honest instead of
- * distorting; border/radius restated for the never-cards + sharp-edges
- * rulings. */
+/* The featured-image slot (the home page's `media` snippet, rendered by
+ * NotesAndGoals.svelte at the top of every row): media still collapses to
+ * nothing for an imageless goal (no reserved box). When a goal ships the
+ * frontmatter image group, the img is a fixed crop box in the thumb's
+ * spirit: the 3/2 default aspect (a goal's own image_aspect overrides
+ * inline, from the page) and the max-height cap size the box from CSS
+ * alone, BEFORE any bytes load, so a lazy image can never shift a row (no
+ * CLS) and a tall aspect cannot blow the row's height budget. object-fit
+ * keeps the crop honest instead of distorting;
+ * border/radius restated for the never-cards + sharp-edges rulings. */
 .goal-media {
 	margin: 0 0 0.75rem;
 }
@@ -1417,9 +1352,315 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	border-radius: 0;
 }
 
+/* Per-row edit link (operator ruling 2026-09-08): the SourceLink affordance
+ * at row scale, after the CTA so the CTA stays the row's primary action.
+ * A 24x24 CSS px target on its own (WCAG 2.5.8 without the spacing
+ * exception; e2e/acceptance-responsive.spec.ts sweeps it at 375). */
+.goal-edit {
+	margin-top: 0.75rem;
+	font-family: var(--font-sans);
+	font-size: 0.82rem;
+}
+
+.goal-edit a {
+	display: inline-block;
+	min-width: 1.5rem;
+	min-height: 1.5rem;
+	line-height: 1.5rem;
+	padding-inline: 0.15rem;
+	margin-inline: -0.15rem;
+	color: var(--link);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.goal-edit a:hover,
+.goal-edit a:focus-visible {
+	text-decoration-thickness: 2px;
+}
+
+/* The collection link sits under the grid. */
+.goal-list__source {
+	margin-top: 1.5rem;
+}
+
+/* ===== The Notes & Goals wiper (src/lib/wiper, NotesAndGoals.svelte) =====
+ * The pane is a bare wrapper over the section's glass: no extra fill or
+ * border on individual notes. Once
+ * enhanced and rotatable, the list stacks its pages into one grid row and the
+ * wipe is a DOM mask: each note carries its arm's park angle and pivot as
+ * static custom properties (--wipe-from, --wipe-x, --wipe-y, --wipe-span,
+ * written by the engine on relayout), the pane carries one number per frame
+ * (--wipe-u, the eased out-stroke progress), and a conic gradient clears the
+ * outgoing note along the blade's arc while revealing the incoming one behind
+ * it. Masks exist only during the out-stroke; dwell and the back-stroke cost
+ * nothing. Off, reduced motion, no-JS, print and forced colours are the plain
+ * grid above, untouched. */
+.wiper {
+	position: relative;
+	isolation: isolate;
+	--wipe-u: 0;
+	--wipe-feather: 1.2deg;
+}
+
+/* Full bleed while paged (operator ruling at LOOK 2): the glass runs edge to
+ * edge on the hero band's own idiom (html clips x overflow, so a 100vw child
+ * never adds a scrollbar), while the notes, the stalk and the collection link
+ * keep the page column's gutter. The plain grid never breaks out. */
+.wiper--paged {
+	width: 100vw;
+	margin-left: calc(50% - 50vw);
+	--wiper-gutter: max(1rem, calc(50vw - 36rem));
+}
+
+.wiper--paged .goal-list {
+	padding-inline: var(--wiper-gutter);
+	/* Room above and below the panes inside the band (operator ruling at LOOK 3). */
+	padding-block: 1.75rem 2.25rem;
+}
+
+/* The band clips: a note the blade has shoved past its edge is gone. */
+.wiper--paged .wiper__glass {
+	overflow: clip;
+}
+
+/* The band feathers into the page on the y axis the way the hero backdrop
+ * does (.hero__scrim): a scrim of the page ground over the scene, under the
+ * notes, thin at the top, heavier at the bottom. */
+.wiper--paged .wiper__glass::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background: linear-gradient(
+		180deg,
+		color-mix(in oklab, var(--bg) 32%, transparent) 0%,
+		transparent 10%,
+		transparent 90%,
+		color-mix(in oklab, var(--bg) 55%, transparent) 100%
+	);
+}
+
+.wiper--paged .wiper-stalk,
+.wiper--paged .goal-list__source {
+	margin-inline: var(--wiper-gutter);
+}
+
+/* The glass: the list box the scene canvas fills. The canvas sits behind the
+ * notes (never over text), pointer-inert, sharp, and it is gone on paper and
+ * under forced colours; the plain grid never renders it at all. */
+.wiper__glass {
+	position: relative;
+}
+
+.wiper__glass > .goal-list {
+	position: relative;
+	z-index: 1;
+}
+
+.wiper__scene {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: 0;
+	pointer-events: none;
+}
+
+/* The blade layer: transparent, over the notes, inert, sharp, and feathered
+ * at the band's top and bottom so a blade rises into frame softly. */
+.wiper__blades {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: 0;
+	pointer-events: none;
+	mask-image: linear-gradient(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+}
+
+.goal-list--paged {
+	grid-template-columns: repeat(var(--wipe-columns, 1), minmax(0, 1fr));
+}
+
+.goal-list--paged > li {
+	position: relative;
+	grid-row: 1;
+}
+
+/* Off-page notes stay in the DOM and in the tab order (focus-follow reveals
+ * their page); they are invisible and inert, never display: none. */
+.goal-list--paged > li:not(.is-current):not([data-wipe]) {
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* The swept wedge starts one feather before the park angle, so the soft edge
+ * sits on the blade's side and the park side (out of frame) stays hard. */
+.goal-list--paged > li {
+	--wipe-start: calc(var(--wipe-from) - var(--wipe-feather));
+	--wipe-start-2: calc(var(--wipe-from-2) - var(--wipe-feather));
+}
+
+.goal-list--paged > li[data-wipe='out'] {
+	z-index: 1;
+	mask-image: conic-gradient(
+		from var(--wipe-start) at calc(var(--wipe-x) - var(--wipe-push, 0px)) var(--wipe-y),
+		#000 0,
+		transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+		#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
+	);
+}
+
+.goal-list--paged > li[data-wipe='in'] {
+	mask-image: conic-gradient(
+		from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+		transparent 0,
+		#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+		transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
+	);
+}
+
+/* A note both blades pass over: gone where either blade has passed (the
+ * two clearing masks intersect), revealed where either has passed (the two
+ * revealing masks add). */
+.goal-list--paged > li[data-wipe='out'][data-wipe-arms='both'] {
+	mask-image:
+		conic-gradient(
+			from var(--wipe-start) at calc(var(--wipe-x) - var(--wipe-push, 0px)) var(--wipe-y),
+			#000 0,
+			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
+		),
+		conic-gradient(
+			from var(--wipe-start-2) at calc(var(--wipe-x-2) - var(--wipe-push, 0px)) var(--wipe-y-2),
+			#000 0,
+			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
+			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
+		);
+	mask-composite: intersect;
+}
+
+.goal-list--paged > li[data-wipe='in'][data-wipe-arms='both'] {
+	mask-image:
+		conic-gradient(
+			from var(--wipe-start) at var(--wipe-x) var(--wipe-y),
+			transparent 0,
+			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
+			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
+		),
+		conic-gradient(
+			from var(--wipe-start-2) at var(--wipe-x-2) var(--wipe-y-2),
+			transparent 0,
+			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
+			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
+		);
+	mask-composite: add;
+}
+
+/* The blade shoves the outgoing note off the glass rather than only wiping
+ * it in place (operator ruling at LOOK 3): once a blade's ray passes the
+ * note's left edge at mid-height the note slides right, driven by whichever
+ * blade has reached furthest into it, and it outruns the blade by the shove
+ * factor so every note has cleared the band by the turnaround. The mask
+ * pivot slides the other way so the clipped edge stays under the rubber.
+ * Behind the feature query the note is wiped in place. No timed rule: the
+ * transform follows --wipe-u frame by frame. */
+@supports (width: calc(1px * tan(45deg))) {
+	.goal-list--paged > li[data-wipe='out'] {
+		--wipe-shove: 1.6;
+		--wipe-phi: calc(var(--wipe-from) + var(--wipe-u) * var(--wipe-span));
+		--wipe-reach: calc(var(--wipe-x) + (var(--wipe-y) - var(--wipe-h, 0px) / 2) * tan(var(--wipe-phi)));
+		--wipe-reach-2: calc(
+			var(--wipe-x-2, -99999px) + (var(--wipe-y-2, 0px) - var(--wipe-h, 0px) / 2) * tan(var(--wipe-phi))
+		);
+		--wipe-push: calc(var(--wipe-shove) * max(0px, var(--wipe-reach), var(--wipe-reach-2)));
+		transform: translateX(var(--wipe-push));
+	}
+}
+
+/* The stalk: one Skeleton SegmentedControl (a radio group), Off first.
+ * Interim treatment (operator ruling 2026-09-09, LOOK 1): plain text, the
+ * active detent in the accent with a 2px rule under it, no track, no
+ * slider, no fill; the rendered skin replaces this later. Radius 0 on every
+ * part (v5 ships pill radii; e2e/acceptance-sharp-edges.spec.ts sweeps the
+ * states); focus on the ratified rescue edge; no timed rule at all. */
+.wiper-stalk {
+	display: inline-flex;
+	margin-top: 1.5rem;
+	border-radius: 0;
+	font-family: var(--font-sans);
+}
+
+.wiper-stalk__control {
+	display: inline-flex;
+	gap: 0.25rem;
+	border-radius: 0;
+}
+
+.wiper-stalk__item {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.5rem;
+	min-height: 1.75rem;
+	padding: 0 0.5rem;
+	border-radius: 0;
+	color: var(--fg-muted);
+	font-size: 0.82rem;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+	user-select: none;
+}
+
+.wiper-stalk__item:hover {
+	color: var(--fg);
+}
+
+/* Skeleton paints the item text for a filled indicator; the label follows the item's own ink instead. */
+.wiper-stalk__text {
+	color: inherit;
+}
+
+.wiper-stalk__item[data-state='checked'] {
+	color: var(--link);
+	text-decoration: underline;
+	text-decoration-thickness: 2px;
+	text-underline-offset: 5px;
+}
+
+.wiper-stalk__item[data-focus-visible] {
+	outline: 2px solid var(--highlight-edge);
+	outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+	.wiper__scene,
+	.wiper__blades {
+		display: none;
+	}
+
+	.wiper-stalk__item {
+		color: CanvasText;
+	}
+
+	.wiper-stalk__item[data-state='checked'] {
+		color: Highlight;
+		text-decoration-color: Highlight;
+		forced-color-adjust: none;
+	}
+}
+
 .goal-asides {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
 	gap: 1.75rem 2.5rem;
 	margin-top: 2.5rem;
 }
@@ -1678,42 +1919,6 @@ pre.shiki span {
 	color: var(--link);
 }
 
-.history-card {
-	display: grid;
-	overflow: hidden;
-}
-
-/* TIN-3932: the figure is a flex column so the photo absorbs the space the
- * credit line does not need. The photo used to carry `height: 100%`, which
- * resolved against the stretched <figure> and left the <figcaption> with
- * nowhere inside the figure to go — it spilled into the next grid row. Above
- * 48rem that row is empty, so the desktop card looked correct; below it the row
- * holds .history-card__copy and the credit printed on top of the eyebrow
- * (41px of overlap at 320 CSS px, 17px at 600). `flex: 1` with `min-height`
- * keeps the same 16rem floor and the same cover crop, but now the caption is
- * laid out first and the image takes what is left. */
-.history-card figure {
-	display: flex;
-	flex-direction: column;
-}
-
-/* <picture> only selects a source; it carries the flex sizing so the <img>
- * inside it still fills whatever the credit line leaves. */
-.history-card picture {
-	display: flex;
-	flex: 1;
-	min-height: 16rem;
-}
-
-.history-card img {
-	width: 100%;
-	object-fit: cover;
-}
-
-.history-card__copy {
-	padding: clamp(1.5rem, 5vw, 3rem);
-}
-
 figcaption {
 	margin-top: 0.7rem;
 	color: var(--fg-muted);
@@ -1721,8 +1926,7 @@ figcaption {
 	line-height: 1.45;
 }
 
-/* Layout only. The panel paint was removed by the 2026-08-31 flattening;
- * see the .contact-card comment with the card family rules above. */
+/* Contact layout; the shared surface rule above supplies the glass paint. */
 .contact-card {
 	display: grid;
 	gap: 1.5rem;
@@ -1738,7 +1942,6 @@ figcaption {
 
 .site-footer {
 	border-top: 1px solid var(--rule);
-	background: var(--panel);
 	/* Clearance for .contribute-fab (anchored bottom-left in this reserved
 	 * rail, review round 2 finding C.3): without this, the footer's own last
 	 * links (Source/Security at 320px, the licensing link on /log) sit under
@@ -1829,14 +2032,9 @@ figcaption {
 	}
 
 	.grid--2,
-	.next-session,
 	.contact-card {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		align-items: center;
-	}
-
-	.history-card {
-		grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 	}
 
 	/* Four explicit tracks, the demo's intro-weighted footer template
@@ -1885,6 +2083,23 @@ figcaption {
 		line-height: 1.4;
 	}
 
+	.hero-glass,
+	.page-shell > .section:not(.section--bare),
+	.page-shell > .log-entry,
+	.page-shell > .contact-card {
+		--fg: #000;
+		--fg-muted: #000;
+		--heading: #000;
+		--link: #000;
+		--accent: #000;
+		--accent-contrast: #fff;
+		--highlight-edge: #000;
+		--danger: #000;
+		background: transparent !important;
+		backdrop-filter: none !important;
+		color: #000 !important;
+	}
+
 	main {
 		max-width: none !important;
 		margin: 0 !important;
@@ -1907,21 +2122,44 @@ figcaption {
 		display: none !important;
 	}
 
-	/* Paper gets the whole goals timeline, not a scroll viewport: unwind the
-	 * carousel's inline scroll-snap layout back to the resting grid and drop
-	 * the screen-only controls. !important is required — the enhanced layout
-	 * arrives as element-level inline styles from the carousel machine. */
-	.goal-list--enhanced {
-		display: grid !important;
-		grid-auto-flow: row !important;
-		grid-auto-columns: auto !important;
-		grid-template-columns: repeat(2, 1fr) !important;
-		gap: 1.25rem 2rem !important;
-		overflow: visible !important;
+	/* Paper gets every note, not one page: unwind the paging back to a
+	 * two-column grid and drop the screen-only chrome (the stalk, the masks,
+	 * the per-row edit links). !important because the paged classes are
+	 * still on the elements when a print begins mid-wipe. The collection
+	 * link keeps printing (hrefs expand above). */
+	.wiper--paged {
+		width: auto !important;
+		margin-left: 0 !important;
 	}
 
-	.goal-carousel__controls {
+	.wiper--paged .goal-list {
+		padding-inline: 0 !important;
+	}
+
+	.goal-list--paged {
+		grid-template-columns: repeat(2, 1fr) !important;
+		gap: 1.25rem 2rem !important;
+	}
+
+	.goal-list--paged > li {
+		grid-row: auto !important;
+		grid-column: auto !important;
+		opacity: 1 !important;
+		mask-image: none !important;
+	}
+
+	.wiper-stalk,
+	.wiper__scene,
+	.wiper__blades,
+	.goal-edit {
 		display: none !important;
+	}
+
+	.goal-list > li,
+	.goal-asides {
+		background: none !important;
+		backdrop-filter: none !important;
+		transform: none !important;
 	}
 
 	/* A print begun before the reveal IO ever fires must still show every
@@ -2145,4 +2383,11 @@ figcaption {
 	/* surface-700 leaves the accent thumb at 2.53:1; -800 restores the 3:1
 	 * floor with room (3.74:1, the measured pair) */
 	--control-track: var(--color-surface-800);
+	--glass-panel: var(--color-surface-950);
+	--glass-fg: var(--color-surface-50);
+	--glass-muted: var(--color-surface-100);
+	--glass-heading: var(--color-primary-50);
+	--glass-link: var(--color-primary-50);
+	--glass-accent: var(--color-primary-100);
+	--glass-danger: var(--color-error-50);
 }

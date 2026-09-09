@@ -9,6 +9,8 @@ test.describe('print media', () => {
 	test('page chrome and the hero backdrop are dropped; the sheet is ink on white', async ({ page }) => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
+		// Dark glass must also become ink on paper, including inherited text.
+		await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'dark'));
 		await page.emulateMedia({ media: 'print' });
 
 		const state = await page.evaluate(() => ({
@@ -18,6 +20,12 @@ test.describe('print media', () => {
 			heroMedia: getComputedStyle(document.querySelector('.hero__media')!).display,
 			bodyBackground: getComputedStyle(document.body).backgroundColor,
 			bodyColor: getComputedStyle(document.body).color,
+			glass: Array.from(document.querySelectorAll('.hero-glass, .page-shell > .section')).map((element) => ({
+				background: getComputedStyle(element).backgroundColor,
+				filter: getComputedStyle(element).backdropFilter,
+				color: getComputedStyle(element).color,
+				heading: getComputedStyle(element.querySelector('h1, h2')!).color,
+			})),
 		}));
 		expect(state.header, 'site header dropped in print').toBe('none');
 		expect(state.footer, 'site footer dropped in print').toBe('none');
@@ -25,6 +33,13 @@ test.describe('print media', () => {
 		expect(state.heroMedia, 'hero backdrop dropped in print').toBe('none');
 		expect(state.bodyBackground, 'paper ground').toBe('rgb(255, 255, 255)');
 		expect(state.bodyColor, 'ink').toBe('rgb(0, 0, 0)');
+		expect(state.glass.length, 'glass surfaces exist to inspect').toBeGreaterThan(0);
+		for (const surface of state.glass) {
+			expect(surface.background, 'glass tint dropped on paper').toBe('rgba(0, 0, 0, 0)');
+			expect(surface.filter, 'glass blur dropped on paper').toBe('none');
+			expect(surface.color, 'glass body ink').toBe('rgb(0, 0, 0)');
+			expect(surface.heading, 'glass heading ink').toBe('rgb(0, 0, 0)');
+		}
 	});
 
 	test('outbound URLs expand after their link text and the [↗] mark is dropped', async ({ page }) => {

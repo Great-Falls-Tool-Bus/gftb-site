@@ -113,6 +113,7 @@ filegroup(
             ".github/**/*.yaml",
             ".github/**/*.yml",
             "docs/**/*.json",
+            "e2e/**/*.json",
             "e2e/**/*.mjs",
             "e2e/**/*.ts",
             "scripts/**/*.js",
@@ -169,7 +170,6 @@ filegroup(
         "AGENTS.md",
         "BUILD.bazel",
         "Caddyfile",
-        "CLAUDE.md",
         "Justfile",
         "LICENSE",
         "LICENSE-content",
@@ -457,27 +457,19 @@ py_test(
     ],
 )
 
-# Chromium loopback smoke over the declared //:build output, per
-# GloriousFlywheel's browser-RBE candidate template (examples/web-rbe/*) and
-# public-docs/browser-rbe-candidate-guide.md: build through declared Bazel
-# inputs, serve that output from inside the test action on 127.0.0.1, launch
-# the pre-provisioned worker Chromium named by GF_RBE_CHROMIUM_EXECUTABLE via
-# playwright's explicit executablePath, with writable HOME/XDG dirs under test
-# scratch and no action-time browser download (MODULE.bazel pins
-# PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD at npm lifecycle time).
-#
-# This browser candidate is deliberately outside the two-action v4 plan.
-# `manual` keeps suites and wildcards from selecting it until a browser-capable
-# action and result lifecycle are ratified; it is not a local fallback for PRE
-# or LOOK.
-#
-# GF_BROWSER_SMOKE_REQUIRE_PROVENANCE=1: //:build consumes only the exact source
-# marker projected from the GF-bound BUILD_EMBED_LABEL, not whole status files.
-# Missing or malformed identity fails the build; disabling the browser assertion
-# cannot bypass that build boundary.
+# Finite Chromium acceptance over the declared //:build output. GF's
+# docs/build-system/browser-runtime-authority.md (TIN-1131) owns the
+# provisioned runtime: explicit executablePath, private test scratch, and no
+# browser downloads. The consumer names its canonical interface, never a
+# provider image or runner. A missing runtime fails this registered gate.
+# This target tests five exact specs over its own ephemeral loopback server;
+# it neither builds a second site nor proves a deployed environment or LOOK.
+# The build consumes the marker projected from the GF-bound BUILD_EMBED_LABEL;
+# missing source identity fails before this unconditional browser assertion.
 js_test(
     name = "browser_smoke_test",
     data = [
+        ":app_srcs",
         ":build",
         ":e2e_srcs",
         ":node_modules/@playwright/test",
@@ -485,26 +477,44 @@ js_test(
     entry_point = "e2e/bazel/run-browser-smoke.mjs",
     env = {
         "GF_BROWSER_SMOKE_BUILD_DIR": "$(rootpath :build)",
-        "GF_BROWSER_SMOKE_PATH": "/",
-        "GF_BROWSER_SMOKE_TITLE": "Great Falls Tool Bus",
-        "GF_BROWSER_SMOKE_REQUIRE_PROVENANCE": "1",
+        "GF_RBE_CHROMIUM_EXECUTABLE": "/bin/chromium",
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
     },
-    tags = [
-        "browser-smoke",
-        "manual",
+    tags = ["browser-acceptance"],
+    timeout = "long",
+)
+
+# Served-artifact proof for the tinyvectors pin (TIN-4339). MODULE.bazel is
+# the only resolution of the brand-vectors package; a build made off-fabric can
+# still bundle a stray node_modules copy of another release with every other
+# check green. This reads the declared client chunks and proves the bundled
+# release's distinctive literal matches the pin. No browser, no server.
+js_test(
+    name = "served_tinyvectors_test",
+    args = [
+        "$(rootpath :build)",
+        "--module",
+        "$(rootpath MODULE.bazel)",
     ],
-    timeout = "moderate",
+    data = [
+        "MODULE.bazel",
+        ":build",
+    ],
+    entry_point = "scripts/check-served-tinyvectors.mjs",
+    timeout = "short",
 )
 
 test_suite(
     name = "ci_validation_suite",
     tests = [
         ":bazel_output_contract_test",
+        ":browser_smoke_test",
         ":current_source_secret_scan_test",
         ":eslint_test",
         ":goals_manifest_drift_test",
         ":log_manifest_drift_test",
         ":prettier_check_test",
+        ":served_tinyvectors_test",
         ":source_map_drift_test",
         ":svelte_check_test",
         ":unit_tests",

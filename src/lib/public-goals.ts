@@ -1,6 +1,6 @@
 import { publishedGoalEntries, type GeneratedGoalEntry } from './generated/goals-manifest';
 
-// The home page's "Near-term goals" row (spec §3 row 4) renders from
+// The home page's "Notes & Goals" row (spec §3 row 4) renders from
 // src/content/goals/*.md through the checked-in, drift-checked manifest
 // (scripts/build-goals-manifest.mjs), the same build-time pattern as the
 // public log: published entries only, nothing baked into the page.

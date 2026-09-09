@@ -52,19 +52,15 @@ const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
 function surfaces(scheme: SchemeName) {
 	const tokens = SCHEMES[scheme];
 	const page = resolveRole(tokens, '--bg');
-	// Card-fill reduction (2026-08-20 review, finding D): .status-card, .card,
-	// .log-entry and .history-card no longer declare a border or background —
-	// src/app.css strips the fill they used to composite (never AA-load-bearing;
-	// see that file's comment for the ruling). They render as page ground now,
-	// so `card` IS `page` here. `.hero-glass` is NOT part of this: its own
-	// opaque-fallback composite is measured separately by heroGrounds() below,
-	// against the hero scrim rather than the bare page.
+	// The global page roles and borderless row ground remain a separate
+	// contract. The new glass containers and their locally inherited roles
+	// are swept by heroGrounds() below against arbitrary backdrop extremes.
 	const card = page;
 	return {
-		/** body, hero, section grounds — .status-card/.card/.log-entry/.history-card render here too since the 2026-08-20 fill removal */
+		/** Global page ground, outside the glass containers. */
 		page,
 		card,
-		/** .site-footer */
+		/** Contact field fill; glass surfaces are modeled separately below. */
 		panel: resolveRole(tokens, '--panel'),
 		/** the .skip-link chip and the restored .next-session livery band */
 		yellow: resolveRole(tokens, '--highlight'),
@@ -74,12 +70,8 @@ function surfaces(scheme: SchemeName) {
 		paper: resolveRole(tokens, '--inverse-fg'),
 		/** the mode switch's track (D01) — the accent thumb rides on it */
 		controlTrack: resolveRole(tokens, '--control-track'),
-		/** .contribute-panel (ContributeMenu.svelte, review finding C): the
-		 * opaque fallback (92%), same reasoning as `card` used to have and
-		 * `.hero-glass` still does — the browser-side gate cannot see through
-		 * the @supports translucent variant, so the fallback is the measured
-		 * contract. This panel never overlays a photo, so unlike the hero
-		 * there is no separate scrim floor to compose. */
+		/** Existing .contribute-panel fallback (92%). Its browser-side
+		 * appearance checks remain separate from the shared glass surface. */
 		contributePanel: compositeOver(resolveColor(tokens, 'color-mix(in oklab, var(--panel) 92%, transparent)'), page),
 	};
 }
@@ -104,7 +96,6 @@ const textPairs: Pair[] = [
 	{ name: 'body copy on a card', role: '--fg', on: 'card', minimum: AA },
 	{ name: 'muted helper text on a card', role: '--fg-muted', on: 'card', minimum: AA },
 	{ name: 'figcaption on a card', role: '--fg-muted', on: 'card', minimum: AA },
-	{ name: 'footer text on the panel', role: '--fg-muted', on: 'panel', minimum: AA },
 	{ name: 'headings on the page', role: '--heading', on: 'page', minimum: LARGE },
 	{ name: 'headings on a card', role: '--heading', on: 'card', minimum: LARGE },
 	{ name: 'status-card strong on a card', role: '--heading', on: 'card', minimum: AA },
@@ -112,7 +103,6 @@ const textPairs: Pair[] = [
 	{ name: 'primary button label on its own fill', role: '--accent-contrast', on: 'accentFill', minimum: AA },
 	{ name: 'link on the page', role: '--link', on: 'page', minimum: AA },
 	{ name: 'link on a card', role: '--link', on: 'card', minimum: AA },
-	{ name: 'link in the footer', role: '--link', on: 'panel', minimum: AA },
 	{ name: 'skip-link label on its chip', role: '--highlight-contrast', on: 'yellow', minimum: AA },
 	// The restored yellow livery band (.next-session; gen_board.py:166-168):
 	// copy on the ratified contrast token, headings and anchors on
@@ -134,10 +124,8 @@ const textPairs: Pair[] = [
 	{ name: 'archived paper control field text', role: '--inverse-control-fg', on: 'paper', minimum: AA },
 	{ name: 'archived paper control accent label', role: '--inverse-control-accent', on: 'paper', minimum: AA },
 	{ name: 'archived paper control error ink', role: '--inverse-control-danger', on: 'paper', minimum: AA },
-	// The SHIPPED contact surface since the 2026-08-31 flattening: the form
-	// sits on plain page ground and the fields fill with --panel, so the
-	// field's own text is a pair no other row covers (the footer's --panel
-	// row above is --fg-muted, not --fg).
+	// Contact fields retain their opaque --panel fill inside the glass form.
+	// --fg uses the same palette rung globally and locally.
 	{ name: 'contact field text on its --panel fill', role: '--fg', on: 'panel', minimum: AA },
 	{ name: 'contact helper text on the page', role: '--fg-muted', on: 'page', minimum: AA },
 	// ContributeMenu.svelte (review finding C): the trigger's own label, and
@@ -313,15 +301,6 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		expect(appCss).not.toMatch(/\.contact-form input,[\s\S]*?background: var\(--inverse-fg\);/u);
 	});
 
-	it('restores the yellow livery band with its rescue edge and pinned heading ink', () => {
-		// gen_board.py:166-168: the band is --highlight with the 1.4.11
-		// rescue edge and primary-800 headings, in both schemes.
-		expect(appCss).toMatch(
-			/\.next-session \{[\s\S]*?border: 1px solid var\(--highlight-edge\);[\s\S]*?background: var\(--highlight\);/u,
-		);
-		expect(appCss).toMatch(/\.next-session h2 \{[\s\S]*?color: var\(--highlight-heading\);/u);
-	});
-
 	it('keeps the field focus indicator on the page-ground rescue edge, same as the skip-link', () => {
 		// While the panel stood, the bare yellow WAS the ratified indicator
 		// (secondary-300 on primary-900, 7.77:1, gen_board.py:221). The
@@ -336,7 +315,7 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 	});
 
 	it('keeps the composited surfaces this file models', () => {
-		expect(appCss).toContain('color-mix(in oklab, var(--panel) 88%, transparent)');
+		expect(GLASS_FILL.alpha, 'glass must visibly transmit the backdrop').toBe(0.7);
 		// GLOW is whatever app.css declares, so this only proves the glow is still
 		// painted on the focus rule the ratio assertions below assume.
 		expect(appCss).toMatch(
@@ -516,56 +495,11 @@ for (const scheme of SCHEME_NAMES) {
 }
 
 /**
- * ── Hero backdrop scrim (restoration: parallax hero) ────────────────────
- *
- * REARCHITECTED 2026-08-20 (review round 2, findings A + B). Two defects,
- * one fix: (1) `.hero-glass` shipped a hand-written `-webkit-backdrop-filter`
- * line that made the build emit ONLY the prefixed property — Chromium
- * rejects that outright, so the frost never rendered even though the
- * translucent fill applied (fixed above: match `.site-header`'s
- * unprefixed-only precedent). (2) With that bug fixed, this file's OLD gate
- * still modelled the 88% opaque fallback as the ground — a MORE opaque,
- * hence falsely SAFER, panel than the 68%/74% that shipped at the time
- * (since retuned again — see below); "conservative" was backwards. Both
- * together hid a real AA failure: dark
- * `--heading`/`--link` measured 4.31:1 against the real rendered panel,
- * below the 4.5 floor, while the suite stayed green.
- *
- * The fix follows the demo's own documented methodology (fa5552c
- * src/routes/+page.svelte:315-330,345-350): "contrast is guaranteed by the
- * glass fill, not this scrim." `.hero__scrim`'s content band is now
- * genuinely 0% (fully transparent) — the scrim carries NO AA obligation,
- * matching the demo exactly — and `.hero-glass` alone carries the contract.
- * Neither scheme matches the demo's 68%/74% verbatim: GFTB's `--heading`/
- * `--link`/`--fg-muted` resolve to different colours than the demo's
- * Skeleton tokens, against a different photo, so the demo's numbers do not
- * transfer. Re-measured for THIS site's actual ink and photo, against a
- * live Playwright pixel backstop (e2e/acceptance-hero-glass-contrast.
- * spec.ts) rather than a one-off hand check, and pinned to 83% light / 95%
- * dark (see `.hero-glass`'s own comment in src/app.css for the swept
- * numbers, including why dark ended up above the 88% opaque fallback).
- *
- * MEASUREMENT METHODOLOGY (mirrors the demo's "verified: light worst X,
- * dark worst Y" comment, and the reviewer's own approach): a photograph
- * pixel can be anything, so no CSS token composite is "the" ground — but
- * modelling pure #000/#fff extremes through an 88% panel that was never
- * shipped is not conservative, it is a different, wrong scenario. Instead,
- * `HERO_MEASURED_BACKDROP` below is the REAL darkest/lightest pixel
- * actually rendered behind each `.hero-glass` region: 1440x900, `.hero-glass
- * *`/`.status-card.hero-glass *` set to `visibility:hidden` to isolate the
- * panel's own composite from ink pixels, screenshotted (real compositor
- * output — this is not a re-implementation of Gaussian blur, it is the
- * actual blurred-and-tinted pixels Chromium painted), decoded and scanned
- * for min/max WCAG relative luminance. This already includes whatever the
- * scrim's horizontal layer contributes — no separate scrim compositing
- * step is needed in `heroGrounds()` below, because the measurement is of
- * the fully-composited real pixel, not a token-math approximation of it.
- * Re-anchor caveat: the palette's lightness/chroma are provisional pending
- * the corrected HEIC corpus, and the photo itself may be swapped, so this
- * measurement is re-verified after the re-anchor train — e2e/
- * acceptance-hero-glass-contrast.spec.ts re-measures the same claim live in
- * a real browser on every run, which is the actual backstop against this
- * going stale (a hardcoded vitest constant cannot re-derive itself).
+ * Glass contrast uses the actual declared fill and locally inherited inks.
+ * Black and white bound every possible sRGB photo/vector backdrop, including
+ * the no-filter and reduced-motion paths. These are analytic bounds, not
+ * screenshot measurements. The registered browser test independently samples
+ * the real composited pixels and local ink colors.
  */
 const HERO_SCRIM_RATIFIED_PERCENT = 0;
 // Both hero regexes are anchored INSIDE `.hero__scrim { ... }` specifically
@@ -614,59 +548,26 @@ if (!HERO_SCRIM_CONTENT_STOPS_RULE) {
 const HERO_SCRIM_CONTENT_START = Number(HERO_SCRIM_CONTENT_STOPS_RULE[1]);
 const HERO_SCRIM_CONTENT_END = Number(HERO_SCRIM_CONTENT_STOPS_RULE[2]);
 
-// Real glass fill percent, read out of src/app.css rather than restated —
-// same reasoning as the scrim extraction above: a nudge should surface as
-// the ratio that broke, not a silent drift between two hardcoded numbers.
-const HERO_GLASS_RULE_BLOCK = /@supports \(backdrop-filter: blur\(1px\)\) \{([\s\S]*?)\n\}\n\n@media/u.exec(appCss);
-if (!HERO_GLASS_RULE_BLOCK) {
-	throw new Error('src/app.css no longer declares the .hero-glass @supports block this gate reads');
-}
-const HERO_GLASS_BODY = HERO_GLASS_RULE_BLOCK[1];
-const HERO_GLASS_LIGHT_RULE = /\.hero-glass\s*\{[^}]*color-mix\(in oklab, var\(--panel\) (\d+(?:\.\d+)?)%/u.exec(
-	HERO_GLASS_BODY,
+// Read the exact shared surface rule rather than restating its alpha or
+// local aliases. A missing declaration fails before any contrast calculation.
+const GLASS_RULE = /^\.hero-glass,\n[\s\S]*?\.site-footer \{([^}]*)\}/mu.exec(appCss)?.[1];
+if (!GLASS_RULE) throw new Error('the shared glass surface rule is missing');
+const GLASS_FILL_RULE = /background:\s*([^;]+);/u.exec(GLASS_RULE)?.[1];
+if (!GLASS_FILL_RULE) throw new Error('the glass surface fill is missing');
+const GLASS_ALIASES = Object.fromEntries(
+	[...GLASS_RULE.matchAll(/(--[a-z0-9-]+):\s*([^;]+);/gu)].map((match) => [match[1], match[2]]),
 );
-const HERO_GLASS_DARK_RULE =
-	/\[data-mode='dark'\] \.hero-glass\s*\{[^}]*color-mix\(in oklab, var\(--panel\) (\d+(?:\.\d+)?)%/u.exec(
-		HERO_GLASS_BODY,
-	);
-if (!HERO_GLASS_LIGHT_RULE || !HERO_GLASS_DARK_RULE) {
-	throw new Error('.hero-glass @supports block no longer declares light/dark translucent fills this gate can read');
-}
-const HERO_GLASS_PERCENT: Record<SchemeName, number> = {
-	light: Number(HERO_GLASS_LIGHT_RULE[1]),
-	dark: Number(HERO_GLASS_DARK_RULE[1]),
+const GLASS_TOKENS = {
+	light: { ...SCHEMES.light, ...GLASS_ALIASES },
+	dark: { ...SCHEMES.dark, ...GLASS_ALIASES },
 };
-
-// Measured real backdrop extremes behind .hero-glass — see the
-// MEASUREMENT METHODOLOGY note above. Both hero-glass regions measured
-// (the wide hero panel and the narrower status-card aside); the WORSE
-// (less contrasty) of the two per extreme is kept, so this is the
-// conservative pair across both surfaces, not an average.
-const HERO_MEASURED_BACKDROP: Record<SchemeName, { darkest: Rgb; lightest: Rgb }> = {
-	light: {
-		darkest: { red: 234, green: 230, blue: 221, alpha: 1 },
-		lightest: { red: 252, green: 248, blue: 228, alpha: 1 },
-	},
-	dark: {
-		darkest: { red: 50, green: 44, blue: 49, alpha: 1 },
-		lightest: { red: 65, green: 59, blue: 55, alpha: 1 },
-	},
-};
+const GLASS_FILL = resolveColor(GLASS_TOKENS.light, GLASS_FILL_RULE);
 
 function heroGrounds(scheme: SchemeName) {
-	const tokens = SCHEMES[scheme];
-	const cardFill = resolveColor(
-		tokens,
-		`color-mix(in oklab, var(--panel) ${HERO_GLASS_PERCENT[scheme]}%, transparent)`,
-	);
-	const backdrop = HERO_MEASURED_BACKDROP[scheme];
+	const tokens = GLASS_TOKENS[scheme];
+	const fill = resolveColor(tokens, GLASS_FILL_RULE!);
 	return {
-		/** the REAL translucent glass over the REAL measured backdrop extreme —
-		 * see the MEASUREMENT METHODOLOGY note above for why this replaced the
-		 * old 88%-fallback-over-pure-black/white model (review round 2,
-		 * finding B). */
-		card: (extreme: 'black' | 'white') =>
-			compositeOver(cardFill, extreme === 'black' ? backdrop.darkest : backdrop.lightest),
+		card: (extreme: 'black' | 'white') => compositeOver(fill, parseCssColor(extreme === 'black' ? '#000000' : '#ffffff')),
 	};
 }
 
@@ -691,11 +592,16 @@ const heroTextPairs: HeroPair[] = [
 	{ name: 'status-card muted copy over the hero', role: '--fg-muted', on: 'card', minimum: AA },
 	{ name: 'status-card heading over the hero', role: '--heading', on: 'card', minimum: LARGE },
 	{ name: 'status-card strong over the hero', role: '--heading', on: 'card', minimum: AA },
+	{ name: 'footer muted copy on glass', role: '--fg-muted', on: 'card', minimum: AA },
+	{ name: 'content and footer links on glass', role: '--link', on: 'card', minimum: AA },
+	{ name: 'contact error text on glass', role: '--danger', on: 'card', minimum: AA },
 ];
 
 const heroNonTextPairs: HeroPair[] = [
 	{ name: 'primary button fill over the hero', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
 	{ name: 'secondary button border over the hero', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
+	{ name: 'glass focus indicator', role: '--highlight-edge', on: 'card', minimum: NON_TEXT_RATIO },
+	{ name: 'invalid contact field edge on glass', role: '--danger', on: 'card', minimum: NON_TEXT_RATIO },
 ];
 
 /** contrastRatio(x, pure black) is strictly monotone in relative luminance
@@ -740,13 +646,25 @@ describe('hero backdrop scrim', () => {
 	});
 
 	for (const scheme of SCHEME_NAMES) {
+		it(`keeps filled glass controls and contact field edges readable (${scheme})`, () => {
+			const tokens = GLASS_TOKENS[scheme];
+			expect(
+				contrastRatio(resolveRole(tokens, '--accent-contrast'), resolveRole(tokens, '--accent')),
+			).toBeGreaterThanOrEqual(AA);
+			for (const role of ['--accent', '--danger']) {
+				expect(contrastRatio(resolveRole(tokens, role), resolveRole(tokens, '--panel'))).toBeGreaterThanOrEqual(
+					NON_TEXT_RATIO,
+				);
+			}
+		});
+
 		it(`keeps every hero ink outside the scrim's luminance envelope in the ${scheme} scheme`, () => {
 			// The precondition that makes the two extremes the worst case: were an
 			// ink INSIDE the envelope, some photograph pixel could pull the
 			// composite to the ink's own luminance and the ratio toward 1:1.
 			const grounds = heroGrounds(scheme);
 			for (const pair of [...heroTextPairs, ...heroNonTextPairs]) {
-				const ink = luminanceProxy(resolveRole(SCHEMES[scheme], pair.role));
+				const ink = luminanceProxy(resolveRole(GLASS_TOKENS[scheme], pair.role));
 				const ground = grounds[pair.on];
 				const low = Math.min(luminanceProxy(ground('black')), luminanceProxy(ground('white')));
 				const high = Math.max(luminanceProxy(ground('black')), luminanceProxy(ground('white')));
@@ -760,10 +678,10 @@ describe('hero backdrop scrim', () => {
 		for (const pair of [...heroTextPairs, ...heroNonTextPairs]) {
 			it(`${pair.name} reaches ${pair.minimum}:1 over both image extremes (${scheme})`, () => {
 				const grounds = heroGrounds(scheme);
-				const ink = resolveRole(SCHEMES[scheme], pair.role);
+				const ink = resolveRole(GLASS_TOKENS[scheme], pair.role);
 				for (const extreme of ['black', 'white'] as const) {
 					const ratio = roundRatio(contrastRatio(ink, grounds[pair.on](extreme)));
-					expect(ratio, `${pair.name} over ${extreme}: measured ${ratio}:1`).toBeGreaterThanOrEqual(pair.minimum);
+					expect(ratio, `${pair.name} over ${extreme}: calculated ${ratio}:1`).toBeGreaterThanOrEqual(pair.minimum);
 				}
 			});
 		}
