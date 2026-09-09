@@ -10,6 +10,7 @@ import {
 	coversPane,
 	deriveGeometry,
 	halfSweepDeg,
+	leftToRight,
 	maskVarsFor,
 	parkAngle,
 	phiAt,
@@ -96,6 +97,12 @@ describe('deriveGeometry', () => {
 		expect(
 			armsOver(deriveGeometry({ width: 358, height: 400 }), { left: 0, top: 0, width: 358, height: 400 }),
 		).toHaveLength(1);
+	});
+
+	it('orders a pair left to right by hub whichever owns the note', () => {
+		const [left, right] = deriveGeometry({ width: 1152, height: 620 }).arms;
+		expect(leftToRight([right, left])).toEqual([left, right]);
+		expect(leftToRight([left, right])).toEqual([left, right]);
 	});
 
 	it('assigns an item to the arm owning its x and the last arm past the edge', () => {

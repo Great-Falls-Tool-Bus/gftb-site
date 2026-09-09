@@ -4,7 +4,13 @@ import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { measureExtremesInRects, measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
+import {
+	measureExtremesInRects,
+	measureGlassExtremes,
+	measureTextureInRects,
+	resolveRoleRgb,
+	setScheme,
+} from './support/glass-contrast';
 
 // The same generated map SourceLink and NotesAndGoals read (a JSON import
 // needs an import attribute under Playwright's loader; read it directly).
@@ -76,10 +82,13 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	// any side of any row; every row is one translucent glass pane (the site's
 	// content-surface fill at 70%), the same for all, so photos and copy share
 	// one uniform occlusion over the scene rather than floating on it.
+	// The fill lives on the note's ::before (Chromium drops a mask on an
+	// element that carries a backdrop-filter), so it is read there.
 	const boxes = await rows.evaluateAll((els) =>
 		els.map((el) => {
 			const s = getComputedStyle(el);
-			return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.backgroundColor];
+			const fill = getComputedStyle(el, '::before').backgroundColor;
+			return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, fill];
 		}),
 	);
 	const fills = new Set<string>();
@@ -147,7 +156,9 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	// Paged: three notes up on a wide viewport, the rest in the DOM but hidden.
 	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused|wiping/u);
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
-	await expect(page.locator('#goals .goal-list > li.is-current')).toHaveCount(3);
+	// High is the detent on load, so the page in view may already be the short last one.
+	const current = await page.locator('#goals .goal-list > li.is-current').count();
+	expect([3, publicGoals.length % 3 || 3]).toContain(current);
 	await expect(page.locator('#goals .goal-list > li')).toHaveCount(publicGoals.length);
 	// Off is the resting grid at once: every note visible, nothing paged, nothing masked.
 	await selectDetent(page, 'Off');
@@ -174,9 +185,21 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	await pane(page).scrollIntoViewIfNeeded();
+	// High is the detent on load, so a wipe may already have turned the page
+	// by now: hold the rest open, read whichever page is in view under the
+	// hold (no stroke can start), and expect the one after it.
+	await holdRest(page);
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 60_000 });
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 	const firstPage = await currentTitles(page);
-	expect(firstPage).toHaveLength(3);
-	const expectedSecondPage = publicGoals.slice(3, 6).map((goal) => goal.metadata.title);
+	const titles = publicGoals.map((goal) => goal.metadata.title);
+	const pageSize = 3;
+	const pageCount = Math.ceil(titles.length / pageSize);
+	const pageInView = Math.floor(titles.indexOf(firstPage[0]) / pageSize);
+	expect(pageInView).toBeGreaterThanOrEqual(0);
+	expect(firstPage).toEqual(titles.slice(pageInView * pageSize, (pageInView + 1) * pageSize));
+	const nextPage = (pageInView + 1) % pageCount;
+	const expectedSecondPage = titles.slice(nextPage * pageSize, (nextPage + 1) * pageSize);
 	// Observe from inside the page: every data-wipe flip and every page turn,
 	// with the mask progress sampled while the out-stroke runs.
 	await page.evaluate(() => {
@@ -199,14 +222,15 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 			attributeFilter: ['data-wipe', 'data-state', 'class', 'style'],
 		});
 	});
-	// Arm the hold before the stroke starts so the out-stroke freezes at its
-	// midpoint the moment it begins; release it after reading the masks.
+	// Swap the rest hold for a stroke hold: the rest resumes counting and the
+	// out-stroke freezes at its midpoint the moment it begins; release it
+	// after reading the masks.
 	await page.evaluate(() => {
 		document.documentElement.dataset.wiperFreeze = '0.5';
 	});
 	await selectDetent(page, 'High');
 	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
-	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(3);
+	await expect(page.locator('#goals li[data-wipe="out"]')).toHaveCount(firstPage.length);
 	await expect(page.locator('#goals li[data-wipe="in"]')).toHaveCount(expectedSecondPage.length);
 	const outMask = await page
 		.locator('#goals li[data-wipe="out"]')
@@ -238,7 +262,6 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	const secondPage = await currentTitles(page);
 	expect(secondPage).toEqual(expectedSecondPage);
 	expect(secondPage).not.toEqual(firstPage);
-	expect(secondPage[0]).toBe(publicGoals[3].metadata.title);
 	const log = await page.evaluate(
 		() =>
 			(window as unknown as { __wipeLog: Array<{ state: string; unit: number; outs: number; ins: number }> }).__wipeLog,
@@ -246,7 +269,9 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	// The engine resets the unit to 0 at the apex synchronously, a microtask
 	// before Svelte drops the data-wipe attributes, so the log ends with that
 	// reset; the rise before it must be monotonic and reach the turnaround.
-	const units = log.filter((entry) => entry.state === 'wiping' && entry.outs === 3).map((entry) => entry.unit);
+	const units = log
+		.filter((entry) => entry.state === 'wiping' && entry.outs === firstPage.length)
+		.map((entry) => entry.unit);
 	const peak = Math.max(...units);
 	const rising = units.slice(0, units.lastIndexOf(peak) + 1);
 	// The hold sits at 0.5 and the release continues upward; on a slow software
@@ -388,11 +413,16 @@ test('the scene is absent under reduced motion and hidden on paper and under for
 	await expect(stalk(page)).toBeVisible();
 });
 
-// The ink clamp: the scene is measured as painted, only under the notes' text
-// boxes, at rest and with an out-stroke held at its midpoint, both schemes.
-async function inkRects(page: Page) {
+// The panes carry the inks: the scene owes the text nothing (operator ruling
+// at the M4 ratification, the former ink clamp is gone). Measured as the
+// visitor sees it: every pane's contents hidden so its fill and blur stay,
+// the blade layer hidden (a passing blade is the wipe, not the ground), the
+// real composite of pane over scene read under the notes' text boxes, at
+// rest and with an out-stroke held at its midpoint, both schemes, against
+// the glass inks the panes set.
+async function paneTextRects(page: Page) {
 	return page.evaluate(() => {
-		const canvas = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
+		const list = document.querySelector('#goals .goal-list')!.getBoundingClientRect();
 		const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
 		for (const row of document.querySelectorAll(
 			'#goals .goal-list > li.is-current, #goals .goal-list > li[data-wipe]',
@@ -400,15 +430,42 @@ async function inkRects(page: Page) {
 			for (const el of row.querySelectorAll('h3, p, a')) {
 				const r = el.getBoundingClientRect();
 				if (r.width <= 0 || r.height <= 0) continue;
-				rects.push({ left: r.left - canvas.left, top: r.top - canvas.top, width: r.width, height: r.height });
+				rects.push({ left: r.left - list.left, top: r.top - list.top, width: r.width, height: r.height });
 			}
 		}
 		return rects;
 	});
 }
 
+/** Hold the next rest open so a slow rig can look at it for as long as it needs. */
+async function holdRest(page: Page) {
+	await page.evaluate(() => {
+		document.documentElement.dataset.wiperFreeze = 'rest';
+	});
+}
+
+async function holdStroke(page: Page, unit: string) {
+	await page.evaluate((value) => {
+		document.documentElement.dataset.wiperFreeze = value;
+	}, unit);
+	await page.waitForFunction(
+		(value) =>
+			(document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') ===
+			Number(value).toFixed(4),
+		unit,
+		{ timeout: 30_000 },
+	);
+	await page.waitForTimeout(250);
+}
+
+async function releaseHold(page: Page) {
+	await page.evaluate(() => {
+		delete document.documentElement.dataset.wiperFreeze;
+	});
+}
+
 for (const scheme of ['light', 'dark'] as const) {
-	test(`the scene never lifts the notes' ink off its floor (${scheme})`, async ({ page }) => {
+	test(`the glass panes keep the notes' ink on its floor over the scene (${scheme})`, async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -416,29 +473,33 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
-		// At rest means at rest: a stroke shoves the notes across the glass
-		// while the pixels are read. A slower detent keeps the dwell already
-		// counting, so the only guaranteed window is the fresh dwell after a
-		// stroke ends: take Intermittent (at least 5.2 s of rest), let the next
-		// stroke run to its end, then sample.
-		await selectDetent(page, 'Intermittent');
-		await pointerAway(page);
-		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 20_000 });
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 20_000 });
+		// A rest held open: no note moves while the pixels are read.
+		await holdRest(page);
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
-		// Let the blobs cruise into the glass before sampling.
-		await page.waitForTimeout(1200);
+		await page.waitForTimeout(1500);
+		// Mid-sweep a pane is masked along with its text, so a text box can lie
+		// over bare scene where no glyph is painted: those pixels owe nothing.
+		// A second capture paints the pane's fill magenta wherever the pane is
+		// present and the measure keeps only those pixels.
+		const panePresent = {
+			style: '#goals .goal-list > li::before { background: #ff00ff !important; backdrop-filter: none !important; }',
+			isPresent: (rgb: { red: number; green: number; blue: number }) =>
+				rgb.red > 180 && rgb.green < 100 && rgb.blue > 180,
+		};
 		const check = async (label: string) => {
-			const rects = await inkRects(page);
+			const rects = await paneTextRects(page);
 			expect(rects.length, `${label}: text rects`).toBeGreaterThan(3);
 			const extremes = await measureExtremesInRects(
 				page,
-				'#goals canvas.wiper__scene',
+				'#goals .goal-list',
 				rects,
-				'#goals .goal-list, #goals canvas.wiper__blades',
+				'#goals .goal-list > li > *, #goals canvas.wiper__blades',
+				panePresent,
 			);
+			expect(extremes.sampled, `${label}: pixels where a pane is present`).toBeGreaterThan(2000);
 			const worst = async (role: string) => {
-				const ink = await resolveRoleRgb(page, role);
+				const ink = await resolveRoleRgb(page, role, '#goals .goal-list > li');
 				return Math.min(
 					roundRatio(contrastRatio(ink, extremes.darkest.rgb)),
 					roundRatio(contrastRatio(ink, extremes.lightest.rgb)),
@@ -446,20 +507,14 @@ for (const scheme of ['light', 'dark'] as const) {
 			};
 			expect(await worst('--fg'), `${label}: body copy`).toBeGreaterThanOrEqual(AA);
 			expect(await worst('--fg-muted'), `${label}: window copy`).toBeGreaterThanOrEqual(AA);
-			expect(await worst('--link'), `${label}: links and the active detent`).toBeGreaterThanOrEqual(AA);
+			expect(await worst('--link'), `${label}: links`).toBeGreaterThanOrEqual(AA);
 			expect(await worst('--heading'), `${label}: titles`).toBeGreaterThanOrEqual(LARGE);
 		};
 		await check('at rest');
-		await page.evaluate(() => {
-			document.documentElement.dataset.wiperFreeze = '0.5';
-		});
 		await selectDetent(page, 'High');
-		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
-		await page.waitForTimeout(300);
+		await holdStroke(page, '0.5');
 		await check('mid-sweep');
-		await page.evaluate(() => {
-			delete document.documentElement.dataset.wiperFreeze;
-		});
+		await releaseHold(page);
 	});
 }
 
@@ -516,7 +571,14 @@ for (const scheme of ['light', 'dark'] as const) {
 			throw new Error(`no gutter crossing for the arm parked at ${parkAngle(arm)}`);
 		});
 		const peak = async (rect: (typeof targets)[number]['rect']) => {
-			const extremes = await measureExtremesInRects(page, '#goals canvas.wiper__blades', [rect], '#goals .goal-list');
+			// The blade layer alone over the page ground: the notes and the scene
+			// (whose beads and frost are sharp too) are hidden for the capture.
+			const extremes = await measureExtremesInRects(
+				page,
+				'#goals canvas.wiper__blades',
+				[rect],
+				'#goals .goal-list, #goals canvas.wiper__scene',
+			);
 			return Math.max(
 				roundRatio(contrastRatio(ground, extremes.darkest.rgb)),
 				roundRatio(contrastRatio(ground, extremes.lightest.rgb)),
@@ -553,6 +615,112 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 }
 
+// The glass (M4): beads and frost build on the scene during a rest and the
+// blade squeegees them. Both are small and sharp where the blob field is
+// smooth, so the edge energy inside a gutter rect (inside the band's own
+// feathers) rises through a rest and falls behind a passing blade. Measured
+// on the scene canvas alone, notes and blades hidden. The rest is held open
+// (data-wiper-freeze="rest") so a slow rig's screenshots cannot outlast it.
+const GLASS_HIDE = '#goals .goal-list, #goals canvas.wiper__blades';
+
+async function gutterRects(page: Page) {
+	return page.evaluate(() => {
+		const box = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
+		const top = box.height * 0.12;
+		const height = box.height * 0.76;
+		return {
+			left: { left: 6, top, width: 40, height },
+			right: { left: box.width - 46, top, width: 40, height },
+			// The lower half of the right gutter is swept well before the top corner.
+			rightLow: { left: box.width - 46, top: box.height * 0.5, width: 40, height: box.height * 0.38 },
+		};
+	});
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		// A fresh rest after a stroke, then held open. A starved rig counts the
+		// rest slowly (a frame advances it a second at most), so allow a while.
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
+		await holdRest(page);
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		const rests = await gutterRects(page);
+		await page.waitForTimeout(150);
+		const early = await measureTextureInRects(
+			page,
+			'#goals canvas.wiper__scene',
+			[rests.left, rests.right],
+			GLASS_HIDE,
+		);
+		await page.waitForTimeout(4000);
+		expect(await pane(page).getAttribute('data-state'), 'the held rest').toMatch(/dwell|paused/u);
+		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
+		await releaseHold(page);
+		// The strong-edge share is the measure: beads are small and sharp,
+		// the field is smooth, and on a near-black ground the mean step is
+		// mostly 8-bit quantisation. Summed over both gutters (dark beads are
+		// gentle by ruling), it rises through the rest and ends with beads
+		// present; calibrated on the rail 2026-09-09 (light 0.05 to 0.11, dark
+		// 0.04 to 0.05).
+		const sum = (t: typeof early) => t[0].strong + t[1].strong;
+		expect(
+			sum(late),
+			`strong edges: ${sum(early).toFixed(4)} early, ${sum(late).toFixed(4)} late`,
+		).toBeGreaterThanOrEqual(sum(early) * 1.15);
+		expect(sum(late), 'beads present late in the rest').toBeGreaterThan(0.03);
+		for (const side of [0, 1]) expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
+	});
+
+	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		// Fill the glass under a held rest, then hold the next out-stroke at its
+		// midpoint: both blades stand near vertical over their span midpoints,
+		// so the left gutter lies behind the left blade and the right gutter
+		// ahead of the right blade.
+		await holdRest(page);
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		await page.waitForTimeout(4000);
+		await selectDetent(page, 'High');
+		await holdStroke(page, '0.5');
+		const rests = await gutterRects(page);
+		const mid = await measureTextureInRects(
+			page,
+			'#goals canvas.wiper__scene',
+			[rests.left, rests.right, rests.rightLow],
+			GLASS_HIDE,
+		);
+		// Behind a blade the strong-edge share falls to nothing (probe: 0.002
+		// light, 0 dark) while ahead it carries the beads (0.05 light, 0.03 dark).
+		expect(
+			mid[0].strong,
+			`behind the left blade: ${mid[0].strong.toFixed(4)} vs ahead ${mid[1].strong.toFixed(4)}`,
+		).toBeLessThan(mid[1].strong * 0.3);
+		expect(mid[1].strong, 'beads ahead of the right blade').toBeGreaterThan(0.01);
+		// Move the hold near the turnaround: the right blade has passed the
+		// lower right gutter too.
+		await holdStroke(page, '0.98');
+		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.rightLow], GLASS_HIDE);
+		expect(
+			late[0].strong,
+			`behind the right blade: ${late[0].strong.toFixed(4)} vs ahead ${mid[2].strong.toFixed(4)}`,
+		).toBeLessThan(mid[2].strong * 0.3);
+		await releaseHold(page);
+	});
+}
+
 test('a pointer over the pane pauses the wipers, leaving resumes them, and focus inside reveals the focused note', async ({
 	page,
 }) => {
@@ -560,7 +728,14 @@ test('a pointer over the pane pauses the wipers, leaving resumes them, and focus
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	await pane(page).scrollIntoViewIfNeeded();
+	// The courtesy pause belongs to the intermittent detent alone (operator
+	// ruling at the M4 ratification). Settle on Intermittent with no stroke in
+	// flight before reading states: a stroke in flight completes under a pause
+	// and would turn the page under the focus check below.
+	await selectDetent(page, 'Intermittent');
 	await pointerAway(page);
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
 	await pane(page).hover();
 	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
@@ -574,6 +749,13 @@ test('a pointer over the pane pauses the wipers, leaving resumes them, and focus
 	await expect(page.locator('#goals .goal-list > li').nth(lastIndex)).toBeVisible();
 	await page.waitForTimeout(wiperDetent('intermittent').dwellMs + 500);
 	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
+	// On High a resting pointer changes nothing: the wipers keep time.
+	await page.locator('body').click({ position: { x: 5, y: 5 } });
+	await selectDetent(page, 'High');
+	await pane(page).hover();
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|wiping/u);
+	await page.waitForTimeout(400);
+	await expect(pane(page)).toHaveAttribute('data-state', /dwell|wiping/u);
 });
 
 test('reduced motion shows the same grid, every note visible, nothing moving', async ({ page }) => {

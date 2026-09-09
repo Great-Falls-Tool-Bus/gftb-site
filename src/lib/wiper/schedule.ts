@@ -21,7 +21,7 @@ export interface WiperDetentEntry {
  * 2026-09-09), slowed at LOOK 3 so the blades read as blades and the shove
  * has time to carry a note off the glass.
  */
-export const SWEEP_MS = 2600;
+export const SWEEP_MS = 3400;
 
 /**
  * The stalk, Off first, then faster detents. A detent sets how often a wipe
@@ -32,14 +32,14 @@ export const SWEEP_MS = 2600;
  */
 export const WIPER_DETENTS: readonly WiperDetentEntry[] = [
 	{ id: 'off', label: 'Off', dwellMs: 0, sweepMs: 0 },
-	{ id: 'intermittent', label: 'Intermittent', dwellMs: 6500, sweepMs: SWEEP_MS },
-	{ id: 'low', label: 'Low', dwellMs: 4400, sweepMs: SWEEP_MS },
-	{ id: 'high', label: 'High', dwellMs: 3000, sweepMs: SWEEP_MS },
+	{ id: 'intermittent', label: 'Intermittent', dwellMs: 7000, sweepMs: SWEEP_MS },
+	{ id: 'low', label: 'Low', dwellMs: 5000, sweepMs: SWEEP_MS },
+	{ id: 'high', label: 'High', dwellMs: 3600, sweepMs: SWEEP_MS },
 ];
 
 /**
- * High on load (operator ruling at LOOK 3): with the slower stroke its
- * cycle is about 5.6 s, close to the retired carousel's 7 s auto-advance.
+ * High on load (operator ruling at LOOK 3); the stroke slowed again at the
+ * M4 ratification, so High's cycle is 7 s, the retired carousel's cadence.
  */
 export const DEFAULT_WIPER_DETENT: ActiveWiperDetent = 'high';
 
@@ -72,6 +72,12 @@ export function dwellFor(id: WiperDetent, random: () => number = Math.random): n
 export function strokeEase(t: number): number {
 	const clamped = Math.min(Math.max(t, 0), 1);
 	return 0.5 - 0.5 * Math.cos(Math.PI * clamped);
+}
+
+/** The raw progress that produced an eased unit: the inverse of strokeEase. */
+export function strokeEaseInverse(unit: number): number {
+	const clamped = Math.min(Math.max(unit, 0), 1);
+	return Math.acos(1 - 2 * clamped) / Math.PI;
 }
 
 export function pageOf(index: number, pageSize: number): number {

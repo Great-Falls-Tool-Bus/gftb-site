@@ -41,6 +41,11 @@ export interface BladePose {
 	readonly bladeFrom: number;
 	/** Rubber lag against the direction of travel, -1..1; 0 at rest and at the ends. */
 	readonly flex: number;
+	/** The arm's fan, radians: the stroke runs from -park to +halfSweep. */
+	readonly park: number;
+	readonly halfSweep: number;
+	/** 1 on the out-stroke, -1 on the back-stroke, 0 parked. */
+	readonly travel: -1 | 0 | 1;
 }
 
 export interface WiperGeometry {
@@ -142,6 +147,11 @@ export function armsOver(geometry: WiperGeometry, box: ItemBox): ArmSpec[] {
 	return [owner, ...others];
 }
 
+/** The arms left to right by hub, for masks that must know which is which. */
+export function leftToRight(arms: readonly ArmSpec[]): ArmSpec[] {
+	return [...arms].sort((a, b) => a.pivotX - b.pivotX);
+}
+
 export interface ItemBox {
 	readonly left: number;
 	readonly top: number;
@@ -209,7 +219,18 @@ export function bladePoseAt(
 		ARM_WIDTH_PX[1],
 	);
 	const bladeFrom = Math.min(arm.length * BLADE_FROM_RATIO, (arm.pivotY - box.height) * BLADE_FROM_OF_DROP);
-	return { pivotX: arm.pivotX, pivotY: arm.pivotY, length: arm.length, phi, width, bladeFrom, flex };
+	return {
+		pivotX: arm.pivotX,
+		pivotY: arm.pivotY,
+		length: arm.length,
+		phi,
+		width,
+		bladeFrom,
+		flex,
+		park: arm.park,
+		halfSweep: arm.halfSweep,
+		travel,
+	};
 }
 
 /** Static per-item custom properties; item and pane rects are in the same coordinate space. */

@@ -40,9 +40,13 @@ describe('the wiper source contract', () => {
 			".goal-list--paged > li[data-wipe='out'][data-wipe-arms='both']",
 			".goal-list--paged > li[data-wipe='in'][data-wipe-arms='both']",
 		]);
-		// A straddling note: clearing masks intersect, revealing masks add.
-		expect(block).toMatch(/\[data-wipe='out'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: intersect;/u);
-		expect(block).toMatch(/\[data-wipe='in'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: add;/u);
+		// A note both blades pass over: the right wedge is cut to its span.
+		expect(block).toMatch(/\[data-wipe='out'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: intersect, add;/u);
+		expect(block).toMatch(/\[data-wipe='in'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: add, intersect;/u);
+		expect(block.match(/var\(--wipe-split\)/gu)).toHaveLength(4);
+		const engineSource = read('src/lib/wiper/engine.svelte.ts');
+		expect(engineSource).toContain("'--wipe-split'");
+		expect(engineSource).toContain('leftToRight([owner, second])');
 		expect(block).toMatch(
 			/transparent var\(--wipe-feather\) calc\(var\(--wipe-feather\) \+ var\(--wipe-u\) \* var\(--wipe-span\)\)/u,
 		);
@@ -98,18 +102,28 @@ describe('the wiper source contract', () => {
 	});
 
 	it('gives every note and the asides one glass pane, and the goals section none', () => {
-		const pane = /\.goal-list > li,\n\.goal-asides \{([^}]*)\}/u.exec(css);
+		const inks = /\.goal-list > li,\n\.goal-asides \{([^}]*)\}/u.exec(css);
+		expect(inks).not.toBeNull();
+		expect(inks![1]).toMatch(/border-radius: 0;/u);
+		expect(inks![1]).toMatch(/--fg: var\(--glass-fg\);/u);
+		expect(inks![1]).not.toMatch(/border(?!-radius)|box-shadow|background|backdrop/u);
+		// The fill and the blur sit on a pseudo under the note: Chromium drops
+		// mask-image on an element that carries a backdrop-filter.
+		const pane = /\.goal-list > li::before \{([^}]*)\}/u.exec(css);
 		expect(pane).not.toBeNull();
 		expect(pane![1]).toMatch(/background: color-mix\(in oklab, var\(--glass-panel\) 70%, transparent\);/u);
-		expect(pane![1]).toMatch(/border-radius: 0;/u);
-		expect(pane![1]).toMatch(/--fg: var\(--glass-fg\);/u);
-		expect(pane![1]).not.toMatch(/border(?!-radius)|box-shadow/u);
+		expect(pane![1]).toMatch(/z-index: -1;/u);
+		expect(css).toMatch(
+			/\.goal-list > li::before,\n\t\.goal-asides \{\n\t\tbackdrop-filter: blur\(12px\) saturate\(118%\);/u,
+		);
+		expect(css).not.toMatch(/\.goal-list > li[^:,{]*\{[^}]*backdrop-filter:(?! none)/u);
 		expect(css).toMatch(/\.page-shell > \.section:not\(\.section--bare\),/u);
 		expect(css).not.toMatch(/\.page-shell > \.section,/u);
 		const page = read('src/routes/+page.svelte');
 		expect(page).toMatch(/class="section section--bare reveal-armed"[\s\S]{0,120}id="goals"/u);
 		const print = css.slice(css.indexOf('@media print {'));
 		expect(print).toMatch(/\.goal-list > li,\n\t\.goal-asides \{\n\t\tbackground: none !important;/u);
+		expect(print).toMatch(/\.goal-list > li::before \{\n\t\tdisplay: none !important;/u);
 	});
 
 	it('unwinds the paging on paper and hides the stalk', () => {
@@ -142,6 +156,9 @@ describe('the wiper source contract', () => {
 		expect(engine).toContain("this.#pane?.style.setProperty('--wipe-u', unit.toFixed(4));");
 		expect(engine).not.toMatch(/animate\(|@keyframes/u);
 		expect(engine).toContain("const FREEZE_ATTR = 'wiperFreeze';");
+		// The rest hold: a dwell held open while the scene keeps running.
+		expect(engine).toContain("const REST_HOLD = 'rest';");
+		expect(engine).toContain("if (frozen === REST_HOLD && this.machine.phase === 'dwell') {");
 	});
 
 	it('keeps the scene behind the notes, sharp, inert, and gone on paper and under forced colours', () => {
@@ -166,16 +183,23 @@ describe('the wiper source contract', () => {
 			/mask-image: linear-gradient\(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%\);/u,
 		);
 		// The band feathers like the hero backdrop and clips what the blade shoves out.
-		expect(css).toMatch(/\.wiper--paged \.wiper__glass \{\n\toverflow: clip;/u);
+		expect(css).toMatch(
+			/\.wiper--paged \.wiper__glass \{\n\toverflow: clip;\n\tborder-radius: var\(--bleed-radius\) var\(--bleed-radius\) 0 0;/u,
+		);
+		// The mirror: the hero band's bottom corners on the same token.
+		expect(css).toMatch(/\.hero__media \{[^}]*border-radius: 0 0 var\(--bleed-radius\) var\(--bleed-radius\);/u);
+		expect(css).toMatch(/--bleed-radius: clamp\(1\.75rem, 5vw, 3\.5rem\);/u);
 		expect(css).toMatch(/\.wiper--paged \.wiper__glass::after \{[^}]*z-index: 0;[^}]*pointer-events: none;/u);
 		const host = read('src/lib/components/WiperScene.svelte');
 		expect(host).toContain('aria-hidden="true"');
-		expect(host).toContain('inkAlpha: INK_SAFE_ALPHA');
 		expect(host).toContain("selectRenderer(element, { layer: 'scene' })");
 		expect(host).toContain("selectRenderer(bladesElement, { layer: 'blades' })");
-		expect(host).toContain('renderer.render({ ...frame, arms: [] });');
-		expect(host).toContain('uploadMovingInk();');
-		expect(host).toContain(`inkRects(host, '.goal-list > li[data-wipe="out"]')`);
+		expect(host).toContain('renderer.render({ ...frame, arms });');
+		// M4: the bead field and the frost ride the scene's own clock.
+		expect(host).toContain('strokeClock(now)');
+		expect(host).toContain('uploadDroplets(');
+		expect(host).toContain('uploadFrost(');
+		expect(host).toContain('frostClock.note(clock, drops.time);');
 		expect(host).toContain('blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });');
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
@@ -183,12 +207,37 @@ describe('the wiper source contract', () => {
 		expect(goals).toContain('<WiperScene {engine} colors={BRAND_BLOB_COLORS} glass={glassEl} />');
 	});
 
+	it('keeps the glass on the scene layer, before the clamp, and the blades away from it', () => {
+		const shader = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
+		const fragment = shader.slice(shader.indexOf('export const SCENE_FRAGMENT'));
+		const [, rest] = fragment.split('if (u_layer == 0) {');
+		const [sceneBranch, bladeBranch] = rest.split('return;\n\t}');
+		expect(shader).toContain('uniform highp sampler2D u_drops;');
+		expect(sceneBranch).toContain('outColor = vec4(droplets(p, frost(uv, blobs, swept), swept), 1.0);');
+		for (const call of ['sweptNow(', 'frost(', 'droplets(']) expect(sceneBranch).toContain(call);
+		expect(sceneBranch).not.toMatch(/armParts\(|shadeChrome\(/u);
+		expect(bladeBranch).not.toMatch(/u_drops|u_frostTex|u_armEdge|u_armFan/u);
+		// GLSL ES reserved words never appear as identifiers.
+		expect(fragment).not.toMatch(/\b(half|sample|filter|input|output)\b/u);
+		// Every uniform the fragment declares is one the renderer looks up.
+		const renderer = read('src/lib/wiper/renderer/webgl2.ts');
+		const declared = [...fragment.matchAll(/^uniform\s+(?:highp\s+)?\w+\s+(u_\w+)/gmu)].map((m) => m[1]);
+		expect(declared.length).toBeGreaterThan(10);
+		for (const name of declared) expect(renderer, name).toContain(`'${name}'`);
+		expect(renderer).not.toContain('createFramebuffer');
+		// The inverse ease lives in one place.
+		for (const file of ['src/lib/wiper/machine.ts', 'src/lib/wiper/engine.svelte.ts']) {
+			const source = read(file);
+			expect(source).toContain('strokeEaseInverse');
+			expect(source).not.toContain('Math.acos');
+		}
+	});
+
 	it('ships shaders as strings with no host or mailbox in them and no console in the renderer', () => {
 		const shader = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
 		expect(shader).not.toMatch(/https?:|[\w.-]+@[\w.-]+\.\w{2,}/u);
-		expect(shader).toContain('u_inkAlpha');
-		// The clamp reads the static field and the moving field for shoved notes.
-		expect(shader).toContain('float k = max(texture(u_ink, uv).r, texture(u_inkMoving, uv).r);');
+		// No clamp under text: the panes carry their inks (pane-composite.test.ts).
+		expect(shader).not.toMatch(/u_ink|inkAlpha/u);
 		const renderer = read('src/lib/wiper/renderer/webgl2.ts');
 		expect(renderer).not.toMatch(/console\./u);
 		expect(renderer).toContain("addEventListener('webglcontextlost'");
@@ -212,7 +261,7 @@ describe('the wiper source contract', () => {
 		const pane = /\.wiper \{([^}]*)\}/u.exec(block);
 		expect(pane![1]).not.toMatch(/100vw/u);
 		// Inner room lives on every note now that each note is a pane.
-		expect(css).toMatch(/\.goal-list > li \{\n\tpadding: 1rem 1\.1rem 1\.25rem;\n\}/u);
+		expect(css).toMatch(/\.goal-list > li \{[^}]*padding: 1rem 1\.1rem 1\.25rem;\n\}/u);
 		expect(block).not.toMatch(/\.goal-list--paged > li \{[^}]*padding/u);
 		const print = css.slice(css.indexOf('@media print {'));
 		expect(print).toMatch(/\.wiper--paged \{\n\t\twidth: auto !important;/u);

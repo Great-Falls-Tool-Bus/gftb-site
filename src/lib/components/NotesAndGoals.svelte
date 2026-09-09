@@ -99,8 +99,9 @@
 	}
 </script>
 
-<!-- A resting pointer over the pane is a courtesy pause, not a control;
-     nothing is lost without it, so the handlers sit on the plain wrapper. -->
+<!-- A resting pointer over the pane is a courtesy pause on the intermittent
+     detent only (the machine decides); nothing is lost without it, so the
+     handlers sit on the plain wrapper. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="wiper"
