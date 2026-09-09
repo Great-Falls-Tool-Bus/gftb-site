@@ -22,6 +22,16 @@ const sourceMap = 'src/lib/generated/source-map.json';
 const day = 'src/content/log/2026-09-09-original.svx';
 const older = 'src/content/log/2026-09-01-earlier.svx';
 
+// Independent inventory of the real site's semantic source. The compiler's
+// implementation and packaging remain pinned package inputs, not main inputs.
+const semanticSources = [
+	'MODULE.bazel', 'pnpm-lock.yaml', 'package.json', '.prettierrc',
+	'src/lib/public-log-schema.ts', 'src/lib/featured-image-schema.ts',
+	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
+	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
+	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
+];
+
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 const object = (kind, bytes) => createHash('sha1').update(`${kind} ${bytes.length}\0`).update(bytes).digest('hex');
 
@@ -71,7 +81,7 @@ async function fixture(existing) {
 	const bodies = new Map([
 		['.prettierrc', readFileSync(path.join(runtime, '.prettierrc'), 'utf8')],
 		['tinyland.repo.json', JSON.stringify({ repo: { github: 'Great-Falls-Tool-Bus/gftb-site', defaultBranch: 'main' } })],
-		['package.json', JSON.stringify({ repository: { url: repository.repoUrl + '.git' } })],
+		['package.json', readFileSync(path.join(runtime, 'package.json'), 'utf8')],
 		[manifest, await renderLogManifest(entries, format)],
 		[sourceMap, renderSourceMap(repository, ['src/routes/+page.svelte'], entries)],
 		...documents,
@@ -80,6 +90,9 @@ async function fixture(existing) {
 	return seal({
 		repository: 'Great-Falls-Tool-Bus/gftb-site', repositoryId: '12345', baseSha: 'a'.repeat(40), baseTreeSha: '',
 		tree: [...bodies].map(([file]) => ({ path: file, mode: '100644', oid: '' })).concat([
+			...semanticSources.filter((file) => !bodies.has(file)).map((file) => ({
+				path: file, mode: '100644', oid: object('blob', readFileSync(path.join(runtime, file))),
+			})),
 			{ path: 'src/routes/+page.svelte', mode: '100644', oid: object('blob', Buffer.from('<h1>Home</h1>')) },
 			{ path: 'other-source.txt', mode: '100644', oid: object('blob', Buffer.from('Unrelated source remains bound.')) },
 		]),
@@ -133,6 +146,42 @@ test('new date returns the literal candidate and both unchanged generated preima
 	assert.ok(result.toolInputs.some((item) => item.path === 'compiler-runtime'));
 	assert.equal(result.sourceInputs.length, input.blobs.length);
 });
+
+test('the authenticated tree binds all real semantic inputs without requiring compiler source on main', async () => {
+	const input = await fixture();
+	assert.equal(input.tree.some((leaf) => leaf.path.startsWith('tools/site-draft-compiler/')), false);
+	const result = await prepareDraftProjection(input);
+	assertVerifiedSiteDraftCandidate(result);
+	for (const file of semanticSources) {
+		const bytes = readFileSync(path.join(runtime, file));
+		assert.equal(input.tree.find((leaf) => leaf.path === file).oid, object('blob', bytes));
+		assert.equal(result.toolInputs.find((source) => source.path === file).sha256, sha(bytes));
+	}
+});
+
+for (const file of semanticSources) {
+	for (const failure of ['missing', 'changed', 'symlink', 'executable']) {
+		test(`refuses authentic canonical ${failure} semantic input ${file}`, async () => {
+			const input = await fixture();
+			const leaf = input.tree.find((entry) => entry.path === file);
+			if (failure === 'missing') {
+				input.tree = input.tree.filter((entry) => entry.path !== file);
+				input.blobs = input.blobs.filter((blob) => blob.path !== file);
+			} else if (failure === 'changed') {
+				const bytes = Buffer.concat([readFileSync(path.join(runtime, file)), Buffer.from('\n')]);
+				leaf.oid = object('blob', bytes);
+				const blob = input.blobs.find((entry) => entry.path === file);
+				if (blob) blob.content = bytes.toString('utf8');
+			} else {
+				// Keep the exact content hash: a matching blob does not excuse a
+				// non-regular or executable source mode in the authenticated tree.
+				leaf.mode = failure === 'symlink' ? '120000' : '100755';
+			}
+			seal(input);
+			await refused(input);
+		});
+	}
+}
 
 test('the pinned parser exposes scripts and expressions to the modern fragment guard', () => {
 	const parsed = parseSvelte('<script>let active = 1;</script><p>{active}</p>', { modern: true });

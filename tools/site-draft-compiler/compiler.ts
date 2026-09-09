@@ -44,6 +44,20 @@ const TOOL_FILES = [
 	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
 ] as const;
 
+/**
+ * The installed package owns the compiler implementation and packaging files.
+ * These site-owned inputs must still match the authenticated canonical tree:
+ * their schemas, transformations, deny rules and dependency graph determine
+ * what the current site will accept. Content-only main changes need no repin.
+ */
+const SITE_SEMANTIC_FILES = [
+	'MODULE.bazel', 'pnpm-lock.yaml', 'package.json', '.prettierrc',
+	'src/lib/public-log-schema.ts', 'src/lib/featured-image-schema.ts',
+	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
+	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
+	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
+] as const;
+
 export interface SiteTreeEntry {
 	readonly path: string;
 	readonly mode: '100644' | '100755' | '120000' | '160000';
@@ -255,11 +269,13 @@ async function checkCandidate(content: string, metadata: PublicLogMetadata): Pro
 
 function toolCustody() {
 	const root = new URL('../../', import.meta.url);
+	const contents = new Map(TOOL_FILES.map((path) => [path, readFileSync(new URL(path, root))]));
 	const files: Array<{ path: string; sha256: string }> = TOOL_FILES.map((path) => ({
-		path, sha256: sha256(readFileSync(new URL(path, root))),
+		path, sha256: sha256(contents.get(path)!),
 	}));
 	files.push({ path: 'compiler-runtime', sha256: sha256(readFileSync(fileURLToPath(import.meta.url))) });
-	return { files, format: readFileSync(new URL('.prettierrc', root), 'utf8') };
+	const siteInputs = SITE_SEMANTIC_FILES.map((path) => ({ path, oid: gitObject('blob', contents.get(path)!) }));
+	return { files, siteInputs, format: contents.get('.prettierrc')!.toString('utf8') };
 }
 
 export async function prepareDraftProjection(input: SiteDraftProjectionInput): Promise<VerifiedSiteDraftCandidate> {
@@ -298,6 +314,12 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 		requireFact(bytes <= MAX_INPUT_BYTES);
 		const get = (path: string): string => { const content = contents.get(path); requireFact(content !== undefined); return content; };
 		const custody = toolCustody();
+		// A complete authenticated tree is sufficient for this check. Never fetch
+		// or execute the canonical tree's code to compensate for a stale package.
+		for (const source of custody.siteInputs) {
+			const entry = treeByPath.get(source.path);
+			requireFact(entry?.mode === '100644' && entry.oid === source.oid);
+		}
 		// Arbitrary Prettier plugins from a caller's source snapshot are not code inputs.
 		requireFact(get('.prettierrc') === custody.format);
 		const format = JSON.parse(custody.format);
