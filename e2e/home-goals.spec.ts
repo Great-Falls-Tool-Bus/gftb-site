@@ -4,7 +4,13 @@ import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { measureExtremesInRects, measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
+import {
+	measureExtremesInRects,
+	measureGlassExtremes,
+	measureTextureInRects,
+	resolveRoleRgb,
+	setScheme,
+} from './support/glass-contrast';
 
 // The same generated map SourceLink and NotesAndGoals read (a JSON import
 // needs an import attribute under Playwright's loader; read it directly).
@@ -547,6 +553,106 @@ for (const scheme of ['light', 'dark'] as const) {
 		await hold('0.5');
 		expect(await peak(targets[0].rect), 'left gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
 		expect(await peak(targets[1].rect), 'right gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+		await page.evaluate(() => {
+			delete document.documentElement.dataset.wiperFreeze;
+		});
+	});
+}
+
+// The glass (M4): beads and frost build on the scene during a rest and the
+// blade squeegees them. Both are small and sharp where the blob field is
+// smooth, so the edge energy inside a gutter rect (outside the ink feather,
+// inside the band's own feathers) rises through a rest and falls behind a
+// passing blade. Measured on the scene canvas alone, notes and blades hidden.
+const GLASS_HIDE = '#goals .goal-list, #goals canvas.wiper__blades';
+
+async function gutterRects(page: Page) {
+	return page.evaluate(() => {
+		const box = document.querySelector('#goals canvas.wiper__scene')!.getBoundingClientRect();
+		const top = box.height * 0.12;
+		const height = box.height * 0.76;
+		return {
+			left: { left: 6, top, width: 40, height },
+			right: { left: box.width - 46, top, width: 40, height },
+		};
+	});
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		// A fresh rest begins when a stroke ends; Intermittent gives at least 5.2 s of it.
+		await selectDetent(page, 'Intermittent');
+		await pointerAway(page);
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 20_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 20_000 });
+		const rests = await gutterRects(page);
+		await page.waitForTimeout(200);
+		const early = await measureTextureInRects(
+			page,
+			'#goals canvas.wiper__scene',
+			[rests.left, rests.right],
+			GLASS_HIDE,
+		);
+		await page.waitForTimeout(3400);
+		expect(await pane(page).getAttribute('data-state'), 'the rest must outlast the second sample').toMatch(
+			/dwell|paused/u,
+		);
+		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
+		for (const side of [0, 1]) {
+			expect(late[side].edge, `edge energy, side ${side}`).toBeGreaterThanOrEqual(early[side].edge * 1.4);
+			expect(late[side].stddev, `deviation, side ${side}`).toBeGreaterThanOrEqual(early[side].stddev * 1.3);
+		}
+	});
+
+	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+		await setScheme(page, scheme);
+		await pane(page).scrollIntoViewIfNeeded();
+		await pointerAway(page);
+		await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+		// Let the field fill, then hold the next out-stroke at its midpoint:
+		// both blades stand near vertical over their span midpoints, so the
+		// left gutter lies behind the left blade and the right gutter ahead of
+		// the right blade.
+		await selectDetent(page, 'Intermittent');
+		await pointerAway(page);
+		await page.waitForTimeout(3000);
+		await page.evaluate(() => {
+			document.documentElement.dataset.wiperFreeze = '0.5';
+		});
+		await selectDetent(page, 'High');
+		await pointerAway(page);
+		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 20_000 });
+		await page.waitForFunction(
+			() => (document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') === '0.5000',
+			null,
+			{ timeout: 20_000 },
+		);
+		await page.waitForTimeout(200);
+		const rests = await gutterRects(page);
+		const mid = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
+		expect(mid[0].edge, 'behind the left blade').toBeLessThan(mid[1].edge * 0.5);
+		// Move the hold near the turnaround: the right blade has passed its gutter too.
+		await page.evaluate(() => {
+			document.documentElement.dataset.wiperFreeze = '0.98';
+		});
+		await page.waitForFunction(
+			() => (document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') === '0.9800',
+			null,
+			{ timeout: 20_000 },
+		);
+		await page.waitForTimeout(200);
+		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.right], GLASS_HIDE);
+		expect(late[0].edge, 'behind the right blade').toBeLessThan(mid[1].edge * 0.5);
 		await page.evaluate(() => {
 			delete document.documentElement.dataset.wiperFreeze;
 		});

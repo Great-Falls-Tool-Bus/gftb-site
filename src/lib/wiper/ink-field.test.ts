@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { distanceToRect, rasterizeInkField } from './ink-field';
-import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, INK_SAFE_ALPHA } from './renderer/shaders/constants';
+import { DROP_SPEC, FROST_MAX, INK_FIELD_HEIGHT, INK_FIELD_WIDTH, INK_SAFE_ALPHA } from './renderer/shaders/constants';
 import { SCENE_FRAGMENT } from './renderer/shaders/scene.glsl';
 
 describe('the ink field raster', () => {
@@ -83,4 +83,66 @@ describe('the ink field raster', () => {
 		expect(bladeBranch).not.toContain('u_inkAlpha');
 		expect(bladeBranch).toContain('outColor = vec4(rgb, alpha);');
 	});
+});
+
+// The glass (M4) sits before the clamp like the blobs. Its worst pixels are a
+// bead's darkened rim (ground times 0.72 in light), a bead's specular point
+// (ground plus DROP_SPEC) and full frost (ground pulled FROST_MAX toward the
+// frost tint). Under measured text each is pulled back to the ground by
+// 1 - INK_SAFE_ALPHA, and every text role must still clear its floor. A
+// failure here lowers DROP_SPEC or FROST_MAX, never the clamp.
+describe('the glass under the ink clamp', () => {
+	const srgbToLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+	const luminance = (rgb: readonly [number, number, number]) =>
+		0.2126 * srgbToLinear(rgb[0]) + 0.7152 * srgbToLinear(rgb[1]) + 0.0722 * srgbToLinear(rgb[2]);
+	const contrast = (a: readonly [number, number, number], b: readonly [number, number, number]) => {
+		const la = luminance(a);
+		const lb = luminance(b);
+		return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+	};
+	const hex = (value: string): [number, number, number] => {
+		const n = Number.parseInt(value.slice(1), 16);
+		return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+	};
+	const mix = (a: readonly [number, number, number], b: readonly [number, number, number], t: number) =>
+		[a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t] as [number, number, number];
+	const clampToGround = (ground: [number, number, number], scene: [number, number, number]) =>
+		mix(ground, scene, INK_SAFE_ALPHA);
+
+	const schemes = [
+		{
+			name: 'light',
+			ground: hex('#f7f0df'),
+			tint: [0.97, 0.98, 1.0] as [number, number, number],
+			frostMax: FROST_MAX[0],
+			roles: { fg: hex('#28222b'), muted: hex('#625d5c'), link: hex('#564682'), heading: hex('#463a67') },
+		},
+		{
+			name: 'dark',
+			ground: hex('#1a1620'),
+			tint: [0.62, 0.66, 0.76] as [number, number, number],
+			frostMax: FROST_MAX[1],
+			roles: { fg: hex('#f2ecdf'), muted: hex('#c9c2b8'), link: hex('#c9b8f0'), heading: hex('#e6dcff') },
+		},
+	];
+
+	for (const scheme of schemes) {
+		it(`clears every text role's floor in ${scheme.name}`, () => {
+			const { ground } = scheme;
+			const rim = mix(ground, [ground[0] * 0.72, ground[1] * 0.72, ground[2] * 0.72], 1);
+			const spec = [
+				Math.min(ground[0] + DROP_SPEC, 1),
+				Math.min(ground[1] + DROP_SPEC, 1),
+				Math.min(ground[2] + DROP_SPEC, 1),
+			] as [number, number, number];
+			const frost = mix(ground, scheme.tint, scheme.frostMax);
+			for (const worst of [rim, spec, frost]) {
+				const seen = clampToGround(ground, worst);
+				expect(contrast(scheme.roles.fg, seen)).toBeGreaterThanOrEqual(4.5);
+				expect(contrast(scheme.roles.muted, seen)).toBeGreaterThanOrEqual(4.5);
+				expect(contrast(scheme.roles.link, seen)).toBeGreaterThanOrEqual(4.5);
+				expect(contrast(scheme.roles.heading, seen)).toBeGreaterThanOrEqual(3);
+			}
+		});
+	}
 });

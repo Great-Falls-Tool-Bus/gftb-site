@@ -193,3 +193,26 @@ describe('WiperMachine', () => {
 		expect(m.holdStrokeAt(0.2, 20_000)).toBe(0);
 	});
 });
+
+describe('the stroke counters', () => {
+	it('bump at a stroke start, the turnaround and park, and never on Off or a page jump', () => {
+		const m = make({ initial: 'high', random: () => 0.5 });
+		m.resume(0);
+		m.tick(0);
+		expect(m.strokeSample(0)).toMatchObject({ phase: 'dwell', t: 0, strokeIndex: 0, passesDone: 0 });
+		const dwell = wiperDetent('high').dwellMs;
+		for (let now = 100; now <= dwell + 100; now += 100) m.tick(now);
+		expect(m.phase).toBe('out');
+		expect(m.strokeSample(dwell + 100)).toMatchObject({ phase: 'out', strokeIndex: 1, passesDone: 0 });
+		const half = wiperDetent('high').sweepMs / 2;
+		for (let now = dwell + 200; now <= dwell + half + 100; now += 100) m.tick(now);
+		expect(m.phase).toBe('back');
+		expect(m.strokeSample(dwell + half + 100)).toMatchObject({ strokeIndex: 2, passesDone: 1 });
+		for (let now = dwell + half + 200; now <= dwell + 2 * half + 200; now += 100) m.tick(now);
+		expect(m.phase).toBe('dwell');
+		expect(m.passesDone).toBe(2);
+		m.reveal(4, dwell + 2 * half + 300);
+		m.setDetent('off', dwell + 2 * half + 400);
+		expect(m.strokeSample(dwell + 2 * half + 400)).toMatchObject({ strokeIndex: 2, passesDone: 2 });
+	});
+});

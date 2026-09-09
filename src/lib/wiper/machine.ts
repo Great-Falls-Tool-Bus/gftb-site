@@ -9,6 +9,7 @@ import {
 	strokeEase,
 	wiperDetent,
 	type WiperDetent,
+	strokeEaseInverse,
 } from './schedule';
 
 export type WiperPhase = 'dwell' | 'out' | 'back';
@@ -62,9 +63,28 @@ export interface TickResult {
  */
 export const MAX_STEP_MS = 1000;
 
+/**
+ * The stroke clock as a renderer sees it between two frames: which stroke
+ * is running, how far it is, and how many passes (an out-stroke reaching
+ * the turnaround, a back-stroke reaching park) have completed in total.
+ * Two samples are enough to reconstruct every angle a blade crossed
+ * between them, whatever the frame gap.
+ */
+export interface StrokeSample {
+	phase: WiperPhase;
+	/** Raw progress within the current stroke, 0..1; 0 in dwell. */
+	t: number;
+	/** Bumped when a stroke begins (out at the dwell's end, back at the turnaround). */
+	strokeIndex: number;
+	/** Bumped at the turnaround and at park; never by Off or a page jump. */
+	passesDone: number;
+}
+
 export class WiperMachine {
 	detent: WiperDetent;
 	phase: WiperPhase = 'dwell';
+	strokeIndex = 0;
+	passesDone = 0;
 	page = 0;
 	outgoing = -1;
 	incoming = -1;
@@ -142,6 +162,15 @@ export class WiperMachine {
 		return this.#dwellRemaining;
 	}
 
+	strokeSample(now: number): StrokeSample {
+		return {
+			phase: this.phase,
+			t: this.strokeProgress(now),
+			strokeIndex: this.strokeIndex,
+			passesDone: this.passesDone,
+		};
+	}
+
 	view(): WiperView {
 		return {
 			detent: this.detent,
@@ -175,8 +204,7 @@ export class WiperMachine {
 	holdStrokeAt(unit: number, now: number): number {
 		if (this.phase !== 'out' || this.#strokeMs <= 0) return this.#unit;
 		const clamped = Math.min(Math.max(unit, 0), 1);
-		// strokeEase is 0.5 - 0.5 cos(pi t); invert it for the raw progress.
-		const t = Math.acos(1 - 2 * clamped) / Math.PI;
+		const t = strokeEaseInverse(clamped);
 		this.#strokeStart = now - t * this.#strokeMs;
 		this.#lastTick = now;
 		return this.#setUnit(clamped);
@@ -246,6 +274,7 @@ export class WiperMachine {
 		this.#strokeMs = Math.max(entry.sweepMs / 2, 1);
 		this.#strokeStart = now;
 		this.phase = phase;
+		this.strokeIndex += 1;
 		if (phase === 'out') {
 			this.outgoing = this.currentPage;
 			this.incoming = (this.currentPage + 1) % this.pageCount;
@@ -258,11 +287,13 @@ export class WiperMachine {
 		this.incoming = -1;
 		this.lastWipeEnd = 1;
 		this.#unit = 0;
+		this.passesDone += 1;
 		this.#beginStroke('back', now);
 	}
 
 	#finish(): void {
 		this.phase = 'dwell';
+		this.passesDone += 1;
 		this.lastWipeEnd = 0;
 		this.#dwellRemaining = dwellFor(this.detent, this.#opts.random);
 	}

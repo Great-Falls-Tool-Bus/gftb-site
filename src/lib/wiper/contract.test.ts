@@ -173,14 +173,47 @@ describe('the wiper source contract', () => {
 		expect(host).toContain('inkAlpha: INK_SAFE_ALPHA');
 		expect(host).toContain("selectRenderer(element, { layer: 'scene' })");
 		expect(host).toContain("selectRenderer(bladesElement, { layer: 'blades' })");
-		expect(host).toContain('renderer.render({ ...frame, arms: [] });');
+		expect(host).toContain('renderer.render({ ...frame, arms });');
 		expect(host).toContain('uploadMovingInk();');
+		// M4: the bead field and the frost ride the scene's own clock.
+		expect(host).toContain('strokeClock(now)');
+		expect(host).toContain('uploadDroplets(');
+		expect(host).toContain('uploadFrost(');
+		expect(host).toContain('frostClock.note(clock, drops.time);');
 		expect(host).toContain(`inkRects(host, '.goal-list > li[data-wipe="out"]')`);
 		expect(host).toContain('blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });');
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
 		expect(goals).toContain('{#if view.paged && glassEl}');
 		expect(goals).toContain('<WiperScene {engine} colors={BRAND_BLOB_COLORS} glass={glassEl} />');
+	});
+
+	it('keeps the glass on the scene layer, before the clamp, and the blades away from it', () => {
+		const shader = read('src/lib/wiper/renderer/shaders/scene.glsl.ts');
+		const fragment = shader.slice(shader.indexOf('export const SCENE_FRAGMENT'));
+		const [, rest] = fragment.split('if (u_layer == 0) {');
+		const [sceneBranch, bladeBranch] = rest.split('return;\n\t}');
+		expect(shader).toContain('uniform highp sampler2D u_drops;');
+		for (const call of ['sweptNow(', 'frost(', 'droplets(']) {
+			expect(sceneBranch.indexOf(call)).toBeGreaterThan(-1);
+			expect(sceneBranch.indexOf(call)).toBeLessThan(sceneBranch.indexOf('texture(u_ink'));
+		}
+		expect(sceneBranch).not.toMatch(/armParts\(|shadeChrome\(/u);
+		expect(bladeBranch).not.toMatch(/u_drops|u_frostTex|u_armEdge|u_armFan/u);
+		// GLSL ES reserved words never appear as identifiers.
+		expect(fragment).not.toMatch(/\b(half|sample|filter|input|output)\b/u);
+		// Every uniform the fragment declares is one the renderer looks up.
+		const renderer = read('src/lib/wiper/renderer/webgl2.ts');
+		const declared = [...fragment.matchAll(/^uniform\s+(?:highp\s+)?\w+\s+(u_\w+)/gmu)].map((m) => m[1]);
+		expect(declared.length).toBeGreaterThan(10);
+		for (const name of declared) expect(renderer, name).toContain(`'${name}'`);
+		expect(renderer).not.toContain('createFramebuffer');
+		// The inverse ease lives in one place.
+		for (const file of ['src/lib/wiper/machine.ts', 'src/lib/wiper/engine.svelte.ts']) {
+			const source = read(file);
+			expect(source).toContain('strokeEaseInverse');
+			expect(source).not.toContain('Math.acos');
+		}
 	});
 
 	it('ships shaders as strings with no host or mailbox in them and no console in the renderer', () => {

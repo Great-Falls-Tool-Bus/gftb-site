@@ -13,8 +13,15 @@ import {
 	type BladePose,
 	type WiperGeometry,
 } from './geometry';
-import { WiperMachine, type WiperMachineOptions, type WiperView } from './machine';
-import { strokeEase, type WiperDetent } from './schedule';
+import { WiperMachine, type StrokeSample, type WiperMachineOptions, type WiperView } from './machine';
+import { strokeEase, strokeEaseInverse, type WiperDetent } from './schedule';
+
+/** The machine's stroke sample resolved for a frame: held, paused, and the eased unit the mask carries. */
+export interface StrokeClock extends StrokeSample {
+	unit: number;
+	held: boolean;
+	paused: boolean;
+}
 
 export type RendererTier = 'webgpu' | 'webgl2' | 'none';
 
@@ -144,17 +151,23 @@ export class WiperEngine {
 	blades(now: number): BladePose[] {
 		const geometry = this.#geometry;
 		if (!geometry) return [];
-		const phase = this.machine.phase;
-		const frozen = document.documentElement.dataset[FREEZE_ATTR];
-		const held = frozen !== undefined && phase === 'out';
-		const t = held ? this.#heldProgress(frozen) : this.machine.strokeProgress(now);
-		const unit = phase === 'dwell' ? 0 : held ? this.machine.unit : strokeEase(t);
-		return geometry.arms.map((arm) => bladePoseAt(arm, geometry.box, phase, unit, t));
+		const clock = this.strokeClock(now);
+		return geometry.arms.map((arm) => bladePoseAt(arm, geometry.box, clock.phase, clock.unit, clock.t));
 	}
 
-	#heldProgress(frozen: string): number {
-		const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
-		return Math.acos(1 - 2 * unit) / Math.PI;
+	/**
+	 * The stroke as this frame sees it. A hold (data-wiper-freeze) pins the
+	 * out-stroke at the attribute's unit; otherwise the raw progress comes
+	 * from the machine clock and the unit through the mask's own easing.
+	 */
+	strokeClock(now: number): StrokeClock {
+		const sample = this.machine.strokeSample(now);
+		const frozen = document.documentElement.dataset[FREEZE_ATTR];
+		const held = frozen !== undefined && sample.phase === 'out';
+		const heldUnit = held ? Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1) : 0;
+		const t = held ? strokeEaseInverse(heldUnit) : sample.t;
+		const unit = sample.phase === 'dwell' ? 0 : held ? heldUnit : strokeEase(t);
+		return { ...sample, t, unit, held, paused: this.machine.paused };
 	}
 
 	/** Re-read the machine after an external input changed (page size, motion preference). */

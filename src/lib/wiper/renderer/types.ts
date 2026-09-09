@@ -32,6 +32,11 @@ export interface SceneArm {
 	bladeFrom: number;
 	/** Rubber lag against travel, -1..1. */
 	flex: number;
+	/** The arm's fan, radians: the stroke runs from -park to +halfSweep. */
+	park: number;
+	halfSweep: number;
+	/** 1 on the out-stroke, -1 on the back-stroke, 0 parked. */
+	travel: -1 | 0 | 1;
 }
 
 export interface SceneFrame {
@@ -43,6 +48,8 @@ export interface SceneFrame {
 	blobs: readonly SceneBlob[];
 	arms: readonly SceneArm[];
 	inkAlpha: number;
+	/** Frost strength ahead of the blades, 0..1 (M4). */
+	frost: number;
 	/**
 	 * Where the blade layer has anything to draw, CSS px, or null when the
 	 * blades are parked out of frame; the layer clears and skips the rest.
@@ -65,6 +72,13 @@ export interface RendererHandle {
 	uploadInk(field: Uint8Array, width: number, height: number): void;
 	/** The moving field for shoved notes; null clears it (a single zero texel). */
 	uploadMovingInk(field: Uint8Array | null, width: number, height: number): void;
+	/**
+	 * The bead field: (cols + 2) x (rows + 2) texels of x, y, r in CSS px and
+	 * alpha, a zero border around the grid; the renderer scales to device px.
+	 */
+	uploadDroplets(data: Float32Array, cols: number, rows: number, cellCss: number): void;
+	/** The static frost grain, 0..255. */
+	uploadFrost(field: Uint8Array, width: number, height: number): void;
 	render(frame: SceneFrame): void;
 	onLost(callback: (failure: RendererFailure) => void): void;
 	destroy(): void;

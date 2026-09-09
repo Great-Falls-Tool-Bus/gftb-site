@@ -74,6 +74,12 @@ export function strokeEase(t: number): number {
 	return 0.5 - 0.5 * Math.cos(Math.PI * clamped);
 }
 
+/** The raw progress that produced an eased unit: the inverse of strokeEase. */
+export function strokeEaseInverse(unit: number): number {
+	const clamped = Math.min(Math.max(unit, 0), 1);
+	return Math.acos(1 - 2 * clamped) / Math.PI;
+}
+
 export function pageOf(index: number, pageSize: number): number {
 	return Math.floor(index / Math.max(pageSize, 1));
 }

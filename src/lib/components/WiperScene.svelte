@@ -10,6 +10,9 @@
 	import { onMount } from 'svelte';
 	import { deviceTilt } from '$lib/motion/device-tilt.svelte';
 	import { createBlobField, type BlobFieldHandle } from '$lib/wiper/blob-field';
+	import { DropletField } from '$lib/wiper/droplet-field';
+	import { FrostClock, rasterizeFrostField } from '$lib/wiper/frost-field';
+	import { MAX_STEP_MS } from '$lib/wiper/machine';
 	import type { WiperEngine } from '$lib/wiper/engine.svelte';
 	import { rasterizeInkField, type InkRect } from '$lib/wiper/ink-field';
 	import { selectRenderer } from '$lib/wiper/renderer/select';
@@ -17,6 +20,9 @@
 		BLOB_RENDER_SCALE,
 		BLOB_WINDOW_EXTENT,
 		BLOB_WINDOW_ORIGIN,
+		FROST_FIELD_HEIGHT,
+		FROST_FIELD_WIDTH,
+		FROST_SCALES_PX,
 		INK_FIELD_HEIGHT,
 		INK_FIELD_WIDTH,
 		INK_MOVING_HEIGHT,
@@ -127,6 +133,11 @@
 		let width = 0;
 		let height = 0;
 		let ground = resolveRole('--bg');
+		// M4: the bead field and the frost clock live on the scene's own clock.
+		let drops: DropletField | null = null;
+		let dropsBox = '';
+		const frostClock = new FrostClock();
+		let frostBox = '';
 		let blend: 'multiply' | 'screen' = document.documentElement.dataset.mode === 'dark' ? 'screen' : 'multiply';
 		const palette = colors.slice(0, MAX_BLOBS).map(hexToRgb);
 		const controller = new AbortController();
@@ -184,11 +195,36 @@
 
 		const needsFrames = () => alive && visible && !hidden && renderer !== null && blades !== null && field !== null;
 
+		/** Keep the bead grid and the frost grain matched to the glass box. */
+		const syncGlass = () => {
+			const geometry = engine.geometry;
+			if (!renderer || !geometry || width <= 0 || height <= 0) return null;
+			const key = `${Math.round(geometry.box.width)}x${Math.round(geometry.box.height)}`;
+			if (!drops) drops = new DropletField(geometry);
+			else if (dropsBox !== key) drops.relayout(geometry);
+			if (dropsBox !== key) {
+				dropsBox = key;
+				renderer.uploadDroplets(drops.data, drops.cols, drops.rows, drops.cellCss);
+			}
+			if (frostBox !== key) {
+				frostBox = key;
+				renderer.uploadFrost(
+					rasterizeFrostField(FROST_FIELD_WIDTH, FROST_FIELD_HEIGHT, geometry.box, FROST_SCALES_PX),
+					FROST_FIELD_WIDTH,
+					FROST_FIELD_HEIGHT,
+				);
+			}
+			return geometry;
+		};
+
 		/** Draw the scene as it stands; the physics is advanced by the loop, not here. */
 		const paint = (now: number) => {
 			if (!renderer || !blades || !field) return;
 			if (inkDirty) uploadInk();
 			uploadMovingInk();
+			const geometry = syncGlass();
+			const clock = engine.strokeClock(now);
+			const frost = drops && geometry ? frostClock.value(clock.phase, drops.time) : 0;
 			// The field's window covers the glass the way the SVG's viewBox does (slice).
 			const scale = Math.max(width, height) / BLOB_WINDOW_EXTENT;
 			const offsetX = (width - BLOB_WINDOW_EXTENT * scale) / 2;
@@ -206,8 +242,9 @@
 			// the machine clock through the mask's own easing, so the drawn blade
 			// sits on the mask edge whichever callback the browser runs first.
 			const arms: SceneArm[] = engine.blades(now);
-			const frame = { time: now / 1000, ground, blend, blobs, inkAlpha: INK_SAFE_ALPHA };
-			renderer.render({ ...frame, arms: [] });
+			const frame = { time: now / 1000, ground, blend, blobs, inkAlpha: INK_SAFE_ALPHA, frost };
+			// Layer 0 reads the arms for its swept edge only; it draws no blade.
+			renderer.render({ ...frame, arms });
 			blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });
 		};
 
@@ -215,9 +252,21 @@
 			raf = 0;
 			if (!needsFrames() || !renderer || !blades || !field) return;
 			const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
+			const gap = last ? (now - last) / 1000 : 1 / 60;
 			last = now;
 			field.setTilt({ x: deviceTilt.x, y: deviceTilt.y, z: deviceTilt.z });
 			field.tick(dt, now / 1000);
+			// The bead field steps on the stroke clock: it stands still under a
+			// hold or a paused rest, and never jumps more than the machine does.
+			const geometry = syncGlass();
+			if (drops && geometry && renderer) {
+				const clock = engine.strokeClock(now);
+				frostClock.note(clock, drops.time);
+				const fieldDt = clock.held || (clock.paused && clock.phase === 'dwell') ? 0 : Math.min(gap, MAX_STEP_MS / 1000);
+				if (drops.step(fieldDt, clock, geometry.arms)) {
+					renderer.uploadDroplets(drops.data, drops.cols, drops.rows, drops.cellCss);
+				}
+			}
 			paint(now);
 			raf = requestAnimationFrame(frame);
 		};
