@@ -494,7 +494,8 @@ for (const scheme of ['light', 'dark'] as const) {
 			for (let unit = 0.02; unit <= 0.98; unit += 0.01) {
 				const pose = bladePoseAt(arm, box, 'out', unit, unit);
 				const point = rayPointAtX(arm, pose.phi, x);
-				if (point && point.y > box.height * 0.05 && point.y < box.height * 0.96) {
+				// Inside the band's own 8% feathers, where the blade layer is at full strength.
+				if (point && point.y > box.height * 0.12 && point.y < box.height * 0.88) {
 					const half = 1.4 * pose.width;
 					return {
 						unit: unit.toFixed(2),
@@ -515,7 +516,15 @@ for (const scheme of ['light', 'dark'] as const) {
 			await page.evaluate((value) => {
 				document.documentElement.dataset.wiperFreeze = value;
 			}, unit);
-			await page.waitForTimeout(250);
+			// The engine applies the hold on its next frame; wait for the mask to carry it.
+			await page.waitForFunction(
+				(value) =>
+					(document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') ===
+					Number(value).toFixed(4),
+				unit,
+				{ timeout: 20_000 },
+			);
+			await page.waitForTimeout(150);
 		};
 		await hold(targets[0].unit);
 		await selectDetent(page, 'High');

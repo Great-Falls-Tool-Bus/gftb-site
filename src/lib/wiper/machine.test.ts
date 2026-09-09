@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WiperMachine } from './machine';
+import { WiperMachine, MAX_STEP_MS } from './machine';
 import { wiperDetent } from './schedule';
 
 function make(overrides: Partial<ConstructorParameters<typeof WiperMachine>[0]> = {}) {
@@ -166,7 +166,7 @@ describe('WiperMachine', () => {
 		m.resume(0);
 		m.tick(0);
 		m.tick(50_000);
-		expect(m.dwellRemainingMs).toBeGreaterThanOrEqual(wiperDetent('low').dwellMs - 100);
+		expect(m.dwellRemainingMs).toBeGreaterThanOrEqual(wiperDetent('low').dwellMs - MAX_STEP_MS);
 	});
 
 	it('holds an out-stroke at a unit and resumes from that angle when released', () => {
