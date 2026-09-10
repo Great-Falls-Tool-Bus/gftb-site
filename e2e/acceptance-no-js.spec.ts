@@ -151,7 +151,7 @@ test.describe('JavaScript disabled', () => {
 
 test.describe('JavaScript enabled', () => {
 	// The console gate runs twice: once as the browser is (the top rung the
-	// ladder can reach), once capped at WebGL2 from outside. Two exemptions,
+	// ladder can reach), once capped at WebGL2 from outside. Three exemptions,
 	// each by exact shape: headless Chromium on software GL relays its own
 	// driver performance notices through the page console, and a headless
 	// shell with no WebGPU adapter says so once when the ladder asks; a GPU
@@ -174,6 +174,7 @@ test.describe('JavaScript enabled', () => {
 					options.allowAdapterNotice &&
 					message.type() === 'warning' &&
 					(message.text() === 'No available adapters.' ||
+						message.text() === 'A valid external Instance reference no longer exists.' ||
 						/^\[JavaScript Warning: "WebGPU is disabled by blocklist\."/u.test(message.text()))
 				)
 					return;

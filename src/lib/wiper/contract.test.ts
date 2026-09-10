@@ -228,7 +228,14 @@ describe('the wiper source contract', () => {
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
 		expect(goals).toContain('{#if view.paged && glassEl}');
-		expect(goals).toContain('<WiperScene {engine} colors={BRAND_BLOB_COLORS} glass={glassEl} />');
+		expect(goals).toMatch(/<WiperScene\s+\{engine\}\s+colors=\{BRAND_BLOB_COLORS\}\s+glass=\{glassEl\}\s+onlost=/u);
+		// A device lost after selection remounts the scene on fresh canvases,
+		// a bounded number of times, at the ceiling the loss lowered.
+		expect(goals).toContain('{#key sceneGeneration}');
+		expect(goals).toContain('SCENE_RELAUNCH_LIMIT = 2');
+		expect(host).toContain('renderer.onLost(() => lose());');
+		expect(host).toContain('blades.onLost(() => lose());');
+		expect(host).not.toContain('onLost(() => demote())');
 	});
 
 	it('keeps the glass on the scene layer, before the clamp, and the blades away from it', () => {
