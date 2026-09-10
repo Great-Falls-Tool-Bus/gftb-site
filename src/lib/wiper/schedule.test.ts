@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	DEFAULT_WIPER_DETENT,
+	strokeEaseInverse,
 	INTERMITTENT_JITTER,
 	SWEEP_MS,
 	WIPER_DETENTS,
@@ -74,5 +75,16 @@ describe('stroke easing and page arithmetic', () => {
 		expect(pageOf(0, 3)).toBe(0);
 		expect(pageOf(9, 3)).toBe(3);
 		expect(pageOf(4, 1)).toBe(4);
+	});
+});
+
+describe('strokeEaseInverse', () => {
+	it('undoes strokeEase across the stroke and clamps outside it', () => {
+		for (let step = 0; step <= 20; step += 1) {
+			const t = step / 20;
+			expect(strokeEaseInverse(strokeEase(t))).toBeCloseTo(t, 9);
+		}
+		expect(strokeEaseInverse(-1)).toBe(0);
+		expect(strokeEaseInverse(2)).toBe(1);
 	});
 });

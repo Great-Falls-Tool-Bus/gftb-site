@@ -2,7 +2,7 @@ export type RendererTier = 'webgpu' | 'webgl2' | 'none';
 
 /**
  * Which of the two canvases a renderer paints. The scene is opaque and sits
- * behind the notes: page ground, blob field, ink clamp. The blades layer is
+ * behind the notes: page ground, blob field, frost and beads. The blades layer is
  * transparent and sits over the notes: arms, rubber and their shadow, so the
  * blade passes over the panes it wipes (operator ruling at LOOK 3).
  */
@@ -32,6 +32,11 @@ export interface SceneArm {
 	bladeFrom: number;
 	/** Rubber lag against travel, -1..1. */
 	flex: number;
+	/** The arm's fan, radians: the stroke runs from -park to +halfSweep. */
+	park: number;
+	halfSweep: number;
+	/** 1 on the out-stroke, -1 on the back-stroke, 0 parked. */
+	travel: -1 | 0 | 1;
 }
 
 export interface SceneFrame {
@@ -42,7 +47,8 @@ export interface SceneFrame {
 	blend: 'multiply' | 'screen';
 	blobs: readonly SceneBlob[];
 	arms: readonly SceneArm[];
-	inkAlpha: number;
+	/** Frost strength ahead of the blades, 0..1 (M4). */
+	frost: number;
 	/**
 	 * Where the blade layer has anything to draw, CSS px, or null when the
 	 * blades are parked out of frame; the layer clears and skips the rest.
@@ -55,16 +61,22 @@ export type RendererFailure =
 	| { readonly kind: 'no-api' }
 	| { readonly kind: 'no-context' }
 	| { readonly kind: 'compile'; readonly stage: 'vertex' | 'fragment' | 'link' }
-	| { readonly kind: 'context-lost' };
+	| { readonly kind: 'context-lost' }
+	/** The host never answered the adapter or device request inside the deadline. */
+	| { readonly kind: 'timeout' };
 
 export interface RendererHandle {
 	readonly tier: Exclude<RendererTier, 'none'>;
 	readonly layer: RendererLayer;
 	/** CSS size and device pixel ratio; the backing store follows. */
 	resize(cssWidth: number, cssHeight: number, dpr: number): void;
-	uploadInk(field: Uint8Array, width: number, height: number): void;
-	/** The moving field for shoved notes; null clears it (a single zero texel). */
-	uploadMovingInk(field: Uint8Array | null, width: number, height: number): void;
+	/**
+	 * The bead field: (cols + 2) x (rows + 2) texels of x, y, r in CSS px and
+	 * alpha, a zero border around the grid; the renderer scales to device px.
+	 */
+	uploadDroplets(data: Float32Array, cols: number, rows: number, cellCss: number): void;
+	/** The static frost grain, 0..255. */
+	uploadFrost(field: Uint8Array, width: number, height: number): void;
 	render(frame: SceneFrame): void;
 	onLost(callback: (failure: RendererFailure) => void): void;
 	destroy(): void;

@@ -7,35 +7,37 @@ import {
 	armsOver,
 	bladePoseAt,
 	deriveGeometry,
+	leftToRight,
 	maskVarsFor,
 	sweepSpanDeg,
+	trainFor,
 	type ArmSpec,
 	type BladePose,
 	type WiperGeometry,
 } from './geometry';
-import { WiperMachine, type WiperMachineOptions, type WiperView } from './machine';
-import { strokeEase, type WiperDetent } from './schedule';
+import { WiperMachine, type StrokeSample, type WiperMachineOptions, type WiperView } from './machine';
+import type { RendererTier } from './renderer/types';
+import { pageOf, strokeEase, strokeEaseInverse, type WiperDetent } from './schedule';
 
-export type RendererTier = 'webgpu' | 'webgl2' | 'none';
-
-export interface SceneFrame {
-	now: number;
-	/** Raw progress inside the current stroke, 0..1. */
-	strokeProgress: number;
-	/** Eased out-stroke progress the mask uses, 0..1. */
+/** The machine's stroke sample resolved for a frame: held, paused, and the eased unit the mask carries. */
+export interface StrokeClock extends StrokeSample {
 	unit: number;
-	view: WiperView;
-	geometry: WiperGeometry | null;
+	held: boolean;
+	paused: boolean;
 }
 
 export interface WiperEngineOptions extends WiperMachineOptions {
-	/** Per-frame hook for a renderer (M2 onward). */
-	onFrame?: (frame: SceneFrame) => void;
 	now?: () => number;
 }
 
-/** Test and LOOK hook: `<html data-wiper-freeze="0.5">` holds the out-stroke at that unit. */
+/**
+ * Test and LOOK hook: `<html data-wiper-freeze="0.5">` holds the out-stroke
+ * at that unit; `data-wiper-freeze="rest"` holds a rest open (the dwell
+ * stops counting) while the scene keeps running, so beads and frost build
+ * for as long as a row needs to look at them.
+ */
 const FREEZE_ATTR = 'wiperFreeze';
+const REST_HOLD = 'rest';
 /** Smallest unit change worth a style write. */
 const UNIT_EPSILON = 0.002;
 
@@ -51,12 +53,10 @@ export class WiperEngine {
 	#resize: ResizeObserver | null = null;
 	#intersection: IntersectionObserver | null = null;
 	#controller = new AbortController();
-	#onFrame: WiperEngineOptions['onFrame'];
 	#now: () => number;
 
 	constructor(options: WiperEngineOptions) {
 		this.machine = new WiperMachine(options);
-		this.#onFrame = options.onFrame;
 		this.#now = options.now ?? (() => performance.now());
 		this.view = this.machine.view();
 	}
@@ -98,38 +98,63 @@ export class WiperEngine {
 		// The glass is the list, not the wrapper: the hub hangs below the notes,
 		// never below the stalk or the collection link.
 		const glass = pane.querySelector<HTMLElement>('.goal-list') ?? pane;
-		const box = glass.getBoundingClientRect();
+		// Layout reads first, all of them, then the writes. offsetLeft and
+		// offsetTop ignore transforms (a resize landing mid-stroke must not bake
+		// that frame's shove into the mask pivot) and are glass-local already:
+		// the list is the positioned ancestor.
+		const box = { width: glass.clientWidth, height: glass.clientHeight };
 		if (box.width <= 0 || box.height <= 0) return;
-		const geometry = deriveGeometry({ width: box.width, height: box.height });
+		const items = [...glass.querySelectorAll<HTMLElement>(':scope > li')].map((item) => ({
+			item,
+			left: item.offsetLeft,
+			top: item.offsetTop,
+			width: item.offsetWidth,
+			height: item.offsetHeight,
+		}));
+		const geometry = deriveGeometry(box);
 		this.#geometry = geometry;
 		pane.style.setProperty('--wipe-feather', `${geometry.featherDeg}deg`);
-		for (const item of glass.querySelectorAll<HTMLElement>(':scope > li')) {
-			const rect = item.getBoundingClientRect();
-			const [owner, second] = armsOver(geometry, {
-				left: rect.left - box.left,
-				top: rect.top - box.top,
-				width: rect.width,
-				height: rect.height,
-			});
-			this.#writeArmVars(item, owner, rect, box, '');
-			// The push (app.css --wipe-push) meets the blade at the note's mid-height.
-			item.style.setProperty('--wipe-h', `${Math.round(rect.height * 100) / 100}px`);
-			// A note both blades pass over is wiped by both, each where it
-			// passes: a second set of variables and a composited second mask.
+		for (const entry of items) {
+			const { item } = entry;
+			const [owner, second] = armsOver(geometry, entry);
 			if (second) {
-				this.#writeArmVars(item, second, rect, box, '-2');
+				// A note both blades pass over is wiped by both, each where it
+				// passes. The stylesheet composites the pair as the left arm's
+				// wedge plus the right arm's wedge cut to the right blade's own
+				// disc (a wedge is unbounded in radius, and the right blade's
+				// would otherwise reveal the whole left column ahead of the left
+				// blade), so the sets are written by side, not by ownership.
+				const [left, right] = leftToRight([owner, second]);
+				this.#writeArmVars(item, left, entry, '');
+				this.#writeArmVars(item, right, entry, '-2');
+				item.style.setProperty('--wipe-len-2', `${Math.round(right.length * 100) / 100}px`);
 				item.dataset.wipeArms = 'both';
 			} else {
-				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2'])
+				this.#writeArmVars(item, owner, entry, '');
+				for (const name of ['--wipe-from-2', '--wipe-x-2', '--wipe-y-2', '--wipe-span-2', '--wipe-len-2'])
 					item.style.removeProperty(name);
 				delete item.dataset.wipeArms;
 			}
 		}
+		// The shove (app.css --wipe-push) moves a page's notes as one row driven
+		// by the first blade to touch one of them; every note on the page gets
+		// the same contact so the row cannot come apart.
+		const pageSize = this.machine.pageSize;
+		const pages: (typeof items)[] = [];
+		items.forEach((entry, index) => {
+			(pages[pageOf(index, pageSize)] ??= []).push(entry);
+		});
+		for (const entries of pages) {
+			if (!entries) continue;
+			const train = trainFor(geometry, entries);
+			for (const { item } of entries)
+				for (const [name, value] of Object.entries(train)) item.style.setProperty(name, value);
+		}
 		this.refresh();
 	}
 
-	#writeArmVars(item: HTMLElement, arm: ArmSpec, rect: DOMRect, box: DOMRect, suffix: '' | '-2'): void {
-		const vars = maskVarsFor(arm, rect, box);
+	#writeArmVars(item: HTMLElement, arm: ArmSpec, at: { left: number; top: number }, suffix: '' | '-2'): void {
+		const vars = maskVarsFor(arm, at, { left: 0, top: 0 });
 		for (const [name, value] of Object.entries(vars)) item.style.setProperty(`${name}${suffix}`, value);
 		item.style.setProperty(`--wipe-span${suffix}`, `${Math.round(sweepSpanDeg(arm) * 100) / 100}deg`);
 	}
@@ -144,17 +169,23 @@ export class WiperEngine {
 	blades(now: number): BladePose[] {
 		const geometry = this.#geometry;
 		if (!geometry) return [];
-		const phase = this.machine.phase;
-		const frozen = document.documentElement.dataset[FREEZE_ATTR];
-		const held = frozen !== undefined && phase === 'out';
-		const t = held ? this.#heldProgress(frozen) : this.machine.strokeProgress(now);
-		const unit = phase === 'dwell' ? 0 : held ? this.machine.unit : strokeEase(t);
-		return geometry.arms.map((arm) => bladePoseAt(arm, geometry.box, phase, unit, t));
+		const clock = this.strokeClock(now);
+		return geometry.arms.map((arm) => bladePoseAt(arm, geometry.box, clock.phase, clock.unit, clock.t));
 	}
 
-	#heldProgress(frozen: string): number {
-		const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
-		return Math.acos(1 - 2 * unit) / Math.PI;
+	/**
+	 * The stroke as this frame sees it. A hold (data-wiper-freeze) pins the
+	 * out-stroke at the attribute's unit; otherwise the raw progress comes
+	 * from the machine clock and the unit through the mask's own easing.
+	 */
+	strokeClock(now: number): StrokeClock {
+		const sample = this.machine.strokeSample(now);
+		const frozen = document.documentElement.dataset[FREEZE_ATTR];
+		const held = frozen !== undefined && frozen !== REST_HOLD && sample.phase === 'out';
+		const heldUnit = held ? Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1) : 0;
+		const t = held ? strokeEaseInverse(heldUnit) : sample.t;
+		const unit = sample.phase === 'dwell' ? 0 : held ? heldUnit : strokeEase(t);
+		return { ...sample, t, unit, held, paused: this.machine.paused };
 	}
 
 	/** Re-read the machine after an external input changed (page size, motion preference). */
@@ -216,7 +247,13 @@ export class WiperEngine {
 		this.#raf = 0;
 		if (this.#controller.signal.aborted) return;
 		const frozen = document.documentElement.dataset[FREEZE_ATTR];
-		if (frozen !== undefined && this.machine.phase === 'out') {
+		if (frozen === REST_HOLD && this.machine.phase === 'dwell') {
+			// A rest held open: the dwell does not count down, frames keep coming.
+			this.machine.resume(now);
+			this.#raf = requestAnimationFrame(this.#frame);
+			return;
+		}
+		if (frozen !== undefined && frozen !== REST_HOLD && this.machine.phase === 'out') {
 			// Held for a test or a LOOK: the blade stays where the attribute says
 			// and the stroke resumes from there once the hold lifts.
 			const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
@@ -228,13 +265,6 @@ export class WiperEngine {
 		if (result.unit !== null) this.#writeUnit(result.unit);
 		if (result.apex || result.finish) this.#writeUnit(0);
 		if (result.view) this.#sync();
-		this.#onFrame?.({
-			now,
-			strokeProgress: this.machine.strokeProgress(now),
-			unit: this.machine.unit,
-			view: this.view,
-			geometry: this.#geometry,
-		});
 		if (this.machine.needsFrames) this.#raf = requestAnimationFrame(this.#frame);
 	};
 

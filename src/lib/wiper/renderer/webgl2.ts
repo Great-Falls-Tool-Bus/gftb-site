@@ -1,16 +1,20 @@
-// WebGL2 tier: one program, one full-viewport triangle, one R8 ink texture,
-// no render targets. Every failure returns through the handle or the
+// WebGL2 tier: one program, one full-viewport triangle, a few small data
+// textures, no render targets. Every failure returns through the handle or the
 // selection result; nothing here ever writes to the console (the no-JS spec
 // fails the home page on any console error or warning).
-import { INK_FIELD_HEIGHT, INK_FIELD_WIDTH, MAX_ARMS, MAX_BLOBS } from './shaders/constants';
+import { MAX_ARMS, MAX_BLOBS } from './shaders/constants';
 import { SCENE_FRAGMENT, SCENE_VERTEX } from './shaders/scene.glsl';
 import type { RendererFailure, RendererHandle, RendererOptions, RendererSelection, SceneFrame } from './types';
+import { UNIFORM_OFFSETS, createUniformBlock, packUniformBlock, scaleDroplets } from './uniform-block';
 
 interface Program {
 	program: WebGLProgram;
+	/** One VAO with the triangle's corners at attribute 0: Firefox warns on an attribute-less draw. */
+	vao: WebGLVertexArrayObject;
+	corners: WebGLBuffer;
 	uniforms: Record<string, WebGLUniformLocation | null>;
-	inkTexture: WebGLTexture;
-	movingTexture: WebGLTexture;
+	dropsTexture: WebGLTexture;
+	frostTexture: WebGLTexture;
 }
 
 const UNIFORMS = [
@@ -18,7 +22,6 @@ const UNIFORMS = [
 	'u_resolution',
 	'u_ground',
 	'u_blend',
-	'u_inkAlpha',
 	'u_time',
 	'u_blobCount',
 	'u_blobs',
@@ -26,8 +29,13 @@ const UNIFORMS = [
 	'u_armCount',
 	'u_arms',
 	'u_armStyle',
-	'u_ink',
-	'u_inkMoving',
+	'u_drops',
+	'u_dropCell',
+	'u_frostTex',
+	'u_frost',
+	'u_frostMax',
+	'u_armFan',
+	'u_armEdge',
 ];
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null {
@@ -54,6 +62,7 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 	if (!program) return { kind: 'compile', stage: 'link' };
 	gl.attachShader(program, vertex);
 	gl.attachShader(program, fragment);
+	gl.bindAttribLocation(program, 0, 'a_corner');
 	gl.linkProgram(program);
 	gl.deleteShader(vertex);
 	gl.deleteShader(fragment);
@@ -68,24 +77,42 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 		if (!texture) return null;
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+		// Zeros, not null: Firefox warns when a texture it had to initialise
+		// lazily is first sampled.
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(width * height));
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		return texture;
 	};
-	const inkTexture = makeField(INK_FIELD_WIDTH, INK_FIELD_HEIGHT);
-	const movingTexture = inkTexture ? makeField(1, 1) : null;
-	if (!inkTexture || !movingTexture) {
-		if (inkTexture) gl.deleteTexture(inkTexture);
+	const vao = gl.createVertexArray();
+	const corners = gl.createBuffer();
+	if (!vao || !corners) {
 		gl.deleteProgram(program);
 		return { kind: 'compile', stage: 'link' };
 	}
-	// An empty moving field: one zero texel until a stroke fills it.
-	gl.bindTexture(gl.TEXTURE_2D, movingTexture);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1));
-	return { program, uniforms, inkTexture, movingTexture };
+	gl.bindVertexArray(vao);
+	gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+	gl.enableVertexAttribArray(0);
+	gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+	gl.bindVertexArray(null);
+	const frostTexture = makeField(1, 1);
+	// The bead field is float data fetched by texel: NEAREST, no filtering.
+	const dropsTexture = frostTexture ? gl.createTexture() : null;
+	if (!frostTexture || !dropsTexture) {
+		if (frostTexture) gl.deleteTexture(frostTexture);
+		gl.deleteProgram(program);
+		return { kind: 'compile', stage: 'link' };
+	}
+	gl.bindTexture(gl.TEXTURE_2D, dropsTexture);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(4));
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	return { program, vao, corners, uniforms, dropsTexture, frostTexture };
 }
 
 export function createWebGL2Renderer(
@@ -111,12 +138,12 @@ export function createWebGL2Renderer(
 	let cssWidth = 0;
 	let cssHeight = 0;
 	let dpr = 1;
-	const blobData = new Float32Array(MAX_BLOBS * 4);
-	const colorData = new Float32Array(MAX_BLOBS * 3);
-	const armData = new Float32Array(MAX_ARMS * 4);
-	const armStyle = new Float32Array(MAX_ARMS * 4);
+	// Both tiers read the one uniform block; this rung uploads its slices.
+	const block = createUniformBlock();
+	let dropCellCss = 0;
+	let pendingDrops: { data: Float32Array; cols: number; rows: number; cellCss: number } | null = null;
+	let pendingFrost: { field: Uint8Array; width: number; height: number } | null = null;
 	const lostCallbacks: Array<(failure: RendererFailure) => void> = [];
-	let pendingInk: { field: Uint8Array; width: number; height: number } | null = null;
 
 	const onContextLost = (event: Event) => {
 		event.preventDefault();
@@ -128,7 +155,9 @@ export function createWebGL2Renderer(
 		if ('program' in built) {
 			program = built;
 			lost = false;
-			if (pendingInk) handle.uploadInk(pendingInk.field, pendingInk.width, pendingInk.height);
+			if (pendingDrops)
+				handle.uploadDroplets(pendingDrops.data, pendingDrops.cols, pendingDrops.rows, pendingDrops.cellCss);
+			if (pendingFrost) handle.uploadFrost(pendingFrost.field, pendingFrost.width, pendingFrost.height);
 		}
 	};
 	canvas.addEventListener('webglcontextlost', onContextLost);
@@ -146,19 +175,21 @@ export function createWebGL2Renderer(
 			if (canvas.width !== backingWidth) canvas.width = backingWidth;
 			if (canvas.height !== backingHeight) canvas.height = backingHeight;
 		},
-		uploadInk(field, width, height) {
-			pendingInk = { field, width, height };
+		uploadDroplets(data, cols, rows, cellCss) {
+			pendingDrops = { data, cols, rows, cellCss };
+			dropCellCss = cellCss;
 			if (lost) return;
-			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
+			// The field is CSS px; the shader works in device px.
+			gl.bindTexture(gl.TEXTURE_2D, program.dropsTexture);
+			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, cols + 2, rows + 2, 0, gl.RGBA, gl.FLOAT, scaleDroplets(data, dpr));
+		},
+		uploadFrost(field, width, height) {
+			pendingFrost = { field, width, height };
+			if (lost) return;
+			gl.bindTexture(gl.TEXTURE_2D, program.frostTexture);
 			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
-		},
-		uploadMovingInk(field, width, height) {
-			if (lost) return;
-			gl.bindTexture(gl.TEXTURE_2D, program.movingTexture);
-			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-			if (field) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, field);
-			else gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1));
 		},
 		render(frame: SceneFrame) {
 			if (lost || cssWidth <= 0 || cssHeight <= 0) return;
@@ -183,48 +214,34 @@ export function createWebGL2Renderer(
 			}
 			gl.useProgram(program.program);
 			const u = program.uniforms;
-			gl.uniform1i(u.u_layer, options.layer === 'blades' ? 1 : 0);
-			gl.uniform2f(u.u_resolution, canvas.width, canvas.height);
-			gl.uniform3f(u.u_ground, frame.ground[0], frame.ground[1], frame.ground[2]);
-			gl.uniform1i(u.u_blend, frame.blend === 'screen' ? 1 : 0);
-			gl.uniform1f(u.u_inkAlpha, frame.inkAlpha);
-			gl.uniform1f(u.u_time, frame.time);
-			const count = Math.min(frame.blobs.length, MAX_BLOBS);
-			for (let index = 0; index < count; index += 1) {
-				const blob = frame.blobs[index];
-				blobData[index * 4] = blob.x * dpr;
-				blobData[index * 4 + 1] = blob.y * dpr;
-				blobData[index * 4 + 2] = blob.r * dpr;
-				blobData[index * 4 + 3] = 0;
-				colorData[index * 3] = blob.color[0];
-				colorData[index * 3 + 1] = blob.color[1];
-				colorData[index * 3 + 2] = blob.color[2];
-			}
-			gl.uniform1i(u.u_blobCount, count);
-			gl.uniform4fv(u.u_blobs, blobData);
-			gl.uniform3fv(u.u_blobColors, colorData);
-			const armCount = Math.min(frame.arms.length, MAX_ARMS);
-			for (let index = 0; index < armCount; index += 1) {
-				const arm = frame.arms[index];
-				armData[index * 4] = arm.pivotX * dpr;
-				armData[index * 4 + 1] = arm.pivotY * dpr;
-				armData[index * 4 + 2] = arm.phi;
-				armData[index * 4 + 3] = arm.length * dpr;
-				armStyle[index * 4] = arm.width * dpr;
-				armStyle[index * 4 + 1] = arm.bladeFrom * dpr;
-				armStyle[index * 4 + 2] = arm.flex;
-				armStyle[index * 4 + 3] = 0;
-			}
-			gl.uniform1i(u.u_armCount, armCount);
-			gl.uniform4fv(u.u_arms, armData);
-			gl.uniform4fv(u.u_armStyle, armStyle);
-			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, program.inkTexture);
-			gl.uniform1i(u.u_ink, 0);
-			gl.activeTexture(gl.TEXTURE1);
-			gl.bindTexture(gl.TEXTURE_2D, program.movingTexture);
-			gl.uniform1i(u.u_inkMoving, 1);
+			const o = UNIFORM_OFFSETS;
+			const counts = packUniformBlock(block, frame, options.layer, dpr, dropCellCss, canvas.width, canvas.height);
+			const { f32, i32 } = block;
+			gl.uniform1i(u.u_layer, i32[o.layer]);
+			gl.uniform2f(u.u_resolution, f32[o.resolution], f32[o.resolution + 1]);
+			gl.uniform3f(u.u_ground, f32[o.ground], f32[o.ground + 1], f32[o.ground + 2]);
+			gl.uniform1i(u.u_blend, i32[o.blend]);
+			gl.uniform1f(u.u_time, f32[o.time]);
+			gl.uniform1i(u.u_blobCount, counts.blobCount);
+			gl.uniform4fv(u.u_blobs, f32.subarray(o.blobs, o.blobs + MAX_BLOBS * 4));
+			gl.uniform4fv(u.u_blobColors, f32.subarray(o.blobColors, o.blobColors + MAX_BLOBS * 4));
+			gl.uniform1i(u.u_armCount, counts.armCount);
+			gl.uniform4fv(u.u_arms, f32.subarray(o.arms, o.arms + MAX_ARMS * 4));
+			gl.uniform4fv(u.u_armStyle, f32.subarray(o.armStyle, o.armStyle + MAX_ARMS * 4));
+			gl.uniform4fv(u.u_armFan, f32.subarray(o.armFan, o.armFan + MAX_ARMS * 4));
+			gl.uniform4fv(u.u_armEdge, f32.subarray(o.armEdge, o.armEdge + MAX_ARMS * 4));
+			gl.uniform1f(u.u_dropCell, f32[o.dropCell]);
+			gl.uniform1f(u.u_frost, f32[o.frost]);
+			gl.uniform1f(u.u_frostMax, f32[o.frostMax]);
+			gl.activeTexture(gl.TEXTURE2);
+			gl.bindTexture(gl.TEXTURE_2D, program.dropsTexture);
+			gl.uniform1i(u.u_drops, 2);
+			gl.activeTexture(gl.TEXTURE3);
+			gl.bindTexture(gl.TEXTURE_2D, program.frostTexture);
+			gl.uniform1i(u.u_frostTex, 3);
+			gl.bindVertexArray(program.vao);
 			gl.drawArrays(gl.TRIANGLES, 0, 3);
+			gl.bindVertexArray(null);
 		},
 		onLost(callback) {
 			lostCallbacks.push(callback);
@@ -233,10 +250,15 @@ export function createWebGL2Renderer(
 			canvas.removeEventListener('webglcontextlost', onContextLost);
 			canvas.removeEventListener('webglcontextrestored', onContextRestored);
 			if (!lost) {
-				gl.deleteTexture(program.inkTexture);
-				gl.deleteTexture(program.movingTexture);
+				gl.deleteTexture(program.dropsTexture);
+				gl.deleteTexture(program.frostTexture);
+				gl.deleteBuffer(program.corners);
+				gl.deleteVertexArray(program.vao);
 				gl.deleteProgram(program.program);
-				gl.getExtension('WEBGL_lose_context')?.loseContext();
+				// No loseContext(): browsers log a forced loss as a warning.
+				// The canvas leaves with its component; shrink its store meanwhile.
+				canvas.width = 1;
+				canvas.height = 1;
 			}
 		},
 	};

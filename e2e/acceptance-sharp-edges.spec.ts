@@ -90,6 +90,11 @@ for (const path of ['/', '/404', '/log', '/contact']) {
 			const offenders: string[] = [];
 			for (const element of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
 				if (element.closest('altcha-widget') && element.tagName.toLowerCase() !== 'altcha-widget') continue;
+				// Operator ruling at the M4 ratification (2026-09-09): the two
+				// full-bleed bands carry one mirrored radius pair (the hero's
+				// bottom corners, the windshield's top corners, app.css
+				// --bleed-radius). Every control, pane and card stays at 0.
+				if (element.matches('.hero__media, .wiper--paged .wiper__glass')) continue;
 				const style = getComputedStyle(element);
 				const values = corners.map((corner) => style.getPropertyValue(corner));
 				if (values.some((value) => value !== '0px')) {

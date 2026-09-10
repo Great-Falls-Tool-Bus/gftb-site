@@ -798,6 +798,17 @@ li {
  * palette spec Appendix A via theme-gftb.css + palette.ts) — the scrim
  * mixes var(--bg), so it flips with the scheme without a dark-block
  * restatement. */
+/* The two full-bleed bands (the hero above, the windshield below) carry one
+ * mirrored radius pair: the hero's bottom corners and the band's top corners
+ * (operator ruling at the M4 ratification, 2026-09-09). One token on the two
+ * boxes that use it (a geometry token, not a scheme role, so not on :root).
+ * Every control, pane and card stays at radius 0 (never-cards, sharp edges);
+ * e2e/acceptance-sharp-edges.spec.ts exempts exactly these two boxes. */
+.hero__media,
+.wiper--paged .wiper__glass {
+	--bleed-radius: clamp(1.75rem, 5vw, 3.5rem);
+}
+
 .hero__media {
 	position: absolute;
 	inset: 0;
@@ -806,6 +817,8 @@ li {
 	 * own `isolation: isolate` stacking context, not a UI tier. */
 	z-index: -1;
 	overflow: clip;
+	/* The band's bottom corners, mirrored by the windshield's top corners. */
+	border-radius: 0 0 var(--bleed-radius) var(--bleed-radius);
 }
 
 /* Backdrop layer. Over-scans the band on the BLOCK axis only: 20% top and
@@ -1259,7 +1272,16 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * inner room on every edge. The goals section itself is bare (.section--bare)
  * so the full-bleed glass runs through the page ground, and the asides below
  * the stalk carry the same pane. Paper drops the fill; forced colours paint
- * system colours anyway. */
+ * system colours anyway.
+ *
+ * The note's fill lives on a ::before under its content, not on the note
+ * itself, so paper drops it alone and the wipe masks it with the note. No
+ * backdrop blur on a wiping pane: a mask and a backdrop-filter do not
+ * compose (Chromium ignores mask-image on a filtered element, measured
+ * 2026-09-09; Firefox leaves a filtered child of a masked note unmasked; a
+ * masked note is a backdrop root that gives the filter nothing to sample),
+ * so the pane is the plain 70% fill everywhere and the asides match it.
+ * pane-composite.test.ts carries the fill's inks over black and white. */
 .goal-list > li,
 .goal-asides {
 	--fg: var(--glass-fg);
@@ -1271,29 +1293,26 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--danger: var(--glass-danger);
 	color: var(--fg);
 	border-radius: 0;
-	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
-}
-
-.goal-list > li {
-	padding: 1rem 1.1rem 1.25rem;
 }
 
 .goal-asides {
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
 	padding: clamp(1rem, 3vw, 2rem);
 }
 
-@supports (backdrop-filter: blur(1px)) {
-	.goal-list > li,
-	.goal-asides {
-		backdrop-filter: blur(12px) saturate(118%);
-	}
+.goal-list > li {
+	position: relative;
+	isolation: isolate;
+	padding: 1rem 1.1rem 1.25rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.goal-list > li,
-	.goal-asides {
-		backdrop-filter: none;
-	}
+.goal-list > li::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: 0;
+	background: color-mix(in oklab, var(--glass-panel) 70%, transparent);
 }
 
 .goal-list h3 {
@@ -1385,9 +1404,9 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* ===== The Notes & Goals wiper (src/lib/wiper, NotesAndGoals.svelte) =====
- * The pane is a bare wrapper over the section's glass: no extra fill or
- * border on individual notes. Once
- * enhanced and rotatable, the list stacks its pages into one grid row and the
+ * The .wiper pane itself is a bare wrapper (no fill, no border); each note
+ * is its own glass pane, see .goal-list > li::before above. Once enhanced
+ * and rotatable, the list stacks its pages into one grid row and the
  * wipe is a DOM mask: each note carries its arm's park angle and pivot as
  * static custom properties (--wipe-from, --wipe-x, --wipe-y, --wipe-span,
  * written by the engine on relayout), the pane carries one number per frame
@@ -1419,9 +1438,11 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	padding-block: 1.75rem 2.25rem;
 }
 
-/* The band clips: a note the blade has shoved past its edge is gone. */
+/* The band clips: a note the blade has shoved past its edge is gone. Its
+ * top corners mirror the hero band's bottom corners (see --bleed-radius). */
 .wiper--paged .wiper__glass {
 	overflow: clip;
+	border-radius: var(--bleed-radius) var(--bleed-radius) 0 0;
 }
 
 /* The band feathers into the page on the y axis the way the hero backdrop
@@ -1447,9 +1468,10 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-inline: var(--wiper-gutter);
 }
 
-/* The glass: the list box the scene canvas fills. The canvas sits behind the
- * notes (never over text), pointer-inert, sharp, and it is gone on paper and
- * under forced colours; the plain grid never renders it at all. */
+/* The glass: the list box both canvases fill. The scene canvas sits behind
+ * the notes and the blade canvas over them (pointer-inert, so text is never
+ * occluded from input); both are sharp and gone on paper and under forced
+ * colours; the plain grid never renders them at all. */
 .wiper__glass {
 	position: relative;
 }
@@ -1505,6 +1527,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 .goal-list--paged > li {
 	--wipe-start: calc(var(--wipe-from) - var(--wipe-feather));
 	--wipe-start-2: calc(var(--wipe-from-2) - var(--wipe-feather));
+	/* The soft end of the second blade's disc, at its tip. */
+	--wipe-tip: 8px;
 }
 
 .goal-list--paged > li[data-wipe='out'] {
@@ -1526,9 +1550,12 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	);
 }
 
-/* A note both blades pass over: gone where either blade has passed (the
- * two clearing masks intersect), revealed where either has passed (the two
- * revealing masks add). */
+/* A note both blades pass over. A wedge is unbounded in radius, so the right
+ * blade's would reveal the whole left column ahead of the left blade; the
+ * pair is composited as the left wedge plus the right wedge cut to the right
+ * blade's own disc (--wipe-len-2, its tip radius about its pivot), which is
+ * exactly where its rubber passes. Layers composite bottom up: revealed =
+ * W1 add (D2 intersect W2); gone = not W1 intersect (not W2 add not D2). */
 .goal-list--paged > li[data-wipe='out'][data-wipe-arms='both'] {
 	mask-image:
 		conic-gradient(
@@ -1542,8 +1569,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 			#000 0,
 			transparent var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
 			#000 calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
+		),
+		radial-gradient(
+			circle at calc(var(--wipe-x-2) - var(--wipe-push, 0px)) var(--wipe-y-2),
+			transparent calc(var(--wipe-len-2) - var(--wipe-tip)),
+			#000 var(--wipe-len-2)
 		);
-	mask-composite: intersect;
+	mask-composite: intersect, add;
 }
 
 .goal-list--paged > li[data-wipe='in'][data-wipe-arms='both'] {
@@ -1554,32 +1586,40 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)),
 			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span)) 360deg
 		),
+		radial-gradient(
+			circle at var(--wipe-x-2) var(--wipe-y-2),
+			#000 calc(var(--wipe-len-2) - var(--wipe-tip)),
+			transparent var(--wipe-len-2)
+		),
 		conic-gradient(
 			from var(--wipe-start-2) at var(--wipe-x-2) var(--wipe-y-2),
 			transparent 0,
 			#000 var(--wipe-feather) calc(var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)),
 			transparent calc(2 * var(--wipe-feather) + var(--wipe-u) * var(--wipe-span-2)) 360deg
 		);
-	mask-composite: add;
+	mask-composite: add, intersect;
 }
 
-/* The blade shoves the outgoing note off the glass rather than only wiping
- * it in place (operator ruling at LOOK 3): once a blade's ray passes the
- * note's left edge at mid-height the note slides right, driven by whichever
- * blade has reached furthest into it, and it outruns the blade by the shove
- * factor so every note has cleared the band by the turnaround. The mask
- * pivot slides the other way so the clipped edge stays under the rubber.
- * Behind the feature query the note is wiped in place. No timed rule: the
- * transform follows --wipe-u frame by frame. */
+/* The blades shove the outgoing notes off the glass rather than only wiping
+ * them in place (operator ruling at LOOK 3). A page's notes leave as one
+ * row: the first blade to touch a note's top corner drives the row at the
+ * blade's own speed from that contact (the engine writes the contact as
+ * --wipe-tx/--wipe-ty/--wipe-tfrom/--wipe-tspan, the same on every note of
+ * the page), so the row rides the rubber and no note overtakes the next; a
+ * second term, --wipe-run spread evenly over the rest of the stroke from
+ * the contact unit --wipe-contact, carries the row the remaining distance
+ * so its leftmost note has cleared the right edge at the turnaround. The
+ * mask pivots slide the other way so the clipped edges stay in the glass
+ * frame. Behind the feature query the note is wiped in place. No timed
+ * rule: the transform follows --wipe-u frame by frame. */
 @supports (width: calc(1px * tan(45deg))) {
 	.goal-list--paged > li[data-wipe='out'] {
-		--wipe-shove: 1.6;
-		--wipe-phi: calc(var(--wipe-from) + var(--wipe-u) * var(--wipe-span));
-		--wipe-reach: calc(var(--wipe-x) + (var(--wipe-y) - var(--wipe-h, 0px) / 2) * tan(var(--wipe-phi)));
-		--wipe-reach-2: calc(
-			var(--wipe-x-2, -99999px) + (var(--wipe-y-2, 0px) - var(--wipe-h, 0px) / 2) * tan(var(--wipe-phi))
+		--wipe-tphi: calc(var(--wipe-tfrom) + var(--wipe-u) * var(--wipe-tspan));
+		--wipe-reach: calc(var(--wipe-tx) + var(--wipe-ty) * tan(var(--wipe-tphi)));
+		--wipe-slide: calc(
+			var(--wipe-run, 0px) * max(0, (var(--wipe-u) - var(--wipe-contact, 0)) / (1 - var(--wipe-contact, 0)))
 		);
-		--wipe-push: calc(var(--wipe-shove) * max(0px, var(--wipe-reach), var(--wipe-reach-2)));
+		--wipe-push: calc(max(0px, var(--wipe-reach)) + var(--wipe-slide));
 		transform: translateX(var(--wipe-push));
 	}
 }
@@ -1655,6 +1695,16 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 		color: Highlight;
 		text-decoration-color: Highlight;
 		forced-color-adjust: none;
+	}
+
+	/* Masks, opacity and transforms are not neutralised by forced colours,
+	 * so the wipe stands down in the stylesheet as well as in the engine
+	 * (NotesAndGoals motionOk): every note in place, whole. */
+	.goal-list--paged > li {
+		opacity: 1 !important;
+		pointer-events: auto !important;
+		mask-image: none !important;
+		transform: none !important;
 	}
 }
 
@@ -2085,6 +2135,7 @@ figcaption {
 
 	.hero-glass,
 	.page-shell > .section:not(.section--bare),
+	.page-shell > .section--bare,
 	.page-shell > .log-entry,
 	.page-shell > .contact-card {
 		--fg: #000;
@@ -2158,8 +2209,21 @@ figcaption {
 	.goal-list > li,
 	.goal-asides {
 		background: none !important;
+		/* The panes set their own glass inks (a closer ancestor than the
+		 * section), so paper resets them here as well. */
+		--fg: #000;
+		--fg-muted: #000;
+		--heading: #000;
+		--link: #000;
+		--accent: #000;
+		--highlight-edge: #000;
+		--danger: #000;
 		backdrop-filter: none !important;
 		transform: none !important;
+	}
+
+	.goal-list > li::before {
+		display: none !important;
 	}
 
 	/* A print begun before the reveal IO ever fires must still show every

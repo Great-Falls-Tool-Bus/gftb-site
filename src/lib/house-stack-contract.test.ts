@@ -23,9 +23,9 @@ const allDeclaredDeps: Record<string, string> = {
 };
 
 describe('house frontend-stack exact-pin contract', () => {
-	it('keeps the approved Skeleton 5 pair EXACT at 5.0.0', () => {
-		expect(packageJson.devDependencies?.['@skeletonlabs/skeleton']).toBe('5.0.0');
-		expect(packageJson.devDependencies?.['@skeletonlabs/skeleton-svelte']).toBe('5.0.0');
+	it('keeps the approved Skeleton 5 pair EXACT at 5.0.1', () => {
+		expect(packageJson.devDependencies?.['@skeletonlabs/skeleton']).toBe('5.0.1');
+		expect(packageJson.devDependencies?.['@skeletonlabs/skeleton-svelte']).toBe('5.0.1');
 	});
 
 	it('keeps typescript EXACT-pinned on the 6.0.x line (no caret/tilde float)', () => {

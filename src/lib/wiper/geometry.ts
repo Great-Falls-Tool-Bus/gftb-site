@@ -41,6 +41,11 @@ export interface BladePose {
 	readonly bladeFrom: number;
 	/** Rubber lag against the direction of travel, -1..1; 0 at rest and at the ends. */
 	readonly flex: number;
+	/** The arm's fan, radians: the stroke runs from -park to +halfSweep. */
+	readonly park: number;
+	readonly halfSweep: number;
+	/** 1 on the out-stroke, -1 on the back-stroke, 0 parked. */
+	readonly travel: -1 | 0 | 1;
 }
 
 export interface WiperGeometry {
@@ -142,6 +147,11 @@ export function armsOver(geometry: WiperGeometry, box: ItemBox): ArmSpec[] {
 	return [owner, ...others];
 }
 
+/** The arms left to right by hub, for masks that must know which is which. */
+export function leftToRight(arms: readonly ArmSpec[]): ArmSpec[] {
+	return [...arms].sort((a, b) => a.pivotX - b.pivotX);
+}
+
 export interface ItemBox {
 	readonly left: number;
 	readonly top: number;
@@ -209,7 +219,18 @@ export function bladePoseAt(
 		ARM_WIDTH_PX[1],
 	);
 	const bladeFrom = Math.min(arm.length * BLADE_FROM_RATIO, (arm.pivotY - box.height) * BLADE_FROM_OF_DROP);
-	return { pivotX: arm.pivotX, pivotY: arm.pivotY, length: arm.length, phi, width, bladeFrom, flex };
+	return {
+		pivotX: arm.pivotX,
+		pivotY: arm.pivotY,
+		length: arm.length,
+		phi,
+		width,
+		bladeFrom,
+		flex,
+		park: arm.park,
+		halfSweep: arm.halfSweep,
+		travel,
+	};
 }
 
 /** Static per-item custom properties; item and pane rects are in the same coordinate space. */
@@ -223,6 +244,66 @@ export function maskVarsFor(
 		'--wipe-from': `${round(toDegrees(parkAngle(arm)))}deg`,
 		'--wipe-x': `${round(arm.pivotX - (item.left - pane.left))}px`,
 		'--wipe-y': `${round(arm.pivotY - (item.top - pane.top))}px`,
+	};
+}
+
+/** The shove's static inputs for one page of notes (app.css --wipe-push). */
+export interface TrainVars {
+	/** Pivot of the driving arm in the contact note's border-box coordinates. */
+	'--wipe-tx': string;
+	'--wipe-ty': string;
+	/** The driving arm's park angle and stroke span, degrees. */
+	'--wipe-tfrom': string;
+	'--wipe-tspan': string;
+	/** Distance the row must travel beyond what the blade delivers, px. */
+	'--wipe-run': string;
+	/** Eased stroke unit at which the blade touches the contact note, 0..0.98. */
+	'--wipe-contact': string;
+}
+
+/**
+ * A page's notes leave as one row. The first blade whose rubber reaches a
+ * note's top-left corner (its ray crossing that corner earliest in the
+ * stroke) drives the row at its own speed from that contact, so the row
+ * rides the blade and no note overtakes the next; the run is the extra
+ * distance, spread over the rest of the stroke, that puts the leftmost
+ * note's left edge on the glass's right edge exactly at the turnaround.
+ * Notes out of every blade's reach still ride the earliest ray.
+ */
+export function trainFor(geometry: WiperGeometry, notes: readonly ItemBox[]): TrainVars {
+	const round = (value: number) => Math.round(value * 100) / 100;
+	let best: { arm: ArmSpec; x: number; y: number; u: number; reachable: boolean } | null = null;
+	for (const note of notes) {
+		for (const arm of geometry.arms) {
+			const x = arm.pivotX - note.left;
+			const y = arm.pivotY - note.top;
+			const reachable = Math.hypot(x, y) <= arm.length;
+			const u = (Math.atan2(-x, y) - parkAngle(arm)) / sweepSpan(arm);
+			if (!best || (reachable && !best.reachable) || (reachable === best.reachable && u < best.u))
+				best = { arm, x, y, u, reachable };
+		}
+	}
+	if (!best) {
+		return {
+			'--wipe-tx': '0px',
+			'--wipe-ty': '0px',
+			'--wipe-tfrom': '0deg',
+			'--wipe-tspan': '0deg',
+			'--wipe-run': '0px',
+			'--wipe-contact': '0',
+		};
+	}
+	const leftmost = Math.min(...notes.map((note) => note.left));
+	const reachEnd = best.x + best.y * Math.tan(parkAngle(best.arm) + sweepSpan(best.arm));
+	const run = Math.max(0, geometry.box.width - leftmost - reachEnd);
+	const contact = Math.min(Math.max(best.u, 0), 0.98);
+	return {
+		'--wipe-tx': `${round(best.x)}px`,
+		'--wipe-ty': `${round(best.y)}px`,
+		'--wipe-tfrom': `${round(toDegrees(parkAngle(best.arm)))}deg`,
+		'--wipe-tspan': `${round(sweepSpanDeg(best.arm))}deg`,
+		'--wipe-run': `${round(run)}px`,
+		'--wipe-contact': contact.toFixed(4),
 	};
 }
 
