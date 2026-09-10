@@ -527,6 +527,82 @@ test('a device lost after selection lands the scene on the rung below, on fresh 
 	expect(console).toEqual([]);
 });
 
+test('a rung refused on the blades canvas relaunches both canvases on the rung below, silently', async ({
+	page,
+}, testInfo) => {
+	await page.setViewportSize(WIDE);
+	// The scene canvas takes the top rung; the blades canvas is refused it
+	// (its context will not configure), so the ladder steps down for the
+	// second canvas alone. A mixed pair is never drawn: the host relaunches
+	// on fresh canvases and both land on the lower rung.
+	await page.addInitScript(() => {
+		const proto = (window as unknown as { GPUCanvasContext?: { prototype: GPUCanvasContext } }).GPUCanvasContext
+			?.prototype;
+		if (!proto) return;
+		const original = proto.configure;
+		let calls = 0;
+		proto.configure = function (this: GPUCanvasContext, configuration: GPUCanvasConfiguration) {
+			calls += 1;
+			if (calls === 2) throw new Error('rig: the second canvas is refused');
+			return original.call(this, configuration);
+		};
+	});
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		if (message.text() === 'A valid external Instance reference no longer exists.') return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await page.goto('/');
+	const hasAdapter = await page.evaluate(async () => {
+		if (!('gpu' in navigator) || !navigator.gpu) return false;
+		return (await navigator.gpu.requestAdapter().catch(() => null)) !== null;
+	});
+	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
+	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	await expect(page.locator('#goals canvas')).toHaveCount(2);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+});
+
+test('a lost WebGL2 context relaunches the scene on fresh canvases at the same rung', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await forceTierMax(page, 'webgl2');
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		// The rig's own forced loss: the browser names it once.
+		if (/CONTEXT_LOST_WEBGL/u.test(message.text())) return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	const before = await scene(page).elementHandle();
+	expect(before).not.toBeNull();
+	// Lose the scene canvas's context the way a GPU reset would.
+	await page.evaluate(() => {
+		const canvas = document.querySelector<HTMLCanvasElement>('#goals canvas.wiper__scene');
+		const gl = canvas?.getContext('webgl2');
+		gl?.getExtension('WEBGL_lose_context')?.loseContext();
+	});
+	// The old canvases leave the document; a fresh pair lands on WebGL2 again.
+	await expect.poll(() => before?.evaluate((el) => el.isConnected), { timeout: 10_000 }).toBe(false);
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	await expect(page.locator('#goals canvas')).toHaveCount(2);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+});
+
 test('the scene is absent under reduced motion and hidden on paper and under forced colours', async ({ page }) => {
 	await page.setViewportSize(WIDE);
 	await page.emulateMedia({ reducedMotion: 'reduce' });

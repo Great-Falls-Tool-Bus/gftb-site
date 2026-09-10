@@ -132,9 +132,10 @@
 			engine.tier = 'none';
 		};
 
-		// A loss after the ladder resolved: the rung's own callback has already
-		// lowered the page ceiling, so a fresh mount lands on the rung below.
-		// Without a parent to remount, the loss is a demotion like any other.
+		// A loss, during the ladder or after it: the rung's own callback has
+		// already lowered the page ceiling where that is warranted, so a fresh
+		// mount lands where the page can still draw. Without a parent to
+		// remount, the loss is a demotion like any other.
 		const lose = () => {
 			if (!alive) return;
 			if (!onlost) {
@@ -278,15 +279,20 @@
 				return;
 			}
 			if (!bladeSelection.ok) {
-				demote();
+				// The scene rung came up but the blades could not: a device that
+				// died between the two calls, or a rung refused on the second
+				// canvas. Fresh canvases at the ceiling the failure left.
+				lose();
 				return;
 			}
 			blades = bladeSelection.handle;
 			blades.onLost(() => lose());
 			// Both canvases run the same rung, or the pane runs none: a mixed
 			// pair would draw two renderers' floating point against each other.
+			// The ladder has already stepped down for the second canvas, so a
+			// fresh mount lands both on the lower rung.
 			if (blades.tier !== renderer.tier) {
-				demote();
+				lose();
 				return;
 			}
 			try {

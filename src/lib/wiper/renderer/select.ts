@@ -6,7 +6,10 @@
 // (a test and LOOK hook; no URL query, no storage). Nothing GPU-shaped is
 // imported statically, so the SSR graph stays clean. The WebGL2 chunk is
 // fetched alongside the WebGPU rung, so a demotion (a deadline, a refusal,
-// a loss) costs no second round trip.
+// a loss) costs no second round trip. A lost WebGL2 context does not lower
+// the ceiling: the browser restores such contexts, and a GPU reset that
+// takes one takes every rung with it, so the host tries WebGL2 again on
+// fresh canvases and only a creation failure ends the ladder.
 import type { RendererOptions, RendererSelection, RendererTier } from './types';
 
 const RANK: Record<RendererTier, number> = { none: 0, webgl2: 1, webgpu: 2 };
@@ -62,9 +65,7 @@ export async function selectRenderer(
 	if (!webgl2Chunk) return { ok: false, why: { kind: 'no-api' } };
 	try {
 		const { createWebGL2Renderer } = await webgl2Chunk;
-		const picked = createWebGL2Renderer(canvas, options);
-		if (picked.ok) picked.handle.onLost(() => lowerCeiling('none'));
-		return picked;
+		return createWebGL2Renderer(canvas, options);
 	} catch {
 		return { ok: false, why: { kind: 'no-context' } };
 	}

@@ -57,15 +57,25 @@
 	const view = $derived(engine.view);
 	let paneEl = $state<HTMLElement>();
 	let glassEl = $state<HTMLElement>();
-	// A GPU device lost after the scene mounted (a reload racing the last
-	// document's teardown, a GPU process restart) remounts the scene on fresh
-	// canvases; the ladder's ceiling has already stepped down, so the new
-	// mount lands on the rung below. Bounded, so a rig that loses every
+	// A GPU device or context lost, during the ladder or after it (a reload
+	// racing the last document's teardown, a GPU process reset), remounts the
+	// scene on fresh canvases after a short pause so the new mount does not
+	// land inside the same reset; the ladder's ceiling has already stepped
+	// down where the loss warrants it. Bounded, so a rig that loses every
 	// device settles on the plain grid instead of remounting forever.
-	const SCENE_RELAUNCH_LIMIT = 2;
+	const SCENE_RELAUNCH_LIMIT = 3;
+	const SCENE_RELAUNCH_PAUSE_MS = 400;
 	let sceneGeneration = $state(0);
+	let relaunchTimer = 0;
 	const relaunchScene = () => {
-		sceneGeneration += 1;
+		if (relaunchTimer) return;
+		relaunchTimer = window.setTimeout(
+			() => {
+				relaunchTimer = 0;
+				sceneGeneration += 1;
+			},
+			SCENE_RELAUNCH_PAUSE_MS * (sceneGeneration + 1),
+		);
 	};
 	let listEl = $state<HTMLOListElement>();
 
@@ -81,7 +91,10 @@
 		} catch {
 			// Storage may be unavailable; the default detent stands.
 		}
-		return () => engine.destroy();
+		return () => {
+			if (relaunchTimer) window.clearTimeout(relaunchTimer);
+			engine.destroy();
+		};
 	});
 
 	$effect(() => {
