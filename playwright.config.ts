@@ -28,6 +28,22 @@ export default defineConfig({
 			name: 'chromium',
 			use: { ...devices['Desktop Chrome'] },
 		},
+		// The WebGPU rung on a headless rig: Chromium's headless shell exposes no
+		// adapter by default, so a lane that wants the top rung measured runs this
+		// project (PLAYWRIGHT_WEBGPU=1) and gets SwiftShader's. Off by default.
+		...(process.env.PLAYWRIGHT_WEBGPU
+			? [
+					{
+						name: 'chromium-webgpu',
+						use: {
+							...devices['Desktop Chrome'],
+							launchOptions: {
+								args: ['--enable-unsafe-webgpu', '--enable-unsafe-swiftshader', '--enable-features=Vulkan'],
+							},
+						},
+					},
+				]
+			: []),
 		// Firefox + WebKit gated behind PLAYWRIGHT_ALL_BROWSERS to keep M0 fast.
 		// Enable in M1 CI by setting PLAYWRIGHT_ALL_BROWSERS=1.
 		...(process.env.PLAYWRIGHT_ALL_BROWSERS

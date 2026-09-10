@@ -4,6 +4,7 @@
 	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
 	import NotesAndGoals from '$lib/components/NotesAndGoals.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
+	import HomeIntro from '$lib/components/HomeIntro.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
@@ -57,6 +58,11 @@
      animation (restoration PR-7, ratified Q&A-12 ruling: no JS, static under
      reduced motion and without support). The headline block sits on the
      demo's featured-glass panel, on the role layer. -->
+<!-- The first-load veil (operator ruling 2026-09-10): prerendered so it can
+     paint before hydration, hidden unless app.html armed it, driven by
+     src/lib/intro once mounted. Home route only, by living here. -->
+<HomeIntro />
+
 <section class="hero" aria-labelledby="page-title">
 	<div class="hero__media" aria-hidden="true">
 		<picture class="hero__drift">
@@ -122,7 +128,12 @@
 
 <div class="page-shell">
 	<!-- Row 4 (spec §3 :88): notes, goals and specific ways to help. -->
-	<section class="section reveal-armed" use:reveal={{ delay: 70 }} id="goals" aria-labelledby="goals-title">
+	<section
+		class="section section--bare reveal-armed"
+		use:reveal={{ delay: 70 }}
+		id="goals"
+		aria-labelledby="goals-title"
+	>
 		<div class="section-heading">
 			<h2 id="goals-title">Notes &amp; Goals</h2>
 		</div>

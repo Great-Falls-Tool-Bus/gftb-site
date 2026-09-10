@@ -1,6 +1,6 @@
 # Great Falls Tool Bus public site
 
-This repository builds the public apex website for the Great Falls Tool Bus
+This public repository builds the apex website for the Great Falls Tool Bus
 in Lewiston and Auburn, Maine. It holds page copy, goals, and build 
 logs. SvelteKit produces static files with `adapter-static`.
 
@@ -13,11 +13,11 @@ Inc.  GFTB is an alpha adopter of the GloriousFlywheel build system.
 
 ## Start work
 
-You need Git, Nix, and GitHub access.  Clone and
-enter the pinned Nix shell. Then use Just for repository operations:
+You need Git and Nix. Clone the public source and enter the pinned Nix shell.
+Then use Just for repository operations:
 
 ```bash
-git clone git@github.com:Great-Falls-Tool-Bus/gftb-site.git
+git clone https://github.com/Great-Falls-Tool-Bus/gftb-site.git
 cd gftb-site
 nix develop
 just setup
@@ -46,7 +46,7 @@ names for `just conformance`.
 
 ## Variables and credentials
 
-Content editing does not require a site `.env` file. Keep private GitHub access
+Content editing does not require a site `.env` file. Keep GitHub write access
 in your account's credential configuration. Never commit credentials or put
 them in site content, build output, or PR text.
 
@@ -69,6 +69,10 @@ repository or use apply access as independent proof access.
 
 ## Source, publication, and deployment
 
+The September 9, 2026 operator decision made this source repository public
+and superseded the earlier private-source restriction. GitHub files and pull
+requests, including draft PRs, are publicly readable.
+
 The current source declares two GF actions: `validate` runs the registered
 checks, and `site-build` requests the scanned deployment bundle. See
 [the CI contract](docs/CI-SCHEMA.md) for their exact targets and output rules.
@@ -90,9 +94,10 @@ Static build logs live in `src/content/log/`. Use only the frontmatter fields al
 by [the content contract](AGENTS.md#public-content-boundary), including its
 optional image group. Follow [the content guide](docs/content-train.md) for the
 review process. Only `published: true` entries enter the public manifest.
-Unpublished drafts are still public build inputs: they must contain no private
-text, and the output scan checks that their content does not ship. Keep tracker
-IDs, PR numbers, commit IDs, and private operational notes out of public logs.
+Unpublished drafts are readable on GitHub. `published: false` controls rendered
+site inclusion only. Drafts must contain no private text, and the output scan
+checks that their content does not ship. Keep tracker IDs, PR numbers, commit
+IDs, and private operational notes out of public logs.
 
 Software uses the zlib license. GFTB writing uses CC BY-SA 4.0. Third-party
 credits are in [NOTICE](NOTICE) and [the attribution record](docs/attribution.md).

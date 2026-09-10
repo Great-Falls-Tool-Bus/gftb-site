@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WiperMachine } from './machine';
+import { WiperMachine, MAX_STEP_MS } from './machine';
 import { wiperDetent } from './schedule';
 
 function make(overrides: Partial<ConstructorParameters<typeof WiperMachine>[0]> = {}) {
@@ -80,7 +80,7 @@ describe('WiperMachine', () => {
 	});
 
 	it('banks the dwell across a hover pause and resumes where it left off', () => {
-		const m = make();
+		const m = make({ initial: 'intermittent' });
 		m.resume(0);
 		run(m, 0, 1000);
 		const remaining = m.dwellRemainingMs;
@@ -95,6 +95,18 @@ describe('WiperMachine', () => {
 		expect(m.phase).toBe('out');
 	});
 
+	it('ignores a resting pointer on Low and High; focus still pauses them', () => {
+		for (const initial of ['low', 'high'] as const) {
+			const m = make({ initial });
+			m.resume(0);
+			run(m, 0, 500);
+			m.hover = true;
+			expect(m.view()).toMatchObject({ state: 'dwell', running: true });
+			m.focus = true;
+			expect(m.view()).toMatchObject({ state: 'paused', running: false });
+		}
+	});
+
 	it('lets a stroke in flight complete even under a pause', () => {
 		const m = make({ initial: 'high' });
 		const { dwellMs, sweepMs } = wiperDetent('high');
@@ -102,7 +114,7 @@ describe('WiperMachine', () => {
 		run(m, 0, dwellMs + 20);
 		expect(m.phase).toBe('out');
 		const started = dwellMs + 20;
-		m.hover = true;
+		m.focus = true;
 		run(m, started, started + sweepMs / 2 + 40);
 		expect(m.phase).toBe('back');
 		run(m, started + sweepMs / 2 + 40, started + sweepMs + 80);
@@ -166,7 +178,7 @@ describe('WiperMachine', () => {
 		m.resume(0);
 		m.tick(0);
 		m.tick(50_000);
-		expect(m.dwellRemainingMs).toBeGreaterThanOrEqual(wiperDetent('low').dwellMs - 100);
+		expect(m.dwellRemainingMs).toBeGreaterThanOrEqual(wiperDetent('low').dwellMs - MAX_STEP_MS);
 	});
 
 	it('holds an out-stroke at a unit and resumes from that angle when released', () => {
@@ -191,5 +203,28 @@ describe('WiperMachine', () => {
 		expect(m.phase).toBe('back');
 		// Holding outside an out-stroke is a no-op.
 		expect(m.holdStrokeAt(0.2, 20_000)).toBe(0);
+	});
+});
+
+describe('the stroke counters', () => {
+	it('bump at a stroke start, the turnaround and park, and never on Off or a page jump', () => {
+		const m = make({ initial: 'high', random: () => 0.5 });
+		m.resume(0);
+		m.tick(0);
+		expect(m.strokeSample(0)).toMatchObject({ phase: 'dwell', t: 0, strokeIndex: 0, passesDone: 0 });
+		const dwell = wiperDetent('high').dwellMs;
+		for (let now = 100; now <= dwell + 100; now += 100) m.tick(now);
+		expect(m.phase).toBe('out');
+		expect(m.strokeSample(dwell + 100)).toMatchObject({ phase: 'out', strokeIndex: 1, passesDone: 0 });
+		const half = wiperDetent('high').sweepMs / 2;
+		for (let now = dwell + 200; now <= dwell + half + 100; now += 100) m.tick(now);
+		expect(m.phase).toBe('back');
+		expect(m.strokeSample(dwell + half + 100)).toMatchObject({ strokeIndex: 2, passesDone: 1 });
+		for (let now = dwell + half + 200; now <= dwell + 2 * half + 200; now += 100) m.tick(now);
+		expect(m.phase).toBe('dwell');
+		expect(m.passesDone).toBe(2);
+		m.reveal(4, dwell + 2 * half + 300);
+		m.setDetent('off', dwell + 2 * half + 400);
+		expect(m.strokeSample(dwell + 2 * half + 400)).toMatchObject({ strokeIndex: 2, passesDone: 2 });
 	});
 });

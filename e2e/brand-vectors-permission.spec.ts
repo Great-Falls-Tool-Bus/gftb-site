@@ -72,21 +72,24 @@ for (const permission of ['granted', 'denied'] as const) {
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 
 		// A tap on a control inside main (the wiper stalk's Off detent) does its
-		// own job and is never borrowed; Intermittent puts the wipers back.
+		// own job and is never borrowed. Off first: with the wipers running the
+		// first note may be on another page, and a pointer resting over the
+		// pane holds Intermittent paused, so the link would never come round.
 		const stalk = page.locator('#goals .wiper-stalk');
 		await expect(stalk).toHaveCount(1);
 		await stalk.locator('.wiper-stalk__item', { hasText: 'Off' }).click();
 		await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
-		await stalk.locator('.wiper-stalk__item', { hasText: 'Intermittent' }).click();
-		await expect(page.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
-		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
-		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 		// A tap on a link is never borrowed either (prevent navigation for the assertion only).
 		const link = page.locator('#goals .goal-cta a').first();
 		await link.evaluate((el) => el.addEventListener('click', (event) => event.preventDefault(), { once: true }));
 		await link.click();
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+		// Intermittent puts the wipers back; that tap is not borrowed either.
+		await stalk.locator('.wiper-stalk__item', { hasText: 'Intermittent' }).click();
+		await expect(page.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
+		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
+		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 
 		// The first neutral tap asks exactly once; later taps never ask again.
 		await neutralSpot(page).click();

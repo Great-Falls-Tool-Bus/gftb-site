@@ -15,8 +15,12 @@ const source = path.join(runtime, 'source');
 const { prepareDraftProjection, assertVerifiedSiteDraftCandidate, SiteDraftRefusal } = await import(
 	pathToFileURL(path.join(runtime, 'tools/site-draft-compiler/compiler.js')).href
 );
-const { renderLogManifest, renderSourceMap } = await import(pathToFileURL(path.join(runtime, 'scripts/lib/log-projection.mjs')).href);
-const { parseLogFrontmatter, readLogEntries } = await import(pathToFileURL(path.join(runtime, 'scripts/lib/log-content.mjs')).href);
+const { renderLogManifest, renderSourceMap } = await import(
+	pathToFileURL(path.join(runtime, 'scripts/lib/log-projection.mjs')).href
+);
+const { parseLogFrontmatter, readLogEntries } = await import(
+	pathToFileURL(path.join(runtime, 'scripts/lib/log-content.mjs')).href
+);
 const format = JSON.parse(readFileSync(path.join(source, '.prettierrc'), 'utf8'));
 const repository = { repoUrl: 'https://github.com/Great-Falls-Tool-Bus/gftb-site', branch: 'main' };
 const manifest = 'src/lib/generated/log-manifest.ts';
@@ -31,16 +35,28 @@ function log(date, title, published, body = '<p>We sorted the hand tools and rep
 }
 
 function entry(file, content) {
-	return { file: path.basename(file), slug: path.basename(file, '.svx'), sourcePath: file, ...parseLogFrontmatter(content, file) };
+	return {
+		file: path.basename(file),
+		slug: path.basename(file, '.svx'),
+		sourcePath: file,
+		...parseLogFrontmatter(content, file),
+	};
 }
 
 async function fixture(existing) {
 	const documents = new Map([[older, log('2026-09-01', 'Earlier work', true)]]);
-	if (existing !== undefined) documents.set(day, log('2026-09-09', 'Existing approved title', existing, '<p>Preserve this original paragraph exactly.</p>'));
+	if (existing !== undefined)
+		documents.set(
+			day,
+			log('2026-09-09', 'Existing approved title', existing, '<p>Preserve this original paragraph exactly.</p>'),
+		);
 	const entries = [...documents].map(([file, content]) => entry(file, content));
 	const bodies = new Map([
 		['.prettierrc', readFileSync(path.join(source, '.prettierrc'), 'utf8')],
-		['tinyland.repo.json', JSON.stringify({ repo: { github: 'Great-Falls-Tool-Bus/gftb-site', defaultBranch: 'main' } })],
+		[
+			'tinyland.repo.json',
+			JSON.stringify({ repo: { github: 'Great-Falls-Tool-Bus/gftb-site', defaultBranch: 'main' } }),
+		],
 		['package.json', readFileSync(path.join(source, 'package.json'), 'utf8')],
 		[manifest, await renderLogManifest(entries, format)],
 		[sourceMap, renderSourceMap(repository, ['src/routes/+page.svelte'], entries)],
@@ -48,20 +64,36 @@ async function fixture(existing) {
 	]);
 	const content = log('2026-09-09', 'New draft title', false);
 	return seal({
-		repository: 'Great-Falls-Tool-Bus/gftb-site', repositoryId: '12345', baseSha: 'a'.repeat(40), baseTreeSha: '',
-		tree: [...bodies].map(([file]) => ({ path: file, mode: '100644', oid: '' })).concat([
-			...semanticSources.filter((file) => !bodies.has(file)).map((file) => ({
-				path: file, mode: '100644', oid: object('blob', readFileSync(path.join(source, file))),
-			})),
-			{ path: 'src/routes/+page.svelte', mode: '100644', oid: object('blob', Buffer.from('<h1>Home</h1>')) },
-			{ path: 'other-source.txt', mode: '100644', oid: object('blob', Buffer.from('Unrelated source remains bound.')) },
-		]),
+		repository: 'Great-Falls-Tool-Bus/gftb-site',
+		repositoryId: '12345',
+		baseSha: 'a'.repeat(40),
+		baseTreeSha: '',
+		tree: [...bodies]
+			.map(([file]) => ({ path: file, mode: '100644', oid: '' }))
+			.concat([
+				...semanticSources
+					.filter((file) => !bodies.has(file))
+					.map((file) => ({
+						path: file,
+						mode: '100644',
+						oid: object('blob', readFileSync(path.join(source, file))),
+					})),
+				{ path: 'src/routes/+page.svelte', mode: '100644', oid: object('blob', Buffer.from('<h1>Home</h1>')) },
+				{
+					path: 'other-source.txt',
+					mode: '100644',
+					oid: object('blob', Buffer.from('Unrelated source remains bound.')),
+				},
+			]),
 		blobs: [...bodies].map(([file, body]) => ({ path: file, content: body })),
 		candidate: { path: 'src/content/log/2026-09-09-new-draft.svx', content, sha256: sha(content) },
 	});
 }
 
-function replaceCandidate(input, content) { input.candidate.content = content; input.candidate.sha256 = sha(content); }
+function replaceCandidate(input, content) {
+	input.candidate.content = content;
+	input.candidate.sha256 = sha(content);
+}
 
 async function refused(input) {
 	await assert.rejects(prepareDraftProjection(input), (error) => {
@@ -109,7 +141,10 @@ test('new date returns the literal candidate and both unchanged generated preima
 
 test('the authenticated tree binds all real semantic inputs without requiring compiler source on main', async () => {
 	const input = await fixture();
-	assert.equal(input.tree.some((leaf) => leaf.path.startsWith('tools/site-draft-compiler/')), false);
+	assert.equal(
+		input.tree.some((leaf) => leaf.path.startsWith('tools/site-draft-compiler/')),
+		false,
+	);
 	const result = await prepareDraftProjection(input);
 	assertVerifiedSiteDraftCandidate(result);
 	for (const file of semanticSources) {
@@ -146,12 +181,22 @@ for (const file of semanticSources) {
 test('the pinned parser exposes scripts and expressions to the modern fragment guard', () => {
 	const parsed = parseSvelte('<script>let active = 1;</script><p>{active}</p>', { modern: true });
 	assert.equal(parsed.type, 'Root');
-	assert.equal(parsed.js.length, 1);
-	assert.equal(parsed.js[0].type, 'Script');
-	assert.equal(parsed.js[0].context, 'default');
+	assert.equal(parsed.options, null);
+	assert.equal(parsed.css, null);
+	assert.equal(parsed.instance.type, 'Script');
+	assert.equal(parsed.instance.context, 'default');
+	assert.equal(parsed.module, undefined);
 	assert.equal(parsed.fragment.type, 'Fragment');
 	assert.equal(parsed.fragment.nodes[0].type, 'RegularElement');
 	assert.equal(parsed.fragment.nodes[0].fragment.nodes[0].type, 'ExpressionTag');
+	const metadata = parseSvelte('<script context="module">export const metadata = {};</script><p>Plain prose.</p>', {
+		modern: true,
+	});
+	assert.equal(metadata.options, null);
+	assert.equal(metadata.css, null);
+	assert.equal(metadata.instance, undefined);
+	assert.equal(metadata.module.type, 'Script');
+	assert.equal(metadata.module.context, 'module');
 });
 
 test('the prospective inventory digest binds unrelated leaves and is independent of input order', async () => {
@@ -162,7 +207,10 @@ test('the prospective inventory digest binds unrelated leaves and is independent
 	const reordered = await prepareDraftProjection(input);
 	assert.equal(reordered.candidateTreeSha256, first.candidateTreeSha256);
 	assert.equal(reordered.receiptSha256, first.receiptSha256);
-	input.tree.find((leaf) => leaf.path === 'other-source.txt').oid = object('blob', Buffer.from('Changed unrelated source.'));
+	input.tree.find((leaf) => leaf.path === 'other-source.txt').oid = object(
+		'blob',
+		Buffer.from('Changed unrelated source.'),
+	);
 	seal(input);
 	const changed = await prepareDraftProjection(input);
 	assert.notEqual(changed.candidateTreeSha256, first.candidateTreeSha256);
@@ -211,12 +259,27 @@ test('copies caller inputs before awaits and brands only deeply frozen real resu
 	assert.equal(result.files[0].content, expected);
 	assert.throws(() => assertVerifiedSiteDraftCandidate({ ...result }), SiteDraftRefusal);
 	assert.throws(() => assertVerifiedSiteDraftCandidate(JSON.parse(JSON.stringify(result))), SiteDraftRefusal);
-	assert.throws(() => { result.files[0].content = 'Replacement'; }, TypeError);
-	assert.throws(() => { result.sourceInputs.push({}); }, TypeError);
-	assert.throws(() => { result.toolInputs[0].sha256 = '0'.repeat(64); }, TypeError);
+	assert.throws(() => {
+		result.files[0].content = 'Replacement';
+	}, TypeError);
+	assert.throws(() => {
+		result.sourceInputs.push({});
+	}, TypeError);
+	assert.throws(() => {
+		result.toolInputs[0].sha256 = '0'.repeat(64);
+	}, TypeError);
 });
 
-for (const failure of ['tree omitted', 'blob changed', 'blob omitted', 'extra blob', 'wrong repo', 'wrong candidate digest', 'symlink log', 'config plugin']) {
+for (const failure of [
+	'tree omitted',
+	'blob changed',
+	'blob omitted',
+	'extra blob',
+	'wrong repo',
+	'wrong candidate digest',
+	'symlink log',
+	'config plugin',
+]) {
 	test(`refuses ${failure} without source diagnostics`, async () => {
 		const input = await fixture();
 		if (failure === 'tree omitted') input.tree.pop();
@@ -225,8 +288,14 @@ for (const failure of ['tree omitted', 'blob changed', 'blob omitted', 'extra bl
 		if (failure === 'extra blob') input.blobs.push({ path: 'unknown', content: 'Private text' });
 		if (failure === 'wrong repo') input.repository = 'another/repository';
 		if (failure === 'wrong candidate digest') input.candidate.sha256 = '0'.repeat(64);
-		if (failure === 'symlink log') { input.tree.find((leaf) => leaf.path === older).mode = '120000'; seal(input); }
-		if (failure === 'config plugin') { input.blobs[0].content = '{"plugins":["./untrusted.mjs"]}'; seal(input); }
+		if (failure === 'symlink log') {
+			input.tree.find((leaf) => leaf.path === older).mode = '120000';
+			seal(input);
+		}
+		if (failure === 'config plugin') {
+			input.blobs[0].content = '{"plugins":["./untrusted.mjs"]}';
+			seal(input);
+		}
 		await refused(input);
 	});
 }
@@ -242,7 +311,10 @@ for (const target of [manifest, sourceMap]) {
 
 test('refuses an existing duplicate day even when both records and the tree are authentic inputs', async () => {
 	const input = await fixture();
-	const duplicate = { path: 'src/content/log/2026-09-01-duplicate.svx', content: log('2026-09-01', 'Another title', false) };
+	const duplicate = {
+		path: 'src/content/log/2026-09-01-duplicate.svx',
+		content: log('2026-09-01', 'Another title', false),
+	};
 	input.blobs.push(duplicate);
 	input.tree.push({ path: duplicate.path, mode: '100644', oid: '' });
 	seal(input);
@@ -269,17 +341,27 @@ for (const body of [
 	});
 }
 
-for (const failure of ['unknown key', 'prototype key', 'invalid date', 'date path mismatch', 'no TODO', 'published candidate', 'malformed image group']) {
+for (const failure of [
+	'unknown key',
+	'prototype key',
+	'invalid date',
+	'date path mismatch',
+	'no TODO',
+	'published candidate',
+	'malformed image group',
+]) {
 	test(`the real site schema and source contract refuse ${failure}`, async () => {
 		const input = await fixture();
 		let content = input.candidate.content;
 		if (failure === 'unknown key') content = content.replace('published: false', 'published: false\nprivate: hidden');
-		if (failure === 'prototype key') content = content.replace('published: false', 'published: false\n__proto__: hidden');
+		if (failure === 'prototype key')
+			content = content.replace('published: false', 'published: false\n__proto__: hidden');
 		if (failure === 'invalid date') content = content.replace('2026-09-09', '2026-02-30');
 		if (failure === 'date path mismatch') content = content.replace('2026-09-09', '2026-09-08');
 		if (failure === 'no TODO') content = content.replace('TODO(jess)', 'Review');
 		if (failure === 'published candidate') content = content.replace('published: false', 'published: true');
-		if (failure === 'malformed image group') content = content.replace('published: false', "published: false\nimage: '/photos/update.png'");
+		if (failure === 'malformed image group')
+			content = content.replace('published: false', "published: false\nimage: '/photos/update.png'");
 		replaceCandidate(input, content);
 		await refused(input);
 	});
@@ -288,15 +370,22 @@ for (const failure of ['unknown key', 'prototype key', 'invalid date', 'date pat
 test('a published image must resolve to a regular asset in the complete source tree', async () => {
 	const input = await fixture();
 	const existing = input.blobs.find((blob) => blob.path === older);
-	existing.content = existing.content.replace('published: true', "published: true\nimage: '/photos/update.png'\nimage_alt: 'Tools on the workbench'");
+	existing.content = existing.content.replace(
+		'published: true',
+		"published: true\nimage: '/photos/update.png'\nimage_alt: 'Tools on the workbench'",
+	);
 	seal(input);
 	await refused(input);
 });
 
 test('real mdsvex and Svelte preserve escaped literal prose and quoted scalar tags', async () => {
 	const input = await fixture();
-	const content = log('2026-09-09', 'A useful title', false, '<p>&lt;script&gt;literal&lt;/script&gt; &#123;notAnExpression&#125;</p>')
-		.replace("  - 'tools'", "  - 'true'\n  - 'null'\n  - '123'");
+	const content = log(
+		'2026-09-09',
+		'A useful title',
+		false,
+		'<p>&lt;script&gt;literal&lt;/script&gt; &#123;notAnExpression&#125;</p>',
+	).replace("  - 'tools'", "  - 'true'\n  - 'null'\n  - '123'");
 	replaceCandidate(input, content);
 	assert.equal((await prepareDraftProjection(input)).files[0].content, content);
 	replaceCandidate(input, content.replace("  - 'true'", '  - true'));

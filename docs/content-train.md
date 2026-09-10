@@ -141,14 +141,18 @@ in `scripts/lib/log-content.mjs`) into the leak-scan denylist on every
 build, so `just build` and `just leak-scan-stamped` prove — not just
 assume — that no draft's content shipped.
 
-## The merge is the publish
+## Review and website publication
 
-The operator reads the draft, rewrites it in their own words (or replaces
-it outright), and only then flips `published: true`. Once that PR merges
-to `main` and the next build ships, the entry is live. There is no
-separate publish step: the merge, with `published: true` already set by
-the operator's own hand, is what makes an entry public. Agents open the
-PR; only the operator merges it.
+Draft source and draft pull requests are publicly readable on GitHub.
+`published: false` excludes an entry from the website; it does not make that
+source private. The operator or another developer with repository authority
+reviews the exact text and naming consent before explicitly setting
+`published: true`. Agents create drafts; they do not publish or merge them.
+
+After the reviewed change merges to `main`, website publication still requires
+the existing owner release and served proof. The intended GF convergence
+develops in parallel; a merge alone is not deployment evidence. These boundaries
+follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/main/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
 
 ## What an agent PR looks like
 
@@ -181,11 +185,22 @@ Unpublished entries never reach the manifest, and their text joins the
 build-output leak denylist like draft log entries. Operator ruling 2026-08-31:
 these rows are operator-authored and may carry penciled-in dates.
 
-Presentation (operator ruling 2026-09-09): the rows render as a plain,
-borderless grid in every state (`src/lib/components/NotesAndGoals.svelte`).
-The windshield-wiper rotator ruled on 2026-09-08 was removed from the public
-surface pending its ratified replacement; the grid is also that work's
-rollback surface. Each row carries an "Edit" link to its own source file and
+Presentation (operator rulings 2026-09-08 and 2026-09-09): the served HTML,
+reduced motion, the Off detent, print and forced colours are all the same
+plain, borderless grid of every row (`src/lib/components/NotesAndGoals.svelte`);
+that grid is the rollback surface. Once enhanced, the rows page under the
+ratified windshield wiper (`src/lib/wiper`, landed in six milestones behind
+attended LOOKs: the DOM wipe, the GPU scene behind the notes, the chrome arms,
+the glass, the WebGPU tier with its WebGL2 fallback, and the rails). Content
+authors need no knowledge of it: a row is a row, the wiper pages whatever the
+manifest publishes, a note that straddles the two blades on a wide screen is
+wiped by both, the outgoing page leaves as one row ahead of the blade that
+reaches it first, and the detent a visitor picks on the stalk is remembered
+by their browser. On a first visit in a browser session, and only on the home
+page, the site opens with a short veil carrying the bus mark and then carries
+the visitor down to this section as the wiper comes ready (`src/lib/intro`);
+any input ends it at once, reduced motion and a URL fragment never start it,
+and it never touches the rows or the manifest. Each row carries an "Edit" link to its own source file and
 the section links the whole collection (`/tree/<branch>/src/content/goals`):
 the SourceLink "edit this page"
 exception extended to the collection, built from `source-map.json` and the
