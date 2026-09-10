@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { skipHomeIntro } from './support/intro';
 
 import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
 import { readFileSync } from 'node:fs';
@@ -23,6 +24,11 @@ import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-g
 import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 import { awaitTier, forceTierMax } from './support/wiper-tier';
+
+// The home intro's scroll would break this spec's scroll-position premises.
+test.beforeEach(async ({ page }) => {
+	await skipHomeIntro(page);
+});
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub

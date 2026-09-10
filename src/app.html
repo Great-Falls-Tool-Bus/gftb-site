@@ -47,11 +47,36 @@
 					if (!reduceMotion) {
 						document.documentElement.classList.add('motion-safe-ready');
 						// Fail-open: if the app never hydrates (bundle load fails),
-						// un-hide reveal content so a broken enhancement layer cannot
-						// strand it. +layout.svelte cancels this on mount.
+						// un-hide reveal content and drop the home intro veil so a
+						// broken enhancement layer cannot strand either.
+						// +layout.svelte cancels this on mount; the intro controller
+						// then owns its own class.
 						window.__gftbRevealFailsafe = setTimeout(function () {
 							document.documentElement.classList.remove('motion-safe-ready');
+							document.documentElement.classList.remove('intro-armed');
 						}, 3000);
+						// Home intro (operator ruling 2026-09-10): once per browser
+						// session, home path only, never with a fragment. Armed before
+						// first paint so the veil is the first frame; the stylesheet
+						// ends it hidden by itself. Any input before hydration disarms
+						// it; src/lib/intro takes over on mount.
+						try {
+							if (
+								location.pathname === '/' &&
+								location.hash === '' &&
+								sessionStorage.getItem('intro-played') === null
+							) {
+								document.documentElement.classList.add('intro-armed');
+								var disarmIntro = function () {
+									document.documentElement.classList.remove('intro-armed');
+								};
+								['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (type) {
+									window.addEventListener(type, disarmIntro, { capture: true, passive: true, once: true });
+								});
+							}
+						} catch (introError) {
+							// sessionStorage unavailable: no intro.
+						}
 					}
 				} catch (e) {
 					// localStorage unavailable (privacy mode, etc.): keep defaults.

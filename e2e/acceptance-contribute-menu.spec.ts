@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { skipHomeIntro } from './support/intro';
+
+// The home intro's scroll would break this spec's scroll-position premises.
+test.beforeEach(async ({ page }) => {
+	await skipHomeIntro(page);
+});
 
 // ContributeMenu.svelte (review round 1 finding C, round 2 follow-up):
 // shipped with zero e2e coverage, which review round 2 named as exactly why
