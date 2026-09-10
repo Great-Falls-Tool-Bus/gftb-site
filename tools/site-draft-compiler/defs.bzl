@@ -17,8 +17,16 @@ def site_draft_compiler_targets():
         "scripts/lib/log-projection.mjs",
         "scripts/lib/log-source-guard.mjs",
     ]
+    # rules_ts derives emitted paths from string target names, stripping the
+    # package prefix before ':'. A root alias preserves the compiler's real
+    # path without treating a child-package source as an implicit root file.
+    compiler_source = Label("//tools/site-draft-compiler:compiler.ts")
+    native.alias(
+        name = "tools/site-draft-compiler/compiler.ts",
+        actual = compiler_source,
+    )
     typed_sources = [
-        Label("//tools/site-draft-compiler:compiler.ts"),
+        ":tools/site-draft-compiler/compiler.ts",
         "src/lib/featured-image-schema.ts",
         "src/lib/public-log-schema.ts",
     ]
@@ -54,7 +62,7 @@ def site_draft_compiler_targets():
     copy_to_directory(
         name = "site_draft_compiler_sources",
         out = "site-draft-compiler-source",
-        srcs = typed_sources + scripts + [
+        srcs = [compiler_source] + typed_sources[1:] + scripts + [
             Label("//tools/site-draft-compiler:defs.bzl"),
             Label("//tools/site-draft-compiler:BUILD.bazel"),
             Label("//tools/site-draft-compiler:package.json"),
