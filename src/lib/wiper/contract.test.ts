@@ -232,10 +232,21 @@ describe('the wiper source contract', () => {
 		// A device lost after selection remounts the scene on fresh canvases,
 		// a bounded number of times, at the ceiling the loss lowered.
 		expect(goals).toContain('{#key sceneGeneration}');
-		expect(goals).toContain('SCENE_RELAUNCH_LIMIT = 2');
+		expect(goals).toContain('SCENE_RELAUNCH_LIMIT = 3');
+		expect(goals).toContain('SCENE_RELAUNCH_PAUSE_MS = 400');
+		expect(goals).toContain('window.clearTimeout(relaunchTimer)');
 		expect(host).toContain('renderer.onLost(() => lose());');
 		expect(host).toContain('blades.onLost(() => lose());');
 		expect(host).not.toContain('onLost(() => demote())');
+		// A loss during the ladder (the blades rung refused, or a mixed pair)
+		// relaunches too; only a scene rung that no rung can serve demotes.
+		const bladesFail = host.indexOf('if (!bladeSelection.ok) {');
+		expect(host.slice(bladesFail, host.indexOf('blades = bladeSelection.handle;'))).toContain('lose();');
+		const mixed = host.indexOf('if (blades.tier !== renderer.tier) {');
+		expect(host.slice(mixed, mixed + 200)).toContain('lose();');
+		expect(host.slice(mixed, mixed + 200)).not.toContain('demote();');
+		// A lost WebGL2 context keeps the ceiling: the rung is tried again.
+		expect(read('src/lib/wiper/renderer/select.ts')).not.toContain("lowerCeiling('none')");
 	});
 
 	it('keeps the glass on the scene layer, before the clamp, and the blades away from it', () => {
