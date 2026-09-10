@@ -51,10 +51,10 @@ export async function resolveRoleRgb(page: Page, role: string, selector = 'body'
 }
 
 /**
- * `margin` is the scan inset in CSS px: the hero keeps the original 6; the
- * Notes & Goals pane passes a wider inset because its 1px `--rule` border
- * lands inside the clip at fractional scroll offsets and a border is not a
- * ground any ink sits on.
+ * `margin` is the scan inset in CSS px: the hero keeps the original 6; a
+ * caller passes whatever inset keeps the sample inside the surface it is
+ * measuring at fractional scroll offsets (the Notes & Goals panes carry no
+ * border, so nothing but the fill is ever inside their clip).
  */
 export async function measureGlassExtremes(page: Page, selector: string, margin = 6) {
 	const rect = await page.evaluate((sel) => {

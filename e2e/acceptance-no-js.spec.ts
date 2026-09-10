@@ -167,7 +167,15 @@ test.describe('JavaScript enabled', () => {
 		page.on('console', (message) => {
 			if (message.type() === 'error' || message.type() === 'warning') {
 				if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
-				if (options.allowAdapterNotice && message.type() === 'warning' && message.text() === 'No available adapters.')
+				// The browser's own word that it has no WebGPU adapter for the ladder
+				// to take: Chromium's exact notice, and Firefox's blocklist notice as
+				// it reaches Playwright. Renderer output is never exempt.
+				if (
+					options.allowAdapterNotice &&
+					message.type() === 'warning' &&
+					(message.text() === 'No available adapters.' ||
+						/^\[JavaScript Warning: "WebGPU is disabled by blocklist\."/u.test(message.text()))
+				)
 					return;
 				consoleErrors.push(`${message.type()}: ${message.text()}`);
 			}

@@ -131,6 +131,9 @@ for (const blend of ['multiply', 'screen'] as const) {
 					const program = gl.createProgram()!;
 					gl.attachShader(program, compile(gl.VERTEX_SHADER, shaders.vertex));
 					gl.attachShader(program, compile(gl.FRAGMENT_SHADER, shaders.fragment));
+					// The renderer's own triangle: three corners at attribute 0 (an
+					// attribute-less draw leaves the vertex shader's a_corner at zero).
+					gl.bindAttribLocation(program, 0, 'a_corner');
 					gl.linkProgram(program);
 					if (!gl.getProgramParameter(program, gl.LINK_STATUS))
 						throw new Error(gl.getProgramInfoLog(program) ?? 'link');
@@ -173,6 +176,11 @@ for (const blend of ['multiply', 'screen'] as const) {
 					gl.uniform1f(u('u_frostMax'), f32[offsets.frostMax]);
 					gl.uniform1i(u('u_drops'), 2);
 					gl.uniform1i(u('u_frostTex'), 3);
+					const corners = gl.createBuffer();
+					gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+					gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+					gl.enableVertexAttribArray(0);
+					gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 					gl.drawArrays(gl.TRIANGLES, 0, 3);
 					const glPixels = new Uint8Array(width * height * 4);
 					gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, glPixels);

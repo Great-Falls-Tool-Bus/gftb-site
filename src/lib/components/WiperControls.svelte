@@ -1,10 +1,9 @@
 <script lang="ts">
-	// The wiper's one control: a four-detent speed stalk (Off / Intermittent /
-	// Low / High) on Skeleton 5's SegmentedControl (a radio group underneath).
-	// Operator ruling 2026-09-09: one control, chrome on its own box, no frame,
-	// no dash. Styling lives in app.css under .wiper-stalk (radius 0 on every
-	// part; motion only under prefers-reduced-motion: no-preference; the
-	// indicator's fill is the ratified --accent on --control-track pair).
+	// The stalk: one Skeleton SegmentedControl (a radio group) with four
+	// detents, Off first. Interim text treatment by operator ruling at LOOK 1
+	// (app.css .wiper-stalk*): plain text, the active detent in the accent
+	// with a rule under it, radius 0 on every part, no track, no slider, no
+	// fill, and no timed rule at all; the source contract pins each of those.
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import type { WiperEngine } from '$lib/wiper/engine.svelte';
 	import { WIPER_DETENTS, isWiperDetent } from '$lib/wiper/schedule';

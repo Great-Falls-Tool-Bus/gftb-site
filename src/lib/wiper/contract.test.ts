@@ -43,9 +43,12 @@ describe('the wiper source contract', () => {
 		// A note both blades pass over: the right wedge is cut to its span.
 		expect(block).toMatch(/\[data-wipe='out'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: intersect, add;/u);
 		expect(block).toMatch(/\[data-wipe='in'\]\[data-wipe-arms='both'\] \{[^}]*mask-composite: add, intersect;/u);
-		expect(block.match(/var\(--wipe-split\)/gu)).toHaveLength(4);
+		// The second wedge is cut to the right blade's disc, not to its span.
+		expect(block.match(/radial-gradient\(\n\t\t\tcircle at /gu)).toHaveLength(2);
+		expect(block.match(/var\(--wipe-len-2\)/gu)).toHaveLength(4);
+		expect(block).not.toMatch(/--wipe-split|linear-gradient\(90deg/u);
 		const engineSource = read('src/lib/wiper/engine.svelte.ts');
-		expect(engineSource).toContain("'--wipe-split'");
+		expect(engineSource).toContain("'--wipe-len-2'");
 		expect(engineSource).toContain('leftToRight([owner, second])');
 		expect(block).toMatch(
 			/transparent var\(--wipe-feather\) calc\(var\(--wipe-feather\) \+ var\(--wipe-u\) \* var\(--wipe-span\)\)/u,
@@ -65,11 +68,15 @@ describe('the wiper source contract', () => {
 			);
 		expect(push).not.toBeNull();
 		expect(push![1]).toMatch(/transform: translateX\(var\(--wipe-push\)\);/u);
-		expect(push![1]).toMatch(/tan\(var\(--wipe-phi\)\)/u);
-		// The leading blade drives the shove and the note outruns it.
-		expect(push![1]).toMatch(/--wipe-shove: 1\.6;/u);
-		expect(push![1]).toMatch(/max\(0px, var\(--wipe-reach\), var\(--wipe-reach-2\)\)/u);
-		expect(push![1]).toMatch(/var\(--wipe-x-2, -99999px\)/u);
+		// One row per page: the first blade's contact drives every note, and the
+		// run carries the row the rest of the way by the turnaround.
+		expect(push![1]).toMatch(/tan\(var\(--wipe-tphi\)\)/u);
+		expect(push![1]).toMatch(/--wipe-push: calc\(max\(0px, var\(--wipe-reach\)\) \+ var\(--wipe-slide\)\);/u);
+		expect(push![1]).toMatch(
+			/var\(--wipe-run, 0px\) \* max\(0, \(var\(--wipe-u\) - var\(--wipe-contact, 0\)\) \/ \(1 - var\(--wipe-contact, 0\)\)\)/u,
+		);
+		expect(push![1]).not.toMatch(/--wipe-shove|--wipe-h\b|--wipe-reach-2/u);
+		expect(engineSource).toContain('trainFor(geometry, entries)');
 		expect(block.match(/from var\(--wipe-start-2\)/gu)).toHaveLength(2);
 		expect(css).not.toMatch(/\.goal-list > li[^{]*\{[^}]*mask-image/u);
 	});
@@ -107,18 +114,34 @@ describe('the wiper source contract', () => {
 		expect(inks![1]).toMatch(/border-radius: 0;/u);
 		expect(inks![1]).toMatch(/--fg: var\(--glass-fg\);/u);
 		expect(inks![1]).not.toMatch(/border(?!-radius)|box-shadow|background|backdrop/u);
-		// The fill and the blur sit on a pseudo under the note: Chromium drops
-		// mask-image on an element that carries a backdrop-filter.
+		// The fill sits on a pseudo under the note, and no pane carries a
+		// backdrop-filter: masks and backdrop filters do not compose (Chromium
+		// drops the mask, Firefox skips the filtered child, the spec makes the
+		// masked note a backdrop root with nothing behind it).
 		const pane = /\.goal-list > li::before \{([^}]*)\}/u.exec(css);
 		expect(pane).not.toBeNull();
 		expect(pane![1]).toMatch(/background: color-mix\(in oklab, var\(--glass-panel\) 70%, transparent\);/u);
 		expect(pane![1]).toMatch(/z-index: -1;/u);
-		expect(css).toMatch(
-			/\.goal-list > li::before,\n\t\.goal-asides \{\n\t\tbackdrop-filter: blur\(12px\) saturate\(118%\);/u,
+		expect(pane![1]).not.toMatch(/backdrop-filter/u);
+		expect(css).not.toMatch(/\.goal-list > li::before,\n\t\.goal-asides \{\n\t\tbackdrop-filter/u);
+		expect(css).not.toMatch(/\.goal-(list > li|asides)[^{]*\{[^}]*backdrop-filter:(?! none)/u);
+		// Forced colours unwind the wipe in the stylesheet too.
+		const forced = css.slice(css.lastIndexOf('@media (forced-colors: active) {'));
+		expect(forced).toMatch(
+			/\.goal-list--paged > li \{\n\t\topacity: 1 !important;\n\t\tpointer-events: auto !important;\n\t\tmask-image: none !important;\n\t\ttransform: none !important;/u,
 		);
-		expect(css).not.toMatch(/\.goal-list > li[^:,{]*\{[^}]*backdrop-filter:(?! none)/u);
+		const notes = read('src/lib/components/NotesAndGoals.svelte');
+		expect(notes).toMatch(/new MediaQuery\('\(forced-colors: active\)'\)/u);
+		expect(notes).toMatch(/motionOk: \(\) => enhanced && !prefersReduced\.current && !forcedColors\.current/u);
+		expect(notes).toMatch(/\|\| view\.phase === 'out'\)\)\n\t\t\t\tengine\.reveal\(index\)/u);
 		expect(css).toMatch(/\.page-shell > \.section:not\(\.section--bare\),/u);
 		expect(css).not.toMatch(/\.page-shell > \.section,/u);
+		// On screen the bare section has no surface; on paper it takes the ink
+		// like every section. The surfaced sections keep their own selector so
+		// the paper inks outrank the screen surface's glass inks.
+		expect(css.slice(css.indexOf('@media print {'))).toMatch(
+			/\.page-shell > \.section:not\(\.section--bare\),\n\t\.page-shell > \.section--bare,\n/u,
+		);
 		const page = read('src/routes/+page.svelte');
 		expect(page).toMatch(/class="section section--bare reveal-armed"[\s\S]{0,120}id="goals"/u);
 		const print = css.slice(css.indexOf('@media print {'));
@@ -194,13 +217,13 @@ describe('the wiper source contract', () => {
 		expect(host).toContain('aria-hidden="true"');
 		expect(host).toContain("selectRenderer(element, { layer: 'scene' })");
 		expect(host).toContain("selectRenderer(bladesElement, { layer: 'blades' })");
-		expect(host).toContain('renderer.render({ ...frame, arms });');
+		expect(host).toContain('scene.render({ ...frame, arms });');
 		// M4: the bead field and the frost ride the scene's own clock.
 		expect(host).toContain('strokeClock(now)');
 		expect(host).toContain('uploadDroplets(');
 		expect(host).toContain('uploadFrost(');
 		expect(host).toContain('frostClock.note(clock, drops.time);');
-		expect(host).toContain('blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });');
+		expect(host).toContain('over.render({ ...frame, arms, scissor: idle ? null : armsBox(arms, width, height) });');
 		expect(host).not.toMatch(/console\./u);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
 		expect(goals).toContain('{#if view.paged && glassEl}');

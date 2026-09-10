@@ -9,6 +9,9 @@ import { UNIFORM_OFFSETS, createUniformBlock, packUniformBlock, scaleDroplets } 
 
 interface Program {
 	program: WebGLProgram;
+	/** One VAO with the triangle's corners at attribute 0: Firefox warns on an attribute-less draw. */
+	vao: WebGLVertexArrayObject;
+	corners: WebGLBuffer;
 	uniforms: Record<string, WebGLUniformLocation | null>;
 	dropsTexture: WebGLTexture;
 	frostTexture: WebGLTexture;
@@ -59,6 +62,7 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 	if (!program) return { kind: 'compile', stage: 'link' };
 	gl.attachShader(program, vertex);
 	gl.attachShader(program, fragment);
+	gl.bindAttribLocation(program, 0, 'a_corner');
 	gl.linkProgram(program);
 	gl.deleteShader(vertex);
 	gl.deleteShader(fragment);
@@ -73,13 +77,27 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 		if (!texture) return null;
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+		// Zeros, not null: Firefox warns when a texture it had to initialise
+		// lazily is first sampled.
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(width * height));
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		return texture;
 	};
+	const vao = gl.createVertexArray();
+	const corners = gl.createBuffer();
+	if (!vao || !corners) {
+		gl.deleteProgram(program);
+		return { kind: 'compile', stage: 'link' };
+	}
+	gl.bindVertexArray(vao);
+	gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+	gl.enableVertexAttribArray(0);
+	gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+	gl.bindVertexArray(null);
 	const frostTexture = makeField(1, 1);
 	// The bead field is float data fetched by texel: NEAREST, no filtering.
 	const dropsTexture = frostTexture ? gl.createTexture() : null;
@@ -94,7 +112,7 @@ function build(gl: WebGL2RenderingContext): Program | RendererFailure {
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	return { program, uniforms, dropsTexture, frostTexture };
+	return { program, vao, corners, uniforms, dropsTexture, frostTexture };
 }
 
 export function createWebGL2Renderer(
@@ -221,7 +239,9 @@ export function createWebGL2Renderer(
 			gl.activeTexture(gl.TEXTURE3);
 			gl.bindTexture(gl.TEXTURE_2D, program.frostTexture);
 			gl.uniform1i(u.u_frostTex, 3);
+			gl.bindVertexArray(program.vao);
 			gl.drawArrays(gl.TRIANGLES, 0, 3);
+			gl.bindVertexArray(null);
 		},
 		onLost(callback) {
 			lostCallbacks.push(callback);
@@ -232,8 +252,13 @@ export function createWebGL2Renderer(
 			if (!lost) {
 				gl.deleteTexture(program.dropsTexture);
 				gl.deleteTexture(program.frostTexture);
+				gl.deleteBuffer(program.corners);
+				gl.deleteVertexArray(program.vao);
 				gl.deleteProgram(program.program);
-				gl.getExtension('WEBGL_lose_context')?.loseContext();
+				// No loseContext(): browsers log a forced loss as a warning.
+				// The canvas leaves with its component; shrink its store meanwhile.
+				canvas.width = 1;
+				canvas.height = 1;
 			}
 		},
 	};

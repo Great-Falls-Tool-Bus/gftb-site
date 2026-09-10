@@ -247,6 +247,66 @@ export function maskVarsFor(
 	};
 }
 
+/** The shove's static inputs for one page of notes (app.css --wipe-push). */
+export interface TrainVars {
+	/** Pivot of the driving arm in the contact note's border-box coordinates. */
+	'--wipe-tx': string;
+	'--wipe-ty': string;
+	/** The driving arm's park angle and stroke span, degrees. */
+	'--wipe-tfrom': string;
+	'--wipe-tspan': string;
+	/** Distance the row must travel beyond what the blade delivers, px. */
+	'--wipe-run': string;
+	/** Eased stroke unit at which the blade touches the contact note, 0..0.98. */
+	'--wipe-contact': string;
+}
+
+/**
+ * A page's notes leave as one row. The first blade whose rubber reaches a
+ * note's top-left corner (its ray crossing that corner earliest in the
+ * stroke) drives the row at its own speed from that contact, so the row
+ * rides the blade and no note overtakes the next; the run is the extra
+ * distance, spread over the rest of the stroke, that puts the leftmost
+ * note's left edge on the glass's right edge exactly at the turnaround.
+ * Notes out of every blade's reach still ride the earliest ray.
+ */
+export function trainFor(geometry: WiperGeometry, notes: readonly ItemBox[]): TrainVars {
+	const round = (value: number) => Math.round(value * 100) / 100;
+	let best: { arm: ArmSpec; x: number; y: number; u: number; reachable: boolean } | null = null;
+	for (const note of notes) {
+		for (const arm of geometry.arms) {
+			const x = arm.pivotX - note.left;
+			const y = arm.pivotY - note.top;
+			const reachable = Math.hypot(x, y) <= arm.length;
+			const u = (Math.atan2(-x, y) - parkAngle(arm)) / sweepSpan(arm);
+			if (!best || (reachable && !best.reachable) || (reachable === best.reachable && u < best.u))
+				best = { arm, x, y, u, reachable };
+		}
+	}
+	if (!best) {
+		return {
+			'--wipe-tx': '0px',
+			'--wipe-ty': '0px',
+			'--wipe-tfrom': '0deg',
+			'--wipe-tspan': '0deg',
+			'--wipe-run': '0px',
+			'--wipe-contact': '0',
+		};
+	}
+	const leftmost = Math.min(...notes.map((note) => note.left));
+	const reachEnd = best.x + best.y * Math.tan(parkAngle(best.arm) + sweepSpan(best.arm));
+	const run = Math.max(0, geometry.box.width - leftmost - reachEnd);
+	const contact = Math.min(Math.max(best.u, 0), 0.98);
+	return {
+		'--wipe-tx': `${round(best.x)}px`,
+		'--wipe-ty': `${round(best.y)}px`,
+		'--wipe-tfrom': `${round(toDegrees(parkAngle(best.arm)))}deg`,
+		'--wipe-tspan': `${round(sweepSpanDeg(best.arm))}deg`,
+		'--wipe-run': `${round(run)}px`,
+		'--wipe-contact': contact.toFixed(4),
+	};
+}
+
 /** Degrees form of the fan, for tests and status readouts. */
 export function halfSweepDeg(arm: ArmSpec): number {
 	return toDegrees(arm.halfSweep);
