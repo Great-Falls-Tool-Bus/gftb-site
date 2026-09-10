@@ -39,10 +39,7 @@ directly. Nix supplies the tools; the Justfile supplies the commands.
 | Update page source links | `just source-map-build` |
 
 The full validation suite includes browser tests that require GF's supplied
-Chromium. Local results do not replace a refused remote action or prove a
-deployment. `just build` writes to `build/` and refuses an existing destination.
-`just entrypoint-contract` and `just repo-manifest-validate` are compatibility
-names for `just conformance`.
+Chromium.  `just build` writes to `build/` and refuses an existing destination.
 
 ## Variables and credentials
 
@@ -64,24 +61,20 @@ digest, and `WEB_APPLY_KUBECONFIG` for apply access. Separate proof access uses
 mode-0600 files outside every Git repository. A gated served check also needs
 `CF_ACCESS_COOKIE_JAR` with the same private file custody. See the
 [owner release runbook](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/blob/main/docs/runbooks/oncluster-web-cutover.md)
-for the full input list and checks. Do not copy those credentials into this
-repository or use apply access as independent proof access.
+for the full input list and checks. Do not copy those credentials here please.
 
 ## Source, publication, and deployment
-
-The September 9, 2026 operator decision made this source repository public
-and superseded the earlier private-source restriction. GitHub files and pull
-requests, including draft PRs, are publicly readable.
 
 The current source declares two GF actions: `validate` runs the registered
 checks, and `site-build` requests the scanned deployment bundle. See
 [the CI contract](docs/CI-SCHEMA.md) for their exact targets and output rules.
 
 The existing candidate workflow calls `just container-image-publish` on Linux.
+
 It packages the static build as
 `ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>`. It does not
 deploy. The release lane may make this web image package publicly
-readable after review and must prove a digest pull before cutover. 
+readable after review and must prove a digest pull before GF v4 stack cutover. 
 
 The infra repository owns the existing attended release: select the reviewed
 source and digest, apply them, and read back the running and served site.
