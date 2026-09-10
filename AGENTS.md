@@ -19,7 +19,10 @@ browser may submit the public contact form to the separately owned
 The production image identity is exactly
 `ghcr.io/great-falls-tool-bus/gftb-site`. Publishing a `sha-<40 hex SHA>` image
 does not deploy it. Infra selection, digest pinning, apex cutover, served
-readback, and rollback remain outside this repo.
+readback, and rollback remain outside this repo: the attended transaction is
+the `web-release-*` recipes of `great-falls-tool-bus-infra`
+(`docs/runbooks/oncluster-web-cutover.md` there), run from a clean checkout
+of that repo's canonical `main`.
 
 ## Public-content boundary
 
@@ -149,6 +152,44 @@ compiled GF client once.
 
 `just ci` remains a local developer convenience. It is not CI evidence and is
 never an execution fallback for either v4 action.
+
+## Home presentation layer
+
+Two enhancement layers sit on the home page, both additive over a served HTML
+that is complete without them.
+
+- `src/lib/wiper/**` and `src/lib/components/{NotesAndGoals,WiperScene,WiperControls}.svelte`:
+  the Notes & Goals windshield wiper. The notes page under a DOM mask driven by
+  a runes engine; a GPU scene behind the notes and a blade layer over them run
+  on a ladder `webgpu -> webgl2 -> none`, where `none` is the plain grid. Every
+  rung is silent by construction (no console output from a renderer, ever); a
+  device or context lost after selection remounts the scene on fresh canvases,
+  bounded. Reduced motion, scripts off, paper and forced colours all render the
+  same plain grid of every row, which is the rollback surface. The stalk
+  starts on High on every load; nothing about the wiper is stored. Contract pins live in
+  `src/lib/wiper/contract.test.ts`; the browser rows in `e2e/home-goals.spec.ts`
+  and `e2e/wiper-parity.spec.ts`.
+- `src/lib/intro/**`, `src/lib/components/{HomeIntro,BusMark}.svelte`, the
+  sync script in `src/app.html` and the "Home intro" block in `src/app.css`:
+  the first-load intro. On every full load of `/` a page-ground veil with the
+  bus mark holds until the wiper's canvases report a rung (1.8 s minimum,
+  4.5 s cap), lifts to the header and hero, then a scripted scroll lands
+  Notes & Goals under the header. No storage. Any input, a hidden tab, a URL
+  fragment, reduced motion, forced colours, or any scroll that is not its own
+  cancels it and leaves the page where it is; focus is never moved. Pins in
+  `src/lib/intro/contract.test.ts`; rows in `e2e/home-intro.spec.ts`.
+
+Test and LOOK hooks, read from `<html>` (no URL query, no storage):
+`data-wiper-tier-max="webgl2|none"` caps the ladder before mount;
+`data-intro-off` (or `window.__gftbIntroOff = true` before the sync script
+runs) keeps the intro from arming. Specs whose scroll-position premises the
+intro would break opt out through `e2e/support/intro.ts`.
+
+Evidence on a developer host is a local `vite build` into a scratch directory
+(`BUILD_OUTPUT_DIR`), `scripts/check-build-output.mjs` on it, `scripts/bazel_output.py
+serve-static` on a port, and Playwright through `PLAYWRIGHT_PORT`; the
+`chromium-webgpu` project (`PLAYWRIGHT_WEBGPU=1`) covers the top rung on a
+software adapter. Operator-attended LOOKs happen in the operator's own browser.
 
 ## Deployment and package safety
 

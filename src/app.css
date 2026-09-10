@@ -7,7 +7,7 @@
  * e2e/acceptance-sharp-edges.spec.ts. */
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
-/* CityLink palette (TIN-3853/3854) — active via data-theme='gftb' on <html>. */
+/* CityLink palette (the palette ruling) — active via data-theme='gftb' on <html>. */
 @import './lib/styles/theme-gftb.css';
 /* Self-hosted typefaces (D08/D12, the merged demo #29 / Wave-2.5 pairing;
  * all @fontsource files ship font-display:swap):
@@ -86,7 +86,7 @@
 	line-gap-override: 0%;
 }
 
-/* Role layer (TIN-3854). Every rule below paints through a role, never a raw
+/* Role layer (the palette ruling). Every rule below paints through a role, never a raw
  * hex or a raw palette token, so a colour decision is made once and here.
  * The `[data-mode='dark']` block at the end of this file redefines every
  * scheme role in full; that block is the only place a second colour scheme
@@ -429,11 +429,27 @@ body {
 	}
 
 	html.intro-armed.intro-lifting .home-intro {
-		animation: intro-lift 500ms ease-out both;
+		animation: intro-lift 900ms ease-out both;
 	}
 
 	html.intro-armed.intro-lifting .home-intro__mark {
-		animation: intro-mark-out 400ms ease-in both;
+		animation: intro-mark-out 900ms ease-in both;
+	}
+}
+
+/* While the intro owns the page, the browser's scroll anchoring must not
+ * move the visitor when an image decodes or a section reveals above the
+ * fold: the tween reads scrollY every frame and treats any move that is not
+ * its own as a cancel. */
+html.intro-live {
+	overflow-anchor: none;
+}
+
+/* Forced colours stand the wiper enhancement down, so there is nothing for
+ * the veil to lead to; the sync script does not arm it there either. */
+@media (forced-colors: active) {
+	.home-intro {
+		display: none !important;
 	}
 }
 

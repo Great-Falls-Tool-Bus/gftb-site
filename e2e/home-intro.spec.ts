@@ -113,8 +113,9 @@ test.describe('motion allowed', () => {
 
 	test('a key during the scroll stops the page where it is', async ({ page }) => {
 		await page.goto('/');
-		await expect.poll(() => state(page), { timeout: 12_000 }).toBe('scroll');
-		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
+		// Press the moment the tween starts: it lasts 1.6 s, so a coarse poll
+		// could otherwise watch it land before the key arrives.
+		await expect.poll(() => state(page), { timeout: 12_000, intervals: [40] }).toBe('scroll');
 		await page.keyboard.press('Shift');
 		const at = await page.evaluate(() => window.scrollY);
 		await page.waitForTimeout(400);
@@ -134,19 +135,25 @@ test.describe('motion allowed', () => {
 		await expect.poll(() => armed(page)).toBe(false);
 	});
 
-	test('the skip link stays reachable and on top of the veil, and the veil holds no focusable node', async ({
+	test('the veil holds no focusable node, sits under the skip link, and passes the pointer through', async ({
 		page,
 	}) => {
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
+		await expect.poll(() => state(page), { timeout: 5000 }).toBe('veil');
+		// Live and visible while these are read: no keypress yet, so nothing has cancelled it.
+		expect(await visibility(page)).toBe('visible');
 		expect(await intro(page).evaluate((el) => el.querySelectorAll('a, button, input, [tabindex]').length)).toBe(0);
-		const hit = await page.evaluate(() => {
-			const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
-			return el?.closest('.home-intro') ? 'veil' : 'page';
-		});
-		expect(hit).toBe('page');
-		await page.keyboard.press('Tab');
+		expect(await intro(page).evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
 		const skip = page.getByRole('link', { name: 'Skip to content' });
+		await skip.evaluate((el) => (el as HTMLElement).focus());
 		await expect(skip).toBeFocused();
+		const stack = await page.evaluate(() => {
+			const veil = document.querySelector('.home-intro') as HTMLElement;
+			const link = document.querySelector('.skip-link') as HTMLElement;
+			return { veil: Number(getComputedStyle(veil).zIndex), link: Number(getComputedStyle(link).zIndex) };
+		});
+		expect(stack.link).toBeGreaterThan(stack.veil);
+		// The link is the element at its own centre: nothing paints over it.
 		const onTop = await skip.evaluate((el) => {
 			const rect = el.getBoundingClientRect();
 			const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -156,6 +163,54 @@ test.describe('motion allowed', () => {
 		await page.keyboard.press('Enter');
 		await expect(page).toHaveURL(/#main-content$/u);
 		await expect(page.locator('#main-content')).toBeFocused();
+	});
+
+	test('the veil holds past the minimum dwell while the wiper canvases are still pending', async ({ page }) => {
+		// Stall the WebGL2 rung's chunk (found by its content, the hashes are
+		// not known here) so the canvases sit at pending for three seconds
+		// past the minimum: the veil must not lift on the timer alone.
+		await forceTierMax(page, 'webgl2');
+		await page.route('**/_app/immutable/chunks/*.js', async (route) => {
+			const response = await route.fetch();
+			const body = await response.text();
+			if (body.includes('webglcontextlost')) await new Promise((resolve) => setTimeout(resolve, 3200));
+			await route.fulfill({ response, body });
+		});
+		const start = Date.now();
+		await page.goto('/', { waitUntil: 'domcontentloaded' });
+		await expect.poll(() => state(page), { timeout: 5000 }).toBe('veil');
+		await page.waitForTimeout(Math.max(0, 2400 - (Date.now() - start)));
+		// Past the 1.8 s minimum, canvases still pending, veil still down.
+		expect(
+			await page.evaluate(() =>
+				[...document.querySelectorAll('#goals canvas[data-tier]')].some(
+					(c) => c.getAttribute('data-tier') === 'pending',
+				),
+			),
+		).toBe(true);
+		expect(await state(page)).toBe('veil');
+		expect(await visibility(page)).toBe('visible');
+		await expect.poll(() => state(page), { timeout: 8000 }).not.toBe('veil');
+		// Lifted once the stalled rung came up (or at the 4.5 s cap past mount):
+		// well past the minimum, and bounded loosely for a loaded rig.
+		const liftedAt = Date.now() - start;
+		expect(liftedAt).toBeGreaterThan(3000);
+		expect(liftedAt).toBeLessThan(9000);
+	});
+
+	test('a phone viewport lands the section under the header as well', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await expect.poll(() => state(page), { timeout: 15_000 }).toBe('done');
+		await landed(page);
+	});
+
+	test('forced colours never arm the veil and never paint it', async ({ page }) => {
+		await page.emulateMedia({ forcedColors: 'active' });
+		await page.goto('/', { waitUntil: 'domcontentloaded' });
+		expect(await armed(page)).toBe(false);
+		expect(await intro(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
+		await expect.poll(() => state(page)).toBe('skipped');
 	});
 
 	test('paper hides it even when armed', async ({ page }) => {

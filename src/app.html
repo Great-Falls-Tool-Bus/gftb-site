@@ -61,7 +61,9 @@
 						// first paint so the veil is the first frame and the page holds the
 						// top beneath it; the stylesheet ends it hidden by itself. Any input
 						// before hydration disarms it; src/lib/intro takes over on mount.
+						var forcedColors = window.matchMedia && window.matchMedia('(forced-colors: active)').matches;
 						if (
+							!forcedColors &&
 							location.pathname === '/' &&
 							location.hash === '' &&
 							!window.__gftbIntroOff &&
