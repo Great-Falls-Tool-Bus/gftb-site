@@ -20,13 +20,13 @@ describe('easeInOutCubic', () => {
 });
 
 describe('shouldArm', () => {
-	const base = { reduce: false, pathname: '/', hash: '', played: false };
-	it('arms only on the plain home path with motion allowed and nothing played', () => {
+	const base = { reduce: false, pathname: '/', hash: '', off: false };
+	it('arms on the plain home path with motion allowed and no hook, every load', () => {
 		expect(shouldArm(base)).toBe(true);
 		expect(shouldArm({ ...base, reduce: true })).toBe(false);
 		expect(shouldArm({ ...base, hash: '#goals' })).toBe(false);
 		expect(shouldArm({ ...base, pathname: '/log' })).toBe(false);
-		expect(shouldArm({ ...base, played: true })).toBe(false);
+		expect(shouldArm({ ...base, off: true })).toBe(false);
 	});
 });
 
@@ -39,89 +39,127 @@ describe('wiperReady', () => {
 	});
 });
 
+/** Drive a machine to the scroll phase at `now`, with the page at the top. */
+function toScroll(m: IntroMachine): number {
+	m.markReady();
+	expect(m.step(T.minVeilMs, 0, 900)).toEqual({ kind: 'lift' });
+	m.liftEnded(T.minVeilMs + T.liftMs);
+	const start = T.minVeilMs + T.liftMs + T.holdMs;
+	m.step(start, 0, 900);
+	expect(m.phase).toBe('scroll');
+	return start;
+}
+
 describe('IntroMachine', () => {
-	it('moves from the veil to the hold when the animation ends', () => {
+	it('holds the veil for the minimum dwell even when the wiper is ready at once', () => {
 		const m = new IntroMachine(0);
-		expect(m.phase).toBe('veil');
-		expect(m.step(100, 0, 900)).toEqual({ kind: 'idle' });
-		m.veilEnded(1000);
-		expect(m.phase).toBe('hold');
-	});
-
-	it('falls back to the grace timer when animationend never arrives', () => {
-		const m = new IntroMachine(0);
-		m.step(T.veilMs + T.veilGraceMs - 1, 0, 900);
-		expect(m.phase).toBe('veil');
-		m.step(T.veilMs + T.veilGraceMs, 0, 900);
-		expect(m.phase).toBe('hold');
-	});
-
-	it('holds the full hold even when the wiper is ready at once', () => {
-		const m = new IntroMachine(0);
-		m.veilEnded(1000);
 		m.markReady();
-		m.step(1000 + T.holdMs - 1, 0, 900);
-		expect(m.phase).toBe('hold');
-		m.step(1000 + T.holdMs, 0, 900);
-		expect(m.phase).toBe('scroll');
+		expect(m.step(T.minVeilMs - 1, 0, 900)).toEqual({ kind: 'idle' });
+		expect(m.phase).toBe('veil');
+		expect(m.step(T.minVeilMs, 0, 900)).toEqual({ kind: 'lift' });
+		expect(m.phase).toBe('lift');
 	});
 
-	it('waits for the wiper up to the cap, then goes anyway', () => {
+	it('waits for the wiper stack past the minimum, then lifts at the cap regardless', () => {
 		const m = new IntroMachine(0);
-		m.veilEnded(1000);
-		m.step(1000 + T.readyCapMs - 1, 0, 900);
+		expect(m.step(T.veilCapMs - 1, 0, 900)).toEqual({ kind: 'idle' });
+		expect(m.phase).toBe('veil');
+		expect(m.step(T.veilCapMs, 0, 900)).toEqual({ kind: 'lift' });
+	});
+
+	it('lifts as soon as the wiper reports ready after the minimum', () => {
+		const m = new IntroMachine(0);
+		m.step(T.minVeilMs + 500, 0, 900);
+		expect(m.phase).toBe('veil');
+		m.markReady();
+		expect(m.step(T.minVeilMs + 516, 0, 900)).toEqual({ kind: 'lift' });
+	});
+
+	it('cancels on a foreign scroll in any phase, the veil included', () => {
+		const veil = new IntroMachine(0);
+		expect(veil.step(100, T.deviationPx + 1, 900)).toEqual({ kind: 'cancel', reason: 'scrolled' });
+		const lift = new IntroMachine(0);
+		lift.markReady();
+		lift.step(T.minVeilMs, 0, 900);
+		expect(lift.step(T.minVeilMs + 50, 655, 900)).toEqual({ kind: 'cancel', reason: 'scrolled' });
+	});
+
+	it('moves from the lift to the hold on animationend, or by the grace timer', () => {
+		const a = new IntroMachine(0);
+		a.markReady();
+		a.step(T.minVeilMs, 0, 900);
+		a.liftEnded(T.minVeilMs + 400);
+		expect(a.phase).toBe('hold');
+
+		const b = new IntroMachine(0);
+		b.markReady();
+		b.step(T.minVeilMs, 0, 900);
+		b.step(T.minVeilMs + T.liftMs + T.liftGraceMs - 1, 0, 900);
+		expect(b.phase).toBe('lift');
+		b.step(T.minVeilMs + T.liftMs + T.liftGraceMs, 0, 900);
+		expect(b.phase).toBe('hold');
+	});
+
+	it('holds header and hero for the hold, then scrolls', () => {
+		const m = new IntroMachine(0);
+		m.markReady();
+		m.step(T.minVeilMs, 0, 900);
+		m.liftEnded(T.minVeilMs + T.liftMs);
+		m.step(T.minVeilMs + T.liftMs + T.holdMs - 1, 0, 900);
 		expect(m.phase).toBe('hold');
-		m.step(1000 + T.readyCapMs, 0, 900);
+		m.step(T.minVeilMs + T.liftMs + T.holdMs, 0, 900);
 		expect(m.phase).toBe('scroll');
 	});
 
 	it('writes a monotone tween from the start to the target and lands exactly on it', () => {
 		const m = new IntroMachine(0);
-		m.veilEnded(1000);
-		m.markReady();
-		m.step(1500, 0, 900); // enters scroll at 1500
+		const start = toScroll(m);
 		let last = 0;
 		let y = 0;
-		for (let now = 1516; now < 1500 + T.scrollMs; now += 16) {
+		for (let now = start + 16; now < start + T.scrollMs; now += 16) {
 			const command = m.step(now, y, 900);
 			expect(command.kind).toBe('write');
 			if (command.kind === 'write') {
 				expect(command.y).toBeGreaterThanOrEqual(last);
 				expect(command.y).toBeLessThanOrEqual(900);
 				last = command.y;
-				y = command.y; // the page follows the write
+				y = command.y;
 			}
 		}
-		const done = m.step(1500 + T.scrollMs, y, 900);
-		expect(done).toEqual({ kind: 'done', y: 900 });
+		expect(m.step(start + T.scrollMs, y, 900)).toEqual({ kind: 'done', y: 900 });
 		expect(m.phase).toBe('done');
-		expect(m.step(9999, 900, 900)).toEqual({ kind: 'idle' });
+		expect(m.step(99_999, 900, 900)).toEqual({ kind: 'idle' });
 	});
 
-	it('cancels when the page moves by more than the deviation in any phase', () => {
-		const veil = new IntroMachine(0);
-		expect(veil.step(10, T.deviationPx + 1, 900)).toEqual({ kind: 'cancel', reason: 'scrolled' });
-		expect(veil.phase).toBe('cancelled');
+	it('cancels when the page moves by more than the deviation in the hold and the scroll', () => {
+		const held = new IntroMachine(0);
+		held.markReady();
+		held.step(T.minVeilMs, 0, 900);
+		held.liftEnded(T.minVeilMs + T.liftMs);
+		expect(held.step(T.minVeilMs + T.liftMs + 10, T.deviationPx + 1, 900)).toEqual({
+			kind: 'cancel',
+			reason: 'scrolled',
+		});
+		expect(held.phase).toBe('cancelled');
 
 		const scrolling = new IntroMachine(0);
-		scrolling.veilEnded(1000);
-		scrolling.markReady();
-		scrolling.step(1500, 0, 900);
-		const first = scrolling.step(1900, 0, 900);
+		const start = toScroll(scrolling);
+		const first = scrolling.step(start + 400, 0, 900);
 		expect(first.kind).toBe('write');
 		const written = first.kind === 'write' ? first.y : 0;
-		expect(scrolling.step(1916, written + T.deviationPx + 1, 900)).toEqual({ kind: 'cancel', reason: 'scrolled' });
-		expect(scrolling.step(1932, 0, 900)).toEqual({ kind: 'idle' });
+		expect(scrolling.step(start + 416, written + T.deviationPx + 1, 900)).toEqual({
+			kind: 'cancel',
+			reason: 'scrolled',
+		});
+		expect(scrolling.step(start + 432, 0, 900)).toEqual({ kind: 'idle' });
 	});
 
 	it('tolerates a page that follows its own writes within the deviation', () => {
 		const m = new IntroMachine(0);
-		m.veilEnded(1000);
-		m.markReady();
-		m.step(1500, 0, 900);
-		const first = m.step(1900, 0, 900);
+		const start = toScroll(m);
+		const first = m.step(start + 400, 0, 900);
 		const written = first.kind === 'write' ? first.y : 0;
-		expect(m.step(1916, Math.round(written), 900).kind).toBe('write');
+		expect(m.step(start + 416, Math.round(written), 900).kind).toBe('write');
 	});
 
 	it('is terminal once cancelled', () => {
@@ -129,9 +167,8 @@ describe('IntroMachine', () => {
 		m.cancel('input');
 		expect(m.phase).toBe('cancelled');
 		expect(m.reason).toBe('input');
-		m.veilEnded(5);
+		m.liftEnded(5);
 		m.cancel('other');
-		expect(m.phase).toBe('cancelled');
 		expect(m.reason).toBe('input');
 		expect(m.step(10, 0, 900)).toEqual({ kind: 'idle' });
 	});

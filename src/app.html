@@ -55,27 +55,25 @@
 							document.documentElement.classList.remove('motion-safe-ready');
 							document.documentElement.classList.remove('intro-armed');
 						}, 3000);
-						// Home intro (operator ruling 2026-09-10): once per browser
-						// session, home path only, never with a fragment. Armed before
-						// first paint so the veil is the first frame; the stylesheet
-						// ends it hidden by itself. Any input before hydration disarms
-						// it; src/lib/intro takes over on mount.
-						try {
-							if (
-								location.pathname === '/' &&
-								location.hash === '' &&
-								sessionStorage.getItem('intro-played') === null
-							) {
-								document.documentElement.classList.add('intro-armed');
-								var disarmIntro = function () {
-									document.documentElement.classList.remove('intro-armed');
-								};
-								['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (type) {
-									window.addEventListener(type, disarmIntro, { capture: true, passive: true, once: true });
-								});
-							}
-						} catch (introError) {
-							// sessionStorage unavailable: no intro.
+						// Home intro (operator rulings 2026-09-10): every full load of the
+						// home path, never with a fragment, never while <html data-intro-off>
+						// (the test and LOOK hook) is present; no storage. Armed before
+						// first paint so the veil is the first frame and the page holds the
+						// top beneath it; the stylesheet ends it hidden by itself. Any input
+						// before hydration disarms it; src/lib/intro takes over on mount.
+						if (
+							location.pathname === '/' &&
+							location.hash === '' &&
+							!window.__gftbIntroOff &&
+							!document.documentElement.hasAttribute('data-intro-off')
+						) {
+							document.documentElement.classList.add('intro-armed');
+							var disarmIntro = function () {
+								document.documentElement.classList.remove('intro-armed');
+							};
+							['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (type) {
+								window.addEventListener(type, disarmIntro, { capture: true, passive: true, once: true });
+							});
 						}
 					}
 				} catch (e) {
