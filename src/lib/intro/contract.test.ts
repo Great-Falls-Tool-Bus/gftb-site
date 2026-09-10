@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { INTRO_TIMING } from './machine';
 import {
 	INTRO_ARMED_CLASS,
 	INTRO_LIFTING_CLASS,
@@ -77,9 +78,16 @@ describe('home intro contract', () => {
 		expect(inside).toContain(`html.${INTRO_ARMED_CLASS}.${INTRO_LIFTING_CLASS} .home-intro {`);
 		// Armed alone times out in the fail-open window; live holds steady; lifting fades.
 		expect(inside).toMatch(/animation: intro-veil 3000ms linear both;/u);
-		expect(inside).toMatch(/animation: intro-lift 500ms ease-out both;/u);
+		expect(inside).toMatch(/animation: intro-lift 900ms ease-out both;/u);
 		expect(inside).toMatch(/animation: intro-mark-in 700ms ease-out both;/u);
-		expect(inside).toMatch(/animation: intro-mark-out 400ms ease-in both;/u);
+		expect(inside).toMatch(/animation: intro-mark-out 900ms ease-in both;/u);
+		// The lift and the mark's fade share one duration, so the mark never
+		// outlives the veil; the lift is longer than the fade-in by ruling.
+		expect(INTRO_TIMING.liftMs).toBe(900);
+		// Forced colours: never painted, never armed; scroll anchoring is off while the intro owns the page.
+		expect(css).toMatch(/@media \(forced-colors: active\) \{\s*\.home-intro \{\s*display: none !important;/u);
+		expect(css).toMatch(/html\.intro-live \{\s*overflow-anchor: none;/u);
+		expect(read('src/app.html')).toContain("window.matchMedia('(forced-colors: active)').matches");
 		// The veil and the lift both end hidden on their own.
 		for (const name of ['intro-veil', 'intro-lift']) {
 			const from = block.indexOf(`@keyframes ${name}`);
@@ -115,6 +123,10 @@ describe('home intro contract', () => {
 		expect(controller).not.toMatch(/addEventListener\(\s*['"]scroll['"]/u);
 		expect(controller).not.toMatch(/scrollIntoView|\.focus\(|console\.|preventDefault|stopPropagation/u);
 		expect(controller).toContain("behavior: 'instant'");
+		expect(controller).toContain("matchMedia('(forced-colors: active)')");
+		expect(controller).toContain('document.hidden ||');
+		expect(controller).toContain('machine.setReady(wiperReady(canvases()))');
+		expect(controller).toContain('canvas.dataset.warm !== undefined');
 		expect(controller).toContain('{ capture: true, passive: true, signal }');
 		expect(controller).not.toMatch(/sessionStorage|localStorage/u);
 		const machine = read('src/lib/intro/machine.ts');

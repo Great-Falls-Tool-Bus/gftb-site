@@ -45,6 +45,11 @@
 	let canvas = $state<HTMLCanvasElement>();
 	let bladesCanvas = $state<HTMLCanvasElement>();
 	let tier = $state<'pending' | RendererTier>('pending');
+	// Set once the scene has drawn a run of frames on its rung: the intro
+	// waits for this, not for the rung alone, so a device that dies on its
+	// first real frames is seen (and relaunched) under the veil, not after it.
+	let warm = $state(false);
+	const WARM_FRAMES = 12;
 	function hexToRgb(hex: string): [number, number, number] {
 		const value = Number.parseInt(hex.replace('#', ''), 16);
 		return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
@@ -102,6 +107,7 @@
 		let raf = 0;
 		let last = 0;
 		let visible = true;
+		let drawn = 0;
 		let hidden = document.hidden;
 		let width = 0;
 		let height = 0;
@@ -164,7 +170,11 @@
 			blades?.resize(width, height, ratio);
 		};
 
-		const needsFrames = () => alive && visible && !hidden && renderer !== null && blades !== null && field !== null;
+		// Under the intro's veil the pane is off screen but must draw anyway:
+		// its first frames are where a doomed device shows itself.
+		const veiled = () => document.documentElement.classList.contains('intro-live');
+		const needsFrames = () =>
+			alive && (visible || veiled()) && !hidden && renderer !== null && blades !== null && field !== null;
 
 		/** Keep the bead grid and the frost grain matched to the glass box. */
 		const syncGlass = () => {
@@ -251,6 +261,10 @@
 				}
 			}
 			paint(now);
+			if (!warm && alive) {
+				drawn += 1;
+				if (drawn >= WARM_FRAMES) warm = true;
+			}
 			raf = requestAnimationFrame(frame);
 		};
 
@@ -342,8 +356,13 @@
 		const modeWatch = new MutationObserver(() => {
 			ground = resolveRole('--bg');
 			blend = document.documentElement.dataset.mode === 'dark' ? 'screen' : 'multiply';
+			// The veil arriving or leaving changes whether frames are due.
+			arm();
 		});
-		modeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode', 'data-theme'] });
+		modeWatch.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-mode', 'data-theme', 'class'],
+		});
 
 		return () => {
 			alive = false;
@@ -360,6 +379,13 @@
 </script>
 
 {#if tier !== 'none'}
-	<canvas class="wiper__scene" aria-hidden="true" data-tier={tier} bind:this={canvas}></canvas>
-	<canvas class="wiper__blades" aria-hidden="true" data-tier={tier} bind:this={bladesCanvas}></canvas>
+	<canvas class="wiper__scene" aria-hidden="true" data-tier={tier} data-warm={warm ? '' : undefined} bind:this={canvas}
+	></canvas>
+	<canvas
+		class="wiper__blades"
+		aria-hidden="true"
+		data-tier={tier}
+		data-warm={warm ? '' : undefined}
+		bind:this={bladesCanvas}
+	></canvas>
 {/if}

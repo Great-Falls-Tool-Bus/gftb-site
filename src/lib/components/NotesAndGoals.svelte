@@ -20,7 +20,7 @@
 	import type { PublicGoal } from '$lib/public-goals';
 	import { BRAND_BLOB_COLORS } from '$lib/brand-blob-colors';
 	import { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { isWiperDetent, pageOf } from '$lib/wiper/schedule';
+	import { pageOf } from '$lib/wiper/schedule';
 	import WiperControls from './WiperControls.svelte';
 	import WiperScene from './WiperScene.svelte';
 
@@ -79,32 +79,16 @@
 	};
 	let listEl = $state<HTMLOListElement>();
 
-	// The chosen detent persists the way the colour mode does, so a visitor
-	// who picked Off is not made to pick it again on every visit.
-	const DETENT_KEY = 'wiper-detent';
-
+	// The stalk starts on High on every load. Nothing about the wiper is
+	// stored: a detent restored from an earlier visit (Intermittent, whose
+	// wipers rest under a pointer) read as the whole stack hanging after a
+	// reload (operator ruling 2026-09-10).
 	onMount(() => {
 		enhanced = true;
-		try {
-			const saved = localStorage.getItem(DETENT_KEY);
-			if (isWiperDetent(saved)) engine.setDetent(saved);
-		} catch {
-			// Storage may be unavailable; the default detent stands.
-		}
 		return () => {
 			if (relaunchTimer) window.clearTimeout(relaunchTimer);
 			engine.destroy();
 		};
-	});
-
-	$effect(() => {
-		const detent = view.detent;
-		if (!enhanced) return;
-		try {
-			localStorage.setItem(DETENT_KEY, detent);
-		} catch {
-			// Storage may be unavailable; nothing is lost.
-		}
 	});
 
 	$effect(() => {

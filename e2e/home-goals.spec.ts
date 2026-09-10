@@ -185,27 +185,22 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 });
 
-test('the chosen detent persists across a reload', async ({ page }) => {
+test('the detent is not stored: a reload comes back on High', async ({ page }) => {
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('radio', { name: 'High' })).toBeChecked();
-	await selectDetent(page, 'Off');
-	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	await selectDetent(page, 'Intermittent');
+	await expect(page.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
 	await page.reload();
 	await page.waitForLoadState('networkidle');
-	// Off survives the reload: the visitor who cannot tolerate the motion is
-	// not made to pick it again.
-	await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
-	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
-	expect(await page.evaluate(() => localStorage.getItem('wiper-detent'))).toBe('off');
-	await selectDetent(page, 'Low');
-	await page.reload();
-	await page.waitForLoadState('networkidle');
-	await expect(page.getByRole('radio', { name: 'Low' })).toBeChecked();
+	// Nothing about the wiper is durable: a detent from an earlier visit
+	// (Intermittent rests under a pointer) read as the stack hanging after
+	// a reload, so every load starts on High.
+	await expect(page.getByRole('radio', { name: 'High' })).toBeChecked();
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => /wiper/u.test(key)))).toEqual([]);
 });
-
 test('a wipe masks the outgoing page out along the arc and the incoming page in, then turns the page', async ({
 	page,
 }) => {
@@ -601,6 +596,28 @@ test('a lost WebGL2 context relaunches the scene on fresh canvases at the same r
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 	await page.waitForTimeout(1500);
 	expect(console).toEqual([]);
+});
+
+test('a reload starts the ladder on WebGL2 while a first load takes the top rung', async ({ page }, testInfo) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	const hasAdapter = await page.evaluate(async () => {
+		if (!('gpu' in navigator) || !navigator.gpu) return false;
+		return (await navigator.gpu.requestAdapter().catch(() => null)) !== null;
+	});
+	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
+	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgpu', { timeout: 15_000 });
+	// Chrome drops the new document's WebGPU device while it tears the old one
+	// down, so a reload takes the rung that holds; the picture is the same.
+	await page.reload();
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	expect(
+		await page.evaluate(() => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).type),
+	).toBe('reload');
 });
 
 test('the scene is absent under reduced motion and hidden on paper and under forced colours', async ({ page }) => {

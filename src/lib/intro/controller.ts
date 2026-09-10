@@ -50,9 +50,14 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 	// by input before the bundle mounted, or by the fail-open timer.
 	if (!root.classList.contains(INTRO_ARMED_CLASS)) return skip();
 	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	// Forced colours stand the whole wiper enhancement down; nothing to lead to.
+	const forced = window.matchMedia('(forced-colors: active)').matches;
 	const off =
 		root.hasAttribute(INTRO_OFF_ATTR) || (window as unknown as Record<string, unknown>)[INTRO_OFF_GLOBAL] === true;
-	if (reduce || location.hash !== '' || off) return skip();
+	// A document opened hidden (a background tab, a restored session) gets no
+	// animation frames, so the veil would sit until the tab is shown and then
+	// run against a clock started long ago. It runs on the next full load.
+	if (reduce || forced || document.hidden || location.hash !== '' || off) return skip();
 	const goals = document.getElementById('goals');
 	if (!goals) return skip();
 
@@ -103,8 +108,11 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 		{ signal },
 	);
 
-	const tiers = () =>
-		[...goals.querySelectorAll<HTMLElement>('canvas[data-tier]')].map((canvas) => canvas.dataset.tier ?? '');
+	const canvases = () =>
+		[...goals.querySelectorAll<HTMLElement>('canvas[data-tier]')].map((canvas) => ({
+			tier: canvas.dataset.tier ?? '',
+			warm: canvas.dataset.warm !== undefined,
+		}));
 	// Where the goals land: the same place an anchor jump puts them, under the
 	// sticky header by their scroll margin, never past the page's end. Read
 	// through the offset chain, which ignores transforms: the section is still
@@ -128,7 +136,9 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 		if (machine.terminal) return;
 		// The wiper stack: its canvases mount with the page and report a rung
 		// once the renderer, the blob field and the first paint are in.
-		if (!machine.ready && wiperReady(tiers())) machine.markReady();
+		// Read every frame, so a relaunch that puts fresh canvases back to
+		// pending holds the veil again.
+		machine.setReady(wiperReady(canvases()));
 		const command = machine.step(now, window.scrollY, targetFor());
 		switch (command.kind) {
 			case 'lift':

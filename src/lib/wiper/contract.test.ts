@@ -232,9 +232,18 @@ describe('the wiper source contract', () => {
 		// A device lost after selection remounts the scene on fresh canvases,
 		// a bounded number of times, at the ceiling the loss lowered.
 		expect(goals).toContain('{#key sceneGeneration}');
+		// Nothing about the wiper is stored (operator ruling 2026-09-10).
+		expect(goals).not.toMatch(/localStorage|sessionStorage/u);
 		expect(goals).toContain('SCENE_RELAUNCH_LIMIT = 3');
 		expect(goals).toContain('SCENE_RELAUNCH_PAUSE_MS = 400');
 		expect(goals).toContain('window.clearTimeout(relaunchTimer)');
+		// The scene draws under the intro's veil and marks its canvases warm after
+		// a run of frames; the intro waits for that, not for the rung alone.
+		expect(host).toContain("classList.contains('intro-live')");
+		expect(host).toContain("data-warm={warm ? '' : undefined}");
+		expect(host).toContain('WARM_FRAMES = 12');
+		// A reload starts the ladder on WebGL2.
+		expect(read('src/lib/wiper/renderer/select.ts')).toContain("navigation === 'reload' ? 'webgl2' : 'webgpu'");
 		expect(host).toContain('renderer.onLost(() => lose());');
 		expect(host).toContain('blades.onLost(() => lose());');
 		expect(host).not.toContain('onLost(() => demote())');

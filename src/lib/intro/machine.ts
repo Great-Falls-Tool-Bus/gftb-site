@@ -12,7 +12,7 @@ export const INTRO_TIMING = {
 	/** The veil lifts at this point even if the wiper stack has not reported ready. */
 	veilCapMs: 4500,
 	/** The lift's own keyframes end here; the grace covers a missing animationend. */
-	liftMs: 500,
+	liftMs: 900,
 	liftGraceMs: 200,
 	/** Header and hero alone, this long after the lift. */
 	holdMs: 600,
@@ -38,21 +38,18 @@ export function easeInOutCubic(t: number): number {
 	return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
-export interface ArmInput {
-	reduce: boolean;
-	pathname: string;
-	hash: string;
-	off: boolean;
+export interface CanvasState {
+	tier: string;
+	warm: boolean;
 }
 
-/** Mirrors the pre-paint check in app.html: motion allowed, home path, no fragment, no test hook. */
-export function shouldArm(input: ArmInput): boolean {
-	return !input.reduce && input.pathname === '/' && input.hash === '' && !input.off;
-}
-
-/** No canvas at all (the plain grid) counts as ready; a pending rung does not. */
-export function wiperReady(tiers: readonly string[]): boolean {
-	return tiers.every((tier) => tier !== 'pending');
+/**
+ * No canvas at all (the plain grid) counts as ready. A canvas is ready once
+ * it has a rung and has drawn its first run of frames on it: a rung alone
+ * can still be lost on the first real frame.
+ */
+export function wiperReady(canvases: readonly CanvasState[]): boolean {
+	return canvases.every((canvas) => canvas.tier !== 'pending' && canvas.warm);
 }
 
 export class IntroMachine {
@@ -88,8 +85,9 @@ export class IntroMachine {
 		return this.#phase === 'done' || this.#phase === 'cancelled';
 	}
 
-	markReady(): void {
-		this.#ready = true;
+	/** The wiper stack's state this frame; not latched, so a relaunch mid-veil holds the veil again. */
+	setReady(ready: boolean): void {
+		this.#ready = ready;
 	}
 
 	/** The lift's animation has ended (or the grace timer stands in for it). */

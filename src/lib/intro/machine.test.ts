@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTRO_TIMING, IntroMachine, easeInOutCubic, shouldArm, wiperReady } from './machine';
+import { INTRO_TIMING, IntroMachine, easeInOutCubic, wiperReady } from './machine';
 
 const T = INTRO_TIMING;
 
@@ -19,29 +19,33 @@ describe('easeInOutCubic', () => {
 	});
 });
 
-describe('shouldArm', () => {
-	const base = { reduce: false, pathname: '/', hash: '', off: false };
-	it('arms on the plain home path with motion allowed and no hook, every load', () => {
-		expect(shouldArm(base)).toBe(true);
-		expect(shouldArm({ ...base, reduce: true })).toBe(false);
-		expect(shouldArm({ ...base, hash: '#goals' })).toBe(false);
-		expect(shouldArm({ ...base, pathname: '/log' })).toBe(false);
-		expect(shouldArm({ ...base, off: true })).toBe(false);
-	});
-});
-
 describe('wiperReady', () => {
-	it('treats no canvas as ready and any pending rung as not', () => {
+	it('treats no canvas as ready, and a canvas as ready only with a rung and warm frames', () => {
 		expect(wiperReady([])).toBe(true);
-		expect(wiperReady(['pending', 'webgl2'])).toBe(false);
-		expect(wiperReady(['webgpu', 'webgpu'])).toBe(true);
-		expect(wiperReady(['webgl2', 'webgl2'])).toBe(true);
+		expect(
+			wiperReady([
+				{ tier: 'pending', warm: false },
+				{ tier: 'webgl2', warm: true },
+			]),
+		).toBe(false);
+		expect(
+			wiperReady([
+				{ tier: 'webgpu', warm: false },
+				{ tier: 'webgpu', warm: false },
+			]),
+		).toBe(false);
+		expect(
+			wiperReady([
+				{ tier: 'webgl2', warm: true },
+				{ tier: 'webgl2', warm: true },
+			]),
+		).toBe(true);
 	});
 });
 
 /** Drive a machine to the scroll phase at `now`, with the page at the top. */
 function toScroll(m: IntroMachine): number {
-	m.markReady();
+	m.setReady(true);
 	expect(m.step(T.minVeilMs, 0, 900)).toEqual({ kind: 'lift' });
 	m.liftEnded(T.minVeilMs + T.liftMs);
 	const start = T.minVeilMs + T.liftMs + T.holdMs;
@@ -53,7 +57,7 @@ function toScroll(m: IntroMachine): number {
 describe('IntroMachine', () => {
 	it('holds the veil for the minimum dwell even when the wiper is ready at once', () => {
 		const m = new IntroMachine(0);
-		m.markReady();
+		m.setReady(true);
 		expect(m.step(T.minVeilMs - 1, 0, 900)).toEqual({ kind: 'idle' });
 		expect(m.phase).toBe('veil');
 		expect(m.step(T.minVeilMs, 0, 900)).toEqual({ kind: 'lift' });
@@ -71,28 +75,39 @@ describe('IntroMachine', () => {
 		const m = new IntroMachine(0);
 		m.step(T.minVeilMs + 500, 0, 900);
 		expect(m.phase).toBe('veil');
-		m.markReady();
+		m.setReady(true);
 		expect(m.step(T.minVeilMs + 516, 0, 900)).toEqual({ kind: 'lift' });
+	});
+
+	it('holds the veil again when the wiper goes back to pending mid-veil', () => {
+		const m = new IntroMachine(0);
+		m.setReady(true);
+		m.step(1000, 0, 900);
+		m.setReady(false);
+		expect(m.step(T.minVeilMs + 100, 0, 900)).toEqual({ kind: 'idle' });
+		expect(m.phase).toBe('veil');
+		m.setReady(true);
+		expect(m.step(T.minVeilMs + 116, 0, 900)).toEqual({ kind: 'lift' });
 	});
 
 	it('cancels on a foreign scroll in any phase, the veil included', () => {
 		const veil = new IntroMachine(0);
 		expect(veil.step(100, T.deviationPx + 1, 900)).toEqual({ kind: 'cancel', reason: 'scrolled' });
 		const lift = new IntroMachine(0);
-		lift.markReady();
+		lift.setReady(true);
 		lift.step(T.minVeilMs, 0, 900);
 		expect(lift.step(T.minVeilMs + 50, 655, 900)).toEqual({ kind: 'cancel', reason: 'scrolled' });
 	});
 
 	it('moves from the lift to the hold on animationend, or by the grace timer', () => {
 		const a = new IntroMachine(0);
-		a.markReady();
+		a.setReady(true);
 		a.step(T.minVeilMs, 0, 900);
 		a.liftEnded(T.minVeilMs + 400);
 		expect(a.phase).toBe('hold');
 
 		const b = new IntroMachine(0);
-		b.markReady();
+		b.setReady(true);
 		b.step(T.minVeilMs, 0, 900);
 		b.step(T.minVeilMs + T.liftMs + T.liftGraceMs - 1, 0, 900);
 		expect(b.phase).toBe('lift');
@@ -102,7 +117,7 @@ describe('IntroMachine', () => {
 
 	it('holds header and hero for the hold, then scrolls', () => {
 		const m = new IntroMachine(0);
-		m.markReady();
+		m.setReady(true);
 		m.step(T.minVeilMs, 0, 900);
 		m.liftEnded(T.minVeilMs + T.liftMs);
 		m.step(T.minVeilMs + T.liftMs + T.holdMs - 1, 0, 900);
@@ -133,7 +148,7 @@ describe('IntroMachine', () => {
 
 	it('cancels when the page moves by more than the deviation in the hold and the scroll', () => {
 		const held = new IntroMachine(0);
-		held.markReady();
+		held.setReady(true);
 		held.step(T.minVeilMs, 0, 900);
 		held.liftEnded(T.minVeilMs + T.liftMs);
 		expect(held.step(T.minVeilMs + T.liftMs + 10, T.deviationPx + 1, 900)).toEqual({
