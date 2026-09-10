@@ -135,10 +135,13 @@ describe('the wiper source contract', () => {
 		expect(notes).toMatch(/motionOk: \(\) => enhanced && !prefersReduced\.current && !forcedColors\.current/u);
 		expect(notes).toMatch(/\|\| view\.phase === 'out'\)\)\n\t\t\t\tengine\.reveal\(index\)/u);
 		expect(css).toMatch(/\.page-shell > \.section:not\(\.section--bare\),/u);
-		// On screen the bare section has no surface; on paper every section is
-		// ink on white, bare or not, so the print block addresses them together.
-		expect(css.slice(0, css.indexOf('@media print {'))).not.toMatch(/\.page-shell > \.section,/u);
-		expect(css.slice(css.indexOf('@media print {'))).toMatch(/\.hero-glass,\n\t\.page-shell > \.section,\n/u);
+		expect(css).not.toMatch(/\.page-shell > \.section,/u);
+		// On screen the bare section has no surface; on paper it takes the ink
+		// like every section. The surfaced sections keep their own selector so
+		// the paper inks outrank the screen surface's glass inks.
+		expect(css.slice(css.indexOf('@media print {'))).toMatch(
+			/\.page-shell > \.section:not\(\.section--bare\),\n\t\.page-shell > \.section--bare,\n/u,
+		);
 		const page = read('src/routes/+page.svelte');
 		expect(page).toMatch(/class="section section--bare reveal-armed"[\s\S]{0,120}id="goals"/u);
 		const print = css.slice(css.indexOf('@media print {'));

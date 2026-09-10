@@ -2134,7 +2134,8 @@ figcaption {
 	}
 
 	.hero-glass,
-	.page-shell > .section,
+	.page-shell > .section:not(.section--bare),
+	.page-shell > .section--bare,
 	.page-shell > .log-entry,
 	.page-shell > .contact-card {
 		--fg: #000;
