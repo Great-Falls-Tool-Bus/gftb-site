@@ -1,4 +1,4 @@
-import { FEATURED_IMAGE_KEYS, assertFeaturedImageMetadata, type FeaturedImageMetadata } from './featured-image-schema';
+import { FEATURED_IMAGE_KEYS, assertFeaturedImageMetadata, type FeaturedImageMetadata } from './featured-image-schema.js';
 
 export const PUBLIC_LOG_REQUIRED_KEYS = ['date', 'title', 'summary', 'tags', 'published'] as const;
 export const PUBLIC_LOG_OPTIONAL_KEYS = ['updated', ...FEATURED_IMAGE_KEYS] as const;

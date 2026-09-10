@@ -15,19 +15,13 @@
 		"node": "^22.13.0 || >=24 <25"
 	},
 	"scripts": {
-		"dev": "just dev",
 		"build": "just build",
-		"preview": "just preview-only",
 		"check": "just typecheck",
-		"check:watch": "just typecheck-watch",
 		"lint": "just lint",
 		"format": "just format",
 		"format:check": "just format-check",
 		"test": "just test-unit",
-		"test:unit": "just test-unit",
-		"test:coverage": "just test-coverage",
-		"test:e2e": "just test-e2e",
-		"analyze": "just analyze"
+		"test:unit": "just test-unit"
 	},
 	"dependencies": {
 		"@fontsource-variable/fira-code": "^5.2.7",

@@ -138,8 +138,8 @@ As a second, independent net over the real built bytes, `scripts/
 check-build-output.mjs` folds every `published: false` entry's title,
 summary, and a distinctive opening body phrase (`distinctiveDraftLiterals`
 in `scripts/lib/log-content.mjs`) into the leak-scan denylist on every
-build, so `just build` and `just leak-scan-stamped` prove — not just
-assume — that no draft's content shipped.
+build, so the remote `site-build` action selected by `just build` proves — not
+just assumes — that no draft's content shipped.
 
 ## The merge is the publish
 

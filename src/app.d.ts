@@ -11,9 +11,9 @@ declare global {
 
 	// Build-time constant injected by vite.config.ts's `define` block. Absent
 	// outside a Vite build (vitest evaluates modules without the define step),
-	// so consumers must typeof-guard. Carries the 7-char stamped commit, or
-	// the literal 'unknown' on builds with no explicitly supplied identity
-	// (see scripts/bazel/workspace-status.sh).
+	// so consumers must typeof-guard. The Bazel build adapter derives the 7-char
+	// public identity from the projected source marker; dev/test renders without
+	// that adapter have no provenance.
 	const __COMMIT_SHORT__: string | undefined;
 }
 

@@ -1,6 +1,32 @@
 # GFTB microsite CI and artifact contract
 
-This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
+This is the source CI contract for `Great-Falls-Tool-Bus/gftb-site`; successful
+v4 execution and serving require their separate runtime evidence below.
+
+## Source and release admission
+
+The operator's 2026-09-08 ruling keeps GFTB on GitHub Free. The September 9
+public-source ruling supersedes its private-source restriction: files and
+draft PRs are readable before website publication. GitHub branch-protection
+status, rulesets, and a paid-plan upgrade are not integration or publication
+gates. Meta ADR 0014 section 7 and
+ADR 0022 Amendment 7 carry the ruling in
+[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63).
+
+Integration still requires signed commits, independent review of the exact
+head, and successful registered remote checks. GF/org admission and release
+verification must bind the exact repository, source SHA, workflow identity,
+qualified action output, and signed release. A missing or false GitHub branch
+protection result does not replace those checks or establish their success.
+References to protected canonical `main` mean the exact canonical source
+admitted through GF/org checks; they do not add a GitHub branch-protection
+prerequisite.
+
+This source clarification establishes no installed verifier, published image,
+controller activation, production convergence, or served proof. The existing
+workflow identity, owner authority and independent verification boundaries
+remain required, including the separate Access and LOOK gates. No new policy
+boolean, caller assertion, or consumer execution path supplies that authority.
 
 ## Validation
 
@@ -12,13 +38,19 @@ credential, local-execution, or fallback choice. The generic
 `gf-v4-dispatch` edge is provisioned by the adopting organization, not selected
 by this repository.
 
-Local developer operations enter through Just. `just check` selects the exact
-cacheable `//:ci_validation_suite` used by v4: schema/conformance and immutable
-caller contracts, current-source Gitleaks, generated source/log/goal manifest
-drift checks, checksummed actionlint, Prettier, ESLint, Svelte checks, and unit
-tests. `just build` materializes `//:scanned_build`, the one adapter-static
-artifact copied and leak-scanned in a single Bazel action. Those local recipes
-are not CI or v4 evidence.
+Developer operations enter through Just and the same image-custodied client
+as CI. `just check` selects `validate`; its cacheable
+`//:ci_validation_suite` includes schema/conformance and immutable caller
+contracts, current-source Gitleaks, generated source/log/goal manifest drift
+checks, checksummed actionlint, Prettier, ESLint, Svelte checks, unit tests,
+the served TinyVectors package proof, and five Chromium acceptance specs.
+The finite browser test uses only the declared build and GF's provisioned
+Chromium. It installs no browser, uses no ambient preview, and proves no
+deployed environment or LOOK.
+`just build` selects `site-build` and exports qualified results into a new
+absolute directory; it does not run or materialize a local Bazel build.
+The checkout SHA is supplied to the client, which owns source and identity
+verification. Neither missing authority nor a missing client permits fallback.
 `.github/lanes.json` is the ActionPlan/v4 schema-3 source plan. It names only
 real finite Bazel targets, one abstract execution capability, and one closed
 result disposition per action. It contains no provider or lifecycle
@@ -39,32 +71,43 @@ The v4 plan requests `rbe-linux-x86_64` for `//:ci_validation_suite` and
 status-only. `site-build` declares that the regular files in the deployment
 bundle's `default` output group are exported as one bounded
 `ActionOutputSet/v1`; neither the workflow nor this repository rediscovers
-outputs. `//:deployment_bundle` depends only on `//:scanned_build`, so a leak
-scan failure produces no exportable bundle for GF-I09. The adopting
+outputs. `//:deployment_bundle` takes its public `/srv` subtree only from
+`//:scanned_build`, so a leak-scan failure produces no exportable public site
+for GF-I09. The bundle adds only the reviewed first-party `Caddyfile`, exact
+source marker, and `/tmp` mode required by the runtime contract. The adopting
 organization's `-infra` overlay owns its consumer demand declaration. GF core
 owns types, verification, resolution, and scheduling, but no GFTB instance.
 Provider supply and placement remain opaque to this repository. Until the v4
 caller executes these actions through REAPI, this carrier proves source shape
 only. Container publication is not an action in the plan.
 
-## Candidate image
+## Qualified publication
 
-`.github/workflows/container-ghcr.yml` packages the exact Bazel-built static
-artifact into:
+Application-image publication belongs to GF-I09 after the action's qualified
+export. This repository no longer has a separate candidate workflow or a
+local Nix application-image constructor. Its Nix runtime-base definition is
+source-independent; its Bazel deployment layer carries the exact application
+content. Neither the ActionPlan nor the developer build recipe publishes or
+deploys an image.
 
-`ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character commit SHA>`
+The source repository is public under the September 9 operator ruling.
+That does not establish image-package visibility or pullability. The operator
+release lane must prove anonymous manifest lookup and digest pull for the
+reviewed public image before cutover. The repository carries no registry pull
+secret, cluster credential, production dispatch, or mutable production image tag.
+The consumer deployment lifecycle selects qualified immutable results; these
+source definitions alone do not prove it is installed or serving.
 
-The source repository is public under the 2026-09-09 operator ruling in
-[AGENTS.md](../AGENTS.md#role-and-authority), which supersedes the earlier
-private-source requirement. Source visibility does not establish image-package
-visibility. After a reviewed publish, the operator lane may make only this web
-image package public, then must prove an anonymous manifest lookup and digest
-pull. The publisher uses only the ambient GitHub token, has no mutable
-`latest`/production tag, and sends no deployment dispatch. This repo must not
-carry a registry credential or Kubernetes image-pull secret.
-Consumers select an immutable digest only after independent pull/serve QA.
-The image generates `/health.sha` during packaging from the exact
-`BUILD_COMMIT_SHA`; served readback must equal the expected 40-character SHA.
+The existing source-marker action projects Bazel's native `BUILD_EMBED_LABEL`
+into the exact deterministic `health.sha` file. The GF client binds that label
+to the accepted source SHA. Vite build/analyze consume only the projected file,
+with stamping disabled: fresh host/time status cannot invalidate the larger
+actions. The adapter validates the marker and exposes only its seven-character
+prefix to page bundles. Missing or malformed identity fails the build.
+
+The deployment bundle also installs that file at `/srv/health.sha`, outside
+the leak-scanned page tree. Caddy serves its full 40-character SHA publicly at
+`/health.sha`; it is not private. Served readback must equal the expected SHA.
 It also preserves the existing production probe at `/health` (`200`, body
 `ok`); `/healthz` remains an equivalent compatibility probe.
 

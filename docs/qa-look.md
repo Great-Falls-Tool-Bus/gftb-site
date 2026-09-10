@@ -29,6 +29,7 @@ plus the operator LOOK against it. Estate contract: "the pr-N lane IS the QA
 evidence." Until that flow lands here, nothing in this repository may reuse
 the name.
 
-The browser acceptance suite (`just test-e2e`, `just preview-e2e`,
-`playwright.config.ts`, `e2e/`) was never part of the excised apparatus and is
-untouched.
+Browser acceptance source in `e2e/` remains parked outside the two-action
+ActionPlan. Its local preview launcher and browser toolchain are now removed.
+Neither a local server nor those parked tests provide the required PRE/LOOK
+lifecycle; the remote browser action is not yet declared.

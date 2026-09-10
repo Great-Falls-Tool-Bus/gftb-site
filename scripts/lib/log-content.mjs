@@ -13,8 +13,8 @@
  *    content can reach the client bundle from).
  *  - scripts/check-build-output.mjs, which folds every unpublished draft's
  *    distinctive text into the leak-scan denylist so a real `build/`
- *    directory is proven clean, the same way `just leak-scan-stamped`
- *    proves the stamped-footer regression stays fixed.
+ *    directory is proven clean within the remote site-build action, including
+ *    the stamped-footer regression.
  *
  * The frontmatter subset understood here matches the one
  * src/lib/public-log-build-contract.test.ts asserts against the real schema

@@ -492,9 +492,10 @@ class RepositoryContractTests(unittest.TestCase):
         cls.schema = json.loads(
             (ROOT / "docs/schemas/tinyland-repo-manifest.v2.schema.json").read_text()
         )
-        cls.publisher = (ROOT / ".github/workflows/container-ghcr.yml").read_text()
         cls.flake = (ROOT / "flake.nix").read_text()
-        cls.playwright = (ROOT / "playwright.config.ts").read_text()
+        cls.caddyfile = (ROOT / "Caddyfile").read_text()
+        cls.deployment_layer = (ROOT / "deployment_layer.bzl").read_text()
+        cls.vite_build_runner = (ROOT / "scripts/bazel/run-vite-build.mjs").read_text()
         cls.agents = (ROOT / "AGENTS.md").read_text()
 
     def test_package_scripts_delegate_only_to_just(self) -> None:
@@ -502,15 +503,19 @@ class RepositoryContractTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertRegex(command, r"^just [a-z0-9-]+$")
 
-    def test_build_and_checks_enter_bazel(self) -> None:
-        self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "build"))
-        self.assertIn("bazelisk test //:ci_validation_suite", recipe(self.justfile, "check"))
+    def test_build_and_checks_enter_the_declared_remote_actions(self) -> None:
+        for name, action in (("build", "site-build"), ("check", "validate")):
+            with self.subTest(recipe=name):
+                body = recipe(self.justfile, name)
+                self.assertIn("/usr/local/bin/gf-action-client run --plan .github/lanes.json", body)
+                self.assertIn(f"--action {action}", body)
+                self.assertIn('--source-sha "$(git rev-parse HEAD)"', body)
+        self.assertIn('--result-dir "{{ result_dir }}"', recipe(self.justfile, "build"))
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "scanned_build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
-        self.assertIn('name = "container_image_context"', self.build)
 
-    def test_deployment_bundle_can_only_package_the_scanned_tree(self) -> None:
+    def test_deployment_bundle_is_the_exact_scanned_application_layer(self) -> None:
         scanned = bazel_target(self.build, "scanned_build")
         self.assertIn('srcs = [":build"]', scanned)
         self.assertIn('tool = ":leak_scan_build_bin"', scanned)
@@ -518,13 +523,18 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('out_dirs = ["scanned-build"]', scanned)
 
         deployment_bundle = bazel_target(self.build, "deployment_bundle")
-        self.assertIn('srcs = [":scanned_build"]', deployment_bundle)
-        self.assertIn('strip_prefix = "scanned-build"', deployment_bundle)
-        self.assertIn('package_dir = "build"', deployment_bundle)
+        self.assertIn('":scanned_build"', deployment_bundle)
+        self.assertIn('":deployment_source_marker"', deployment_bundle)
+        self.assertIn('"Caddyfile"', deployment_bundle)
+        self.assertIn('"scanned-build": "srv"', deployment_bundle)
+        self.assertIn('"health.sha": "srv/health.sha"', deployment_bundle)
+        self.assertIn('empty_dirs = ["tmp"]', deployment_bundle)
+        self.assertIn('"etc/caddy/Caddyfile": "0444"', deployment_bundle)
+        self.assertIn('"srv/health.sha": "0444"', deployment_bundle)
+        self.assertIn('"tmp": "1777"', deployment_bundle)
+        self.assertIn('extension = "tar"', deployment_bundle)
+        self.assertNotIn("tar.gz", deployment_bundle)
         self.assertNotIn('srcs = [":build"]', deployment_bundle)
-
-        container_context = bazel_target(self.build, "container_image_context")
-        self.assertIn('srcs = [":deployment_bundle"', container_context)
 
         scan_runner = (ROOT / "scripts/check-build-output.mjs").read_text(encoding="utf-8")
         self.assertIn("cpSync(buildDirectory, outputDirectory", scan_runner)
@@ -573,7 +583,6 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('":build",', served)
 
         workflow_validation = bazel_target(self.build, "workflow_validation_test")
-        self.assertIn('config = ".github/actionlint.yaml"', workflow_validation)
         self.assertIn('srcs = [":workflow_validation_srcs"]', workflow_validation)
 
     def test_ci_uses_the_exact_immutable_v4_action_contract(self) -> None:
@@ -782,21 +791,7 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertIn("--type=SVG --svg-path --level=H --margin=2 --size=4", body)
 
     def test_live_build_and_check_recipes_never_recursively_clean(self) -> None:
-        live_recipes = (
-            "build",
-            "preview",
-            "preview-e2e",
-            "preview-only",
-            "test-e2e",
-            "_playwright-run",
-            "_playwright-test",
-            "qr-verify",
-            "leak-scan-stamped",
-            "leak-scan",
-            "check",
-            "check-ci",
-            "ci",
-        )
+        live_recipes = ("build", "qr-verify", "leak-scan", "check", "check-ci", "ci")
         recursive_rm = re.compile(
             r"\brm\b[^\n]*(?:\s--recursive(?:[=\s]|$)|\s-[A-Za-z]*r[A-Za-z]*(?:\s|$))"
         )
@@ -806,59 +801,10 @@ class RepositoryContractTests(unittest.TestCase):
                 self.assertNotRegex(body, recursive_rm)
                 self.assertNotIn("rmtree(", body)
 
-        stamped = recipe(self.justfile, "leak-scan-stamped")
-        self.assertIn("bazelisk build //:scanned_build", stamped)
-        self.assertIn('grep -q "deadbee" bazel-bin/scanned-build/index.html', stamped)
-        self.assertNotIn("leak-scan bazel-bin", stamped)
-        self.assertNotIn("materialize", stamped)
-        self.assertNotIn("build-stamped", stamped)
-        self.assertNotIn("build-stamped", MATERIALIZED_OUTPUT_NAMES)
-
         qr = recipe(self.justfile, "qr-verify")
         self.assertIn("umask 077", qr)
         self.assertIn('rm -f -- "$tmp/apex.svg"', qr)
         self.assertIn('rmdir -- "$tmp"', qr)
-
-    def test_playwright_releases_bazel_before_chromium(self) -> None:
-        preview = recipe(self.justfile, "preview-e2e")
-        self.assertIn('preview-e2e port="4173": build', preview)
-        self.assertIn("bazelisk shutdown", preview)
-        self.assertLess(preview.index("bazelisk shutdown"), preview.index("scripts/bazel_output.py preview"))
-        self.assertIn("just preview-e2e ${port}", self.playwright)
-        self.assertEqual(recipe(self.justfile, "ci").splitlines()[0], "ci: check test-e2e")
-
-    def test_playwright_uses_its_locked_browser(self) -> None:
-        ensure = recipe(self.justfile, "playwright-ensure")
-        self.assertIn("pnpm exec playwright install chromium", ensure)
-        self.assertNotIn("Using Nix Chromium", ensure)
-        self.assertNotIn("executablePath", self.playwright)
-        self.assertNotIn("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", self.flake)
-        self.assertNotIn("pkgs.chromium", self.flake)
-        self.assertIn("playwrightFontConfig = pkgs.makeFontsConf", self.flake)
-        self.assertIn("pkgs.dejavu_fonts.minimal", self.flake)
-        self.assertIn('export FONTCONFIG_FILE="${playwrightFontConfig}"', self.flake)
-        self.assertIn("auto-patchelf", self.flake)
-        self.assertIn("patchelfUnstable", self.flake)
-        self.assertIn("PLAYWRIGHT_NIX_LIBRARY_PATH", self.flake)
-        self.assertIn("PLAYWRIGHT_NIX_DYNAMIC_LINKER", self.flake)
-        self.assertIn("PLAYWRIGHT_NIX_PATCHELF", self.flake)
-        self.assertNotIn("export LD_LIBRARY_PATH", self.flake)
-        e2e = recipe(self.justfile, "test-e2e")
-        self.assertIn("nix develop .#playwright --command just _playwright-run", e2e)
-        self.assertNotIn("${CI:-}", e2e)
-        run = recipe(self.justfile, "_playwright-run")
-        self.assertIn("_playwright-run: playwright-ensure", run)
-        self.assertIn("just _playwright-test", run)
-        self.assertIn("auto-patchelf --preserve-origin", ensure)
-        self.assertIn('--paths "$headless_dir" --libs "${playwright_libraries[@]}"', ensure)
-        self.assertIn('PATH="$(dirname "$PLAYWRIGHT_NIX_PATCHELF"):$PATH"', ensure)
-        self.assertIn("chromium_headless_shell-${revision}", ensure)
-        self.assertIn('"$PLAYWRIGHT_NIX_PATCHELF" --print-interpreter', ensure)
-        self.assertIn("env -u LD_LIBRARY_PATH", ensure)
-        font_contract = recipe(self.justfile, "_playwright-test")
-        self.assertIn("fc-match", font_contract)
-        self.assertIn("DejaVu", font_contract)
-        self.assertIn("env -u LD_LIBRARY_PATH pnpm exec playwright test", font_contract)
 
     def test_static_adapter_is_exclusive(self) -> None:
         deps = self.package["devDependencies"]
@@ -866,22 +812,14 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertNotIn("@sveltejs/adapter-node", deps)
         self.assertIn("adapter-static", (ROOT / "svelte.config.js").read_text())
 
-    def test_publisher_is_immutable_and_non_deploying(self) -> None:
-        identity = "ghcr.io/great-falls-tool-bus/gftb-site"
-        self.assertIn(identity, self.justfile)
-        self.assertIn(identity, self.flake)
-        self.assertIn("packages: write", self.publisher)
-        self.assertNotIn("'codex/**'", self.publisher)
-        self.assertIn("expected_sha", self.publisher)
-        self.assertIn('test "$ACTUAL_SHA" = "$EXPECTED_SHA"', self.publisher)
-        self.assertIn("sha-${BUILD_COMMIT_SHA}", self.justfile)
-        self.assertIn("sha-${commitSha}", self.flake)
-        combined = self.publisher + self.justfile + self.flake
-        self.assertNotIn("repository_dispatch", combined)
-        self.assertNotIn(":latest", combined)
-        self.assertFalse((ROOT / ".github/workflows/deploy-pages.yml").exists())
+    def test_runtime_base_is_separate_from_the_qualified_application_layer(self) -> None:
+        self.assertIn("runtimeRoot = pkgs.buildEnv", self.flake)
+        self.assertIn("runtimeBaseImage = n2c.buildImage", self.flake)
+        self.assertIn("copyToRoot = runtimeRoot", self.flake)
+        self.assertIn('packages."runtime-base-image" = runtimeBaseImage', self.flake)
+        self.assertIn('packages."runtime-root" = runtimeRoot', self.flake)
 
-    def test_publisher_root_carrier_configures_hermetic_python(self) -> None:
+    def test_build_graph_configures_hermetic_python(self) -> None:
         self.assertIn('bazel_dep(name = "rules_python", version = "1.0.0")', self.module)
         self.assertIn(
             'python = use_extension("@rules_python//python/extensions:python.bzl", "python")',
@@ -889,21 +827,21 @@ class RepositoryContractTests(unittest.TestCase):
         )
         self.assertIn('python_version = "3.11"', self.module)
         self.assertIn("ignore_root_user_error = True", self.module)
-        self.assertIn("- 'MODULE.bazel'", self.publisher)
-        self.assertIn("- 'MODULE.bazel.lock'", self.publisher)
-        self.assertIn("- 'scripts/test-bazel-cutover-contracts.py'", self.publisher)
-        self.assertIn("nix develop . -c just container-image-context", self.publisher)
 
     def test_image_serves_an_exact_generated_source_marker(self) -> None:
-        self.assertIn("printf '%s' '${commitSha}' > \"$out/srv/health.sha\"", self.flake)
-        # The materialized build root is a read-only store path; cp -a copies its
-        # 0555 mode onto $out/srv, so the marker write needs the directory reopened.
-        self.assertIn('chmod u+w "$out/srv"', self.flake)
-        self.assertLess(self.flake.index('chmod u+w "$out/srv"'), self.flake.index("> \"$out/srv/health.sha\""))
-        self.assertIn("admin off", self.flake)
-        self.assertIn("persist_config off", self.flake)
-        self.assertIn('respond /health "ok" 200', self.flake)
-        self.assertIn("file_server", self.flake)
+        self.assertIn("--source-marker", self.vite_build_runner)
+        self.assertIn("BUILD_EMBED_LABEL", self.deployment_layer)
+        self.assertIn("exactly 40 lowercase hex characters", self.deployment_layer)
+        for name in ("build", "analyze"):
+            with self.subTest(target=name):
+                target = bazel_target(self.build, name)
+                self.assertIn('srcs = [":app_workspace", ":deployment_source_marker"]', target)
+                self.assertIn('"$(rootpath :deployment_source_marker)"', target)
+                self.assertIn("stamp = 0", target)
+        self.assertIn("admin off", self.caddyfile)
+        self.assertIn("persist_config off", self.caddyfile)
+        self.assertIn('respond /health "ok" 200', self.caddyfile)
+        self.assertIn("file_server", self.caddyfile)
 
     def test_missing_paths_are_answered_with_the_prerendered_404_body(self) -> None:
         """Pin the two hand-written implementations of the same behaviour together.
@@ -916,20 +854,19 @@ class RepositoryContractTests(unittest.TestCase):
         what Playwright and a local curl measure. If either is edited away the
         other keeps the gate green, so both are asserted here.
         """
-        self.assertIn("handle_errors {", self.flake)
-        self.assertIn("rewrite * /404.html", self.flake)
+        self.assertIn("handle_errors {", self.caddyfile)
+        self.assertIn("rewrite * /404.html", self.caddyfile)
         # Without this the fallback is served with `file_server`'s own 200, and
         # every missing path becomes a soft 404.
-        self.assertIn("status {err.status_code}", self.flake)
+        self.assertIn("status {err.status_code}", self.caddyfile)
         # The health probes are plain `respond` directives and must keep
         # answering ahead of the error handler.
-        self.assertLess(self.flake.index('respond /healthz "ok" 200'), self.flake.index("handle_errors {"))
+        self.assertLess(self.caddyfile.index('respond /healthz "ok" 200'), self.caddyfile.index("handle_errors {"))
 
         preview = (ROOT / "scripts/bazel_output.py").read_text(encoding="utf-8")
         self.assertIn("def send_error(", preview)
         self.assertIn("HTTPStatus.NOT_FOUND", preview)
         self.assertIn('"404.html"', preview)
-        self.assertIn("BUILD_COMMIT_SHA must be 40 lowercase hex characters", self.justfile)
         self.assertFalse((ROOT / "static/health.sha").exists())
 
     def test_first_party_plugin_is_bazel_only(self) -> None:

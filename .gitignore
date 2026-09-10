@@ -3,6 +3,7 @@ node_modules/
 .pnpm-store/
 
 # Build outputs
+.gf-site-build-result/
 .svelte-kit/
 build/
 build-stamped/

@@ -1,9 +1,9 @@
 # greatfallstoolbus.org Bazel Configuration
 #
 # Bazel 8 + Bzlmod. Mirrors elders.tinyland.dev's two-registry chain:
-# tinyland-inc/bazel-registry first, then BCR. Canonical Just recipes execute
-# finite Bazel targets. CI resolves those targets through the v4 action fabric;
-# this file contains no cache, executor, provider, or fallback policy.
+# tinyland-inc/bazel-registry first, then BCR. Canonical Just recipes and CI
+# resolve finite actions through the v4 client. This file contains no cache,
+# executor, provider, local-profile, or fallback policy.
 
 common --enable_bzlmod
 # Supply-chain hardening (mirrors MassageIthaca): pin tinyland-inc/bazel-registry
@@ -16,9 +16,9 @@ common --enable_bzlmod
 common --registry=https://raw.githubusercontent.com/tinyland-inc/bazel-registry/ef734c4a26045a7b396913e6cf410e50fbe16635
 common --registry=https://bcr.bazel.build
 
-# BASE_PATH and commit identity are stable Bazel inputs to stamped terminal
-# build actions, not undeclared ambient action environment.
-build --workspace_status_command=scripts/bazel/workspace-status.sh
+# The source-marker rule projects native BUILD_EMBED_LABEL; larger actions
+# consume only that deterministic file. The GF client supplies --embed_label
+# from the accepted action's exact source SHA.
 
 # Build performance
 build --jobs=auto
@@ -28,22 +28,9 @@ build --show_timestamps
 
 # rules_ts: skip lib check is required for SvelteKit-style declaration files.
 build --@aspect_rules_ts//ts:skipLibCheck=always
-build --spawn_strategy=sandboxed,worker,local
-
-# Local non-v4 CI ergonomics only. The compiled action client supplies its own
-# fail-closed remote flags after resolving a signed v4 binding.
-build:ci --disk_cache=
-build:ci --remote_retries=3
-build:ci --jobs=auto
-build:ci --color=no
-build:ci --curses=no
-build:ci --show_progress_rate_limit=30
-build:ci --noshow_loading_progress
 
 # Test output
 test --test_output=errors
 test --test_summary=detailed
 test --test_verbose_timeout_warnings
 test --test_timeout=120,600,1800,3600
-
-try-import %workspace%/user.bazelrc

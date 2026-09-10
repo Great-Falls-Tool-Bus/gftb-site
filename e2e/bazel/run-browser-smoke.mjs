@@ -112,7 +112,7 @@ try {
 		throw new Error('the declared build has the wrong document title');
 	}
 	if ((await page.locator('.site-footer__provenance').count()) !== 1) {
-		throw new Error('the declared build is missing its stamped footer provenance');
+		throw new Error('the declared build is missing footer provenance from its GF-bound source marker');
 	}
 	if (errors.length > 0) throw new Error(`built page emitted errors:\n${errors.join('\n')}`);
 	await browser.close();

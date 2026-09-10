@@ -6,7 +6,8 @@ under 500 lines, and no pre-authorized Linear write tool in allowed-tools
 (TIN-3447).
 
 Usage: validate-skills.py [REPO_ROOT]   (default: cwd)
-Exit 0 if all skills pass, 1 otherwise. Used by `just skills-validate` and CI.
+Exit 0 if all skills pass, 1 otherwise. The remote validation suite runs this
+helper; `just skills-validate` selects that same declared action.
 """
 
 from __future__ import annotations
