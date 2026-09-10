@@ -463,6 +463,70 @@ test('the ladder honours a ceiling set before mount, silently', async ({ browser
 	await bare.close();
 });
 
+test('a device lost after selection lands the scene on the rung below, on fresh canvases, silently', async ({
+	page,
+}, testInfo) => {
+	await page.setViewportSize(WIDE);
+	// After a handful of frames the device stops encoding: the renderer's
+	// frame throws, the handle is failed, the ceiling steps down, and the
+	// host remounts the scene. A canvas that held a WebGPU context cannot take
+	// WebGL2, so the fresh pair is the point.
+	await page.addInitScript(() => {
+		const proto = (window as unknown as { GPUDevice?: { prototype: GPUDevice } }).GPUDevice?.prototype;
+		if (!proto) return;
+		const original = proto.createCommandEncoder;
+		let calls = 0;
+		proto.createCommandEncoder = function (this: GPUDevice, descriptor?: GPUCommandEncoderDescriptor) {
+			calls += 1;
+			if (calls > 12) throw new Error('rig: the device has gone');
+			return original.call(this, descriptor);
+		};
+		// The rungs as the scene canvas reports them, in order: the loss can
+		// land before a locator gets to look, so the sequence is the evidence.
+		const tiers: string[] = [];
+		(window as unknown as { __tiers: string[] }).__tiers = tiers;
+		const note = (node: Node) => {
+			if (!(node instanceof HTMLCanvasElement) || !node.classList.contains('wiper__scene')) return;
+			const tier = node.dataset.tier ?? '';
+			if (tier !== 'pending' && tiers.at(-1) !== tier) tiers.push(tier);
+		};
+		new MutationObserver((records) => {
+			for (const record of records) {
+				if (record.type === 'attributes') note(record.target);
+				for (const added of record.addedNodes) note(added);
+			}
+		}).observe(document, {
+			subtree: true,
+			childList: true,
+			attributes: true,
+			attributeFilter: ['data-tier'],
+		});
+	});
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		// Chrome's own word on a lost device.
+		if (message.text() === 'A valid external Instance reference no longer exists.') return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await page.goto('/');
+	const hasAdapter = await page.evaluate(async () => {
+		if (!('gpu' in navigator) || !navigator.gpu) return false;
+		return (await navigator.gpu.requestAdapter().catch(() => null)) !== null;
+	});
+	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
+	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	expect(await page.evaluate(() => (window as unknown as { __tiers: string[] }).__tiers)).toEqual(['webgpu', 'webgl2']);
+	await expect(page.locator('#goals canvas')).toHaveCount(2);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+});
+
 test('the scene is absent under reduced motion and hidden on paper and under forced colours', async ({ page }) => {
 	await page.setViewportSize(WIDE);
 	await page.emulateMedia({ reducedMotion: 'reduce' });

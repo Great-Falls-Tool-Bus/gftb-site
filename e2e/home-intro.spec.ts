@@ -1,14 +1,16 @@
-// The home page's first-load intro (operator ruling 2026-09-10): armed before
-// first paint, self-hiding with no bundle, landing Notes & Goals under the
-// header, once per session, never under reduce, a fragment, JS off or paper,
-// cancelled by any input, and never in the way of the skip link.
+// The home page's first-load intro (operator rulings 2026-09-10): armed
+// before first paint on every full load, self-hiding with no bundle, the
+// veil held until the wiper stack has hydrated, landing Notes & Goals under
+// the header, replayed on a reload, never under reduce, a fragment, the
+// data-intro-off hook, JS off or paper, cancelled by any input, and never in
+// the way of the skip link.
 import { expect, test, type Page } from '@playwright/test';
+import { skipHomeIntro } from './support/intro';
 import { forceTierMax } from './support/wiper-tier';
 
 const intro = (page: Page) => page.getByTestId('home-intro');
 const armed = (page: Page) => page.evaluate(() => document.documentElement.classList.contains('intro-armed'));
 const state = (page: Page) => page.evaluate(() => document.documentElement.dataset.intro ?? null);
-const played = (page: Page) => page.evaluate(() => sessionStorage.getItem('intro-played'));
 const visibility = (page: Page) => intro(page).evaluate((el) => getComputedStyle(el).visibility);
 const goalsTop = (page: Page) =>
 	page.evaluate(() => {
@@ -18,6 +20,26 @@ const goalsTop = (page: Page) =>
 		const max = document.documentElement.scrollHeight - window.innerHeight;
 		return { top: goals.getBoundingClientRect().top, margin, scrollY: window.scrollY, max };
 	});
+const landed = async (page: Page) => {
+	const box = await goalsTop(page);
+	expect(box).not.toBeNull();
+	if (!box) return;
+	const clamped = box.scrollY >= box.max - 1;
+	if (!clamped) expect(Math.abs(box.top - box.margin)).toBeLessThanOrEqual(2);
+	expect(box.scrollY).toBeGreaterThan(0);
+};
+const cleanConsole = (page: Page) => {
+	const problems: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		const text = message.text();
+		if (/GL Driver Message \(OpenGL, Performance,/u.test(text)) return;
+		if (text === 'No available adapters.' || text === 'A valid external Instance reference no longer exists.') return;
+		problems.push(text);
+	});
+	page.on('pageerror', (error) => problems.push(error.message));
+	return problems;
+};
 
 test.use({ viewport: { width: 1280, height: 900 } });
 
@@ -34,47 +56,52 @@ test.describe('motion allowed', () => {
 			visibility: getComputedStyle(el).visibility,
 			animation: getComputedStyle(el).animationName,
 		}));
+		expect(early.visibility).toBe('visible');
 		expect(early.animation).toBe('intro-veil');
-		await expect.poll(() => visibility(page), { timeout: 2500 }).toBe('hidden');
-		await page.waitForTimeout(3200);
-		expect(await armed(page)).toBe(false);
+		await expect.poll(() => visibility(page), { timeout: 4500 }).toBe('hidden');
+		await expect.poll(() => armed(page), { timeout: 2000 }).toBe(false);
 	});
 
-	test('the full sequence lands Notes & Goals under the header and marks the session', async ({ page }) => {
-		const problems: string[] = [];
-		page.on('console', (message) => {
-			if (message.type() === 'error' || message.type() === 'warning') {
-				// The two lines acceptance-no-js exempts: the software rasteriser's
-				// note and Chrome's own word that it has no WebGPU adapter.
-				const text = message.text();
-				if (/GL Driver Message \(OpenGL, Performance,/u.test(text) || text === 'No available adapters.') return;
-				problems.push(text);
-			}
-		});
-		page.on('pageerror', (error) => problems.push(error.message));
+	test('the veil waits for the wiper stack, then lands Notes & Goals under the header, and a reload replays it', async ({
+		page,
+	}) => {
+		const problems = cleanConsole(page);
+		const start = Date.now();
 		await page.goto('/');
-		await expect.poll(() => state(page), { timeout: 10_000 }).toBe('done');
-		const box = await goalsTop(page);
-		expect(box).not.toBeNull();
-		if (box) {
-			const clamped = box.scrollY >= box.max - 1;
-			if (!clamped) expect(Math.abs(box.top - box.margin)).toBeLessThanOrEqual(2);
-			expect(box.scrollY).toBeGreaterThan(0);
-		}
-		expect(await played(page)).toBe('1');
+		// The veil holds while the canvases are pending and lifts once they report a rung.
+		await expect.poll(() => state(page), { timeout: 8000 }).toBe('lift');
+		const liftedAt = Date.now() - start;
+		expect(liftedAt).toBeGreaterThan(1500);
+		expect(
+			await page.evaluate(() =>
+				[...document.querySelectorAll('#goals canvas[data-tier]')].every(
+					(c) => c.getAttribute('data-tier') !== 'pending',
+				),
+			),
+		).toBe(true);
+		await expect.poll(() => state(page), { timeout: 12_000 }).toBe('done');
+		await landed(page);
 		expect(await visibility(page)).toBe('hidden');
 		expect(await armed(page)).toBe(false);
 		expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
 		expect(problems).toEqual([]);
 
-		// A second visit in the same session does not arm. Away and back, not a
-		// reload or a same-URL navigation: Chrome restores those scroll
-		// positions on its own, which is not the intro.
-		await page.goto('/log', { waitUntil: 'domcontentloaded' });
+		// A full reload replays the whole sequence from the top: the restored
+		// scroll position is undone beneath the veil and the tween lands again.
+		await page.reload();
+		await expect.poll(() => state(page), { timeout: 3000 }).toBe('veil');
+		expect(await page.evaluate(() => window.scrollY)).toBe(0);
+		await expect.poll(() => state(page), { timeout: 12_000 }).toBe('done');
+		await landed(page);
+		expect(problems).toEqual([]);
+	});
+
+	test('the data-intro-off hook keeps it from arming', async ({ page }) => {
+		await skipHomeIntro(page);
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		expect(await armed(page)).toBe(false);
 		await expect.poll(() => state(page)).toBe('skipped');
-		await page.waitForTimeout(2000);
+		await page.waitForTimeout(2500);
 		expect(await page.evaluate(() => window.scrollY)).toBe(0);
 	});
 
@@ -82,12 +109,11 @@ test.describe('motion allowed', () => {
 		await page.goto('/#goals', { waitUntil: 'domcontentloaded' });
 		expect(await armed(page)).toBe(false);
 		await expect.poll(() => state(page)).toBe('skipped');
-		expect(await played(page)).toBeNull();
 	});
 
 	test('a key during the scroll stops the page where it is', async ({ page }) => {
 		await page.goto('/');
-		await expect.poll(() => state(page), { timeout: 8000 }).toBe('scroll');
+		await expect.poll(() => state(page), { timeout: 12_000 }).toBe('scroll');
 		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
 		await page.keyboard.press('Shift');
 		const at = await page.evaluate(() => window.scrollY);
@@ -113,7 +139,6 @@ test.describe('motion allowed', () => {
 	}) => {
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		expect(await intro(page).evaluate((el) => el.querySelectorAll('a, button, input, [tabindex]').length)).toBe(0);
-		// During the veil the pointer passes through it.
 		const hit = await page.evaluate(() => {
 			const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
 			return el?.closest('.home-intro') ? 'veil' : 'page';
@@ -140,13 +165,13 @@ test.describe('motion allowed', () => {
 		expect(await intro(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
 	});
 
-	test('with no canvas the hold ends at once and the scroll starts about 1.5 s in', async ({ page }) => {
+	test('with no canvas the veil lifts at the minimum dwell', async ({ page }) => {
 		await forceTierMax(page, 'none');
-		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		const start = Date.now();
-		await expect.poll(() => state(page), { timeout: 6000 }).toBe('scroll');
+		await page.goto('/', { waitUntil: 'domcontentloaded' });
+		await expect.poll(() => state(page), { timeout: 6000 }).toBe('lift');
 		const elapsed = Date.now() - start;
-		expect(elapsed).toBeGreaterThan(1000);
+		expect(elapsed).toBeGreaterThan(1500);
 		expect(elapsed).toBeLessThan(4000);
 	});
 });
@@ -161,7 +186,6 @@ test.describe('reduced motion', () => {
 		expect(await visibility(page)).toBe('hidden');
 		await page.waitForTimeout(2000);
 		expect(await page.evaluate(() => window.scrollY)).toBe(0);
-		expect(await played(page)).toBeNull();
 	});
 });
 

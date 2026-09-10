@@ -325,18 +325,20 @@ body {
 	}
 }
 
-/* ===== Home intro (operator ruling 2026-09-10) =====
+/* ===== Home intro (operator rulings 2026-09-10) =====
  * A first-load veil on the home route: page ground, the bus mark, then a
  * scripted scroll to Notes & Goals (src/lib/intro). Hidden by default and
  * painted ONLY under html.intro-armed, a class the app.html sync script sets
- * before first paint (once per session, home path, no fragment, motion
- * allowed). Every timed rule sits under no-preference; the veil keyframes
- * end at visibility: hidden so a page with no bundle at all still clears
- * itself within a second, and the same 3s fail-open timer as the reveal
- * system removes the class. Pointer-inert: a tap during the veil reaches
- * the page (the device-motion handshake listens on #main-content). No
- * focusable node, so the tab order is untouched. Below the skip link on
- * the z ladder, above the sticky header. Paper drops it outright. */
+ * before first paint on every full load (home path, no fragment, motion
+ * allowed, no data-intro-off hook). Three states: armed alone times itself
+ * out (a page with no bundle at all clears itself in three seconds, the
+ * same window as the reveal system's fail-open timer); intro-live, set by
+ * the controller once it owns the veil, holds it steady until the wiper
+ * stack reports ready; intro-lifting runs the lift and the mark's fade-out.
+ * Every timed rule sits under no-preference. Pointer-inert: a tap during
+ * the veil reaches the page (the device-motion handshake listens on
+ * #main-content). No focusable node, so the tab order is untouched. Below
+ * the skip link on the z ladder, above the sticky header. Paper drops it. */
 .home-intro {
 	position: fixed;
 	inset: 0;
@@ -352,14 +354,14 @@ body {
 }
 
 .home-intro__mark {
-	width: clamp(4rem, 12vw, 7rem);
+	width: clamp(5rem, 14vw, 8rem);
 	height: auto;
 	opacity: 0;
 }
 
 @keyframes intro-veil {
 	0%,
-	80% {
+	85% {
 		opacity: 1;
 		visibility: visible;
 		animation-timing-function: ease-out;
@@ -371,30 +373,67 @@ body {
 	}
 }
 
-@keyframes intro-mark {
+@keyframes intro-lift {
 	0% {
-		opacity: 0;
-		transform: scale(0.96);
+		opacity: 1;
+		visibility: visible;
 	}
 
-	50% {
+	100% {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+@keyframes intro-mark-in {
+	0% {
+		opacity: 0;
+		transform: scale(0.94);
+	}
+
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes intro-mark-out {
+	0% {
 		opacity: 1;
 		transform: none;
 	}
 
 	100% {
 		opacity: 0;
-		transform: scale(1.02);
+		transform: scale(1.03);
 	}
 }
 
 @media (prefers-reduced-motion: no-preference) {
 	html.intro-armed .home-intro {
-		animation: intro-veil 1000ms linear both;
+		animation: intro-veil 3000ms linear both;
 	}
 
 	html.intro-armed .home-intro__mark {
-		animation: intro-mark 800ms ease-in-out both;
+		animation: intro-mark-in 700ms ease-out both;
+	}
+
+	html.intro-armed.intro-live .home-intro {
+		animation: none;
+		visibility: visible;
+		opacity: 1;
+	}
+
+	html.intro-armed.intro-live .home-intro__mark {
+		animation: intro-mark-in 700ms ease-out both;
+	}
+
+	html.intro-armed.intro-lifting .home-intro {
+		animation: intro-lift 500ms ease-out both;
+	}
+
+	html.intro-armed.intro-lifting .home-intro__mark {
+		animation: intro-mark-out 400ms ease-in both;
 	}
 }
 

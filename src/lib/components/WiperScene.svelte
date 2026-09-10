@@ -6,11 +6,12 @@
 	// easing as the DOM mask. The scene canvas sits behind the notes and the
 	// blade canvas over them; both are pointer-inert and aria-hidden, absent
 	// under reduce, no-JS, print and forced colours, and never write to the
-	// console: every failure demotes to the plain grid. The notes are glass
-	// panes whose inks read over any backdrop (no clamp under text).
-	// It sits behind the DOM notes, never over them; it is pointer-inert,
-	// aria-hidden, absent under reduce, no-JS, print and forced colours, and
-	// it never writes to the console: every failure demotes to the plain grid.
+	// console: a failure while the ladder runs demotes to the plain grid, and
+	// a device lost after it ran hands the host back to its parent through
+	// `onlost`, which remounts a fresh pair of canvases so the ladder runs
+	// again at the ceiling the loss lowered (a canvas that has held one
+	// context kind cannot take another). The notes are glass panes whose inks
+	// read over any backdrop (no clamp under text).
 	import { onMount } from 'svelte';
 	import { deviceTilt } from '$lib/motion/device-tilt.svelte';
 	import { createBlobField, type BlobFieldHandle } from '$lib/wiper/blob-field';
@@ -35,9 +36,11 @@
 		colors: readonly string[];
 		/** The glass: the element the canvas fills and whose text is the ink. */
 		glass: HTMLElement;
+		/** A device lost after selection: the parent remounts the scene on fresh canvases. */
+		onlost?: () => void;
 	}
 
-	const { engine, colors, glass }: Props = $props();
+	const { engine, colors, glass, onlost }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement>();
 	let bladesCanvas = $state<HTMLCanvasElement>();
@@ -127,6 +130,28 @@
 			field = null;
 			tier = 'none';
 			engine.tier = 'none';
+		};
+
+		// A loss after the ladder resolved: the rung's own callback has already
+		// lowered the page ceiling, so a fresh mount lands on the rung below.
+		// Without a parent to remount, the loss is a demotion like any other.
+		const lose = () => {
+			if (!alive) return;
+			if (!onlost) {
+				demote();
+				return;
+			}
+			alive = false;
+			if (raf) cancelAnimationFrame(raf);
+			raf = 0;
+			renderer?.destroy();
+			renderer = null;
+			blades?.destroy();
+			blades = null;
+			field?.dispose();
+			field = null;
+			engine.tier = 'none';
+			onlost();
 		};
 
 		const measure = () => {
@@ -246,7 +271,7 @@
 				return;
 			}
 			renderer = selection.handle;
-			renderer.onLost(() => demote());
+			renderer.onLost(() => lose());
 			const bladeSelection = await selectRenderer(bladesElement, { layer: 'blades' });
 			if (!alive) {
 				if (bladeSelection.ok) bladeSelection.handle.destroy();
@@ -257,7 +282,7 @@
 				return;
 			}
 			blades = bladeSelection.handle;
-			blades.onLost(() => demote());
+			blades.onLost(() => lose());
 			// Both canvases run the same rung, or the pane runs none: a mixed
 			// pair would draw two renderers' floating point against each other.
 			if (blades.tier !== renderer.tier) {
