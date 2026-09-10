@@ -567,7 +567,8 @@ function heroGrounds(scheme: SchemeName) {
 	const tokens = GLASS_TOKENS[scheme];
 	const fill = resolveColor(tokens, GLASS_FILL_RULE!);
 	return {
-		card: (extreme: 'black' | 'white') => compositeOver(fill, parseCssColor(extreme === 'black' ? '#000000' : '#ffffff')),
+		card: (extreme: 'black' | 'white') =>
+			compositeOver(fill, parseCssColor(extreme === 'black' ? '#000000' : '#ffffff')),
 	};
 }
 

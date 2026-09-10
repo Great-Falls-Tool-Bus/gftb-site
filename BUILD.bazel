@@ -217,10 +217,17 @@ filegroup(
 # The v4 validate action carries the secret scan inside the same finite Bazel
 # action graph. It uses a hermetic, platform-pinned gitleaks binary and needs no
 # second runner job or repository-local lifecycle wrapper.
+copy_to_directory(
+    name = "current_source_secret_scan_tree",
+    srcs = [":current_source_secret_scan_srcs"],
+    hardlink = "off",
+    root_paths = ["."],
+)
+
 gitleaks_test(
     name = "current_source_secret_scan_test",
     timeout = "short",
-    srcs = [":current_source_secret_scan_srcs"],
+    source_tree = ":current_source_secret_scan_tree",
     config = ".gitleaks.toml",
 )
 

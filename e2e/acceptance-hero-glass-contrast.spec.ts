@@ -37,7 +37,10 @@ test.describe('glass surfaces: real rendered contrast', () => {
 	});
 
 	for (const scheme of ['light', 'dark'] as const) {
-		test(`every glass pair clears its floor against the real rendered surfaces (${scheme})`, async ({ page, baseURL }) => {
+		test(`every glass pair clears its floor against the real rendered surfaces (${scheme})`, async ({
+			page,
+			baseURL,
+		}) => {
 			await page.setViewportSize({ width: 1440, height: 900 });
 			await page.goto(baseURL ?? '/');
 			await page.waitForLoadState('networkidle');
@@ -72,7 +75,10 @@ test.describe('glass surfaces: real rendered contrast', () => {
 				}
 			}
 			for (const selector of ['.hero-glass', '.status-card.hero-glass', '#goals', '.site-footer']) {
-				const fill = await page.locator(selector).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+				const fill = await page
+					.locator(selector)
+					.first()
+					.evaluate((el) => getComputedStyle(el).backgroundColor);
 				expect(parseCssColor(fill).alpha, `${selector} must transmit 30% of its backdrop`).toBeCloseTo(0.7, 4);
 			}
 		});

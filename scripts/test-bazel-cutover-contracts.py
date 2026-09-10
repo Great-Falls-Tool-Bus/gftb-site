@@ -708,8 +708,8 @@ class RepositoryContractTests(unittest.TestCase):
                 )
 
     def test_static_spoke_conformance_has_no_provider_or_deploy_carrier(self) -> None:
-        self.assertEqual(self.package["devDependencies"]["@skeletonlabs/skeleton"], "5.0.0")
-        self.assertEqual(self.package["devDependencies"]["@skeletonlabs/skeleton-svelte"], "5.0.0")
+        self.assertEqual(self.package["devDependencies"]["@skeletonlabs/skeleton"], "5.0.1")
+        self.assertEqual(self.package["devDependencies"]["@skeletonlabs/skeleton-svelte"], "5.0.1")
         self.assertIn('name = "current_source_secret_scan_test"', self.build)
         self.assertIn('name = "workflow_validation_test"', self.build)
 
