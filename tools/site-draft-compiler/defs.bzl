@@ -1,5 +1,6 @@
 """Register from the root package so the real shared schemas retain their paths."""
 
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package", "npm_package")
@@ -17,19 +18,26 @@ def site_draft_compiler_targets():
         "scripts/lib/log-projection.mjs",
         "scripts/lib/log-source-guard.mjs",
     ]
-    # rules_ts derives emitted paths from string target names, stripping the
-    # package prefix before ':'. A root alias preserves the compiler's real
-    # path without treating a child-package source as an implicit root file.
     compiler_source = Label("//tools/site-draft-compiler:compiler.ts")
-    native.alias(
-        name = "tools/site-draft-compiler/compiler.ts",
-        actual = compiler_source,
-    )
     typed_sources = [
-        ":tools/site-draft-compiler/compiler.ts",
+        "tools/site-draft-compiler/compiler.ts",
         "src/lib/featured-image-schema.ts",
         "src/lib/public-log-schema.ts",
     ]
+    # Stage exact original artifacts under one generated root. rules_ts needs
+    # string source paths to predict outputs, and a root alias cannot cross the
+    # compiler's child BUILD package. Removing only this staging prefix keeps
+    # all relative imports and public runtime/declaration paths unchanged.
+    input_root = "site-draft-compiler-inputs"
+    staged_sources = []
+    for index, source in enumerate(typed_sources + scripts):
+        staged = input_root + "/" + source
+        copy_file(
+            name = "site_draft_compiler_input_{}".format(index),
+            src = compiler_source if index == 0 else source,
+            out = staged,
+        )
+        staged_sources.append(staged)
     runtime_packages = [
         ":node_modules/mdsvex",
         ":node_modules/prettier",
@@ -38,10 +46,11 @@ def site_draft_compiler_targets():
     ]
     ts_project(
         name = "site_draft_compiler_js",
-        srcs = typed_sources + scripts,
+        srcs = staged_sources,
         allow_js = True,
         declaration = True,
         out_dir = "site-draft-compiler-js",
+        root_dir = input_root,
         transpiler = "tsc",
         tsconfig = {
             "compilerOptions": {
