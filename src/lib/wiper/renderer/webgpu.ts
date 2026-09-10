@@ -5,7 +5,11 @@
 // home page on any console error or warning): the uncaptured-error handler
 // and the loss promise are installed before the first resource, creation
 // runs under error scopes, the canvas is claimed last so a failure leaves
-// it free for WebGL2, and a frame that throws counts as a loss.
+// it free for WebGL2, and a frame that throws counts as a loss. The adapter
+// and device request run under a deadline: a request the host answers late
+// is closed on arrival and never seen by a handle.
+import { HOST_TIMER, withDeadline, type DeadlineTimer } from './deadline';
+import { WEBGPU_ACQUIRE_DEADLINE_MS } from './shaders/constants';
 import { SCENE_WGSL } from './shaders/scene.wgsl';
 import type { RendererFailure, RendererHandle, RendererOptions, RendererSelection, SceneFrame } from './types';
 import { UNIFORM_BLOCK_BYTES, createUniformBlock, packUniformBlock, scaleDroplets } from './uniform-block';
@@ -26,6 +30,19 @@ interface HandleState {
 	lostCallbacks: Array<(failure: RendererFailure) => void>;
 	failed: boolean;
 }
+
+/** Test seam: the host's GPU entry point and clock, thunked so module load touches no global. */
+export interface AcquireDeps {
+	gpu: () => GPU | null;
+	deadlineMs: number;
+	timer: DeadlineTimer;
+}
+
+const HOST_DEPS: AcquireDeps = {
+	gpu: () => (typeof navigator === 'undefined' || !('gpu' in navigator) ? null : (navigator.gpu ?? null)),
+	deadlineMs: WEBGPU_ACQUIRE_DEADLINE_MS,
+	timer: HOST_TIMER,
+};
 
 let shared: Promise<Shared | RendererFailure> | null = null;
 
@@ -49,17 +66,35 @@ async function popScopes(device: GPUDevice, count: number): Promise<boolean> {
 	return errored;
 }
 
-/** The device and pipeline, once per page; the canvas is untouched here. */
-async function acquire(): Promise<Shared | RendererFailure> {
-	if (typeof navigator === 'undefined' || !('gpu' in navigator) || !navigator.gpu) return { kind: 'no-api' };
-	const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'low-power' }).catch(() => null);
+/** The adapter, then the device; every host refusal is a failure value, never a throw. */
+async function openDevice(gpu: GPU): Promise<GPUDevice | RendererFailure> {
+	const adapter = await gpu.requestAdapter({ powerPreference: 'low-power' }).catch(() => null);
 	if (!adapter) return { kind: 'no-api' };
-	let device: GPUDevice;
 	try {
-		device = await adapter.requestDevice();
+		return await adapter.requestDevice();
 	} catch {
 		return { kind: 'no-context' };
 	}
+}
+
+/** The device and pipeline, once per page; the canvas is untouched here. */
+async function acquire(deps: AcquireDeps): Promise<Shared | RendererFailure> {
+	const gpu = deps.gpu();
+	if (!gpu) return { kind: 'no-api' };
+	const opening = openDevice(gpu);
+	const opened = await withDeadline(opening, deps.deadlineMs, deps.timer);
+	if (!opened.settled) {
+		// The host may still answer after the ladder has moved on: close that
+		// device on arrival. No handle ever saw it, so there is nothing to fail.
+		opening
+			.then((late) => {
+				if (!('kind' in late)) late.destroy();
+			})
+			.catch(() => {});
+		return { kind: 'timeout' };
+	}
+	if ('kind' in opened.value) return opened.value;
+	const device = opened.value;
 	const state = {
 		device,
 		handles: new Set<HandleState>(),
@@ -101,7 +136,7 @@ async function acquire(): Promise<Shared | RendererFailure> {
 				{ binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
 			],
 		});
-		const format = navigator.gpu.getPreferredCanvasFormat();
+		const format = gpu.getPreferredCanvasFormat();
 		const pipeline = await device.createRenderPipelineAsync({
 			layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
 			vertex: { module, entryPoint: 'vs_main' },
@@ -136,8 +171,9 @@ async function acquire(): Promise<Shared | RendererFailure> {
 export async function createWebGPURenderer(
 	canvas: HTMLCanvasElement,
 	options: RendererOptions = { layer: 'scene' },
+	deps: AcquireDeps = HOST_DEPS,
 ): Promise<RendererSelection> {
-	shared ??= acquire();
+	shared ??= acquire(deps);
 	const acquired = await shared;
 	if (!('device' in acquired)) {
 		shared = null;
