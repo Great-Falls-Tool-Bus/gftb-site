@@ -185,11 +185,14 @@ Presentation (operator rulings 2026-09-08 and 2026-09-09): the served HTML,
 reduced motion, the Off detent, print and forced colours are all the same
 plain, borderless grid of every row (`src/lib/components/NotesAndGoals.svelte`);
 that grid is the rollback surface. Once enhanced, the rows page under the
-ratified windshield wiper (`src/lib/wiper`, landing milestone by milestone
-behind attended LOOKs: the DOM wipe, the GPU scene behind the notes, the
-chrome arms). Content authors need no knowledge of it: a row is a row, the
-wiper pages whatever the manifest publishes, and a note that straddles the two
-blades on a wide screen is wiped by both. Each row carries an "Edit" link to its own source file and
+ratified windshield wiper (`src/lib/wiper`, landed in six milestones behind
+attended LOOKs: the DOM wipe, the GPU scene behind the notes, the chrome arms,
+the glass, the WebGPU tier with its WebGL2 fallback, and the rails). Content
+authors need no knowledge of it: a row is a row, the wiper pages whatever the
+manifest publishes, a note that straddles the two blades on a wide screen is
+wiped by both, the outgoing page leaves as one row ahead of the blade that
+reaches it first, and the detent a visitor picks on the stalk is remembered
+by their browser. Each row carries an "Edit" link to its own source file and
 the section links the whole collection (`/tree/<branch>/src/content/goals`):
 the SourceLink "edit this page"
 exception extended to the collection, built from `source-map.json` and the
