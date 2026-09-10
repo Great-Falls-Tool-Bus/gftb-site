@@ -6,31 +6,38 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { INTRO_PLAYED_KEY } from './machine';
+import {
+	INTRO_ARMED_CLASS,
+	INTRO_LIFTING_CLASS,
+	INTRO_LIVE_CLASS,
+	INTRO_OFF_ATTR,
+	INTRO_OFF_GLOBAL,
+} from './controller';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (relative: string) => readFileSync(path.join(repoRoot, relative), 'utf8');
 
 describe('home intro contract', () => {
-	it('arms before first paint with the four checks and disarms on input or the failsafe', () => {
+	it('arms before first paint on every load with no storage, and disarms on input or the failsafe', () => {
 		const html = read('src/app.html');
-		expect(html).toContain(`sessionStorage.getItem('${INTRO_PLAYED_KEY}') === null`);
+		expect(html).not.toMatch(/sessionStorage|intro-played/u);
 		expect(html).toContain("location.pathname === '/'");
 		expect(html).toContain("location.hash === ''");
-		expect(html).toContain("classList.add('intro-armed')");
+		expect(html).toContain(`!document.documentElement.hasAttribute('${INTRO_OFF_ATTR}')`);
+		expect(html).toContain(`!window.${INTRO_OFF_GLOBAL} &&`);
+		expect(html).toContain(`classList.add('${INTRO_ARMED_CLASS}')`);
 		expect(html).toContain("['wheel', 'touchstart', 'pointerdown', 'keydown']");
 		expect(html).toContain('{ capture: true, passive: true, once: true }');
-		// The arm sits inside the motion gate and after the failsafe is set, so a
-		// throwing storage call can never leave the reveal system without its timer.
+		// The arm sits inside the motion gate and after the failsafe is set.
 		const gate = html.indexOf('if (!reduceMotion) {');
 		const failsafe = html.indexOf('window.__gftbRevealFailsafe = setTimeout');
-		const arm = html.indexOf("classList.add('intro-armed')");
+		const arm = html.indexOf(`classList.add('${INTRO_ARMED_CLASS}')`);
 		expect(gate).toBeGreaterThan(-1);
 		expect(failsafe).toBeGreaterThan(gate);
 		expect(arm).toBeGreaterThan(failsafe);
 		const failsafeBody = html.slice(failsafe, html.indexOf('}, 3000);', failsafe));
 		expect(failsafeBody).toContain("classList.remove('motion-safe-ready')");
-		expect(failsafeBody).toContain("classList.remove('intro-armed')");
+		expect(failsafeBody).toContain(`classList.remove('${INTRO_ARMED_CLASS}')`);
 	});
 
 	it('paints the veil only under the armed class, with every timed rule under no-preference', () => {
@@ -65,14 +72,20 @@ describe('home intro contract', () => {
 		const before = block.slice(0, media);
 		expect(before).not.toMatch(/^\s*animation:/mu);
 		const inside = block.slice(media);
-		expect(inside).toContain('html.intro-armed .home-intro {');
-		expect(inside).toContain('html.intro-armed .home-intro__mark {');
-		expect(inside).toMatch(/animation: intro-veil 1000ms linear both;/u);
-		expect(inside).toMatch(/animation: intro-mark 800ms ease-in-out both;/u);
-		// The veil ends hidden on its own.
-		const veil = block.slice(block.indexOf('@keyframes intro-veil'), block.indexOf('@keyframes intro-mark'));
-		const lastFrame = veil.slice(veil.lastIndexOf('100%'));
-		expect(lastFrame).toContain('visibility: hidden;');
+		expect(inside).toContain(`html.${INTRO_ARMED_CLASS} .home-intro {`);
+		expect(inside).toContain(`html.${INTRO_ARMED_CLASS}.${INTRO_LIVE_CLASS} .home-intro {`);
+		expect(inside).toContain(`html.${INTRO_ARMED_CLASS}.${INTRO_LIFTING_CLASS} .home-intro {`);
+		// Armed alone times out in the fail-open window; live holds steady; lifting fades.
+		expect(inside).toMatch(/animation: intro-veil 3000ms linear both;/u);
+		expect(inside).toMatch(/animation: intro-lift 500ms ease-out both;/u);
+		expect(inside).toMatch(/animation: intro-mark-in 700ms ease-out both;/u);
+		expect(inside).toMatch(/animation: intro-mark-out 400ms ease-in both;/u);
+		// The veil and the lift both end hidden on their own.
+		for (const name of ['intro-veil', 'intro-lift']) {
+			const from = block.indexOf(`@keyframes ${name}`);
+			const frames = block.slice(from, block.indexOf('@keyframes', from + 1));
+			expect(frames.slice(frames.lastIndexOf('100%'))).toContain('visibility: hidden;');
+		}
 		// Paper drops it.
 		const print = css.slice(css.indexOf('@media print {'));
 		const hidden = print.slice(0, print.indexOf('display: none !important;'));
@@ -103,10 +116,10 @@ describe('home intro contract', () => {
 		expect(controller).not.toMatch(/scrollIntoView|\.focus\(|console\.|preventDefault|stopPropagation/u);
 		expect(controller).toContain("behavior: 'instant'");
 		expect(controller).toContain('{ capture: true, passive: true, signal }');
-		expect(controller).toContain(`sessionStorage.setItem(INTRO_PLAYED_KEY, '1')`);
+		expect(controller).not.toMatch(/sessionStorage|localStorage/u);
 		const machine = read('src/lib/intro/machine.ts');
-		expect(machine).not.toMatch(/document|window|navigator|console\./u);
-		expect(INTRO_PLAYED_KEY).toBe('intro-played');
+		expect(machine).not.toMatch(/document|window|navigator|console\.|Storage/u);
+		expect(INTRO_OFF_ATTR).toBe('data-intro-off');
 	});
 
 	it('mounts the veil first on the home page only', () => {
