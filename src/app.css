@@ -200,7 +200,7 @@
 
 /* ===== Semantic z-index scale =====
  * One ladder for every stacked surface: dropdown < sticky < modal-backdrop <
- * modal < toast < tooltip. Never an arbitrary 999/9999. Rules consume the
+ * modal < intro < toast < tooltip. Never an arbitrary 999/9999. Rules consume the
  * tokens through var() directly. Declared in its own :root block on purpose:
  * the role block above is scheme-swept by design-token-contrast.test.ts, and
  * these are not colours. (Ported from the previous apex, fix #139 era.) */
@@ -209,6 +209,7 @@
 	--z-sticky: 40;
 	--z-modal-backdrop: 50;
 	--z-modal: 60;
+	--z-intro: 65;
 	--z-toast: 70;
 	--z-tooltip: 80;
 }
@@ -321,6 +322,79 @@ body {
 @media (prefers-reduced-motion: reduce) {
 	.brand-vectors-bg * {
 		transition: none !important;
+	}
+}
+
+/* ===== Home intro (operator ruling 2026-09-10) =====
+ * A first-load veil on the home route: page ground, the bus mark, then a
+ * scripted scroll to Notes & Goals (src/lib/intro). Hidden by default and
+ * painted ONLY under html.intro-armed, a class the app.html sync script sets
+ * before first paint (once per session, home path, no fragment, motion
+ * allowed). Every timed rule sits under no-preference; the veil keyframes
+ * end at visibility: hidden so a page with no bundle at all still clears
+ * itself within a second, and the same 3s fail-open timer as the reveal
+ * system removes the class. Pointer-inert: a tap during the veil reaches
+ * the page (the device-motion handshake listens on #main-content). No
+ * focusable node, so the tab order is untouched. Below the skip link on
+ * the z ladder, above the sticky header. Paper drops it outright. */
+.home-intro {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-intro);
+	display: grid;
+	place-items: center;
+	overflow: clip;
+	pointer-events: none;
+	background: var(--bg);
+	color: var(--accent);
+	visibility: hidden;
+	opacity: 0;
+}
+
+.home-intro__mark {
+	width: clamp(4rem, 12vw, 7rem);
+	height: auto;
+	opacity: 0;
+}
+
+@keyframes intro-veil {
+	0%,
+	80% {
+		opacity: 1;
+		visibility: visible;
+		animation-timing-function: ease-out;
+	}
+
+	100% {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+@keyframes intro-mark {
+	0% {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+
+	50% {
+		opacity: 1;
+		transform: none;
+	}
+
+	100% {
+		opacity: 0;
+		transform: scale(1.02);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html.intro-armed .home-intro {
+		animation: intro-veil 1000ms linear both;
+	}
+
+	html.intro-armed .home-intro__mark {
+		animation: intro-mark 800ms ease-in-out both;
 	}
 }
 
@@ -2118,7 +2192,8 @@ figcaption {
 	.site-footer,
 	.skip-link,
 	.hero__media,
-	.brand-vectors-bg {
+	.brand-vectors-bg,
+	.home-intro {
 		display: none !important;
 	}
 

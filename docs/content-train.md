@@ -192,7 +192,11 @@ authors need no knowledge of it: a row is a row, the wiper pages whatever the
 manifest publishes, a note that straddles the two blades on a wide screen is
 wiped by both, the outgoing page leaves as one row ahead of the blade that
 reaches it first, and the detent a visitor picks on the stalk is remembered
-by their browser. Each row carries an "Edit" link to its own source file and
+by their browser. On a first visit in a browser session, and only on the home
+page, the site opens with a short veil carrying the bus mark and then carries
+the visitor down to this section as the wiper comes ready (`src/lib/intro`);
+any input ends it at once, reduced motion and a URL fragment never start it,
+and it never touches the rows or the manifest. Each row carries an "Edit" link to its own source file and
 the section links the whole collection (`/tree/<branch>/src/content/goals`):
 the SourceLink "edit this page"
 exception extended to the collection, built from `source-map.json` and the
