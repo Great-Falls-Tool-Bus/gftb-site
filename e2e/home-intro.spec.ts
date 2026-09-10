@@ -47,7 +47,9 @@ test.describe('motion allowed', () => {
 				// The two lines acceptance-no-js exempts: the software rasteriser's
 				// note and Chrome's own word that it has no WebGPU adapter.
 				const text = message.text();
-				if (/GL Driver Message \(OpenGL, Performance,/u.test(text) || text === 'No available adapters.') return;
+				if (/GL Driver Message \(OpenGL, Performance,/u.test(text)) return;
+				if (text === 'No available adapters.' || text === 'A valid external Instance reference no longer exists.')
+					return;
 				problems.push(text);
 			}
 		});

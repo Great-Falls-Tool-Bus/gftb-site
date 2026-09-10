@@ -57,6 +57,16 @@
 	const view = $derived(engine.view);
 	let paneEl = $state<HTMLElement>();
 	let glassEl = $state<HTMLElement>();
+	// A GPU device lost after the scene mounted (a reload racing the last
+	// document's teardown, a GPU process restart) remounts the scene on fresh
+	// canvases; the ladder's ceiling has already stepped down, so the new
+	// mount lands on the rung below. Bounded, so a rig that loses every
+	// device settles on the plain grid instead of remounting forever.
+	const SCENE_RELAUNCH_LIMIT = 2;
+	let sceneGeneration = $state(0);
+	const relaunchScene = () => {
+		sceneGeneration += 1;
+	};
 	let listEl = $state<HTMLOListElement>();
 
 	// The chosen detent persists the way the colour mode does, so a visitor
@@ -143,7 +153,14 @@
 >
 	<div class="wiper__glass" bind:this={glassEl}>
 		{#if view.paged && glassEl}
-			<WiperScene {engine} colors={BRAND_BLOB_COLORS} glass={glassEl} />
+			{#key sceneGeneration}
+				<WiperScene
+					{engine}
+					colors={BRAND_BLOB_COLORS}
+					glass={glassEl}
+					onlost={sceneGeneration < SCENE_RELAUNCH_LIMIT ? relaunchScene : undefined}
+				/>
+			{/key}
 		{/if}
 		<ol
 			class="goal-list"
