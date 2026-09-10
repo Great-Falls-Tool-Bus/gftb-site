@@ -2208,6 +2208,15 @@ figcaption {
 	.goal-list > li,
 	.goal-asides {
 		background: none !important;
+		/* The panes set their own glass inks (a closer ancestor than the
+		 * section), so paper resets them here as well. */
+		--fg: #000;
+		--fg-muted: #000;
+		--heading: #000;
+		--link: #000;
+		--accent: #000;
+		--highlight-edge: #000;
+		--danger: #000;
 		backdrop-filter: none !important;
 		transform: none !important;
 	}
