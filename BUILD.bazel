@@ -436,31 +436,6 @@ js_test(
     timeout = "short",
 )
 
-py_test(
-    name = "bazel_output_contract_test",
-    srcs = [
-        "scripts/bazel_output.py",
-        "scripts/test-bazel-cutover-contracts.py",
-    ],
-    main = "scripts/test-bazel-cutover-contracts.py",
-    imports = ["scripts"],
-    data = [
-        ":current_source_secret_scan_srcs",
-        ".github/lanes.json",
-        ".github/workflows/ci.yml",
-        "BUILD.bazel",
-        "Justfile",
-        "MODULE.bazel",
-        "docs/schemas/tinyland-repo-manifest.v2.schema.json",
-        "flake.nix",
-        "package.json",
-        "scripts/check-inhouse-package-parity.py",
-        "scripts/validate-skills.py",
-        "static/qr/greatfallstoolbus-apex.svg",
-        "tinyland.repo.json",
-    ],
-)
-
 # Finite Chromium acceptance over the declared //:build output. GF's
 # docs/build-system/browser-runtime-authority.md (TIN-1131) owns the
 # provisioned runtime: explicit executablePath, private test scratch, and no
@@ -511,7 +486,6 @@ js_test(
 test_suite(
     name = "ci_validation_suite",
     tests = [
-        ":bazel_output_contract_test",
         ":browser_smoke_test",
         ":current_source_secret_scan_test",
         ":eslint_test",

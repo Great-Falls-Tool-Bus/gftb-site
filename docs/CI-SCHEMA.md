@@ -40,9 +40,9 @@ by this repository.
 
 Developer operations enter through Just and the same image-custodied client
 as CI. `just check` selects `validate`; its cacheable
-`//:ci_validation_suite` includes schema/conformance and immutable caller
-contracts, current-source Gitleaks, generated source/log/goal manifest drift
-checks, checksummed actionlint, Prettier, ESLint, Svelte checks, unit tests,
+`//:ci_validation_suite` includes current-source Gitleaks, generated
+source/log/goal manifest drift checks, checksummed actionlint, Prettier,
+ESLint, Svelte checks, unit tests,
 the served TinyVectors package proof, and five Chromium acceptance specs.
 The finite browser test uses only the declared build and GF's provisioned
 Chromium. It installs no browser, uses no ambient preview, and proves no

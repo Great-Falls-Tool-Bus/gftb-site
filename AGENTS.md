@@ -72,11 +72,11 @@ is not public.
   at `/srv` with only the reviewed first-party `Caddyfile`, exact source marker,
   and `/tmp` mode alongside it. Unscanned public site bytes are not publishable.
 - `just check` selects the same v4 `validate` action as CI. Its cacheable
-  `//:ci_validation_suite` registers the schema/conformance and immutable-caller
-  contract, current-source Gitleaks, generated source/log/goal manifest drift
-  checks, hermetic actionlint, ESLint, Prettier, Svelte checks, unit tests,
-  and five Chromium acceptance specs over the declared static build. The
-  browser target requires GF's provisioned Chromium; it never installs a
+  `//:ci_validation_suite` registers current-source Gitleaks, generated
+  source/log/goal manifest drift checks, hermetic actionlint, ESLint,
+  Prettier, Svelte checks, unit tests, and five Chromium acceptance specs
+  over the declared static build. The browser target requires GF's
+  provisioned Chromium; it never installs a
   browser or attaches to an ambient preview. It does not prove a deployed LOOK.
   The suite also carries `//:served_tinyvectors_test`, which checks the declared
   client chunks against the TinyVectors version in `MODULE.bazel`. An ambient
