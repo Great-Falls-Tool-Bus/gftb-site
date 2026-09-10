@@ -3,8 +3,11 @@
 	// list box), clearing to the page ground, drawing tinyvectors' blob field,
 	// frost and beads; a second, transparent canvas over the notes draws the
 	// chrome arms and blades, posed by the engine from the same clock and
-	// easing as the DOM mask. The notes are glass panes whose inks read over
-	// any backdrop, so no clamp under text (operator ruling, M4 ratification).
+	// easing as the DOM mask. The scene canvas sits behind the notes and the
+	// blade canvas over them; both are pointer-inert and aria-hidden, absent
+	// under reduce, no-JS, print and forced colours, and never write to the
+	// console: every failure demotes to the plain grid. The notes are glass
+	// panes whose inks read over any backdrop (no clamp under text).
 	// It sits behind the DOM notes, never over them; it is pointer-inert,
 	// aria-hidden, absent under reduce, no-JS, print and forced colours, and
 	// it never writes to the console: every failure demotes to the plain grid.
@@ -39,7 +42,6 @@
 	let canvas = $state<HTMLCanvasElement>();
 	let bladesCanvas = $state<HTMLCanvasElement>();
 	let tier = $state<'pending' | RendererTier>('pending');
-	const view = $derived(engine.view);
 	function hexToRgb(hex: string): [number, number, number] {
 		const value = Number.parseInt(hex.replace('#', ''), 16);
 		return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
@@ -103,6 +105,7 @@
 		let ground = resolveRole('--bg');
 		// M4: the bead field and the frost clock live on the scene's own clock.
 		let drops: DropletField | null = null;
+		let bladesIdle = false;
 		let dropsBox = '';
 		const frostClock = new FrostClock();
 		let frostBox = '';
@@ -112,6 +115,7 @@
 		const { signal } = controller;
 
 		const demote = () => {
+			if (!alive) return;
 			alive = false;
 			if (raf) cancelAnimationFrame(raf);
 			raf = 0;
@@ -140,9 +144,11 @@
 		const syncGlass = () => {
 			const geometry = engine.geometry;
 			if (!renderer || !geometry || width <= 0 || height <= 0) return null;
-			const key = `${Math.round(geometry.box.width)}x${Math.round(geometry.box.height)}`;
+			// Keyed on the bead grid, not the pixel box: a one-pixel resize keeps
+			// every bead and the frost grain; a new column or row of cells rebuilds.
 			if (!drops) drops = new DropletField(geometry);
-			else if (dropsBox !== key) drops.relayout(geometry);
+			else drops.relayout(geometry);
+			const key = `${drops.cols}x${drops.rows}`;
 			if (dropsBox !== key) {
 				dropsBox = key;
 				renderer.uploadDroplets(drops.data, drops.cols, drops.rows, drops.cellCss);
@@ -182,9 +188,19 @@
 			// sits on the mask edge whichever callback the browser runs first.
 			const arms: SceneArm[] = engine.blades(now);
 			const frame = { time: now / 1000, ground, blend, blobs, frost };
+			// A render may demote synchronously (a WebGPU frame that throws), so
+			// the handles are taken once and re-checked between the two draws.
+			const scene = renderer;
+			const over = blades;
 			// Layer 0 reads the arms for its swept edge only; it draws no blade.
-			renderer.render({ ...frame, arms });
-			blades.render({ ...frame, arms, scissor: armsBox(arms, width, height) });
+			scene.render({ ...frame, arms });
+			if (!alive || blades !== over) return;
+			// Parked blades cost nothing: the layer is cleared once when the
+			// arms come to rest and left alone until one moves again.
+			const idle = arms.every((arm) => arm.travel === 0);
+			if (idle && bladesIdle) return;
+			over.render({ ...frame, arms, scissor: idle ? null : armsBox(arms, width, height) });
+			bladesIdle = idle;
 		};
 
 		const frame = (now: number) => {
@@ -193,13 +209,15 @@
 			const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
 			const gap = last ? (now - last) / 1000 : 1 / 60;
 			last = now;
+			// The stroke clock decides what moves: under a keyboard pause the
+			// blob field rests too, so a reader is not read to over a moving scene.
+			const clock = engine.strokeClock(now);
 			field.setTilt({ x: deviceTilt.x, y: deviceTilt.y, z: deviceTilt.z });
-			field.tick(dt, now / 1000);
+			field.tick(clock.paused ? 0 : dt, now / 1000);
 			// The bead field steps on the stroke clock: it stands still under a
 			// hold or a paused rest, and never jumps more than the machine does.
 			const geometry = syncGlass();
 			if (drops && geometry && renderer) {
-				const clock = engine.strokeClock(now);
 				frostClock.note(clock, drops.time);
 				const fieldDt = clock.held || (clock.paused && clock.phase === 'dwell') ? 0 : Math.min(gap, MAX_STEP_MS / 1000);
 				if (drops.step(fieldDt, clock, geometry.arms)) {
@@ -218,7 +236,11 @@
 
 		(async () => {
 			const selection = await selectRenderer(element, { layer: 'scene' });
-			if (!alive) return;
+			if (!alive) {
+				// Unmounted while the ladder ran: release what it resolved.
+				if (selection.ok) selection.handle.destroy();
+				return;
+			}
 			if (!selection.ok) {
 				demote();
 				return;
@@ -226,7 +248,10 @@
 			renderer = selection.handle;
 			renderer.onLost(() => demote());
 			const bladeSelection = await selectRenderer(bladesElement, { layer: 'blades' });
-			if (!alive) return;
+			if (!alive) {
+				if (bladeSelection.ok) bladeSelection.handle.destroy();
+				return;
+			}
 			if (!bladeSelection.ok) {
 				demote();
 				return;

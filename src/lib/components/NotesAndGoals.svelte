@@ -20,7 +20,7 @@
 	import type { PublicGoal } from '$lib/public-goals';
 	import { BRAND_BLOB_COLORS } from '$lib/brand-blob-colors';
 	import { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { pageOf } from '$lib/wiper/schedule';
+	import { isWiperDetent, pageOf } from '$lib/wiper/schedule';
 	import WiperControls from './WiperControls.svelte';
 	import WiperScene from './WiperScene.svelte';
 
@@ -42,6 +42,9 @@
 	const collectionUrl = `${sourceMap.repoUrl}/tree/${sourceMap.branch}/src/content/goals`;
 
 	const prefersReduced = new MediaQuery('(prefers-reduced-motion: reduce)');
+	// Forced colours (Windows High Contrast) neutralise the canvases but not
+	// masks, opacity or transforms: the whole enhancement stands down there.
+	const forcedColors = new MediaQuery('(forced-colors: active)');
 	const wide = new MediaQuery('(min-width: 48rem)');
 	let enhanced = $state(false);
 	const pageSize = $derived(wide.current ? 3 : 1);
@@ -49,16 +52,36 @@
 	const engine = new WiperEngine({
 		pageSize: () => pageSize,
 		itemCount: () => goals.length,
-		motionOk: () => enhanced && !prefersReduced.current,
+		motionOk: () => enhanced && !prefersReduced.current && !forcedColors.current,
 	});
 	const view = $derived(engine.view);
 	let paneEl = $state<HTMLElement>();
 	let glassEl = $state<HTMLElement>();
 	let listEl = $state<HTMLOListElement>();
 
+	// The chosen detent persists the way the colour mode does, so a visitor
+	// who picked Off is not made to pick it again on every visit.
+	const DETENT_KEY = 'wiper-detent';
+
 	onMount(() => {
 		enhanced = true;
+		try {
+			const saved = localStorage.getItem(DETENT_KEY);
+			if (isWiperDetent(saved)) engine.setDetent(saved);
+		} catch {
+			// Storage may be unavailable; the default detent stands.
+		}
 		return () => engine.destroy();
+	});
+
+	$effect(() => {
+		const detent = view.detent;
+		if (!enhanced) return;
+		try {
+			localStorage.setItem(DETENT_KEY, detent);
+		} catch {
+			// Storage may be unavailable; nothing is lost.
+		}
 	});
 
 	$effect(() => {
@@ -69,6 +92,7 @@
 	$effect(() => {
 		void pageSize;
 		void prefersReduced.current;
+		void forcedColors.current;
 		engine.refresh();
 	});
 
@@ -88,7 +112,12 @@
 		const row = (event.target as Element | null)?.closest('li');
 		if (row && listEl) {
 			const index = Array.prototype.indexOf.call(listEl.children, row);
-			if (index >= 0 && view.paged && pageOf(index, view.pageSize) !== view.currentPage) engine.reveal(index);
+			// Focus-follow: a note off the page is brought on at once. A note on
+			// the page that is leaving (an out-stroke in flight) counts too, or
+			// the stroke would complete under the focus pause and strand the
+			// focus on a note that has left the glass.
+			if (index >= 0 && view.paged && (pageOf(index, view.pageSize) !== view.currentPage || view.phase === 'out'))
+				engine.reveal(index);
 		}
 	}
 

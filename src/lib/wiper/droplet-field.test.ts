@@ -218,5 +218,9 @@ describe('DropletField', () => {
 		expect(DROP_GROW_S).toBeGreaterThan(0);
 		field.relayout(deriveGeometry({ width: 358, height: 400 }));
 		expect(field.cols).toBeLessThan(20);
+		// A one-pixel change keeps the grid and every bead in it.
+		const before = field.data.slice();
+		field.relayout(deriveGeometry({ width: 359, height: 401 }));
+		expect(field.data).toEqual(before);
 	});
 });

@@ -14,7 +14,7 @@ const wgslFloat = (value: number): string => (Number.isInteger(value) ? `${value
 export const SCENE_WGSL = `struct Uniforms {
 	// offset 0
 	u_resolution : vec2<f32>,
-	// offset 8 (declared, never read; kept for the pin)
+	// offset 8, seconds: the sheen drifts along the arm with it
 	u_time : f32,
 	// offset 12, device px
 	u_dropCell : f32,
@@ -246,7 +246,7 @@ fn shadeChrome(n : vec3<f32>, p : vec2<f32>, w : f32, along : f32) -> vec3<f32> 
 	col += spec * vec3<f32>(1.0, 0.97, 0.92) * 1.15;
 	col += specR * vec3<f32>(0.65, 0.78, 1.0) * 0.40;
 	let fr = pow(1.0 - n.z, 3.0);
-	let irid = 0.5 + 0.5 * cos(2.0 * PI * (vec3<f32>(0.0, 0.33, 0.67) + 1.3 * (1.0 - n.z) + 0.0008 * along));
+	let irid = 0.5 + 0.5 * cos(2.0 * PI * (vec3<f32>(0.0, 0.33, 0.67) + 1.3 * (1.0 - n.z) + 0.0008 * along + 0.05 * u.u_time));
 	col = mix(col, col * (0.6 + 0.9 * irid), 0.55 * fr);
 	return col;
 }

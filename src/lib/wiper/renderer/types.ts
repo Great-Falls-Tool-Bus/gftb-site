@@ -2,7 +2,7 @@ export type RendererTier = 'webgpu' | 'webgl2' | 'none';
 
 /**
  * Which of the two canvases a renderer paints. The scene is opaque and sits
- * behind the notes: page ground, blob field, ink clamp. The blades layer is
+ * behind the notes: page ground, blob field, frost and beads. The blades layer is
  * transparent and sits over the notes: arms, rubber and their shadow, so the
  * blade passes over the panes it wipes (operator ruling at LOOK 3).
  */

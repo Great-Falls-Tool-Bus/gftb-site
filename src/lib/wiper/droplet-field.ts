@@ -122,8 +122,13 @@ export class DropletField {
 	/** Rebuild the grid for a new glass box; the field restarts preseeded. */
 	relayout(geometry: WiperGeometry): void {
 		this.#geometry = geometry;
-		this.cols = Math.max(1, Math.min(DROP_MAX_COLS, Math.ceil(geometry.box.width / this.cellCss)));
-		this.rows = Math.max(1, Math.min(DROP_MAX_ROWS, Math.ceil(geometry.box.height / this.cellCss)));
+		const cols = Math.max(1, Math.min(DROP_MAX_COLS, Math.ceil(geometry.box.width / this.cellCss)));
+		const rows = Math.max(1, Math.min(DROP_MAX_ROWS, Math.ceil(geometry.box.height / this.cellCss)));
+		// While the grid keeps its columns and rows the beads stay where they
+		// are: a one-pixel resize must not reseed the glass.
+		if (cols === this.cols && rows === this.rows && this.data.length > 0) return;
+		this.cols = cols;
+		this.rows = rows;
 		const n = this.cols * this.rows;
 		this.#cells = {
 			x: new Float32Array(n),

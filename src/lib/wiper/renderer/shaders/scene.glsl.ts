@@ -19,10 +19,11 @@ const glslFloat = (value: number): string => (Number.isInteger(value) ? `${value
 
 export const SCENE_VERTEX = `#version 300 es
 precision highp float;
-// One full-viewport triangle from gl_VertexID; no buffers.
+// One full-viewport triangle from a three-vertex buffer at attribute 0
+// (an attribute-less draw makes Firefox warn once per context).
+layout(location = 0) in vec2 a_corner;
 void main() {
-	vec2 corners[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
-	gl_Position = vec4(corners[gl_VertexID], 0.0, 1.0);
+	gl_Position = vec4(a_corner, 0.0, 1.0);
 }
 `;
 
@@ -273,7 +274,7 @@ vec3 shadeChrome(vec3 n, vec2 p, float w, float along) {
 	// Y2K sheen: a thin-film palette weighted by the fresnel term, strongest
 	// at the rounded edges, drifting slowly along the arm.
 	float fr = pow(1.0 - n.z, 3.0);
-	vec3 irid = 0.5 + 0.5 * cos(2.0 * PI * (vec3(0.0, 0.33, 0.67) + 1.3 * (1.0 - n.z) + 0.0008 * along));
+	vec3 irid = 0.5 + 0.5 * cos(2.0 * PI * (vec3(0.0, 0.33, 0.67) + 1.3 * (1.0 - n.z) + 0.0008 * along + 0.05 * u_time));
 	col = mix(col, col * (0.6 + 0.9 * irid), 0.55 * fr);
 	return col;
 }

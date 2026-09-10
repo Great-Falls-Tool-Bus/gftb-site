@@ -11,7 +11,7 @@ export const BLOB_GLOW_SCALE = 2.2;
 export const CRUISE_SPEED: readonly [number, number] = [0.18, 0.3];
 export const CRUISE_SPEED_COARSE: readonly [number, number] = [0.1, 0.16];
 
-/** Arms the scene can draw at once: the opposed pair. */
+/** Arms the scene can draw at once: the tandem pair (one below TWO_ARM_MIN_WIDTH). */
 export const MAX_ARMS = 2;
 
 // ---- M4: droplets and frost ------------------------------------------------
