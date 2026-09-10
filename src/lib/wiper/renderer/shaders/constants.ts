@@ -59,3 +59,13 @@ export const FROST_TAU_S = 3.5;
 export const FROST_MAX: readonly [number, number] = [0.16, 0.1];
 /** The field clock's stamp for passes that happened before the field existed. */
 export const FROST_PRESEED_S = -3;
+
+// ---- The renderer ladder --------------------------------------------------
+
+/**
+ * How long the WebGPU rung waits for the adapter and device together before
+ * the ladder steps down to WebGL2. Healthy is under 300 ms; Chrome has been
+ * seen to hold the request open until the next resize. Four of these still
+ * sit well inside the 15 s the tier rows allow.
+ */
+export const WEBGPU_ACQUIRE_DEADLINE_MS = 1500;

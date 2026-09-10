@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { WEBGPU_ACQUIRE_DEADLINE_MS } from './renderer/shaders/constants';
 import { BRAND_BLOB_COLORS } from '../brand-blob-colors';
 import { WIPER_DETENTS } from './schedule';
 
@@ -310,11 +311,27 @@ describe('the wiper source contract', () => {
 		expect(webgpu).toContain("'unfilterable-float'");
 		expect(webgpu).toContain("alphaMode: options.layer === 'blades' ? 'premultiplied' : 'opaque'");
 		expect(webgpu.match(/requestDevice\(/gu)).toHaveLength(1);
+		// The handshake is bounded: the adapter and device request sit under a
+		// deadline that steps the ladder down to WebGL2, a late device is closed
+		// on arrival, and the deadline covers acquisition only (the handlers and
+		// the compile come after it).
+		expect(WEBGPU_ACQUIRE_DEADLINE_MS).toBe(1500);
+		expect(WEBGPU_ACQUIRE_DEADLINE_MS * 4).toBeLessThan(15_000); // awaitTier's budget
+		expect(webgpu).toContain("from './deadline'");
+		expect(webgpu).toContain('WEBGPU_ACQUIRE_DEADLINE_MS');
+		expect(webgpu).toContain("kind: 'timeout'");
+		expect(webgpu.indexOf('requestDevice(')).toBeLessThan(webgpu.indexOf('withDeadline('));
+		expect(webgpu.indexOf('withDeadline(')).toBeLessThan(webgpu.indexOf('onuncapturederror'));
+		expect(webgpu).toMatch(/opening\s*\.then\(\(late\) => \{[^}]*late\.destroy\(\)/u);
+		const deadline = read('src/lib/wiper/renderer/deadline.ts');
+		expect(deadline).not.toMatch(/console\.|navigator|document/u);
 		// The ladder: the hook, the order, nothing static.
 		const select = read('src/lib/wiper/renderer/select.ts');
 		expect(select).toContain('dataset.wiperTierMax');
 		expect(select.indexOf("import('./webgpu')")).toBeLessThan(select.indexOf("import('./webgl2')"));
 		expect(select).not.toMatch(/^import .* from '\.\/(webgpu|webgl2)';/mu);
+		// The rung below is fetched alongside, so a demotion costs no round trip.
+		expect(select.indexOf("import('./webgl2')")).toBeLessThan(select.indexOf('await createWebGPURenderer('));
 		// The host follows the rung and refuses a mixed pair.
 		const host = read('src/lib/components/WiperScene.svelte');
 		expect(host).toContain('tier = renderer.tier;');

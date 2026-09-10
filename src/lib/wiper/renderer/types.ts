@@ -61,7 +61,9 @@ export type RendererFailure =
 	| { readonly kind: 'no-api' }
 	| { readonly kind: 'no-context' }
 	| { readonly kind: 'compile'; readonly stage: 'vertex' | 'fragment' | 'link' }
-	| { readonly kind: 'context-lost' };
+	| { readonly kind: 'context-lost' }
+	/** The host never answered the adapter or device request inside the deadline. */
+	| { readonly kind: 'timeout' };
 
 export interface RendererHandle {
 	readonly tier: Exclude<RendererTier, 'none'>;

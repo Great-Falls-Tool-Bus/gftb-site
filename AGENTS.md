@@ -109,7 +109,7 @@ is not public.
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from
   importing it and `src/lib/leak-scan.test.ts` asserts the same from the other
   side.
-- Skeleton and Skeleton Svelte are exact-pinned at `5.0.0`, following the
+- Skeleton and Skeleton Svelte are exact-pinned at `5.0.1`, following the
   proven Svelte 5 pattern in `jesssullivan.github.io`. Do not restore the
   Skeleton 4 compatibility shim.
 - `.github/lanes.json` is the source-only ActionPlan/v4 schema-3 plan: finite
