@@ -9,8 +9,10 @@ load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//:gitleaks_test.bzl", "actionlint_test", "gitleaks_test")
+load("//tools/site-draft-compiler:defs.bzl", "site_draft_compiler_targets")
 
 npm_link_all_packages(name = "node_modules")
+site_draft_compiler_targets()
 
 # Bazel is the only carrier for this first-party Vite plugin.
 npm_link_package(
@@ -132,6 +134,7 @@ filegroup(
     ) + [
         ".prettierignore",
         ".prettierrc",
+        "//tools/site-draft-compiler:format_inputs",
         "eslint.config.ts",
         "package.json",
         "playwright.config.ts",
@@ -156,6 +159,7 @@ filegroup(
 filegroup(
     name = "current_source_secret_scan_srcs",
     srcs = [
+        "//tools/site-draft-compiler:source_inputs",
         ".bazelignore",
         ".bazelrc",
         ".bazelversion",
@@ -170,7 +174,6 @@ filegroup(
         ".prettierrc",
         "AGENTS.md",
         "BUILD.bazel",
-        "CLAUDE.md",
         "Justfile",
         "LICENSE",
         "LICENSE-content",
@@ -214,10 +217,17 @@ filegroup(
 # The v4 validate action carries the secret scan inside the same finite Bazel
 # action graph. It uses a hermetic, platform-pinned gitleaks binary and needs no
 # second runner job or repository-local lifecycle wrapper.
+copy_to_directory(
+    name = "current_source_secret_scan_tree",
+    srcs = [":current_source_secret_scan_srcs"],
+    hardlink = "off",
+    root_paths = ["."],
+)
+
 gitleaks_test(
     name = "current_source_secret_scan_test",
     timeout = "short",
-    srcs = [":current_source_secret_scan_srcs"],
+    source_tree = ":current_source_secret_scan_tree",
     config = ".gitleaks.toml",
 )
 
@@ -286,7 +296,7 @@ js_test(
 eslint_bin.eslint_test(
     name = "eslint_test",
     args = ["."],
-    data = [":app_srcs", ":e2e_srcs", ":sveltekit_types", "eslint.config.ts"] + LINT_NPM_PACKAGES,
+    data = [":app_srcs", ":e2e_srcs", ":sveltekit_types", "//tools/site-draft-compiler:format_inputs", "eslint.config.ts"] + LINT_NPM_PACKAGES,
     timeout = "moderate",
 )
 
@@ -522,6 +532,7 @@ test_suite(
         ":log_manifest_drift_test",
         ":prettier_check_test",
         ":served_tinyvectors_test",
+        ":site_draft_compiler_test",
         ":source_map_drift_test",
         ":svelte_check_test",
         ":unit_tests",

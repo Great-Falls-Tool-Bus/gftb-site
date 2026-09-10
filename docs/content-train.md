@@ -141,14 +141,18 @@ in `scripts/lib/log-content.mjs`) into the leak-scan denylist on every
 build, so `just build` and `just leak-scan-stamped` prove — not just
 assume — that no draft's content shipped.
 
-## The merge is the publish
+## Review and website publication
 
-The operator reads the draft, rewrites it in their own words (or replaces
-it outright), and only then flips `published: true`. Once that PR merges
-to `main` and the next build ships, the entry is live. There is no
-separate publish step: the merge, with `published: true` already set by
-the operator's own hand, is what makes an entry public. Agents open the
-PR; only the operator merges it.
+Draft source and draft pull requests are publicly readable on GitHub.
+`published: false` excludes an entry from the website; it does not make that
+source private. The operator or another developer with repository authority
+reviews the exact text and naming consent before explicitly setting
+`published: true`. Agents create drafts; they do not publish or merge them.
+
+After the reviewed change merges to `main`, website publication still requires
+the existing owner release and served proof. The intended GF convergence
+develops in parallel; a merge alone is not deployment evidence. These boundaries
+follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/main/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
 
 ## What an agent PR looks like
 
