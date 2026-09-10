@@ -25,7 +25,7 @@
 		FROST_SCALES_PX,
 		MAX_BLOBS,
 	} from '$lib/wiper/renderer/shaders/constants';
-	import type { RendererHandle, SceneArm, SceneBlob } from '$lib/wiper/renderer/types';
+	import type { RendererHandle, RendererTier, SceneArm, SceneBlob } from '$lib/wiper/renderer/types';
 
 	interface Props {
 		engine: WiperEngine;
@@ -38,7 +38,7 @@
 
 	let canvas = $state<HTMLCanvasElement>();
 	let bladesCanvas = $state<HTMLCanvasElement>();
-	let tier = $state<'pending' | 'webgl2' | 'none'>('pending');
+	let tier = $state<'pending' | RendererTier>('pending');
 	const view = $derived(engine.view);
 	function hexToRgb(hex: string): [number, number, number] {
 		const value = Number.parseInt(hex.replace('#', ''), 16);
@@ -233,6 +233,12 @@
 			}
 			blades = bladeSelection.handle;
 			blades.onLost(() => demote());
+			// Both canvases run the same rung, or the pane runs none: a mixed
+			// pair would draw two renderers' floating point against each other.
+			if (blades.tier !== renderer.tier) {
+				demote();
+				return;
+			}
 			try {
 				field = await createBlobField({
 					count: 5,
@@ -247,8 +253,8 @@
 				field.dispose();
 				return;
 			}
-			tier = 'webgl2';
-			engine.tier = 'webgl2';
+			tier = renderer.tier;
+			engine.tier = renderer.tier;
 			measure();
 			// A page that loads in a background tab gets no animation frames until
 			// it is shown; paint once now so the buffer never shows empty.

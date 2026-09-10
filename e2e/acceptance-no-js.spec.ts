@@ -4,6 +4,7 @@ import { expect, test } from './support/fixtures';
 import { primaryNavItems } from '../src/lib/nav-items';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
 import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
+import { forceTierMax } from './support/wiper-tier';
 
 async function unresolvedHomeHashes(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
@@ -149,21 +150,31 @@ test.describe('JavaScript disabled', () => {
 });
 
 test.describe('JavaScript enabled', () => {
-	test('the page loads with a clean console', async ({ page, baseUrl }) => {
+	// The console gate runs twice: once as the browser is (the top rung the
+	// ladder can reach), once capped at WebGL2 from outside. Two exemptions,
+	// each by exact shape: headless Chromium on software GL relays its own
+	// driver performance notices through the page console, and a headless
+	// shell with no WebGPU adapter says so once when the ladder asks; a GPU
+	// browser emits neither and neither is the page's doing. The capped run
+	// never asks for an adapter, so it carries the first exemption only.
+	const cleanConsole = async (
+		page: Page,
+		baseUrl: string,
+		options: { cap?: 'webgl2'; allowAdapterNotice: boolean },
+	) => {
 		const consoleErrors: string[] = [];
 		const pageErrors: string[] = [];
 		page.on('console', (message) => {
 			if (message.type() === 'error' || message.type() === 'warning') {
-				// Headless Chromium on software GL relays its own driver
-				// performance notices (a readback stall while it composites the
-				// WebGL scene) through the page console; a GPU browser never emits
-				// them and they are not the page's doing. Nothing else is filtered.
 				if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+				if (options.allowAdapterNotice && message.type() === 'warning' && message.text() === 'No available adapters.')
+					return;
 				consoleErrors.push(`${message.type()}: ${message.text()}`);
 			}
 		});
 		page.on('pageerror', (error) => pageErrors.push(error.message));
 
+		if (options.cap) await forceTierMax(page, options.cap);
 		const guard = await installExternalGuard(page, baseUrl);
 		await stubChallenge(page);
 		await page.goto('/');
@@ -178,6 +189,14 @@ test.describe('JavaScript enabled', () => {
 		expect(consoleErrors, 'console errors and warnings').toEqual([]);
 		// The only third party the page may talk to is the contact API origin.
 		for (const url of guard.attempted) expect(url.startsWith(FORM_ORIGIN)).toBe(true);
+	};
+
+	test('the page loads with a clean console', async ({ page, baseUrl }) => {
+		await cleanConsole(page, baseUrl, { allowAdapterNotice: true });
+	});
+
+	test('the page loads with a clean console capped at WebGL2', async ({ page, baseUrl }) => {
+		await cleanConsole(page, baseUrl, { cap: 'webgl2', allowAdapterNotice: false });
 	});
 
 	test('no request leaves the page for an unexpected origin', async ({ page, baseUrl }) => {
@@ -197,9 +216,7 @@ test.describe('JavaScript enabled', () => {
 		// The contact page may talk to exactly the form origin.
 		requested.length = 0;
 		// Idle can precede hydration and its auto=onload challenge fetch.
-		const challenge = page.waitForRequest(
-			(request) => request.url() === CHALLENGE_URL && request.method() === 'GET',
-		);
+		const challenge = page.waitForRequest((request) => request.url() === CHALLENGE_URL && request.method() === 'GET');
 		await Promise.all([challenge, page.goto('/contact')]);
 		await page.waitForLoadState('networkidle');
 		const contactOrigins = new Set(requested.map((url) => new URL(url).origin));
