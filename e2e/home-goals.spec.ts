@@ -179,6 +179,27 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 });
 
+test('the chosen detent persists across a reload', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('radio', { name: 'High' })).toBeChecked();
+	await selectDetent(page, 'Off');
+	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	await page.reload();
+	await page.waitForLoadState('networkidle');
+	// Off survives the reload: the visitor who cannot tolerate the motion is
+	// not made to pick it again.
+	await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
+	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	expect(await page.evaluate(() => localStorage.getItem('wiper-detent'))).toBe('off');
+	await selectDetent(page, 'Low');
+	await page.reload();
+	await page.waitForLoadState('networkidle');
+	await expect(page.getByRole('radio', { name: 'Low' })).toBeChecked();
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+});
+
 test('a wipe masks the outgoing page out along the arc and the incoming page in, then turns the page', async ({
 	page,
 }) => {
@@ -243,7 +264,11 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 		.first()
 		.evaluate((el) => getComputedStyle(el).maskImage);
 	expect(inMask).toContain('conic-gradient');
-	expect(await pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u'))).toBe('0.5000');
+	// The hold is applied by the next animation frame; a starved rig can take
+	// a while to deliver one.
+	await expect
+		.poll(() => pane(page).evaluate((el) => el.style.getPropertyValue('--wipe-u')), { timeout: 15_000 })
+		.toBe('0.5000');
 	// Halfway, the blades stand vertical over their span midpoints: the first
 	// column's outgoing note has been shoved right by the blade's advance past
 	// its left edge, and the reveal underneath has not moved.
@@ -446,14 +471,23 @@ test('the scene is absent under reduced motion and hidden on paper and under for
 	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
 	expect(await page.locator('#goals canvas.wiper__blades').evaluate((el) => getComputedStyle(el).display)).toBe('none');
 	await page.emulateMedia({ media: 'screen', forcedColors: 'active' });
-	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
-	expect(await page.locator('#goals canvas.wiper__blades').evaluate((el) => getComputedStyle(el).display)).toBe('none');
-	await expect(stalk(page)).toBeVisible();
+	// Forced colours stand the whole enhancement down, live: masks, opacity
+	// and transforms are not neutralised by forced colours, so the engine
+	// does it. No canvases, no paging, no stalk, every note in place.
+	await expect(scene(page)).toHaveCount(0);
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveCount(0);
+	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	await expect(stalk(page)).toHaveCount(0);
+	await expect(pane(page)).toHaveAttribute('data-state', 'off');
+	for (const row of await page.locator('#goals .goal-list > li').all()) await expect(row).toBeVisible();
+	await page.emulateMedia({ forcedColors: 'none' });
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await expect(scene(page)).toHaveCount(1);
 });
 
 // The panes carry the inks: the scene owes the text nothing (operator ruling
-// at the M4 ratification, the former ink clamp is gone). Measured as the
-// visitor sees it: every pane's contents hidden so its fill and blur stay,
+// at the M4 ratification: nothing sits under the text but the pane). Measured
+// as the visitor sees it: every pane's contents hidden so its fill stays,
 // the blade layer hidden (a passing blade is the wipe, not the ground), the
 // real composite of pane over scene read under the notes' text boxes, at
 // rest and with an out-stroke held at its midpoint, both schemes, against
@@ -557,8 +591,8 @@ for (const scheme of ['light', 'dark'] as const) {
 }
 
 // The drawn blade and the mask edge share one clock and one easing. Hold the
-// out-stroke where an arm's ray crosses a gutter (no ink within the clamp's
-// reach there) and read the scene's own pixels: something far from the
+// out-stroke where an arm's ray crosses a gutter (no pane there) and read
+// the scene's own pixels: something far from the
 // ground (rubber in light, chrome in dark) sits on the ray; move the hold to
 // the vertical and the same spot is ground and blobs again. The left arm
 // crosses the left gutter as it rises; the right arm reaches the right gutter
