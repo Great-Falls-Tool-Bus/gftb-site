@@ -8,7 +8,10 @@ Member accounts, payments, mail services, and deployment belong to other
 repositories. The contact form sends requests to `forms.latoolb.us`.
 
 Jess's internal tooling and Linear management system are presently private.
-GloriousFlywheel infrastructure is provided by Tinyland, Inc.
+The Great-Falls-Tool-Bus organization owns its logical GloriousFlywheel
+installation in `great-falls-tool-bus-infra`. GloriousFlywheel and
+owner-overlay-controller supply reusable software; this site does not require
+a central Tinyland service or a separate per-repository installation.
 
 ## Start work
 
@@ -62,12 +65,14 @@ action produces the file consumed by Vite and the deployment bundle. A missing
 or malformed marker fails the build. There is no unknown source stamp or
 caller-supplied publication token in this repository's release path.
 
-Deployment credentials and apply recipes belong to
-`great-falls-tool-bus-infra`. Its
-[owner release runbook](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/blob/main/docs/runbooks/oncluster-web-cutover.md)
-lists the attended release inputs and their private storage requirements.
-Do not copy them here. Local shell variables do not replace GF admission or
-an owner release transaction.
+The Product App, deployment state and credential custody belong to
+`great-falls-tool-bus-infra`. Its reviewed
+[installation contract](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/blob/2498939820831c44766e2274bce990d952cdd2ee/k8s/gf-v4/README.md)
+describes native OpenTofu infrastructure installation separately from the
+application controller. That source remains a draft, not an installed service.
+Do not copy installation coordinates or credentials here. Local shell
+variables, attended apply recipes and legacy release paths do not replace
+missing v4 admission or application-lifecycle authority.
 
 ## Source, publication, and deployment
 
@@ -81,13 +86,20 @@ and `site-build` requests the scanned deployment bundle. See
 
 GF-I09 composes and publishes the qualified application layer with its runtime
 base. This repository has no separate candidate publisher or local image
-constructor. Publication does not deploy an image. Infra owns source and
-digest selection, apply, independent running and served readback, and rollback.
-The runtime must serve the expected full source SHA at `/health.sha`.
+constructor. Publication does not deploy an image. The target owner-controller
+lifecycle consumes a qualified application release and automatically creates a
+routable exact-head PR environment. UI acceptance uses human browser
+[LOOK](docs/qa-look.md) before merge under the release policy. After exact-head
+review, registered remote checks and GF admission, canonical `main` converges
+continuously to production
+without a separate attended apply. The same lifecycle owns rollback and preview
+reaping on merge, close or expiry.
 
-These source definitions do not establish working automatic deployment from
-`main` to production. A source merge, successful check, or image push alone
-does not prove which version production serves.
+That installation and complete lifecycle are not proved here. Independent
+running and served-content readback must bind the released digest and source;
+the runtime must serve the expected full source SHA at `/health.sha`. A source
+merge, successful check, image push or browser test alone proves neither
+PRE/LOOK nor main-served, rollback or reap.
 
 ## Content and licensing
 
