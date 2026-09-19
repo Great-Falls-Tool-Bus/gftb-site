@@ -114,8 +114,8 @@ Profile.icc" -s format png` to an sRGB PNG intermediate, then the same
   `static/photos/log/2026-09-19-port-side-shelves-iso-1280.webp`,
   `static/photos/log/2026-09-19-port-side-shelves-iso-rear-1280.webp`,
   `static/photos/log/2026-09-19-port-side-shelves-front-1280.webp`,
-  `static/photos/log/2026-09-19-port-side-shelves-top-1280.webp`,
-  `static/photos/goals/fusion-workshop-1280.webp` (the in-bus render again),
+  `static/photos/log/2026-09-19-port-side-shelves-top-1280.webp`
+  (the in-bus render also serves the Fusion workshop pane),
   `static/cad/port_side_shelves_cut_list.pdf`
 - Source: the club's public cad repository, `bus_mods/jesssullivan/port_side_shelves`
   at commit `63df5863f6cfc6fbd37194e89e488c57053f14eb` (renders from `images/`, the PDF is `pdfs/cut_list.pdf`

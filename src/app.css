@@ -1388,7 +1388,6 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin: 0 0 1.5rem;
 	padding: 0.9rem 1.1rem;
 	border-left: 0.25rem solid var(--accent);
-	background: var(--surface-2, transparent);
 }
 
 .log-entry__body .callout p {
@@ -1412,7 +1411,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 .log-entry__body .log-provenance {
 	font-size: 0.85rem;
-	color: var(--muted, inherit);
+	color: var(--fg-muted);
 }
 
 .log-entry + p {
