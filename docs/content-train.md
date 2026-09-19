@@ -193,6 +193,15 @@ repository in prose and link only the organisation root: the leak rule bans
 repository URLs and bare 40-character commit shas in the artifact, so the
 snapshot sha is recorded in `docs/attribution.md` and shortened in the entry.
 
+## The legal route
+
+`/legal` embeds the club's agreements as the compiled documents themselves
+(`src/routes/legal/+page.svelte`): each PDF is fetched at build time from a
+public release of the meta repository's tectonic pipeline, pinned by URL and
+sha256 in `MODULE.bazel`, and copied to `static/agreements/` by the Bazel build.
+No status line: the document carries its own date. Rows in
+`e2e/acceptance-legal.spec.ts`.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,

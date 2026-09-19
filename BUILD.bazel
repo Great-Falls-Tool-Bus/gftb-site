@@ -1,5 +1,6 @@
 """Finite Bazel graph for the Great Falls Tool Bus static microsite."""
 
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary", "js_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
@@ -262,11 +263,28 @@ js_run_binary(
     tool = ":sveltekit_sync_bin",
 )
 
+# The two agreement PDFs fetched by MODULE.bazel's http_file pins land at
+# static/agreements/ inside the workspace the vite build reads, so the /legal route
+# serves them like any static file. Nothing under static/agreements/ is a source.
+copy_file(
+    name = "legal_member_agreement_v1",
+    src = "@member_agreement_v1_pdf//file",
+    out = "static/agreements/member-agreement-v1.pdf",
+)
+
+copy_file(
+    name = "legal_code_of_conduct",
+    src = "@code_of_conduct_pdf//file",
+    out = "static/agreements/code-of-conduct.pdf",
+)
+
 copy_to_directory(
     name = "app_workspace",
     srcs = [
         ":app_srcs",
         ":sveltekit_types",
+        ":legal_member_agreement_v1",
+        ":legal_code_of_conduct",
         # The supply-chain seams src/lib/brand-vectors-motion-contract.test.ts
         # and src/lib/house-stack-contract.test.ts read from the workspace
         # root: the bazel_dep pin, the immutable registry pin, and the lock

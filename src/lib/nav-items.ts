@@ -101,6 +101,7 @@ export const navItems: NavItem[] = [
 	},
 	{ label: 'Privacy', href: '/privacy', match: ['/privacy'], footerGroup: 'Site' },
 	{ label: 'Refund policy', href: '/refund-policy', match: ['/refund-policy'], footerGroup: 'Site' },
+	{ label: 'Legal', href: '/legal', match: ['/legal'], footerGroup: 'Site' },
 	// Same-origin resource, not an outbound destination, so a plain anchor.
 	{ label: 'Sitemap', href: '/sitemap.xml', match: [], footerGroup: 'Site' },
 ];

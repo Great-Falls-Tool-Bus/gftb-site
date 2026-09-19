@@ -125,3 +125,19 @@ Profile.icc" -s format png` to an sRGB PNG intermediate, then the same
 
 Renditions: `sips -s format png` to a PNG intermediate, then `cwebp -q 72 -m 6
 -resize 1280 0 -metadata none`, verified metadata-free with `webpmux -info`.
+
+## Agreements (Member Agreement v1, Code of Conduct)
+
+- Files: `static/agreements/member-agreement-v1.pdf`, `static/agreements/code-of-conduct.pdf`
+  (not committed: fetched at build time by the `http_file` pins in
+  `MODULE.bazel` and copied into the workspace by `//:app_workspace`; the local
+  rig downloads the same releases into the ignored `static/agreements/`)
+- Source: the club's meta repository, `packets/agreements/*.tex`, compiled by
+  rules_tectonic and published by its publish-agreements workflow as releases
+  in the public `meta-public` repository (`member-agreement/v1.0.0`,
+  `code-of-conduct/v1.0.0`), each with a `SHA256SUMS` file
+- Author: the Great Falls Tool Bus
+- Rights: project-owned
+
+A new document version is a new release tag in meta-public and a URL and
+sha256 bump in `MODULE.bazel`; nothing else changes.
