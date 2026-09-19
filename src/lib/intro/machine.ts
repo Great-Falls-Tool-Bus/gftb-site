@@ -7,10 +7,10 @@
 // until the wiper stack is ready, any input cancels, focus is never moved.)
 
 export const INTRO_TIMING = {
-	/** The mark dwells at least this long before the veil may lift. */
-	minVeilMs: 1800,
+	/** The mark drives in and parks (1.4 s), then dwells; the veil may lift from here. */
+	minVeilMs: 3000,
 	/** The veil lifts at this point even if the wiper stack has not reported ready. */
-	veilCapMs: 4500,
+	veilCapMs: 5500,
 	/** The lift's own keyframes end here; the grace covers a missing animationend. */
 	liftMs: 900,
 	liftGraceMs: 200,

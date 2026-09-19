@@ -77,7 +77,19 @@ export const PERMITTED_HOST_INITIAL = 'J.';
  * Extensions whose bytes are scanned as UTF-8 text. `''` covers extensionless
  * published files such as `_headers`.
  */
-export const TEXT_EXTENSIONS = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.txt', '.xml', '.map', '']);
+export const TEXT_EXTENSIONS = new Set([
+	'.html',
+	'.js',
+	'.mjs',
+	'.css',
+	'.json',
+	'.webmanifest',
+	'.svg',
+	'.txt',
+	'.xml',
+	'.map',
+	'',
+]);
 
 /** Extensions that are knowingly opaque to a text scanner. */
 export const SKIP_EXTENSIONS = new Set([
@@ -254,8 +266,8 @@ export class UnclassifiedOutputError extends Error {
  * nor {@link SKIP_EXTENSIONS} throws {@link UnclassifiedOutputError} rather
  * than being silently dropped. A scanner whose whole purpose is proving the
  * absence of secrets must not report "clean" over output it never opened — a
- * future published `.webmanifest`, `.md`, `.csv`, `.ics` or `.wasm` is a
- * decision for a human, not a default.
+ * future published `.pdf`, `.md`, `.csv`, `.ics` or `.wasm` is a decision
+ * for a human, not a default (`.webmanifest` was decided on 2026-09-19).
  *
  * @param {string} root
  * @returns {string[]}

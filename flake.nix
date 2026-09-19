@@ -212,6 +212,10 @@
             @not_hashed_immutable not path /_app/immutable/*
 
             header @hashed_immutable Cache-Control "public, max-age=31536000, immutable"
+            # Go's builtin MIME table has no .webmanifest and this image ships
+            # no /etc/mime.types, so file_server would sniff the manifest as
+            # text/plain; name its type here (the preview server already does).
+            header /site.webmanifest Content-Type "application/manifest+json"
             header @not_hashed_immutable {
               Cache-Control "no-cache"
               -Last-Modified

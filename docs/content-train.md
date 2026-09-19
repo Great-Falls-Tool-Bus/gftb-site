@@ -197,9 +197,10 @@ manifest publishes, a note that straddles the two blades on a wide screen is
 wiped by both, the outgoing page leaves as one row ahead of the blade that
 reaches it first, and the stalk starts on High on every load (nothing about
 the wiper is stored). On every full load of the home page the site opens with a
-veil carrying the bus mark, holds it until the wiper stack has hydrated (or
-for 4.5 seconds, whichever comes first), and then carries the visitor down
-to this section (`src/lib/intro`); any input ends it at once, reduced
+veil on which the brand mark drives in from the left and parks at centre (the
+one place the mark may travel; the bus itself stays parked), holds it until
+the wiper stack has hydrated (at least 3 seconds, at most 5.5 seconds), and
+then carries the visitor down to this section (`src/lib/intro`); any input ends it at once, reduced
 motion, forced colours, a hidden tab and a URL fragment never start it, and
 it never touches the rows or the manifest. Each row carries an "Edit" link to its own source file and
 the section links the whole collection (`/tree/<branch>/src/content/goals`):

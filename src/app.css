@@ -325,8 +325,9 @@ body {
 	}
 }
 
-/* ===== Home intro (operator rulings 2026-09-10) =====
- * A first-load veil on the home route: page ground, the bus mark, then a
+/* ===== Home intro (operator rulings 2026-09-10 and 2026-09-19) =====
+ * A first-load veil on the home route: page ground, the brand mark driving
+ * in from the left and parking at centre (the one place it may travel), then a
  * scripted scroll to Notes & Goals (src/lib/intro). Hidden by default and
  * painted ONLY under html.intro-armed, a class the app.html sync script sets
  * before first paint on every full load (home path, no fragment, motion
@@ -354,9 +355,10 @@ body {
 }
 
 .home-intro__mark {
-	width: clamp(5rem, 14vw, 8rem);
+	width: clamp(11rem, 34vw, 20rem);
 	height: auto;
 	opacity: 0;
+	transform: translateX(-140vw);
 }
 
 @keyframes intro-veil {
@@ -385,27 +387,35 @@ body {
 	}
 }
 
-@keyframes intro-mark-in {
+/* The mark drives in from the left and parks at centre (P23 amendment,
+ * 2026-09-19): a long ease-out with a two-frame settle, then no movement at
+ * all while it dwells. The fade-out keeps the parked position, so the mark
+ * never jumps back to its off-screen resting transform as the veil lifts. */
+@keyframes intro-mark-drive {
 	0% {
-		opacity: 0;
-		transform: scale(0.94);
+		opacity: 1;
+		transform: translateX(-140vw);
+	}
+
+	80% {
+		transform: translateX(1.5vw);
 	}
 
 	100% {
 		opacity: 1;
-		transform: none;
+		transform: translateX(0);
 	}
 }
 
 @keyframes intro-mark-out {
 	0% {
 		opacity: 1;
-		transform: none;
+		transform: translateX(0);
 	}
 
 	100% {
 		opacity: 0;
-		transform: scale(1.03);
+		transform: translateX(0);
 	}
 }
 
@@ -415,7 +425,7 @@ body {
 	}
 
 	html.intro-armed .home-intro__mark {
-		animation: intro-mark-in 700ms ease-out both;
+		animation: intro-mark-drive 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
 	}
 
 	html.intro-armed.intro-live .home-intro {
@@ -425,7 +435,7 @@ body {
 	}
 
 	html.intro-armed.intro-live .home-intro__mark {
-		animation: intro-mark-in 700ms ease-out both;
+		animation: intro-mark-drive 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
 	}
 
 	html.intro-armed.intro-lifting .home-intro {
@@ -658,10 +668,10 @@ li {
 	overflow-wrap: anywhere;
 }
 
-.brand img {
-	width: 3.2rem;
+.brand__mark {
+	flex: none;
+	width: 2rem;
 	height: 2rem;
-	object-fit: contain;
 }
 
 .site-nav {
@@ -2184,6 +2194,12 @@ figcaption {
 	margin: 0;
 }
 
+.site-footer__mark {
+	width: 1.6rem;
+	height: 1.6rem;
+	margin-bottom: 0.5rem;
+}
+
 .site-footer__intro {
 	display: grid;
 	gap: 0.35rem;
@@ -2584,4 +2600,61 @@ figcaption {
 	--glass-link: var(--color-primary-50);
 	--glass-accent: var(--color-primary-100);
 	--glass-danger: var(--color-error-50);
+}
+
+/* The toolbox-bus brand mark's own colours (operator ruling 2026-09-19):
+ * sampled from the sketch, carried by the inline mark (ToolBusMark.svelte) and
+ * mirrored in static/brand/*.svg and static/favicon.svg. Not theme tokens: the
+ * theme SSOT is byte-stable and the role blocks' declared sets are pinned, so
+ * these live on html, outside both, and belong to the mark alone. */
+html {
+	--tb-body: #8878c0;
+	--tb-band: #6850b0;
+	--tb-glass: #c8c8d0;
+	--tb-lid: #d0b020;
+	--tb-olive: #887018;
+	--tb-lamp: #c07018;
+	--tb-wheel: #c8c8d0;
+}
+
+html[data-mode='dark'] {
+	--tb-body: #9d8fd8;
+	--tb-glass: #3a3542;
+	--tb-wheel: #8d8797;
+}
+
+/* The inline marks paint through these rules (fills never sit in attributes),
+ * scoped to the .tb-mark root so the part names cannot collide. Under forced
+ * colours the fills give way to CanvasText and the mark reads as one
+ * silhouette with its window holes, which is the mono glyph by design. */
+.tb-mark .body,
+.tb-mark .front {
+	fill: var(--tb-body);
+}
+
+.tb-mark .band {
+	fill: var(--tb-band);
+}
+
+.tb-mark .windows,
+.tb-mark .glass {
+	fill: var(--tb-glass);
+}
+
+.tb-mark .lid {
+	fill: var(--tb-lid);
+}
+
+.tb-mark .handle,
+.tb-mark .dome {
+	fill: var(--tb-olive);
+}
+
+.tb-mark .lamps {
+	fill: var(--tb-lamp);
+}
+
+.tb-mark .wheel,
+.tb-mark .wheels {
+	fill: var(--tb-wheel);
 }

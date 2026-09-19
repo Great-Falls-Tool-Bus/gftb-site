@@ -1,11 +1,34 @@
 # Attribution
 
-## Bus silhouette
+## Toolbox-bus brand mark
 
-- File: `static/logo/bus-silhouette.svg`
-- Source: <https://commons.wikimedia.org/wiki/File:Bus_Silhouette.svg>
-- Author: unknown
-- License: CC0 public-domain dedication
+- Files: `static/brand/toolbus-mark.svg` (full three-quarter mark),
+  `static/brand/toolbus-glyph.svg` and `static/favicon.svg` (side-profile
+  glyph), `static/favicon.ico`, `static/apple-touch-icon.png`,
+  `static/icon-192.png`, `static/icon-512.png`, `static/og/toolbus-1200x630.png`,
+  and the inline copies in `src/lib/components/{ToolBusMark,BusMark}.svelte`
+- Source: hand-authored SVG after the club's logo sketch
+  (`toolbus_logo_sketch1.png`, received 2026-09-19); colours sampled from it
+- Author of the sketch: TODO(jess) confirm and record once naming consent is
+  in hand
+- Rights: project-owned
+
+The vectors were drawn by hand (no autotrace). The rasters are renders of the
+committed SVGs with the `--tb-*` variables substituted for their light values,
+made with resvg 0.47 and ImageMagick 7 from `nix shell nixpkgs#resvg
+nixpkgs#imagemagick`:
+
+```sh
+resvg -w 16 glyph.svg f16.png; resvg -w 32 glyph.svg f32.png; resvg -w 48 glyph.svg f48.png
+magick f16.png f32.png f48.png static/favicon.ico
+resvg -w 180 apple-touch.svg static/apple-touch-icon.png   # glyph on the #f4f1e8 page ground, 81% inset
+resvg -w 192 glyph.svg static/icon-192.png; resvg -w 512 glyph.svg static/icon-512.png
+resvg --use-font-file fraunces.ttf -w 1200 docs/brand/toolbus-og-source.svg static/og/toolbus-1200x630.png
+```
+
+`fraunces.ttf` is the shipped `@fontsource-variable/fraunces` latin woff2
+decompressed with `woff2_decompress`; the OG source is kept in `docs/brand/`
+and is not served.
 
 ## Great Falls historical image
 

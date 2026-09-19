@@ -171,9 +171,11 @@ that is complete without them.
   and `e2e/wiper-parity.spec.ts`.
 - `src/lib/intro/**`, `src/lib/components/{HomeIntro,BusMark}.svelte`, the
   sync script in `src/app.html` and the "Home intro" block in `src/app.css`:
-  the first-load intro. On every full load of `/` a page-ground veil with the
-  bus mark holds until the wiper's canvases report a rung (1.8 s minimum,
-  4.5 s cap), lifts to the header and hero, then a scripted scroll lands
+  the first-load intro. On every full load of `/` a page-ground veil holds
+  while the brand mark drives in from the left and parks at centre (the one
+  place the mark may travel; the bus itself stays parked), waits for the
+  wiper's canvases to report a rung (3.0 s minimum, 5.5 s cap), lifts to the
+  header and hero, then a scripted scroll lands
   Notes & Goals under the header. No storage. Any input, a hidden tab, a URL
   fragment, reduced motion, forced colours, or any scroll that is not its own
   cancels it and leaves the page where it is; focus is never moved. Pins in
