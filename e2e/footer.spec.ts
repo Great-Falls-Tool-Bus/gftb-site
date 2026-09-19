@@ -7,11 +7,12 @@ import { expect, test } from '@playwright/test';
 // phantom track and breaks the template at every breakpoint. Below 48rem the
 // footer must stack to a single column.
 
-// Four tracks: the demo's intro-weighted template (2fr intro + About +
-// Get involved + Meta), ported by addendum B1.3.
+// Five tracks: the demo's intro-weighted template (2fr intro + About +
+// Get involved + Site + Meta), ported by addendum B1.3 and extended by the
+// operator's 2026-09-19 fuller footer sitemap ruling (the new Site group).
 const GRID_CASES = [
-	{ label: 'tablet', width: 768, columns: 4 },
-	{ label: 'desktop', width: 1440, columns: 4 },
+	{ label: 'tablet', width: 768, columns: 5 },
+	{ label: 'desktop', width: 1440, columns: 5 },
 ];
 
 for (const { label, width, columns } of GRID_CASES) {
@@ -57,9 +58,9 @@ test('footer stacks to a single column below 48rem', async ({ page }) => {
 	expect(stacked.template, 'a resolved implicit track, not a non-grid none').not.toBe('none');
 	expect(stacked.template.split(' ').length, `one resolved column below 48rem: ${stacked.template}`).toBe(1);
 	// The #103 structural pin at mobile too: intro lines stay nested inside
-	// their cell, never as direct grid children. Four cells: intro + the
-	// three nav groups (About / Get involved / Meta).
-	expect(stacked.directChildren, 'one direct grid child per cell at 375').toBe(4);
+	// their cell, never as direct grid children. Five cells: intro + the
+	// four nav groups (About / Get involved / Site / Meta).
+	expect(stacked.directChildren, 'one direct grid child per cell at 375').toBe(5);
 	expect(stacked.sameColumn, 'every footer cell shares the single column').toBe(true);
 	expect(stacked.flows, 'footer cells stack in document order').toBe(true);
 });

@@ -180,8 +180,12 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 		await expect(page.locator('.next-session')).toHaveCount(0);
 		await expect(page.locator('#status > p')).toHaveCount(1);
-		await expect(page.locator('#contact a')).toHaveCount(1);
-		await expect(page.locator('#contact a')).toHaveAttribute('href', '/contact');
+		// Operator ruling 2026-09-19 added a button row under the sentence
+		// (Contact a keyholder + Discussion board), so the section now carries
+		// three anchors instead of one; the inline sentence link is still the
+		// first and still points at the contact page.
+		await expect(page.locator('#contact a')).toHaveCount(3);
+		await expect(page.locator('#contact a').first()).toHaveAttribute('href', '/contact');
 	});
 
 	test('every interim string still carries its TODO(jess) marker', async () => {

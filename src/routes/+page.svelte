@@ -5,6 +5,7 @@
 	import NotesAndGoals from '$lib/components/NotesAndGoals.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import HomeIntro from '$lib/components/HomeIntro.svelte';
+	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
@@ -310,11 +311,21 @@
 		<p><a href="/log">Older log entries</a></p>
 	</section>
 
-	<!-- The contact form lives on its own page; home links to it. -->
+	<!-- The contact form lives on its own page; home links to it. Operator
+	     ruling 2026-09-19: a button row under the sentence, the same house
+	     pattern as the hero CTA row, pointing at the contact page and the
+	     sanctioned public discussion board (already a nav-items.ts
+	     destination). -->
 	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="contact" aria-labelledby="contact-title">
 		<div class="section-heading">
 			<h2 id="contact-title">Contact and discussion</h2>
 			<p>Reach a keyholder through the <a href="/contact">contact page</a>.</p>
+		</div>
+		<div class="button-row">
+			<a class="button" href="/contact">Contact a keyholder</a>
+			<ExternalLink href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/" class="button button--secondary"
+				>Discussion board</ExternalLink
+			>
 		</div>
 	</section>
 

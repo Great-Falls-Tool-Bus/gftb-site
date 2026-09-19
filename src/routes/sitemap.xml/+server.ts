@@ -11,7 +11,7 @@ export const prerender = true;
 export const GET: RequestHandler = () => {
 	// Nested pages are directory-shaped (trailingSlash 'always'), so their
 	// canonical URLs carry the trailing slash the server redirects to.
-	const pages: string[] = ['/', '/log/', '/contact/'];
+	const pages: string[] = ['/', '/log/', '/contact/', '/privacy/', '/refund-policy/'];
 	for (let n = 2; n <= logPageCount(); n += 1) pages.push(`/log/page/${n}/`);
 	for (const entry of publicLogs) pages.push(`/log/${entry.slug}/`);
 
