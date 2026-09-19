@@ -5,5 +5,5 @@ title: 'Take a ride on the Great Falls Tool Bus and join a community of makers a
 cta_label: 'Join us'
 cta_href: '/contact'
 published: true
-source: 'Katherine Truitt copy, received 2026-09-19; verbatim'
+source: 'club member copy received 2026-09-19, verbatim; author on file, credit pending naming consent'
 ---

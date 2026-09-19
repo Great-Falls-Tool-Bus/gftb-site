@@ -5,5 +5,5 @@ title: "Have a tool that you don't use often? Want a tool for a special project?
 cta_label: 'Join us'
 cta_href: '/contact'
 published: true
-source: 'Katherine Truitt copy, received 2026-09-19; verbatim'
+source: 'club member copy received 2026-09-19, verbatim; author on file, credit pending naming consent'
 ---
