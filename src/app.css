@@ -1323,6 +1323,28 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	transform: none;
 }
 
+/* Questions people ask (2026-09-19): a plain definition list, text only,
+ * no card, no widget; the same rendering with scripts off and on paper. */
+.faq-body {
+	max-width: 62ch;
+}
+
+.faq dt {
+	margin-top: 1.25rem;
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+	font-weight: 700;
+}
+
+.faq dt:first-child {
+	margin-top: 0;
+}
+
+.faq dd {
+	margin: 0.4rem 0 0;
+	line-height: 1.55;
+}
+
 .section-heading {
 	max-width: 48rem;
 	margin-bottom: 2rem;

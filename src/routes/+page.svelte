@@ -203,12 +203,52 @@
 		{/if}
 	</section>
 
+	<!-- Questions people ask (Katherine Truitt's copy, 2026-09-19, verbatim except
+	     the nonprofit line, which the operator set as a status in progress rather
+	     than a subsection claim). Plain definition list: no cards, no widget, so
+	     the no-JS and paper renderings are the same text. -->
+	<section class="section reveal-armed" use:reveal={{ delay: 140 }} id="faq" aria-labelledby="faq-title">
+		<div class="section-heading">
+			<h2 id="faq-title">Questions people ask</h2>
+		</div>
+		<div class="faq-body">
+			<dl class="faq">
+				<dt>What is the Great Falls Tool Bus?</dt>
+				<dd>
+					We are a community of diverse folks with tools, gear, and skills to share! We joined together to lend
+					equipment and expertise to others. The tool library and our skills workshops encourage creativity, friendship,
+					and environmental conscientiousness with repair, reuse, and reduced consumerism.
+					<!-- TODO(jess): KT copy, 2026-09-19; author line pending naming consent -->
+				</dd>
+				<dt>This sounds awesome! How do I become a member?</dt>
+				<dd>
+					I'm glad you asked, we're always looking for more people to join the club! To become a member, you simply need
+					to donate money, gear, or tools. We are currently looking for pledges of at least $100 to recoup our startup
+					costs. Examples of gear and tools include power tools, specialized hand tools like awls or precision
+					screwdrivers, life vests (personal floatation devices), skis and ski poles, snowshoes, sleds, and toboggans.
+					All items should be in good condition and functional at the time of donation, and if you're not sure if we'd
+					want something, <a href="/contact">send us a message</a>.
+					<!-- TODO(jess): KT copy, 2026-09-19; the hyphen aside became a comma -->
+				</dd>
+				<dt>Why do you have a purple bus? Is the Tool Bus part of CityLink?</dt>
+				<dd>
+					We are not affiliated with CityLink, any transit agency, or the city of Lewiston or Auburn. We are an
+					independent, member-run club; our nonprofit status is in progress. One of our founding members purchased the
+					purple bus at auction, and we made it our home! Several members worked to remove seats, add shelves, and make
+					the purple bus into the Tool Bus. We hope you like our unique community-built spot in town. Do you see
+					anything you want to fix or change about the bus? Join us and add decorations, artwork, or more to the bus!
+					<!-- TODO(jess): KT copy, 2026-09-19; the 501(c) line replaced by the operator's ruling -->
+				</dd>
+			</dl>
+		</div>
+	</section>
+
 	<!-- Rows 5 and 6 (spec §3 :89-91): the latest five log entries, then
 	     older entries through the paginated /log archive (its pagination is
 	     plain prerendered links — the no-JavaScript path). Operator ruling
 	     2026-09-01: latest five minified logs on home supersedes the
 	     one-entry row this comment used to describe. -->
-	<section class="section reveal-armed" use:reveal={{ delay: 140 }} id="log" aria-labelledby="log-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 210 }} id="log" aria-labelledby="log-title">
 		<div class="section-heading">
 			<h2 id="log-title">Public log</h2>
 		</div>

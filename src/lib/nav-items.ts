@@ -72,6 +72,7 @@ export const navItems: NavItem[] = [
 	},
 	// Footer navigation.
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
+	{ label: 'Questions', href: '/#faq', match: [], footerGroup: 'About' },
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
 ];
 
