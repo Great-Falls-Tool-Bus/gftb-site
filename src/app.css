@@ -750,7 +750,10 @@ li {
  * the hostile-brand header ceiling (≤92px, mobile-nav.spec.ts) intact.
  * This block must sit AFTER the `.site-nav a` base rule: the padding
  * override ties on specificity and wins only on source order (CI round 3
- * proved the earlier placement silently lost that tie). */
+ * proved the earlier placement silently lost that tie).
+ *
+ * Five anchors since the FAQ ruling of 2026-09-19: the gap and font below
+ * were re-measured in a browser at 320px (see the rule's comment). */
 @media (max-width: 28rem) {
 	.site-header__inner {
 		grid-template-columns: minmax(0, auto) minmax(0.5rem, 1fr) minmax(min-content, 60%);
@@ -759,8 +762,12 @@ li {
 	.site-nav {
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0 0.6rem;
-		font-size: 0.78rem;
+		/* 0.4rem and 0.76rem (2026-09-19, five anchors): Log, Contact, FAQ and
+		 * GitHub share the first row, Discussion archive the second, the mode
+		 * switch the third; measured 84.9px against the 92px ceiling with the
+		 * hostile brand, row targets 27px. */
+		gap: 0 0.4rem;
+		font-size: 0.76rem;
 	}
 
 	.site-nav a {
@@ -2307,14 +2314,15 @@ figcaption {
 		align-items: center;
 	}
 
-	/* Four explicit tracks, the demo's intro-weighted footer template
-	 * (demo +layout.svelte footer: md:grid-cols-[2fr_1fr_1fr_1fr] — the
-	 * intro column plus three nav groups). e2e/footer.spec.ts asserts the
-	 * computed track count matches this template at 768/1440 and collapses
-	 * to a single column below (the B4 breakpoint row); the #103 one-child-
+	/* Five explicit tracks, the demo's intro-weighted footer template
+	 * extended by the operator's 2026-09-19 fuller footer sitemap ruling
+	 * (a new Site group alongside About / Get involved / Meta): the intro
+	 * column plus four nav groups. e2e/footer.spec.ts asserts the computed
+	 * track count matches this template at 768/1440 and collapses to a
+	 * single column below (the B4 breakpoint row); the #103 one-child-
 	 * per-track lesson still holds. */
 	.site-footer__inner {
-		grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
 		align-items: start;
 	}
 }

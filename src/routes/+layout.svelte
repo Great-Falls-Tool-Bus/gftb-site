@@ -99,8 +99,9 @@
 
 	// Header + footer structure is the demo site's +layout.svelte shape
 	// (greatfallstoolbus.org@origin/main): nav renders from the
-	// $lib/nav-items SSOT, and the footer is the intro-weighted four-group
-	// grid (intro / About / Get involved / Meta). The old apex #103
+	// $lib/nav-items SSOT, and the footer is the intro-weighted five-group
+	// grid (intro / About / Get involved / Site / Meta), extended by the
+	// operator's 2026-09-19 fuller footer sitemap ruling. The old apex #103
 	// cell-nesting lesson holds: every line of the intro column — location,
 	// provenance, licensing — lives INSIDE the one intro cell, never as a
 	// direct child of the footer grid. e2e/footer.spec.ts asserts the

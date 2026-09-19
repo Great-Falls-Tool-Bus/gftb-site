@@ -103,12 +103,12 @@ test.describe('JavaScript disabled', () => {
 
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
 		await page.goto('/');
-		// The nav SSOT's primary items (Log, Contact, GitHub since the operator
-		// ruling of 2026-08-31, Discussion archive since the operator ruling of
+		// The nav SSOT's primary items (Log, Contact, FAQ since the operator
+		// ruling of 2026-09-19, GitHub since 2026-08-31, Discussion archive since
 		// 2026-09-01); the count derives from the SSOT so it cannot drift.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
 		await expect(headerLinks).toHaveCount(primaryNavItems.length);
-		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u, /^Discussion archive/u]);
+		await expect(headerLinks).toHaveText(['Log', 'Contact', 'FAQ', /^GitHub/u, /^Discussion archive/u]);
 
 		expect(await unresolvedHomeHashes(page), 'scriptless home hash targets without matching elements').toEqual([]);
 
