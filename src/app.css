@@ -1414,6 +1414,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	color: var(--fg-muted);
 }
 
+/* A long single word in an entry title (2026-09-19, "Hyperdimensional") must
+ * break rather than widen a 320 px page; the display face has no hyphens. */
+.log-entry__header h1 {
+	overflow-wrap: anywhere;
+	hyphens: auto;
+}
+
 .log-entry + p {
 	margin-top: 1.25rem;
 }
