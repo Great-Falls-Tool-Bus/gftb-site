@@ -74,3 +74,24 @@ rules_ts_ext.deps(
     ts_integrity = "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
 )
 use_repo(rules_ts_ext, "npm_typescript")
+
+# The club's agreements, compiled in the private meta repository by its
+# tectonic pipeline and published as releases in the public meta-public
+# repository (operator ruling 2026-09-19). Pinned by URL and sha256; a new
+# document version is a new release tag and a bump here. //:app_workspace
+# copies them to static/agreements/ for the /legal route.
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "member_agreement_v1_pdf",
+    downloaded_file_path = "member-agreement-v1.pdf",
+    sha256 = "cbf6e8a1fd5025252b9ff4fba0ebccd37165ca7f6eaa415b1cbb297da9cb9882",
+    urls = ["https://github.com/Great-Falls-Tool-Bus/meta-public/releases/download/member-agreement/v1.0.0/member-agreement-v1.pdf"],
+)
+
+http_file(
+    name = "code_of_conduct_pdf",
+    downloaded_file_path = "code-of-conduct.pdf",
+    sha256 = "fc84ff8c322ac3d2bd03de737ef8a68c238d52ba9de26c83ebcd7511b03c5069",
+    urls = ["https://github.com/Great-Falls-Tool-Bus/meta-public/releases/download/code-of-conduct/v1.0.0/code-of-conduct.pdf"],
+)

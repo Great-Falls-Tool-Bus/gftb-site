@@ -62,3 +62,6 @@ bazel-gftb_site/
 .aider*
 # Local dev artifacts
 .huskycat/
+# Fetched at build time from meta-public releases (MODULE.bazel http_file); the
+# local rig downloads them here and never commits them.
+static/agreements/
