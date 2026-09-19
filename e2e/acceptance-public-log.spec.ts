@@ -6,6 +6,10 @@ import { expect, test } from '@playwright/test';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const published = [
+	{
+		slug: '2026-09-19-port-side-shelves',
+		title: 'Port-side shelves: the drawings, the cut list, and how the CAD repo is laid out',
+	},
 	{ slug: '2026-09-07-alex-the-wheel-maven', title: 'Alex the wheel maven grinding away' },
 	{
 		slug: '2026-08-13-networking-options-for-the-bus',
@@ -57,6 +61,11 @@ for (const entry of published) {
 }
 
 const imagedEntries = [
+	{
+		slug: '2026-09-19-port-side-shelves',
+		src: '/photos/log/2026-09-19-port-side-shelves-1280.webp',
+		alt: 'Rendering of the three-bay port-side shelving unit standing inside a translucent model of the bus body',
+	},
 	{
 		slug: '2026-09-07-alex-the-wheel-maven',
 		src: '/photos/log/2026-09-07-alex-the-wheel-maven-1280.webp',
@@ -131,4 +140,34 @@ test('removed entries stay deleted and retained drafts stay unpublished', async 
 		const response = await page.goto(`/log/${slug}`);
 		expect(response?.status(), slug).toBe(404);
 	}
+});
+
+// The shelves entry carries the cut sheet as an embedded PDF (2026-09-19):
+// the file serves from the static carrier, the object element has a plain
+// link inside it for browsers that show no PDFs inline, and the permalink
+// keeps the sharp-edges and no-horizontal-scroll rails the page sweeps do not
+// visit (they cover /, /404, /log and /contact only).
+test('the shelves cut sheet serves as a PDF from the static carrier', async ({ request }) => {
+	const response = await request.get('/cad/port_side_shelves_cut_list.pdf');
+	expect(response.status()).toBe(200);
+	expect(response.headers()['content-type']).toContain('application/pdf');
+	expect((await response.body()).subarray(0, 5).toString()).toBe('%PDF-');
+});
+
+test('the shelves permalink embeds the cut sheet with a link fallback and keeps the rails', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 720 });
+	await page.goto('/log/2026-09-19-port-side-shelves');
+	const embed = page.locator('.log-entry__body object[type="application/pdf"]');
+	await expect(embed).toHaveCount(1);
+	await expect(embed).toHaveAttribute('data', '/cad/port_side_shelves_cut_list.pdf');
+	await expect(embed.locator('a[href="/cad/port_side_shelves_cut_list.pdf"]')).toHaveCount(1);
+	await expect(page.locator('.log-entry__body aside.callout')).toHaveCount(1);
+	const rounded = await page.evaluate(() =>
+		[...document.querySelectorAll('body *')]
+			.filter((el) => getComputedStyle(el).borderRadius !== '0px')
+			.map((el) => el.tagName + '.' + el.className),
+	);
+	expect(rounded).toEqual([]);
+	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+	expect(overflow).toBeLessThanOrEqual(0);
 });

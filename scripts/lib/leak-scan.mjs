@@ -103,6 +103,7 @@ export const SKIP_EXTENSIONS = new Set([
 	'.webp',
 	'.avif',
 	'.ico',
+	'.pdf',
 ]);
 
 const URL_RE = /\bhttps?:\/\/([a-z0-9.-]+)/giu;
@@ -266,8 +267,9 @@ export class UnclassifiedOutputError extends Error {
  * nor {@link SKIP_EXTENSIONS} throws {@link UnclassifiedOutputError} rather
  * than being silently dropped. A scanner whose whole purpose is proving the
  * absence of secrets must not report "clean" over output it never opened — a
- * future published `.pdf`, `.md`, `.csv`, `.ics` or `.wasm` is a decision
- * for a human, not a default (`.webmanifest` was decided on 2026-09-19).
+ * future published `.md`, `.csv`, `.ics` or `.wasm` is a decision for a
+ * human, not a default (`.webmanifest` and `.pdf` were decided on 2026-09-19;
+ * the one PDF is a LaTeX cut sheet whose producer string names no person).
  *
  * @param {string} root
  * @returns {string[]}

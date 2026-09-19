@@ -184,6 +184,17 @@ Goals as imageless goal panes (orders 91 to 94) with a "Join us" call to
 `/contact`. Each answer ends in a `TODO(jess)` marker until the author line
 is recorded.
 
+## A build sheet in an entry
+
+The port-side shelves entry (2026-09-19) is the pattern for carrying a
+drawing set: the mod README from the cad repository verbatim under a short
+callout, the renders as 1280 renditions in `static/photos/log/`, and the
+compiled cut sheet served from `static/cad/` inside an `object` element with
+a plain link in its fallback and a print-only link after it. Name the
+repository in prose and link only the organisation root: the leak rule bans
+repository URLs and bare 40-character commit shas in the artifact, so the
+snapshot sha is recorded in `docs/attribution.md` and shortened in the entry.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,

@@ -73,4 +73,22 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		sourcePath: 'src/content/log/2026-09-07-alex-the-wheel-maven.svx',
 		loadComponent: () => import('../../content/log/2026-09-07-alex-the-wheel-maven.svx'),
 	},
+	{
+		slug: '2026-09-19-port-side-shelves',
+		metadata: {
+			date: '2026-09-19',
+			title: 'Port-side shelves: the drawings, the cut list, and how the CAD repo is laid out',
+			summary:
+				'The Fusion model, the four-page cut sheet, and the layout of the public cad repository for the shelving now going into the bus.',
+			tags: ['bus', 'shelves', 'cad'],
+			published: true,
+			image: '/photos/log/2026-09-19-port-side-shelves-1280.webp',
+			image_alt:
+				'Rendering of the three-bay port-side shelving unit standing inside a translucent model of the bus body',
+			image_caption: 'The port-side shelves in the bus model, rendered from Fusion 360.',
+			image_aspect: '8/5',
+		},
+		sourcePath: 'src/content/log/2026-09-19-port-side-shelves.svx',
+		loadComponent: () => import('../../content/log/2026-09-19-port-side-shelves.svx'),
+	},
 ];

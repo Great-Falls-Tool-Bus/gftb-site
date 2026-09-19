@@ -107,3 +107,21 @@ The two September 2026 files were encoded straight from the phone originals
 Profile.icc" -s format png` to an sRGB PNG intermediate, then the same
 `cwebp -q 72 -m 6 -resize 1280 0 -metadata none` line, verified with
 `webpmux -info` (no EXIF, XMP, or ICC chunks).
+
+## Port-side shelves: renderings and cut sheet
+
+- Files: `static/photos/log/2026-09-19-port-side-shelves-1280.webp`,
+  `static/photos/log/2026-09-19-port-side-shelves-iso-1280.webp`,
+  `static/photos/log/2026-09-19-port-side-shelves-iso-rear-1280.webp`,
+  `static/photos/log/2026-09-19-port-side-shelves-front-1280.webp`,
+  `static/photos/log/2026-09-19-port-side-shelves-top-1280.webp`,
+  `static/photos/goals/fusion-workshop-1280.webp` (the in-bus render again),
+  `static/cad/port_side_shelves_cut_list.pdf`
+- Source: the club's public cad repository, `bus_mods/jesssullivan/port_side_shelves`
+  at commit `63df5863f6cfc6fbd37194e89e488c57053f14eb` (renders from `images/`, the PDF is `pdfs/cut_list.pdf`
+  byte for byte; its LaTeX source is `docs/cut_list.tex`, built with tectonic)
+- Author: Jess Sullivan, rendered from the Fusion 360 model, 2026-09-14
+- Rights: project-owned
+
+Renditions: `sips -s format png` to a PNG intermediate, then `cwebp -q 72 -m 6
+-resize 1280 0 -metadata none`, verified metadata-free with `webpmux -info`.
