@@ -91,7 +91,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			title: 'Want to become a hyperdimensional wizard?',
 			cta_label: 'Sign me up first',
 			cta_href: '/contact',
-			image: '/photos/goals/fusion-workshop-1280.webp',
+			image: '/photos/log/2026-09-19-port-side-shelves-1280.webp',
 			image_alt:
 				'Rendering of the three-bay port-side shelving unit standing inside a translucent model of the bus body',
 			image_aspect: '8/5',
