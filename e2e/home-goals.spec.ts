@@ -59,7 +59,7 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	await expect(list).toHaveAttribute('role', 'list');
 	const rows = list.locator('> li');
 	await expect(rows).toHaveCount(publicGoals.length);
-	expect(publicGoals.length).toBe(5);
+	expect(publicGoals.length).toBe(9);
 	// The rendered order IS the SSOT's sort (order asc, then slug), and the
 	// first row is the operator's first penciled goal.
 	await expect(rows.locator('h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));

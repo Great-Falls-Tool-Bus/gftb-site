@@ -171,6 +171,19 @@ follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/
 - A normal PR the operator reviews and merges like any other change. No
   auto-merge, no agent merge authority over content PRs.
 
+## Questions people ask
+
+The home `#faq` section (`src/routes/+page.svelte`) carries three answers
+written by a club member on 2026-09-19 and shipped verbatim, with one
+substitution by operator ruling: the nonprofit sentence reads "an
+independent, member-run club; our nonprofit status is in progress" until a
+filing is ratified, and no 501(c) subsection is claimed. The availability
+rule applies to it as to every page: it says what to do now and claims
+nothing live. The four invitation lines from the same author ride Notes &
+Goals as imageless goal panes (orders 91 to 94) with a "Join us" call to
+`/contact`. Each answer ends in a `TODO(jess)` marker until the author line
+is recorded.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,
