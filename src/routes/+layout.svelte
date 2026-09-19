@@ -9,6 +9,8 @@
 	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
+	import BusMark from '$lib/components/BusMark.svelte';
+	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
 	import { theme } from '$lib/theme.svelte';
 	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '$lib/device-motion-permission';
 	import sourceMap from '$lib/generated/source-map.json';
@@ -157,6 +159,8 @@
 	noindex={isErrorSurface}
 	canonical={isErrorSurface ? null : undefined}
 	jsonLd={isErrorSurface ? null : jsonLd}
+	image={`${siteUrl}/og/toolbus-1200x630.png`}
+	imageAlt="The Great Falls Tool Bus mark: a purple bus drawn as a toolbox with a mustard lid"
 />
 
 <!-- App shell (operator diagnosis 2026-08-20: /log footer cascade fix). The
@@ -204,7 +208,9 @@
 	<header class="site-header">
 		<div class="site-header__inner">
 			<a class="brand" href="/" aria-label="Great Falls Tool Bus home">
-				<img src="/logo/bus-silhouette.svg" alt="" width="80" height="38" />
+				<!-- The toolbox-bus glyph (operator ruling 2026-09-19); the anchor's
+				     aria-label carries the name, so the mark is decorative. -->
+				<ToolBusMark variant="glyph" class="brand__mark" />
 				<!-- D12 residual: the wordmark carries the uppercase tracked
 				     Fraunces .font-display lockup (apex +layout.svelte:107-114,
 				     Wordmark.svelte). -->
@@ -234,6 +240,7 @@
 	<footer class="site-footer">
 		<div class="site-footer__inner">
 			<div class="site-footer__intro">
+				<BusMark class="site-footer__mark" />
 				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
 				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
 				     Degrade-to-nothing on

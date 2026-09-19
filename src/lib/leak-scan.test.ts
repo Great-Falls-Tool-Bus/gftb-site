@@ -343,7 +343,7 @@ describe('collectFiles fails closed on unknown file types', () => {
 	it('throws, naming every offending file, rather than skipping an unknown type', () => {
 		const root = publishedTree({
 			'index.html': '<!doctype html>',
-			'site.webmanifest': '{}',
+			'site.csv': 'a,b',
 			'nested/schedule.ics': 'BEGIN:VCALENDAR',
 		});
 		let raised: unknown;
@@ -354,7 +354,7 @@ describe('collectFiles fails closed on unknown file types', () => {
 		}
 		expect(raised).toBeInstanceOf(UnclassifiedOutputError);
 		const message = (raised as Error).message;
-		expect(message).toContain('site.webmanifest');
+		expect(message).toContain('site.csv');
 		expect(message).toContain('schedule.ics');
 		expect(message).toContain('TEXT_EXTENSIONS');
 		expect(message).toContain('SKIP_EXTENSIONS');

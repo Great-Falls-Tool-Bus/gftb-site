@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- OG image source (not served): the full mark on the light page ground with the Fraunces wordmark.
+       Render recipe: docs/attribution.md, Toolbox-bus brand mark -->
+  <rect width="1200" height="630" fill="#f4f1e8"/>
+  <g transform="translate(90 150) scale(2.1)">
+<path class="lid" fill="#d0b020" d="M14,58.0 C14,40.0 20,32.0 34,31.0 L146,23.0 L146,43.0 L22,56.0 Z"/>
+  <path class="handle" fill="#887018" d="M60,32 C60,2 124,2 124,32 L114,32 C114,12 70,12 70,32 Z"/>
+  <path class="dome" fill="#887018" d="M138,43.0 C138,8.0 208,13.0 208,48.0 Z"/>
+  <path class="body" fill="#8878c0" d="M22.0,54.0 L138.0,42.0 L138.0,124.0 L22.0,110.0Z"/>
+  <path class="windows" fill="#c8c8d0" d="M27.0,59.5 L66.0,55.4 L66.0,87.4 L27.0,91.5Z M72.0,54.8 L102.0,51.7 L102.0,83.7 L72.0,86.8Z M108.0,51.1 L118.0,50.1 L118.0,82.1 L108.0,83.1Z M123.0,49.6 L134.0,48.4 L134.0,80.4 L123.0,81.6Z"/>
+  <path class="front" fill="#8878c0" d="M138.0,42.0 L208.0,47.0 L208.0,119.0 L138.0,124.0Z"/>
+  <path class="glass" fill="#c8c8d0" d="M142.0,48.3 L206.0,52.9 L206.0,96.9 L142.0,92.3Z"/>
+  <path class="band" fill="#6850b0" d="M138.0,99.0 L208.0,104.0 L208.0,118.0 L138.0,113.0Z"/>
+  <path class="lamps" fill="#c07018" d="M142.0,103.3 L151.0,103.9 L151.0,110.9 L142.0,110.3Z M195.0,107.1 L205.0,107.8 L205.0,114.8 L195.0,114.1Z"/>
+  <ellipse class="wheel" fill="#c8c8d0" cx="50" cy="111.4" rx="11" ry="13"/>
+  <ellipse class="wheel" fill="#c8c8d0" cx="100" cy="117.4" rx="11" ry="13"/>
+  </g>
+  <text x="640" y="300" font-family="Fraunces" font-weight="700" font-size="64" fill="#2b2233">Great Falls</text>
+  <text x="640" y="380" font-family="Fraunces" font-weight="700" font-size="64" fill="#2b2233">Tool Bus</text>
+  <text x="640" y="440" font-family="Fraunces" font-weight="400" font-size="28" fill="#4a3f56">A community-run tool library</text>
+  <text x="640" y="480" font-family="Fraunces" font-weight="400" font-size="28" fill="#4a3f56">in Lewiston-Auburn, Maine</text>
+</svg>
