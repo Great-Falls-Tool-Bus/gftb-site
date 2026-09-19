@@ -1,7 +1,7 @@
 ---
 date: '2026-09-19'
-title: 'Port-side shelves: the drawings, the cut list, and how the CAD repo is laid out'
-summary: 'The Fusion model, the four-page cut sheet, and the layout of the public cad repository for the shelving now going into the bus.'
+title: 'Hyperdimensional wizardry, dogfooded on the bus'
+summary: "Learn to model beautiful CAD, draft real cut lists and BOMs, and build the thing you drew. Be first to sign up for Jess's acclaimed Fusion 360 workshop series, now with 50% more LaTeX markup."
 tags:
   - bus
   - shelves
@@ -14,6 +14,8 @@ published: true
 ---
 
 <!-- TODO(jess): framing and the callout below are agent-drafted (2026-09-19) around your README; the README body itself is verbatim from the cad repository. -->
+
+<p class="log-lead">Want to become a hyperdimensional wizard? The port-side shelves below are the first build drawn this way. <a href="/contact">Be first to sign up</a> for Jess's Fusion 360 workshop series, now with 50% more LaTeX markup.</p>
 
 <aside class="callout" aria-label="How the CAD repository is organised">
 	<p>The drawings live in the club's public <strong>cad</strong> repository on GitHub, under the Great Falls Tool Bus organisation next to this site's source. It follows the VoronUsers mods layout: one directory per creator, one per mod, each self-describing, with CAD sources, renderings, LaTeX build sheets and the compiled PDFs checked in so nobody needs a toolchain to read them.</p>

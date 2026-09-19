@@ -8,7 +8,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const published = [
 	{
 		slug: '2026-09-19-port-side-shelves',
-		title: 'Port-side shelves: the drawings, the cut list, and how the CAD repo is laid out',
+		title: 'Hyperdimensional wizardry, dogfooded on the bus',
 	},
 	{ slug: '2026-09-07-alex-the-wheel-maven', title: 'Alex the wheel maven grinding away' },
 	{

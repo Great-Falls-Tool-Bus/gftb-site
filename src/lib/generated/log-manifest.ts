@@ -77,9 +77,9 @@ export const publishedLogEntries: GeneratedLogEntry[] = [
 		slug: '2026-09-19-port-side-shelves',
 		metadata: {
 			date: '2026-09-19',
-			title: 'Port-side shelves: the drawings, the cut list, and how the CAD repo is laid out',
+			title: 'Hyperdimensional wizardry, dogfooded on the bus',
 			summary:
-				'The Fusion model, the four-page cut sheet, and the layout of the public cad repository for the shelving now going into the bus.',
+				"Learn to model beautiful CAD, draft real cut lists and BOMs, and build the thing you drew. Be first to sign up for Jess's acclaimed Fusion 360 workshop series, now with 50% more LaTeX markup.",
 			tags: ['bus', 'shelves', 'cad'],
 			published: true,
 			image: '/photos/log/2026-09-19-port-side-shelves-1280.webp',
