@@ -179,9 +179,7 @@ substitution by operator ruling: the nonprofit sentence reads "an
 independent, member-run club; our nonprofit status is in progress" until a
 filing is ratified, and no 501(c) subsection is claimed. The availability
 rule applies to it as to every page: it says what to do now and claims
-nothing live. The four invitation lines from the same author ride Notes &
-Goals as imageless goal panes (orders 91 to 94) with a "Join us" call to
-`/contact`. Each answer ends in a `TODO(jess)` marker until the author line
+nothing live. The four invitation lines from the same author sit in the hero as the pitch (`ul.pitch` in `src/routes/+page.svelte`), verbatim. Each answer ends in a `TODO(jess)` marker until the author line
 is recorded.
 
 ## A build sheet in an entry

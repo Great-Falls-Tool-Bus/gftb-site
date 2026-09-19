@@ -94,6 +94,18 @@
 			     e2e/acceptance-copy-deslop.spec.ts) and the triad tail was
 			     removed as motion slop. -->
 			<p class="lede">The Great Falls Tool Bus is a community-run tool library.</p>
+			<!-- The pitch (operator ruling 2026-09-19): a club member's four
+			     invitation lines, verbatim, as part of the hero rather than as
+			     Notes & Goals rows. TODO(jess): author line pending naming consent. -->
+			<ul class="pitch">
+				<li>Work and learn together! Hop on the Great Falls Tool Bus</li>
+				<li>Take a ride on the Great Falls Tool Bus and join a community of makers and builders</li>
+				<li>
+					Have a tool that you don't use often? Want a tool for a special project? Join the Great Falls Tool Bus and
+					share the love
+				</li>
+				<li>Try out a new winter sport this season by joining the Great Falls Tool Bus</li>
+			</ul>
 			<!-- Row 3 (spec §3 :87): the one primary interest/help CTA, pointing
 			     at the contact page (B1.4: the form lives on its own page).
 			     TODO(jess): CTA wording (interim label salvaged from PR-5). -->
