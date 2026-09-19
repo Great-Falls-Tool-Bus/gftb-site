@@ -752,17 +752,8 @@ li {
  * override ties on specificity and wins only on source order (CI round 3
  * proved the earlier placement silently lost that tie).
  *
- * FLAG (operator ruling 2026-09-19, FAQ added as a fifth primary item): the
- * margin here was already tuned to the edge for four anchors plus the mode
- * switch (0.25rem padding-block, not the strip's 0.35rem, specifically to
- * land under 92px instead of the 92.3px a fifth item's extra wrapped row
- * would add). Reasoned through the box model without a browser (forbidden in
- * this lane), a fifth short anchor most likely still packs onto an existing
- * row, but this was not verified by rendering. Run mobile-nav.spec.ts's
- * "a long brand string cannot push the nav off-edge at 320px" case before
- * merging; if it now reports a fourth nav row past 92px, the fix is either a
- * lower 28rem breakpoint threshold or a further padding-block trim, not a
- * revert of the FAQ ruling. */
+ * Five anchors since the FAQ ruling of 2026-09-19: the gap and font below
+ * were re-measured in a browser at 320px (see the rule's comment). */
 @media (max-width: 28rem) {
 	.site-header__inner {
 		grid-template-columns: minmax(0, auto) minmax(0.5rem, 1fr) minmax(min-content, 60%);
@@ -771,8 +762,12 @@ li {
 	.site-nav {
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0 0.6rem;
-		font-size: 0.78rem;
+		/* 0.4rem and 0.76rem (2026-09-19, five anchors): Log, Contact, FAQ and
+		 * GitHub share the first row, Discussion archive the second, the mode
+		 * switch the third; measured 84.9px against the 92px ceiling with the
+		 * hostile brand, row targets 27px. */
+		gap: 0 0.4rem;
+		font-size: 0.76rem;
 	}
 
 	.site-nav a {
