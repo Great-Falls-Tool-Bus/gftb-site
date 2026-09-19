@@ -1071,6 +1071,19 @@ li {
 	font-size: clamp(1.15rem, 3vw, 1.45rem);
 }
 
+/* The pitch (2026-09-19): four invitation lines inside the hero glass, set as
+ * a plain list between the lede and the buttons. Text only; no marks, no box. */
+.pitch {
+	margin: 0 0 1.4rem;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.55rem;
+	max-width: 46ch;
+	font-size: 1.02rem;
+	line-height: 1.45;
+}
+
 .button-row {
 	display: flex;
 	flex-wrap: wrap;
