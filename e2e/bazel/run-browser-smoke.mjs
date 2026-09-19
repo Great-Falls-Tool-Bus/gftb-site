@@ -205,6 +205,7 @@ function contentType(path) {
 			'.webp': 'image/webp',
 			'.txt': 'text/plain; charset=utf-8',
 			'.webmanifest': 'application/manifest+json; charset=utf-8',
+			'.pdf': 'application/pdf',
 			'.woff2': 'font/woff2',
 		}[extname(path)] ?? 'application/octet-stream'
 	);

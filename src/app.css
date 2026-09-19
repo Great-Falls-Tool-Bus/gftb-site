@@ -1381,6 +1381,46 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* E3 (UI-QA 2026-08-30): air between the read-more and the next paragraph. */
+/* A build sheet in a log entry (2026-09-19): a plain aside for the callout,
+ * the PDF in an object element sized as a letter page, and a one-line
+ * provenance note. No card chrome, no radius; paper shows the link instead. */
+.log-entry__body .callout {
+	margin: 0 0 1.5rem;
+	padding: 0.9rem 1.1rem;
+	border-left: 0.25rem solid var(--accent);
+}
+
+.log-entry__body .callout p {
+	margin: 0;
+}
+
+.log-entry__body .pdf-embed {
+	display: block;
+	width: 100%;
+	aspect-ratio: 8.5 / 11;
+	border: 0;
+}
+
+.log-entry__body .pdf-embed p {
+	margin: 0;
+}
+
+.log-entry__body .pdf-print-link {
+	display: none;
+}
+
+.log-entry__body .log-provenance {
+	font-size: 0.85rem;
+	color: var(--fg-muted);
+}
+
+/* A long single word in an entry title (2026-09-19, "Hyperdimensional") must
+ * break rather than widen a 320 px page; the display face has no hyphens. */
+.log-entry__header h1 {
+	overflow-wrap: anywhere;
+	hyphens: auto;
+}
+
 .log-entry + p {
 	margin-top: 1.25rem;
 }
@@ -2418,6 +2458,15 @@ figcaption {
 	.qr {
 		print-color-adjust: exact;
 		-webkit-print-color-adjust: exact;
+	}
+
+	/* The embedded cut sheet is a plugin surface; paper gets the link. */
+	.log-entry__body .pdf-embed {
+		display: none !important;
+	}
+
+	.log-entry__body .pdf-embed + .pdf-print-link {
+		display: block;
 	}
 }
 
