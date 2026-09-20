@@ -524,7 +524,10 @@ const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
 // (320/375/768/1280 — e2e/acceptance-responsive.spec.ts:14-19; there is no
 // "P4" list anywhere in this repo, and 360/390 are not real breakpoints —
 // review round 2, finding B.3.3, both corrected here). Re-measured
-// 2026-08-20 (widest at 320px). This is no longer an AA fixture (the scrim
+// 2026-09-19, after the hero gained the pitch list and the right-hand box
+// became the about statement; the earlier fixture had gone stale and was
+// hiding ink that had moved onto the heavier edge tint, so the scrim's
+// content stops widened to 6%/94% to contain the true span again. This is no longer an AA fixture (the scrim
 // carries no AA obligation — see above); it stays as a VISUAL invariant so
 // ink does not render on the heavier edge tint. A hand-typed constant goes
 // stale silently (review round 2, finding B.3.1: shrinking the hero padding
@@ -535,10 +538,10 @@ const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
 // CSS alone, so it cannot self-check; it can only assert containment of
 // whatever is currently written here, which the line below does.
 const HERO_MEASURED_INK_SPAN: Record<number, [number, number]> = {
-	320: [11.6, 88.4],
-	375: [12.6, 87.5],
-	768: [18.3, 81.7],
-	1280: [25.2, 74.9],
+	320: [7.3, 92.7],
+	375: [8.3, 91.7],
+	768: [13.2, 86.8],
+	1280: [18.4, 81.6],
 };
 const HERO_SCRIM_CONTENT_STOPS_RULE =
 	/--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%,\s*var\(--hero-scrim-content\)\s*(\d+(?:\.\d+)?)%/u.exec(HERO_SCRIM_BODY);

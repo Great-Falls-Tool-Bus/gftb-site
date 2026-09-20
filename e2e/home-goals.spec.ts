@@ -1148,10 +1148,10 @@ test.describe('without JavaScript', () => {
 	});
 });
 
-test('the hero carries one spelling of the Thursday hours', async ({ page }) => {
+test('the FAQ carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
-	const session = page.locator('.hero .hero-session');
-	await expect(session.getByRole('heading', { level: 3 })).toHaveText('Public work sessions');
+	const session = page.locator('#faq');
+	await expect(session.getByRole('term').filter({ hasText: 'When can I visit the bus?' })).toHaveCount(1);
 	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
 	await expect(session).not.toContainText('3–5');
 	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);

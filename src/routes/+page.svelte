@@ -117,24 +117,21 @@
 		</div>
 
 		<aside class="status-card hero-glass" id="status" aria-labelledby="status-title">
-			<!-- TODO(jess): status wording (salvaged from restoration PR-5): the
-			     interim heading is the spec's own term (spec §3 row 1: "current
-			     status") and the body keeps only the verifiable not-live-yet
-			     statement. -->
-			<h2 id="status-title">Current status</h2>
-			<p>Tool checkout, digital membership payments, and member accounts are not live yet.</p>
-			<!-- Current operator placement: the recurring hours belong in the
-			     hero, once. Naming consent covers the schedule, not a live location. -->
-			<section class="hero-session" aria-labelledby="next-title">
-				<h3 id="next-title">Public work sessions</h3>
-				<p>
-					Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the
-					<a href="/contact">contact form</a> to confirm before traveling.
-				</p>
-				<p class="muted">
-					Exact location details are shared directly. A confirmed one-off session will be posted here.
-				</p>
-			</section>
+			<!-- What we are about (operator ruling 2026-09-19): the box carries the
+			     club in one statement and two callouts from Katherine Truitt's copy
+			     notes, in place of the old status panel and its nested subheading.
+			     Exactly one direct-child paragraph, because an acceptance row counts
+			     them; the credit is a footer rather than a paragraph so that count
+			     holds and the muted ink role keeps real markup to measure. The
+			     recurring hours moved to the FAQ, where the questions people
+			     actually ask already live. -->
+			<h2 id="status-title">What we are about</h2>
+			<p>We are a community of diverse folks with tools, gear, and skills to share.</p>
+			<ul class="callouts">
+				<li><strong>Lend equipment and expertise</strong> to others!</li>
+				<li>Repair, reuse, and reduced consumerism.</li>
+			</ul>
+			<small class="credit muted">Words by Katherine Truitt</small>
 		</aside>
 	</div>
 </section>
@@ -252,7 +249,19 @@
 					anything you want to fix or change about the bus? Join us and add decorations, artwork, or more to the bus!
 					<!-- TODO(jess): KT copy, 2026-09-19; the 501(c) line replaced by the operator's ruling -->
 				</dd>
+				<!-- The recurring hours moved here from the hero box (operator ruling
+				     2026-09-19). One spelling of the hours on the page inside this
+				     section; the two Notes and Goals panes carry the same window in
+				     their own frontmatter. Naming consent covers the schedule, not a
+				     live location. -->
+				<dt>When can I visit the bus?</dt>
+				<dd>
+					Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the
+					<a href="/contact">contact form</a> to confirm before traveling. Exact location details are shared directly, and
+					a confirmed one-off session will be posted here.
+				</dd>
 			</dl>
+			<p class="credit muted">Answers by Katherine Truitt, except the visiting hours.</p>
 		</div>
 	</section>
 

@@ -1012,7 +1012,9 @@ li {
  * carries that now — but are kept as a visual invariant: ink should not
  * visually sit on the heavier edge tint. Sized to contain the TRUE measured
  * ink span at every acceptance-responsive breakpoint (widest at 320px,
- * 11.6%-88.4%, review measurement 2026-08-20); design-token-contrast.test.ts
+ * 7.3%-92.7%, re-measured 2026-09-19 after the pitch list and the about box
+ * changed the hero's height; the stops follow the ink, which is what this
+ * invariant asks for); design-token-contrast.test.ts
  * asserts the stops against that fixture, with a staleness guard (review
  * round 2, finding B.3.1) and rule-anchored regexes (finding B.3.2) so a
  * decoy rule elsewhere in the file cannot satisfy the match. The horizontal
@@ -1029,8 +1031,8 @@ li {
 		linear-gradient(
 			180deg,
 			var(--hero-scrim-edge-top) 0%,
-			var(--hero-scrim-content) 10%,
-			var(--hero-scrim-content) 90%,
+			var(--hero-scrim-content) 6%,
+			var(--hero-scrim-content) 94%,
 			var(--hero-scrim-edge-bottom) 100%
 		),
 		linear-gradient(
@@ -1384,8 +1386,27 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	color: var(--accent);
 }
 
-.hero-session {
-	margin-top: 1.5rem;
+/* The hero box's two callouts and the credit lines (2026-09-19). Text only:
+ * no marks, no box, no radius, and no timed rule. The credit is a footer
+ * inside the box rather than a paragraph, so the acceptance row that counts
+ * direct-child paragraphs of the box still reads one. */
+.callouts {
+	margin: 0.9rem 0 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.4rem;
+	line-height: 1.45;
+}
+
+.credit {
+	display: block;
+	margin-top: 1rem;
+	font-size: 0.85rem;
+}
+
+.faq + .credit {
+	margin-top: 1.25rem;
 }
 
 /* Log rows remain borderless. The full entry now shares the glass treatment;
