@@ -185,6 +185,9 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		await expect(page.locator('#status > p')).toHaveCount(1);
 		await expect(page.locator('#status .callouts > li')).toHaveCount(2);
 		await expect(page.locator('#status .credit')).toHaveText('Words by Katherine Truitt');
+		// The credit is a <small>, not a <footer>: a second footer element on the
+		// page breaks the strict-mode locator in e2e/home-goals.spec.ts.
+		await expect(page.locator('#status footer')).toHaveCount(0);
 		// Operator ruling 2026-09-19 added a button row under the sentence
 		// (Contact a keyholder + Discussion board), so the section now carries
 		// three anchors instead of one; the inline sentence link is still the

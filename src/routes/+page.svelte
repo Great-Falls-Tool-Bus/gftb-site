@@ -128,10 +128,10 @@
 			<h2 id="status-title">What we are about</h2>
 			<p>We are a community of diverse folks with tools, gear, and skills to share.</p>
 			<ul class="callouts">
-				<li><strong>Lend equipment and expertise</strong> to others</li>
-				<li>Repair, reuse, and reduced consumerism</li>
+				<li><strong>Lend equipment and expertise</strong> to others!</li>
+				<li>Repair, reuse, and reduced consumerism.</li>
 			</ul>
-			<footer class="credit muted">Words by Katherine Truitt</footer>
+			<small class="credit muted">Words by Katherine Truitt</small>
 		</aside>
 	</div>
 </section>
