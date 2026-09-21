@@ -20,11 +20,11 @@ concurrency:
 # runner. The adopting organization supplies the generic gf-v4-dispatch edge.
 jobs:
   validate:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
+    uses: xoxd-ai/ci-templates/.github/workflows/spoke-ci-v4.yml@v5.1.1
     with:
       action_name: validate
 
   site-build:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
+    uses: xoxd-ai/ci-templates/.github/workflows/spoke-ci-v4.yml@v5.1.1
     with:
       action_name: site-build

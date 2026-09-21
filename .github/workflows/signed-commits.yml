@@ -21,7 +21,7 @@ jobs:
     runs-on: tinyland-nix
     timeout-minutes: 10
     steps:
-      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@d8d178c022a0f84853d53a2c8fe0fc90115f0949
+      - uses: xoxd-ai/ci-templates/.github/actions/nix-setup@v3.2.1
         with:
           attic-public-read: 'true'
       - name: Require every pull-request commit to be GitHub-verified
