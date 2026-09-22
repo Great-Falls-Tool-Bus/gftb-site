@@ -12,6 +12,7 @@ import type { Page, Route } from '@playwright/test';
 export const FORM_ORIGIN = 'https://forms.latoolb.us';
 export const CONTACT_URL = `${FORM_ORIGIN}/api/contact`;
 export const CHALLENGE_URL = `${FORM_ORIGIN}/api/challenge`;
+export const SUBSCRIBE_URL = `${FORM_ORIGIN}/api/subscribe`;
 
 /** A pre-solved ALTCHA challenge: sha256('test7'), so the widget finishes fast. */
 export const SOLVABLE_CHALLENGE = {
@@ -94,11 +95,15 @@ export interface ContactStubOptions {
 	abort?: boolean;
 }
 
-export async function stubContactEndpoint(page: Page, options: ContactStubOptions = {}): Promise<ContactCapture> {
+export async function stubContactEndpoint(
+	page: Page,
+	options: ContactStubOptions = {},
+	url: string = CONTACT_URL,
+): Promise<ContactCapture> {
 	const payloads: Array<Record<string, unknown>> = [];
 	const headers: Array<Record<string, string>> = [];
 
-	await page.route(CONTACT_URL, async (route) => {
+	await page.route(url, async (route) => {
 		const request = route.request();
 
 		// A JSON POST is not a simple request, so the browser preflights it. The

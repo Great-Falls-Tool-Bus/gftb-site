@@ -14,6 +14,8 @@
 	import { theme } from '$lib/theme.svelte';
 	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '$lib/device-motion-permission';
 	import sourceMap from '$lib/generated/source-map.json';
+	import { SUBSCRIBE_CAPTURE_ENABLED } from '$lib/subscribe-capture-flag';
+	import { loadSubscribeCapture } from '$lib/subscribe-capture-load';
 	import '../app.css';
 
 	let { children } = $props();
@@ -30,6 +32,14 @@
 	/** Longest the brand layer waits for an idle period before mounting anyway. */
 	const BRAND_VECTORS_IDLE_TIMEOUT_MS = 1500;
 	let tinyVectorsRef = $state<DeviceMotionTarget>();
+	// The list-signup capture modal (rehearsal only). Behind the build-time
+	// PUBLIC_SUBSCRIBE_CAPTURE flag: an off build never imports the component
+	// (the dynamic import sits inside the dead branch), and an on build loads
+	// it on browser idle, after the brand layer, so the first-load intro and
+	// every progressive enhancement keep their timeline. The component itself
+	// never arms while the intro is live; see SubscribeCapture.svelte.
+	let SubscribeCapture = $state<typeof import('$lib/components/SubscribeCapture.svelte').default>();
+	const SUBSCRIBE_CAPTURE_IDLE_TIMEOUT_MS = 4000;
 	let motionHandshake = $state<ReturnType<typeof createDeviceMotionHandshake>>();
 
 	// The component binds after the idle callback, potentially long after
@@ -63,6 +73,31 @@
 		motionHandshake = handshake;
 		return () => handshake.destroy();
 	});
+
+	if (SUBSCRIBE_CAPTURE_ENABLED) {
+		// The whole registration sits inside the constant branch so an off
+		// build tree-shakes the dynamic import away with it.
+		onMount(() => {
+			let cancelled = false;
+			const load = () => {
+				void loadSubscribeCapture().then((component) => {
+					if (!cancelled) SubscribeCapture = component;
+				});
+			};
+			if (typeof window.requestIdleCallback === 'function') {
+				const idleHandle = window.requestIdleCallback(load, { timeout: SUBSCRIBE_CAPTURE_IDLE_TIMEOUT_MS });
+				return () => {
+					cancelled = true;
+					window.cancelIdleCallback(idleHandle);
+				};
+			}
+			const timeoutHandle = setTimeout(load, 0);
+			return () => {
+				cancelled = true;
+				clearTimeout(timeoutHandle);
+			};
+		});
+	}
 
 	onMount(() => {
 		// Hydrate the theme store from localStorage so the mode switch
@@ -300,4 +335,10 @@
 	     finding C). Its absolute position is anchored to .app-shell's reserved
 	     footer rail, after the footer in both DOM and visual custody. -->
 	<ContributeMenu />
+
+	<!-- Rehearsal-only list-signup capture: absent from an off build, mounted
+	     on idle after the footer and the Contribute rail on an on build. -->
+	{#if SUBSCRIBE_CAPTURE_ENABLED && SubscribeCapture}
+		<SubscribeCapture />
+	{/if}
 </div>

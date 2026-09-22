@@ -2771,3 +2771,117 @@ html[data-mode='dark'] {
 .tb-mark .wheels {
 	fill: var(--tb-wheel);
 }
+
+/* ===== Subscribe capture (rehearsal only, PUBLIC_SUBSCRIBE_CAPTURE) =====
+ * The v5 Dialog anatomy renders bare elements; this block is its whole
+ * dress, in the existing roles only (no new colour). Backdrop and box ride
+ * the semantic ladder BELOW --z-intro so the first-load veil always wins,
+ * and the component never arms while the veil is up anyway. Sharp edges
+ * throughout; no transition or animation anywhere; absent on paper (the
+ * print rule below) and under forced colours (the arm rule refuses it, and
+ * the component stands down if it flips on mid-open; the wiper's own
+ * forced-colours block must stay the stylesheet's last, so no rule for it
+ * is added here). */
+.subscribe-capture__backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-modal-backdrop);
+	background: color-mix(in oklab, var(--fg) 35%, transparent);
+}
+
+.subscribe-capture__positioner {
+	position: fixed;
+	inset-inline-end: 1rem;
+	inset-block-end: 1rem;
+	z-index: var(--z-modal);
+	width: min(24rem, calc(100vw - 2rem));
+	max-height: calc(100vh - 2rem);
+	overflow: auto;
+}
+
+.subscribe-capture {
+	border: 1px solid var(--rule);
+	border-left: 0.4rem solid var(--highlight-edge);
+	border-radius: 0;
+	background: var(--panel);
+	color: var(--fg);
+	padding: 1.35rem;
+	box-shadow: 0 1px 30px color-mix(in oklab, var(--bg) 40%, transparent);
+}
+
+.subscribe-capture__title {
+	margin: 0 0 0.5rem;
+	color: var(--heading);
+	font-size: 1.35rem;
+}
+
+.subscribe-capture__lede {
+	margin: 0;
+	color: var(--fg-muted);
+}
+
+.subscribe-capture__form {
+	display: grid;
+	gap: 0.55rem;
+	margin-top: 1rem;
+}
+
+.subscribe-capture__form label {
+	font-weight: 700;
+}
+
+.subscribe-capture__form input,
+.subscribe-capture__form altcha-widget {
+	width: 100%;
+	border: 1px solid var(--accent);
+	border-radius: 0;
+	background: var(--panel);
+	color: var(--fg);
+	font: inherit;
+}
+
+.subscribe-capture__form input {
+	padding: 0.75rem;
+}
+
+.subscribe-capture__form altcha-widget {
+	display: flex;
+	margin-top: 0.5rem;
+	padding: 0.75rem;
+}
+
+.subscribe-capture__form input:focus-visible {
+	outline: 2px solid var(--highlight-edge);
+	outline-offset: 2px;
+}
+
+.subscribe-capture__form input[aria-invalid='true'] {
+	border-color: var(--danger);
+}
+
+.subscribe-capture__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.subscribe-capture .button {
+	border-radius: 0;
+}
+
+.subscribe-capture .button:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
+.subscribe-capture .form-notice + .subscribe-capture__close {
+	margin-top: 1rem;
+}
+
+@media print {
+	.subscribe-capture__backdrop,
+	.subscribe-capture__positioner {
+		display: none !important;
+	}
+}

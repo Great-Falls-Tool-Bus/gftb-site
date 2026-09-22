@@ -18,7 +18,8 @@ export interface ContactPayload {
 	altcha?: string;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Shared by the contact form and the list signup: one email shape, one home. */
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function emptyContactValues(): ContactFormValues {
 	return { name: '', email: '', message: '', website: '' };
