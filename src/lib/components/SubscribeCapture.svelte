@@ -315,8 +315,9 @@
      top layer, above --z-intro, so it could not be kept below the first-load
      veil by the semantic z ladder at all; (3) the anatomy renders plain
      elements with no styles of its own, so sharp edges, the role layer and
-     the print/forced-colours absence are all this file's CSS in app.css,
-     the same way the mode switch and the wiper stalk are dressed. It is
+     the print/forced-colours absence are all this file's own :global style
+     block below (not app.css, so a flag-off build ships no selector naming
+     this surface). It is
      configured escapable: Escape, the backdrop, the close control and
      "Not now" all close it, and focus is restored to wherever it was.
      Skeleton's Portal was NOT adopted: the layout mounts this after the
@@ -431,3 +432,121 @@
 		</Dialog.Positioner>
 	</Dialog>
 {/if}
+
+<style>
+	/* The dialog's whole dress lives here, not in app.css, so a build made
+	   with the flag off ships no selector naming this surface either (the
+	   component is stubbed out of that build entirely, and its styles go
+	   with it). Every rule is :global because the Dialog anatomy renders the
+	   classed elements itself. Existing roles only (no new colour); backdrop
+	   and box ride the semantic ladder BELOW --z-intro so the first-load veil
+	   always wins, and the component never arms while the veil is up anyway.
+	   Sharp edges throughout; no transition or animation anywhere; absent on
+	   paper (the print rule at the end) and under forced colours (the arm
+	   rule refuses it, and the component stands down if it flips on
+	   mid-open; the wiper's own forced-colours block must stay app.css's
+	   last, so no rule for it is added here). */
+	:global(.subscribe-capture__backdrop) {
+		position: fixed;
+		inset: 0;
+		z-index: var(--z-modal-backdrop);
+		background: color-mix(in oklab, var(--fg) 35%, transparent);
+	}
+
+	:global(.subscribe-capture__positioner) {
+		position: fixed;
+		inset-inline-end: 1rem;
+		inset-block-end: 1rem;
+		z-index: var(--z-modal);
+		width: min(24rem, calc(100vw - 2rem));
+		max-height: calc(100vh - 2rem);
+		overflow: auto;
+	}
+
+	:global(.subscribe-capture) {
+		border: 1px solid var(--rule);
+		border-left: 0.4rem solid var(--highlight-edge);
+		border-radius: 0;
+		background: var(--panel);
+		color: var(--fg);
+		padding: 1.35rem;
+		box-shadow: 0 1px 30px color-mix(in oklab, var(--bg) 40%, transparent);
+	}
+
+	:global(.subscribe-capture__title) {
+		margin: 0 0 0.5rem;
+		color: var(--heading);
+		font-size: 1.35rem;
+	}
+
+	:global(.subscribe-capture__lede) {
+		margin: 0;
+		color: var(--fg-muted);
+	}
+
+	:global(.subscribe-capture__form) {
+		display: grid;
+		gap: 0.55rem;
+		margin-top: 1rem;
+	}
+
+	:global(.subscribe-capture__form label) {
+		font-weight: 700;
+	}
+
+	:global(.subscribe-capture__form input),
+	:global(.subscribe-capture__form altcha-widget) {
+		width: 100%;
+		border: 1px solid var(--accent);
+		border-radius: 0;
+		background: var(--panel);
+		color: var(--fg);
+		font: inherit;
+	}
+
+	:global(.subscribe-capture__form input) {
+		padding: 0.75rem;
+	}
+
+	:global(.subscribe-capture__form altcha-widget) {
+		display: flex;
+		margin-top: 0.5rem;
+		padding: 0.75rem;
+	}
+
+	:global(.subscribe-capture__form input:focus-visible) {
+		outline: 2px solid var(--highlight-edge);
+		outline-offset: 2px;
+	}
+
+	:global(.subscribe-capture__form input[aria-invalid='true']) {
+		border-color: var(--danger);
+	}
+
+	:global(.subscribe-capture__actions) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
+	}
+
+	:global(.subscribe-capture .button) {
+		border-radius: 0;
+	}
+
+	:global(.subscribe-capture .button:disabled) {
+		cursor: wait;
+		opacity: 0.65;
+	}
+
+	:global(.subscribe-capture .form-notice + .subscribe-capture__close) {
+		margin-top: 1rem;
+	}
+
+	@media print {
+		:global(.subscribe-capture__backdrop),
+		:global(.subscribe-capture__positioner) {
+			display: none !important;
+		}
+	}
+</style>
