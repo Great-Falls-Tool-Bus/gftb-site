@@ -184,7 +184,12 @@ that is complete without them.
 Test and LOOK hooks, read from `<html>` (no URL query, no storage):
 `data-wiper-tier-max="webgl2|none"` caps the ladder before mount;
 `data-intro-off` (or `window.__gftbIntroOff = true` before the sync script
-runs) keeps the intro from arming. Specs whose scroll-position premises the
+runs) keeps the intro from arming; `data-subscribe-capture-dwell-ms="<n>"`
+credits the list-signup capture modal's dwell (n=0 lets a rig arm it as soon
+as the hero is scrolled past) and is read only by that component, which only
+exists on a build made with `PUBLIC_SUBSCRIBE_CAPTURE=1` (default off,
+rehearsal only, no production exposure); the component publishes its arm
+decision on `<html data-subscribe-capture>`. Specs whose scroll-position premises the
 intro would break opt out through `e2e/support/intro.ts`.
 
 Evidence on a developer host is a local `vite build` into a scratch directory
