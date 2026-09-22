@@ -184,7 +184,7 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		await expect(page.locator('.hero-session')).toHaveCount(0);
 		await expect(page.locator('#status > p')).toHaveCount(1);
 		await expect(page.locator('#status .callouts > li')).toHaveCount(2);
-		await expect(page.locator('#status .credit')).toHaveText('Words by Katherine Truitt');
+		await expect(page.locator('#status .credit')).toHaveText('Words by Tool Bus Member Katherine T.');
 		// The credit is a <small>, not a <footer>: a second footer element on the
 		// page breaks the strict-mode locator in e2e/home-goals.spec.ts.
 		await expect(page.locator('#status footer')).toHaveCount(0);
