@@ -75,4 +75,9 @@ test('the location line nests inside the intro cell, never as a grid child', asy
 	// it must exist inside the intro cell — the exact #103 regression shape.
 	const provenance = page.locator('.site-footer__provenance');
 	expect(await provenance.count()).toBe(await intro.locator('.site-footer__provenance').count());
+	// The logo designer credit (board instruction 2026-09-20) is always
+	// rendered, and it nests inside the same intro cell the same way.
+	const credit = page.locator('.site-footer__credit');
+	await expect(credit).toHaveText('Logo by Chris H.');
+	expect(await credit.count()).toBe(await intro.locator('.site-footer__credit').count());
 });

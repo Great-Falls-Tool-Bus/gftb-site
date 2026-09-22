@@ -145,6 +145,13 @@ describe('leak-scan detections', () => {
 		expect(idsFiring('Ask Jane Q.Doe when you arrive.')).toContain('private-personal-name');
 		expect(idsFiring('<p>J.Doe</p>')).toContain('private-personal-name');
 		expect(idsFiring('(J.Doe) signed the sheet')).toContain('private-personal-name');
+		// The footer logo credit (board instruction 2026-09-20) is an initial
+		// closed by its own tag, so the rule stays silent; the same initial
+		// followed by a capitalised word still fires.
+		expect(idsFiring('<p class="site-footer__credit muted">Logo by Chris H.</p>')).not.toContain(
+			'private-personal-name',
+		);
+		expect(idsFiring('Chris H. Great')).toContain('private-personal-name');
 		// The Zag machine false-positive class (first mounted Skeleton
 		// component): enum member reads behind = / ! / ; never fire.
 		expect(idsFiring('if(S===H.Started)return;u.current=d.current')).not.toContain('private-personal-name');

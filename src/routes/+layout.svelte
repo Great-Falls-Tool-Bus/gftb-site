@@ -264,6 +264,12 @@
 				<p class="site-footer__licensing">
 					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
 				</p>
+				<!-- Logo designer credit (board instruction 2026-09-20), in the
+				     designer's requested form. Its own element with a closing tag:
+				     the leak-scan private-personal-name rule reads an initial
+				     followed by a capitalised word as a name, even across a
+				     newline, so the credit never runs into the next line's text. -->
+				<p class="site-footer__credit muted">Logo by Chris H.</p>
 			</div>
 			{#each footerNavGroups as group (group.heading)}
 				<nav class="site-footer__group" aria-label={group.heading}>

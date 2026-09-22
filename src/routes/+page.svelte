@@ -97,7 +97,8 @@
 			<p class="lede">The Great Falls Tool Bus is a community-run tool library.</p>
 			<!-- The pitch (operator ruling 2026-09-19): a club member's four
 			     invitation lines, verbatim, as part of the hero rather than as
-			     Notes & Goals rows. TODO(jess): author line pending naming consent. -->
+			     Notes & Goals rows. The author credit is live in the consented
+			     form (naming consent 2026-09-21). -->
 			<ul class="pitch">
 				<li>Work and learn together! Hop on the Great Falls Tool Bus</li>
 				<li>Take a ride on the Great Falls Tool Bus and join a community of makers and builders</li>
@@ -118,11 +119,12 @@
 
 		<aside class="status-card hero-glass" id="status" aria-labelledby="status-title">
 			<!-- What we are about (operator ruling 2026-09-19): the box carries the
-			     club in one statement and two callouts from Katherine Truitt's copy
+			     club in one statement and two callouts from Katherine T.'s copy
 			     notes, in place of the old status panel and its nested subheading.
 			     Exactly one direct-child paragraph, because an acceptance row counts
-			     them; the credit is a footer rather than a paragraph so that count
-			     holds and the muted ink role keeps real markup to measure. The
+			     them; the credit is a small rather than a paragraph so that count
+			     holds and the muted ink role keeps real markup to measure (not a
+			     footer: e2e/acceptance-copy-deslop.spec.ts pins why). The
 			     recurring hours moved to the FAQ, where the questions people
 			     actually ask already live. -->
 			<h2 id="status-title">What we are about</h2>
@@ -131,7 +133,7 @@
 				<li><strong>Lend equipment and expertise</strong> to others!</li>
 				<li>Repair, reuse, and reduced consumerism.</li>
 			</ul>
-			<small class="credit muted">Words by Katherine Truitt</small>
+			<small class="credit muted">Words by Tool Bus Member Katherine T.</small>
 		</aside>
 	</div>
 </section>
@@ -213,7 +215,7 @@
 		{/if}
 	</section>
 
-	<!-- Questions people ask (Katherine Truitt's copy, 2026-09-19, verbatim except
+	<!-- Questions people ask (Katherine T.'s copy, 2026-09-19, verbatim except
 	     the nonprofit line, which the operator set as a status in progress rather
 	     than a subsection claim). Plain definition list: no cards, no widget, so
 	     the no-JS and paper renderings are the same text. -->
@@ -228,7 +230,7 @@
 					We are a community of diverse folks with tools, gear, and skills to share! We joined together to lend
 					equipment and expertise to others. The tool library and our skills workshops encourage creativity, friendship,
 					and environmental conscientiousness with repair, reuse, and reduced consumerism.
-					<!-- TODO(jess): KT copy, 2026-09-19; author line pending naming consent -->
+					<!-- KT copy, 2026-09-19; the author credit is live in the consented form (naming consent 2026-09-21) -->
 				</dd>
 				<dt>This sounds awesome! How do I become a member?</dt>
 				<dd>
@@ -261,7 +263,7 @@
 					a confirmed one-off session will be posted here.
 				</dd>
 			</dl>
-			<p class="credit muted">Answers by Katherine Truitt, except the visiting hours.</p>
+			<p class="credit muted">Answers by Tool Bus Member Katherine T., except the visiting hours.</p>
 		</div>
 	</section>
 

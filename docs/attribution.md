@@ -9,8 +9,7 @@
   and the inline copies in `src/lib/components/{ToolBusMark,BusMark}.svelte`
 - Source: hand-authored SVG after the club's logo sketch
   (`toolbus_logo_sketch1.png`, received 2026-09-19); colours sampled from it
-- Author of the sketch: TODO(jess) confirm and record once naming consent is
-  in hand
+- Author of the sketch: Chris H. (naming consent recorded in meta steering/naming-consent.md, board instruction 2026-09-20)
 - Rights: project-owned
 
 The vectors were drawn by hand (no autotrace). The rasters are renders of the

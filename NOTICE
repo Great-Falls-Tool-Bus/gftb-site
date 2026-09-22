@@ -10,9 +10,11 @@ SOFTWARE
 	  s.r.o. See static/vendor/altcha/LICENSE.
 
 VISUALS
-  static/logo/bus-silhouette.svg
-    "Bus Silhouette", author unknown. CC0 public-domain dedication.
-    Source: https://commons.wikimedia.org/wiki/File:Bus_Silhouette.svg
+  static/brand/toolbus-mark.svg, static/brand/toolbus-glyph.svg,
+  static/favicon.svg, static/favicon.ico, static/apple-touch-icon.png,
+  static/icon-192.png, static/icon-512.png, static/og/toolbus-1200x630.png
+    The toolbox-bus mark, logo by Chris H., drawn as hand-authored SVG after
+    the sketch of 2026-09-19. Project-owned. See docs/attribution.md.
 
   static/photos/great-falls-lewiston-1930s-{640,1280,1920}.{jpg,webp}
     "The Falls and Old Man, Auburn and Lewiston, Maine", published by
