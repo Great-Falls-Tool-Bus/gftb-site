@@ -27,9 +27,10 @@
 			<h2>This site</h2>
 			<p>
 				These pages are a static site: no accounts, no database, no cookies set by us. The one thing your browser
-				remembers is your light or dark choice, kept in your browser's local storage and never sent anywhere. Our host
-				counts page views at the network edge without cookies or personal identifiers; we do not run advertising or
-				other third-party trackers.
+				remembers is your light or dark choice, and, if you close the mailing-list invitation that appears after a while
+				on the site, that you closed it, for thirty days; both are kept in your browser's local storage and never sent
+				anywhere. Our host counts page views at the network edge without cookies or personal identifiers; we do not run
+				advertising or other third-party trackers.
 			</p>
 
 			<h2>Contact form</h2>
@@ -53,7 +54,7 @@
 				Contributions today follow the <a href="/refund-policy">refund policy</a>.
 			</p>
 
-			<p class="muted">Last reviewed: 19 September 2026.</p>
+			<p class="muted">Last reviewed: 22 September 2026.</p>
 		</div>
 	</article>
 
