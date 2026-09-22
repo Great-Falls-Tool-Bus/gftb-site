@@ -341,6 +341,11 @@ js_binary(
 js_run_binary(
     name = "build",
     args = ["--workspace", "$(rootpath :app_workspace)", "--output-dir", "build"],
+    # The list-signup capture modal ships in the published candidate. The
+    # flag is a committed build input, not an ambient variable, so the
+    # scanned artifact is reproducible and the off-build proof in
+    # e2e/subscribe-capture.spec.ts keeps running against a plain vite build.
+    env = {"PUBLIC_SUBSCRIBE_CAPTURE": "1"},
     srcs = [":app_workspace"],
     out_dirs = ["build"],
     patch_node_fs = False,
