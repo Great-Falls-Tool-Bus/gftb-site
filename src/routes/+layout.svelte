@@ -9,9 +9,13 @@
 	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
+	import BusMark from '$lib/components/BusMark.svelte';
+	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
 	import { theme } from '$lib/theme.svelte';
 	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '$lib/device-motion-permission';
 	import sourceMap from '$lib/generated/source-map.json';
+	import { SUBSCRIBE_CAPTURE_ENABLED } from '$lib/subscribe-capture-flag';
+	import { loadSubscribeCapture } from '$lib/subscribe-capture-load';
 	import '../app.css';
 
 	let { children } = $props();
@@ -28,6 +32,14 @@
 	/** Longest the brand layer waits for an idle period before mounting anyway. */
 	const BRAND_VECTORS_IDLE_TIMEOUT_MS = 1500;
 	let tinyVectorsRef = $state<DeviceMotionTarget>();
+	// The list-signup capture modal (rehearsal only). Behind the build-time
+	// PUBLIC_SUBSCRIBE_CAPTURE flag: an off build never imports the component
+	// (the dynamic import sits inside the dead branch), and an on build loads
+	// it on browser idle, after the brand layer, so the first-load intro and
+	// every progressive enhancement keep their timeline. The component itself
+	// never arms while the intro is live; see SubscribeCapture.svelte.
+	let SubscribeCapture = $state<typeof import('$lib/components/SubscribeCapture.svelte').default>();
+	const SUBSCRIBE_CAPTURE_IDLE_TIMEOUT_MS = 4000;
 	let motionHandshake = $state<ReturnType<typeof createDeviceMotionHandshake>>();
 
 	// The component binds after the idle callback, potentially long after
@@ -61,6 +73,31 @@
 		motionHandshake = handshake;
 		return () => handshake.destroy();
 	});
+
+	if (SUBSCRIBE_CAPTURE_ENABLED) {
+		// The whole registration sits inside the constant branch so an off
+		// build tree-shakes the dynamic import away with it.
+		onMount(() => {
+			let cancelled = false;
+			const load = () => {
+				void loadSubscribeCapture().then((component) => {
+					if (!cancelled) SubscribeCapture = component;
+				});
+			};
+			if (typeof window.requestIdleCallback === 'function') {
+				const idleHandle = window.requestIdleCallback(load, { timeout: SUBSCRIBE_CAPTURE_IDLE_TIMEOUT_MS });
+				return () => {
+					cancelled = true;
+					window.cancelIdleCallback(idleHandle);
+				};
+			}
+			const timeoutHandle = setTimeout(load, 0);
+			return () => {
+				cancelled = true;
+				clearTimeout(timeoutHandle);
+			};
+		});
+	}
 
 	onMount(() => {
 		// Hydrate the theme store from localStorage so the mode switch
@@ -97,8 +134,9 @@
 
 	// Header + footer structure is the demo site's +layout.svelte shape
 	// (greatfallstoolbus.org@origin/main): nav renders from the
-	// $lib/nav-items SSOT, and the footer is the intro-weighted four-group
-	// grid (intro / About / Get involved / Meta). The old apex #103
+	// $lib/nav-items SSOT, and the footer is the intro-weighted five-group
+	// grid (intro / About / Get involved / Site / Meta), extended by the
+	// operator's 2026-09-19 fuller footer sitemap ruling. The old apex #103
 	// cell-nesting lesson holds: every line of the intro column — location,
 	// provenance, licensing — lives INSIDE the one intro cell, never as a
 	// direct child of the footer grid. e2e/footer.spec.ts asserts the
@@ -157,6 +195,8 @@
 	noindex={isErrorSurface}
 	canonical={isErrorSurface ? null : undefined}
 	jsonLd={isErrorSurface ? null : jsonLd}
+	image={`${siteUrl}/og/toolbus-1200x630.png`}
+	imageAlt="The Great Falls Tool Bus mark: a purple bus drawn as a toolbox with a mustard lid"
 />
 
 <!-- App shell (operator diagnosis 2026-08-20: /log footer cascade fix). The
@@ -204,7 +244,9 @@
 	<header class="site-header">
 		<div class="site-header__inner">
 			<a class="brand" href="/" aria-label="Great Falls Tool Bus home">
-				<img src="/logo/bus-silhouette.svg" alt="" width="80" height="38" />
+				<!-- The toolbox-bus glyph (operator ruling 2026-09-19); the anchor's
+				     aria-label carries the name, so the mark is decorative. -->
+				<ToolBusMark variant="glyph" class="brand__mark" />
 				<!-- D12 residual: the wordmark carries the uppercase tracked
 				     Fraunces .font-display lockup (apex +layout.svelte:107-114,
 				     Wordmark.svelte). -->
@@ -234,6 +276,7 @@
 	<footer class="site-footer">
 		<div class="site-footer__inner">
 			<div class="site-footer__intro">
+				<BusMark class="site-footer__mark" />
 				<p>Great Falls Tool Bus · Lewiston–Auburn, Maine</p>
 				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
 				     Degrade-to-nothing on
@@ -256,6 +299,12 @@
 				<p class="site-footer__licensing">
 					Content <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
 				</p>
+				<!-- Logo designer credit (board instruction 2026-09-20), in the
+				     designer's requested form. Its own element with a closing tag:
+				     the leak-scan private-personal-name rule reads an initial
+				     followed by a capitalised word as a name, even across a
+				     newline, so the credit never runs into the next line's text. -->
+				<p class="site-footer__credit muted">Logo by Chris H.</p>
 			</div>
 			{#each footerNavGroups as group (group.heading)}
 				<nav class="site-footer__group" aria-label={group.heading}>
@@ -292,4 +341,10 @@
 	     finding C). Its absolute position is anchored to .app-shell's reserved
 	     footer rail, after the footer in both DOM and visual custody. -->
 	<ContributeMenu />
+
+	<!-- Rehearsal-only list-signup capture: absent from an off build, mounted
+	     on idle after the footer and the Contribute rail on an on build. -->
+	{#if SUBSCRIBE_CAPTURE_ENABLED && SubscribeCapture}
+		<SubscribeCapture />
+	{/if}
 </div>

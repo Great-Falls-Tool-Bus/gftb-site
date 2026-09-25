@@ -17,6 +17,8 @@
 	@not_hashed_immutable not path /_app/immutable/*
 
 	header @hashed_immutable Cache-Control "public, max-age=31536000, immutable"
+	# The runtime has no MIME table entry for .webmanifest.
+	header /site.webmanifest Content-Type "application/manifest+json"
 	header @not_hashed_immutable {
 		Cache-Control "no-cache"
 		-Last-Modified

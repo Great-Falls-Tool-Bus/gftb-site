@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { skipHomeIntro } from './support/intro';
+
+// The home intro's scroll would break this spec's scroll-position premises.
+test.beforeEach(async ({ page }) => {
+	await skipHomeIntro(page);
+});
 
 // Acceptance rows for the scroll-reveal system (D04): armed only under
 // html.motion-safe-ready (set pre-paint, only when motion is allowed),

@@ -3,16 +3,7 @@
 // ambient server, or installed-browser search. This is not a deployed LOOK.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import {
-	accessSync,
-	constants,
-	createReadStream,
-	existsSync,
-	mkdirSync,
-	mkdtempSync,
-	rmSync,
-	statSync,
-} from 'node:fs';
+import { accessSync, constants, createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,7 +70,9 @@ const server = createServer((request, response) => {
 		response.end();
 		return;
 	}
-	createReadStream(pathToRead).on('error', () => response.destroy()).pipe(response);
+	createReadStream(pathToRead)
+		.on('error', () => response.destroy())
+		.pipe(response);
 });
 server.requestTimeout = 15_000;
 server.headersTimeout = 10_000;
@@ -212,6 +205,7 @@ function contentType(path) {
 			'.webp': 'image/webp',
 			'.txt': 'text/plain; charset=utf-8',
 			'.webmanifest': 'application/manifest+json; charset=utf-8',
+			'.pdf': 'application/pdf',
 			'.woff2': 'font/woff2',
 		}[extname(path)] ?? 'application/octet-stream'
 	);

@@ -6,11 +6,12 @@
 	// easing as the DOM mask. The scene canvas sits behind the notes and the
 	// blade canvas over them; both are pointer-inert and aria-hidden, absent
 	// under reduce, no-JS, print and forced colours, and never write to the
-	// console: every failure demotes to the plain grid. The notes are glass
-	// panes whose inks read over any backdrop (no clamp under text).
-	// It sits behind the DOM notes, never over them; it is pointer-inert,
-	// aria-hidden, absent under reduce, no-JS, print and forced colours, and
-	// it never writes to the console: every failure demotes to the plain grid.
+	// console: a failure while the ladder runs demotes to the plain grid, and
+	// a device lost after it ran hands the host back to its parent through
+	// `onlost`, which remounts a fresh pair of canvases so the ladder runs
+	// again at the ceiling the loss lowered (a canvas that has held one
+	// context kind cannot take another). The notes are glass panes whose inks
+	// read over any backdrop (no clamp under text).
 	import { onMount } from 'svelte';
 	import { deviceTilt } from '$lib/motion/device-tilt.svelte';
 	import { createBlobField, type BlobFieldHandle } from '$lib/wiper/blob-field';
@@ -35,13 +36,20 @@
 		colors: readonly string[];
 		/** The glass: the element the canvas fills and whose text is the ink. */
 		glass: HTMLElement;
+		/** A device lost after selection: the parent remounts the scene on fresh canvases. */
+		onlost?: () => void;
 	}
 
-	const { engine, colors, glass }: Props = $props();
+	const { engine, colors, glass, onlost }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement>();
 	let bladesCanvas = $state<HTMLCanvasElement>();
 	let tier = $state<'pending' | RendererTier>('pending');
+	// Set once the scene has drawn a run of frames on its rung: the intro
+	// waits for this, not for the rung alone, so a device that dies on its
+	// first real frames is seen (and relaunched) under the veil, not after it.
+	let warm = $state(false);
+	const WARM_FRAMES = 12;
 	function hexToRgb(hex: string): [number, number, number] {
 		const value = Number.parseInt(hex.replace('#', ''), 16);
 		return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
@@ -99,6 +107,7 @@
 		let raf = 0;
 		let last = 0;
 		let visible = true;
+		let drawn = 0;
 		let hidden = document.hidden;
 		let width = 0;
 		let height = 0;
@@ -129,6 +138,29 @@
 			engine.tier = 'none';
 		};
 
+		// A loss, during the ladder or after it: the rung's own callback has
+		// already lowered the page ceiling where that is warranted, so a fresh
+		// mount lands where the page can still draw. Without a parent to
+		// remount, the loss is a demotion like any other.
+		const lose = () => {
+			if (!alive) return;
+			if (!onlost) {
+				demote();
+				return;
+			}
+			alive = false;
+			if (raf) cancelAnimationFrame(raf);
+			raf = 0;
+			renderer?.destroy();
+			renderer = null;
+			blades?.destroy();
+			blades = null;
+			field?.dispose();
+			field = null;
+			engine.tier = 'none';
+			onlost();
+		};
+
 		const measure = () => {
 			const box = host.getBoundingClientRect();
 			width = box.width;
@@ -138,7 +170,11 @@
 			blades?.resize(width, height, ratio);
 		};
 
-		const needsFrames = () => alive && visible && !hidden && renderer !== null && blades !== null && field !== null;
+		// Under the intro's veil the pane is off screen but must draw anyway:
+		// its first frames are where a doomed device shows itself.
+		const veiled = () => document.documentElement.classList.contains('intro-live');
+		const needsFrames = () =>
+			alive && (visible || veiled()) && !hidden && renderer !== null && blades !== null && field !== null;
 
 		/** Keep the bead grid and the frost grain matched to the glass box. */
 		const syncGlass = () => {
@@ -225,6 +261,10 @@
 				}
 			}
 			paint(now);
+			if (!warm && alive) {
+				drawn += 1;
+				if (drawn >= WARM_FRAMES) warm = true;
+			}
 			raf = requestAnimationFrame(frame);
 		};
 
@@ -246,22 +286,27 @@
 				return;
 			}
 			renderer = selection.handle;
-			renderer.onLost(() => demote());
+			renderer.onLost(() => lose());
 			const bladeSelection = await selectRenderer(bladesElement, { layer: 'blades' });
 			if (!alive) {
 				if (bladeSelection.ok) bladeSelection.handle.destroy();
 				return;
 			}
 			if (!bladeSelection.ok) {
-				demote();
+				// The scene rung came up but the blades could not: a device that
+				// died between the two calls, or a rung refused on the second
+				// canvas. Fresh canvases at the ceiling the failure left.
+				lose();
 				return;
 			}
 			blades = bladeSelection.handle;
-			blades.onLost(() => demote());
+			blades.onLost(() => lose());
 			// Both canvases run the same rung, or the pane runs none: a mixed
 			// pair would draw two renderers' floating point against each other.
+			// The ladder has already stepped down for the second canvas, so a
+			// fresh mount lands both on the lower rung.
 			if (blades.tier !== renderer.tier) {
-				demote();
+				lose();
 				return;
 			}
 			try {
@@ -311,8 +356,13 @@
 		const modeWatch = new MutationObserver(() => {
 			ground = resolveRole('--bg');
 			blend = document.documentElement.dataset.mode === 'dark' ? 'screen' : 'multiply';
+			// The veil arriving or leaving changes whether frames are due.
+			arm();
 		});
-		modeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode', 'data-theme'] });
+		modeWatch.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-mode', 'data-theme', 'class'],
+		});
 
 		return () => {
 			alive = false;
@@ -329,6 +379,13 @@
 </script>
 
 {#if tier !== 'none'}
-	<canvas class="wiper__scene" aria-hidden="true" data-tier={tier} bind:this={canvas}></canvas>
-	<canvas class="wiper__blades" aria-hidden="true" data-tier={tier} bind:this={bladesCanvas}></canvas>
+	<canvas class="wiper__scene" aria-hidden="true" data-tier={tier} data-warm={warm ? '' : undefined} bind:this={canvas}
+	></canvas>
+	<canvas
+		class="wiper__blades"
+		aria-hidden="true"
+		data-tier={tier}
+		data-warm={warm ? '' : undefined}
+		bind:this={bladesCanvas}
+	></canvas>
 {/if}

@@ -3,8 +3,34 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_js//js:providers.bzl", "js_info")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package", "npm_package")
+load("@aspect_rules_js//npm:providers.bzl", "NpmPackageStoreInfo")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+
+_RUNTIME_PACKAGES = ["mdsvex", "prettier", "prettier-plugin-svelte", "svelte"]
+
+def _runtime_dependencies_impl(ctx):
+    # Site build tools are dev links, which intentionally do not propagate
+    # store providers. These same locked packages are compiler runtime inputs.
+    # Forward their genuine terminal stores unchanged; create no files or links.
+    stores = [target[NpmPackageStoreInfo] for target in ctx.attr.srcs]
+    if len(stores) != len(_RUNTIME_PACKAGES):
+        fail("compiler runtime requires exactly four locked package stores")
+    seen = {}
+    for store in stores:
+        if store.package not in _RUNTIME_PACKAGES or store.package in seen or store.package_store_directory == None or store.dev:
+            fail("invalid compiler runtime package store")
+        seen[store.package] = True
+    return [js_info(
+        target = ctx.label,
+        npm_package_store_infos = depset(stores),
+    )]
+
+_runtime_dependencies = rule(
+    implementation = _runtime_dependencies_impl,
+    attrs = {"srcs": attr.label_list(providers = [NpmPackageStoreInfo], mandatory = True)},
+)
 
 def site_draft_compiler_targets():
     """Compile, package and test the compiler; this does not publish a BCR module."""
@@ -89,8 +115,17 @@ def site_draft_compiler_targets():
     copy_to_directory(
         name = "site_draft_compiler_runtime",
         out = "site-draft-compiler-runtime",
-        srcs = [":site_draft_compiler_js", "scripts/lib/leak-scan-rules.json"],
+        srcs = [":site_draft_compiler_js", ":site_draft_compiler_js_types", "scripts/lib/leak-scan-rules.json"],
         root_paths = ["site-draft-compiler-js"],
+    )
+    _runtime_dependencies(
+        name = "site_draft_compiler_runtime_dependencies",
+        srcs = [
+            ":.aspect_rules_js/node_modules/mdsvex@0.12.8_1444401686",
+            ":.aspect_rules_js/node_modules/prettier@3.9.6",
+            ":.aspect_rules_js/node_modules/prettier-plugin-svelte@4.1.1_724068210",
+            ":.aspect_rules_js/node_modules/svelte@5.57.0_2144752473",
+        ],
     )
     npm_package(
         name = "pkg",
@@ -100,9 +135,9 @@ def site_draft_compiler_targets():
             Label("//tools/site-draft-compiler:package.json"),
             "LICENSE",
         ],
-        # Propagate package-store providers, not an ambient root node_modules.
+        # Propagate original runtime store providers, not site dev links.
         # npm_link_package consumers receive this complete dependency closure.
-        data = runtime_packages,
+        data = [":site_draft_compiler_runtime_dependencies"],
         package = "@gftb/site-draft-compiler",
         version = "0.3.0",
         root_paths = ["."],
@@ -121,11 +156,11 @@ def site_draft_compiler_targets():
     )
     js_test(
         name = "site_draft_compiler_behavior_test",
-        entry_point = Label("//tools/site-draft-compiler:compiler.test.mjs"),
+        entry_point = Label("//tools/site-draft-compiler:compiler_test_source"),
         data = [
             ":pkg",
             ":app_srcs",
-            Label("//tools/site-draft-compiler:fixtures.mjs"),
+            Label("//tools/site-draft-compiler:fixtures_source"),
             ".prettierrc",
             "tinyland.repo.json",
         ] + runtime_packages,
@@ -134,10 +169,10 @@ def site_draft_compiler_targets():
     )
     js_test(
         name = "site_draft_compiler_consumer_test",
-        entry_point = Label("//tools/site-draft-compiler:consumer.test.mjs"),
+        entry_point = Label("//tools/site-draft-compiler:consumer_test_source"),
         data = [
             ":node_modules/@gftb/site-draft-compiler",
-            Label("//tools/site-draft-compiler:fixtures.mjs"),
+            Label("//tools/site-draft-compiler:fixtures_source"),
         ],
         timeout = "short",
     )

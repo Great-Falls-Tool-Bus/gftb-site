@@ -1,4 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
+import { skipHomeIntro } from './support/intro';
+
+// The home intro's scroll would break this spec's scroll-position premises.
+test.beforeEach(async ({ page }) => {
+	await skipHomeIntro(page);
+});
 
 // Restoration rows for the hero backdrop. The drift is a CSS scroll-driven
 // animation, double-gated behind `@supports (animation-timeline: view())`

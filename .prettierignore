@@ -7,3 +7,5 @@ static
 *.md
 pnpm-lock.yaml
 flake.lock
+# Exact upstream carrier, hash-pinned by bazel_output_contract_test.
+docs/schemas/tinyland-repo-manifest.v2.schema.json

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { skipHomeIntro } from './support/intro';
 
 import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
 import { readFileSync } from 'node:fs';
@@ -23,6 +24,11 @@ import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-g
 import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 import { awaitTier, forceTierMax } from './support/wiper-tier';
+
+// The home intro's scroll would break this spec's scroll-position premises.
+test.beforeEach(async ({ page }) => {
+	await skipHomeIntro(page);
+});
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub
@@ -53,7 +59,7 @@ test('the notes render from the manifest as an ordered, borderless list, soonest
 	await expect(list).toHaveAttribute('role', 'list');
 	const rows = list.locator('> li');
 	await expect(rows).toHaveCount(publicGoals.length);
-	expect(publicGoals.length).toBe(5);
+	expect(publicGoals.length).toBe(6);
 	// The rendered order IS the SSOT's sort (order asc, then slug), and the
 	// first row is the operator's first penciled goal.
 	await expect(rows.locator('h3')).toHaveText(publicGoals.map((goal) => goal.metadata.title));
@@ -179,27 +185,22 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 });
 
-test('the chosen detent persists across a reload', async ({ page }) => {
+test('the detent is not stored: a reload comes back on High', async ({ page }) => {
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
 	await expect(page.getByRole('radio', { name: 'High' })).toBeChecked();
-	await selectDetent(page, 'Off');
-	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
+	await selectDetent(page, 'Intermittent');
+	await expect(page.getByRole('radio', { name: 'Intermittent' })).toBeChecked();
 	await page.reload();
 	await page.waitForLoadState('networkidle');
-	// Off survives the reload: the visitor who cannot tolerate the motion is
-	// not made to pick it again.
-	await expect(page.getByRole('radio', { name: 'Off' })).toBeChecked();
-	await expect(page.locator('#goals .goal-list')).not.toHaveClass(/goal-list--paged/u);
-	expect(await page.evaluate(() => localStorage.getItem('wiper-detent'))).toBe('off');
-	await selectDetent(page, 'Low');
-	await page.reload();
-	await page.waitForLoadState('networkidle');
-	await expect(page.getByRole('radio', { name: 'Low' })).toBeChecked();
+	// Nothing about the wiper is durable: a detent from an earlier visit
+	// (Intermittent rests under a pointer) read as the stack hanging after
+	// a reload, so every load starts on High.
+	await expect(page.getByRole('radio', { name: 'High' })).toBeChecked();
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => /wiper/u.test(key)))).toEqual([]);
 });
-
 test('a wipe masks the outgoing page out along the arc and the incoming page in, then turns the page', async ({
 	page,
 }) => {
@@ -455,6 +456,168 @@ test('the ladder honours a ceiling set before mount, silently', async ({ browser
 	await expect(grid.locator('#goals canvas')).toHaveCount(0);
 	await expect(grid.locator('#goals .wiper-stalk')).toBeVisible();
 	await bare.close();
+});
+
+test('a device lost after selection lands the scene on the rung below, on fresh canvases, silently', async ({
+	page,
+}, testInfo) => {
+	await page.setViewportSize(WIDE);
+	// After a handful of frames the device stops encoding: the renderer's
+	// frame throws, the handle is failed, the ceiling steps down, and the
+	// host remounts the scene. A canvas that held a WebGPU context cannot take
+	// WebGL2, so the fresh pair is the point.
+	await page.addInitScript(() => {
+		const proto = (window as unknown as { GPUDevice?: { prototype: GPUDevice } }).GPUDevice?.prototype;
+		if (!proto) return;
+		const original = proto.createCommandEncoder;
+		let calls = 0;
+		proto.createCommandEncoder = function (this: GPUDevice, descriptor?: GPUCommandEncoderDescriptor) {
+			calls += 1;
+			if (calls > 12) throw new Error('rig: the device has gone');
+			return original.call(this, descriptor);
+		};
+		// The rungs as the scene canvas reports them, in order: the loss can
+		// land before a locator gets to look, so the sequence is the evidence.
+		const tiers: string[] = [];
+		(window as unknown as { __tiers: string[] }).__tiers = tiers;
+		const note = (node: Node) => {
+			if (!(node instanceof HTMLCanvasElement) || !node.classList.contains('wiper__scene')) return;
+			const tier = node.dataset.tier ?? '';
+			if (tier !== 'pending' && tiers.at(-1) !== tier) tiers.push(tier);
+		};
+		new MutationObserver((records) => {
+			for (const record of records) {
+				if (record.type === 'attributes') note(record.target);
+				for (const added of record.addedNodes) note(added);
+			}
+		}).observe(document, {
+			subtree: true,
+			childList: true,
+			attributes: true,
+			attributeFilter: ['data-tier'],
+		});
+	});
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		// Chrome's own word on a lost device.
+		if (message.text() === 'A valid external Instance reference no longer exists.') return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await page.goto('/');
+	const hasAdapter = await page.evaluate(async () => {
+		if (!('gpu' in navigator) || !navigator.gpu) return false;
+		return (await navigator.gpu.requestAdapter().catch(() => null)) !== null;
+	});
+	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
+	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	expect(await page.evaluate(() => (window as unknown as { __tiers: string[] }).__tiers)).toEqual(['webgpu', 'webgl2']);
+	await expect(page.locator('#goals canvas')).toHaveCount(2);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+});
+
+test('a rung refused on the blades canvas relaunches both canvases on the rung below, silently', async ({
+	page,
+}, testInfo) => {
+	await page.setViewportSize(WIDE);
+	// The scene canvas takes the top rung; the blades canvas is refused it
+	// (its context will not configure), so the ladder steps down for the
+	// second canvas alone. A mixed pair is never drawn: the host relaunches
+	// on fresh canvases and both land on the lower rung.
+	await page.addInitScript(() => {
+		const proto = (window as unknown as { GPUCanvasContext?: { prototype: GPUCanvasContext } }).GPUCanvasContext
+			?.prototype;
+		if (!proto) return;
+		const original = proto.configure;
+		let calls = 0;
+		proto.configure = function (this: GPUCanvasContext, configuration: GPUCanvasConfiguration) {
+			calls += 1;
+			if (calls === 2) throw new Error('rig: the second canvas is refused');
+			return original.call(this, configuration);
+		};
+	});
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		if (message.text() === 'A valid external Instance reference no longer exists.') return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await page.goto('/');
+	const hasAdapter = await page.evaluate(async () => {
+		if (!('gpu' in navigator) || !navigator.gpu) return false;
+		return (await navigator.gpu.requestAdapter().catch(() => null)) !== null;
+	});
+	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
+	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	await expect(page.locator('#goals canvas')).toHaveCount(2);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+});
+
+test('a lost WebGL2 context relaunches the scene on fresh canvases at the same rung', async ({ page }) => {
+	await page.setViewportSize(WIDE);
+	await forceTierMax(page, 'webgl2');
+	const console: string[] = [];
+	page.on('console', (message) => {
+		if (message.type() !== 'error' && message.type() !== 'warning') return;
+		if (message.type() === 'warning' && /GL Driver Message \(OpenGL, Performance,/u.test(message.text())) return;
+		// The rig's own forced loss: the browser names it once.
+		if (/CONTEXT_LOST_WEBGL/u.test(message.text())) return;
+		console.push(`${message.type()}: ${message.text()}`);
+	});
+	await page.goto('/');
+	await page.waitForLoadState('networkidle');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	const before = await scene(page).elementHandle();
+	expect(before).not.toBeNull();
+	// Lose the scene canvas's context the way a GPU reset would.
+	await page.evaluate(() => {
+		const canvas = document.querySelector<HTMLCanvasElement>('#goals canvas.wiper__scene');
+		const gl = canvas?.getContext('webgl2');
+		gl?.getExtension('WEBGL_lose_context')?.loseContext();
+	});
+	// The old canvases leave the document; a fresh pair lands on WebGL2 again.
+	await expect.poll(() => before?.evaluate((el) => el.isConnected), { timeout: 10_000 }).toBe(false);
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	await expect(page.locator('#goals canvas')).toHaveCount(2);
+	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
+	await page.waitForTimeout(1500);
+	expect(console).toEqual([]);
+});
+
+test('a reload starts the ladder on WebGL2 while a first load takes the top rung', async ({ page }, testInfo) => {
+	await page.setViewportSize(WIDE);
+	await page.goto('/');
+	const hasAdapter = await page.evaluate(async () => {
+		if (!('gpu' in navigator) || !navigator.gpu) return false;
+		return (await navigator.gpu.requestAdapter().catch(() => null)) !== null;
+	});
+	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
+	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgpu', { timeout: 15_000 });
+	// Chrome drops the new document's WebGPU device while it tears the old one
+	// down, so a reload takes the rung that holds; the picture is the same.
+	await page.reload();
+	await pane(page).scrollIntoViewIfNeeded();
+	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
+	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
+	expect(
+		await page.evaluate(() => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).type),
+	).toBe('reload');
 });
 
 test('the scene is absent under reduced motion and hidden on paper and under forced colours', async ({ page }) => {
@@ -985,10 +1148,10 @@ test.describe('without JavaScript', () => {
 	});
 });
 
-test('the hero carries one spelling of the Thursday hours', async ({ page }) => {
+test('the FAQ carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
-	const session = page.locator('.hero .hero-session');
-	await expect(session.getByRole('heading', { level: 3 })).toHaveText('Public work sessions');
+	const session = page.locator('#faq');
+	await expect(session.getByRole('term').filter({ hasText: 'When can I visit the bus?' })).toHaveCount(1);
 	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
 	await expect(session).not.toContainText('3–5');
 	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);

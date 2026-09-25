@@ -35,8 +35,9 @@ secrets-scan-dir: check
 
 endpoint-check: check
 
-format: format-nix
-    cd {{ root }} && pnpm exec prettier --write .
+[positional-arguments]
+format *paths=".": format-nix
+    cd {{ root }} && pnpm exec prettier --write -- "$@"
 
 format-nix:
     cd {{ root }} && nixfmt flake.nix

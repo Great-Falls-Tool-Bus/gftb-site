@@ -32,10 +32,10 @@ test.describe('JavaScript disabled', () => {
 		// Heading strings are interim placeholders pending Jess's final copy
 		// (restoration PR-5); update in lockstep with src/routes/+page.svelte.
 		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Current status' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'Public work sessions' })).toBeVisible();
-		await expect(page.locator('.hero .hero-session')).toContainText('Thursdays, about 3 to 5 PM ET');
-		await expect(page.locator('.hero .hero-session').getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
+		await expect(page.getByRole('heading', { name: 'What we are about' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Questions people ask' })).toBeVisible();
+		await expect(page.locator('#faq')).toContainText('Thursdays, about 3 to 5 PM ET');
+		await expect(page.locator('#faq').getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 		await expect(page.getByRole('heading', { name: 'Notes & Goals' })).toBeVisible();
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
@@ -103,12 +103,12 @@ test.describe('JavaScript disabled', () => {
 
 	test('navigation, images and the printed address all work without scripts', async ({ page }) => {
 		await page.goto('/');
-		// The nav SSOT's primary items (Log, Contact, GitHub since the operator
-		// ruling of 2026-08-31, Discussion archive since the operator ruling of
+		// The nav SSOT's primary items (Log, Contact, FAQ since the operator
+		// ruling of 2026-09-19, GitHub since 2026-08-31, Discussion archive since
 		// 2026-09-01); the count derives from the SSOT so it cannot drift.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
 		await expect(headerLinks).toHaveCount(primaryNavItems.length);
-		await expect(headerLinks).toHaveText(['Log', 'Contact', /^GitHub/u, /^Discussion archive/u]);
+		await expect(headerLinks).toHaveText(['Log', 'Contact', 'FAQ', /^GitHub/u, /^Discussion archive/u]);
 
 		expect(await unresolvedHomeHashes(page), 'scriptless home hash targets without matching elements').toEqual([]);
 
@@ -151,7 +151,7 @@ test.describe('JavaScript disabled', () => {
 
 test.describe('JavaScript enabled', () => {
 	// The console gate runs twice: once as the browser is (the top rung the
-	// ladder can reach), once capped at WebGL2 from outside. Two exemptions,
+	// ladder can reach), once capped at WebGL2 from outside. Three exemptions,
 	// each by exact shape: headless Chromium on software GL relays its own
 	// driver performance notices through the page console, and a headless
 	// shell with no WebGPU adapter says so once when the ladder asks; a GPU
@@ -174,6 +174,7 @@ test.describe('JavaScript enabled', () => {
 					options.allowAdapterNotice &&
 					message.type() === 'warning' &&
 					(message.text() === 'No available adapters.' ||
+						message.text() === 'A valid external Instance reference no longer exists.' ||
 						/^\[JavaScript Warning: "WebGPU is disabled by blocklist\."/u.test(message.text()))
 				)
 					return;

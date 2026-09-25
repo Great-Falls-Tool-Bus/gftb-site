@@ -20,7 +20,9 @@ browser may submit the public contact form to the separately owned
 The production image identity is exactly
 `ghcr.io/great-falls-tool-bus/gftb-site`. Publishing a `sha-<40 hex SHA>` image
 does not deploy it. Infra selection, digest pinning, apex cutover, served
-readback, and rollback remain outside this repo.
+readback, and rollback remain outside this repo. The owner installation and
+application lifecycle belong to `great-falls-tool-bus-infra`; its separate
+attended continuity path is not evidence of automatic GF convergence.
 
 ## Public-content boundary
 
@@ -126,7 +128,7 @@ is not public.
   The public `/srv` subtree depends on `//:scanned_build`, never directly on
   `//:build`; the other three members are fixed deployment configuration.
 - `.github/workflows/ci.yml` contains only the two thin calls to immutable
-  ci-templates `v5.1.0`. The adopting organization installs its own App,
+  ci-templates revision `c732248e`. The adopting organization installs its own App,
   controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
   not enumerate or select them. There is no v3, local, cache-only, hosted,
   direct-endpoint, or repository-specific runner fallback.
@@ -140,12 +142,13 @@ is not public.
 
 ### Which CI job runs which gate
 
-CI calls the signed immutable schema-3 source
-`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f`.
-Signed tag object `9cea2460b01358bf6462e853b8ff38358f263638`
-(`v5.1.0`) peels to that exact commit. Each job selects one checked-in action
-name; the reusable workflow checks out the exact source and invokes the
-compiled GF client once.
+CI calls the immutable schema-3 source
+`xoxd-ai/ci-templates/.github/workflows/spoke-ci-v4.yml@c732248e379e276d9d98b601519c161a03bffe09`.
+The existing `Jesssullivan` fork allowlist remains a workflow admission hint,
+not publication or installed execution authority. Each job selects one
+checked-in action name; the reusable workflow checks out the exact source and
+invokes the compiled GF client once. This pin exports qualified action results;
+the separate GF-I09 publisher release and caller adoption remain required.
 
 | Caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |
@@ -154,6 +157,51 @@ compiled GF client once.
 
 `just ci` selects both declared remote actions. There is no local browser,
 analysis, coverage, or candidate-publication recipe outside this plan.
+
+## Home presentation layer
+
+Two enhancement layers sit on the home page, both additive over a served HTML
+that is complete without them.
+
+- `src/lib/wiper/**` and `src/lib/components/{NotesAndGoals,WiperScene,WiperControls}.svelte`:
+  the Notes & Goals windshield wiper. The notes page under a DOM mask driven by
+  a runes engine; a GPU scene behind the notes and a blade layer over them run
+  on a ladder `webgpu -> webgl2 -> none`, where `none` is the plain grid. Every
+  rung is silent by construction (no console output from a renderer, ever); a
+  device or context lost after selection remounts the scene on fresh canvases,
+  bounded. Reduced motion, scripts off, paper and forced colours all render the
+  same plain grid of every row, which is the rollback surface. The stalk
+  starts on High on every load; nothing about the wiper is stored. Contract pins live in
+  `src/lib/wiper/contract.test.ts`; the browser rows in `e2e/home-goals.spec.ts`
+  and `e2e/wiper-parity.spec.ts`.
+- `src/lib/intro/**`, `src/lib/components/{HomeIntro,BusMark}.svelte`, the
+  sync script in `src/app.html` and the "Home intro" block in `src/app.css`:
+  the first-load intro. On every full load of `/` a page-ground veil holds
+  while the brand mark drives in from the left and parks at centre (the one
+  place the mark may travel; the bus itself stays parked), waits for the
+  wiper's canvases to report a rung (3.0 s minimum, 5.5 s cap), lifts to the
+  header and hero, then a scripted scroll lands
+  Notes & Goals under the header. No storage. Any input, a hidden tab, a URL
+  fragment, reduced motion, forced colours, or any scroll that is not its own
+  cancels it and leaves the page where it is; focus is never moved. Pins in
+  `src/lib/intro/contract.test.ts`; rows in `e2e/home-intro.spec.ts`.
+
+Test and LOOK hooks, read from `<html>` (no URL query, no storage):
+`data-wiper-tier-max="webgl2|none"` caps the ladder before mount;
+`data-intro-off` (or `window.__gftbIntroOff = true` before the sync script
+runs) keeps the intro from arming; `data-subscribe-capture-dwell-ms="<n>"`
+credits the list-signup capture modal's dwell (n=0 lets a rig arm it as soon
+as the hero is scrolled past) and is read only by that component, which only
+exists on a build made with `PUBLIC_SUBSCRIBE_CAPTURE=1` (the committed Bazel
+build selects this flag; an off build excludes it); the component publishes its arm
+decision on `<html data-subscribe-capture>`. Specs whose scroll-position premises the
+intro would break opt out through `e2e/support/intro.ts`.
+
+Execution evidence comes from the registered remote actions and their declared
+browser coverage, not a local Vite build or preview server. The interaction
+specs are preserved as source; their presence does not claim every spec is in
+the finite remote browser suite. Operator-attended LOOKs happen in the
+operator's own browser against the exact served PR environment.
 
 ## Deployment and package safety
 

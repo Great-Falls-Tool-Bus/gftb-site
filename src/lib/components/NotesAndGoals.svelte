@@ -20,7 +20,7 @@
 	import type { PublicGoal } from '$lib/public-goals';
 	import { BRAND_BLOB_COLORS } from '$lib/brand-blob-colors';
 	import { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { isWiperDetent, pageOf } from '$lib/wiper/schedule';
+	import { pageOf } from '$lib/wiper/schedule';
 	import WiperControls from './WiperControls.svelte';
 	import WiperScene from './WiperScene.svelte';
 
@@ -57,31 +57,38 @@
 	const view = $derived(engine.view);
 	let paneEl = $state<HTMLElement>();
 	let glassEl = $state<HTMLElement>();
+	// A GPU device or context lost, during the ladder or after it (a reload
+	// racing the last document's teardown, a GPU process reset), remounts the
+	// scene on fresh canvases after a short pause so the new mount does not
+	// land inside the same reset; the ladder's ceiling has already stepped
+	// down where the loss warrants it. Bounded, so a rig that loses every
+	// device settles on the plain grid instead of remounting forever.
+	const SCENE_RELAUNCH_LIMIT = 3;
+	const SCENE_RELAUNCH_PAUSE_MS = 400;
+	let sceneGeneration = $state(0);
+	let relaunchTimer = 0;
+	const relaunchScene = () => {
+		if (relaunchTimer) return;
+		relaunchTimer = window.setTimeout(
+			() => {
+				relaunchTimer = 0;
+				sceneGeneration += 1;
+			},
+			SCENE_RELAUNCH_PAUSE_MS * (sceneGeneration + 1),
+		);
+	};
 	let listEl = $state<HTMLOListElement>();
 
-	// The chosen detent persists the way the colour mode does, so a visitor
-	// who picked Off is not made to pick it again on every visit.
-	const DETENT_KEY = 'wiper-detent';
-
+	// The stalk starts on High on every load. Nothing about the wiper is
+	// stored: a detent restored from an earlier visit (Intermittent, whose
+	// wipers rest under a pointer) read as the whole stack hanging after a
+	// reload (operator ruling 2026-09-10).
 	onMount(() => {
 		enhanced = true;
-		try {
-			const saved = localStorage.getItem(DETENT_KEY);
-			if (isWiperDetent(saved)) engine.setDetent(saved);
-		} catch {
-			// Storage may be unavailable; the default detent stands.
-		}
-		return () => engine.destroy();
-	});
-
-	$effect(() => {
-		const detent = view.detent;
-		if (!enhanced) return;
-		try {
-			localStorage.setItem(DETENT_KEY, detent);
-		} catch {
-			// Storage may be unavailable; nothing is lost.
-		}
+		return () => {
+			if (relaunchTimer) window.clearTimeout(relaunchTimer);
+			engine.destroy();
+		};
 	});
 
 	$effect(() => {
@@ -143,7 +150,14 @@
 >
 	<div class="wiper__glass" bind:this={glassEl}>
 		{#if view.paged && glassEl}
-			<WiperScene {engine} colors={BRAND_BLOB_COLORS} glass={glassEl} />
+			{#key sceneGeneration}
+				<WiperScene
+					{engine}
+					colors={BRAND_BLOB_COLORS}
+					glass={glassEl}
+					onlost={sceneGeneration < SCENE_RELAUNCH_LIMIT ? relaunchScene : undefined}
+				/>
+			{/key}
 		{/if}
 		<ol
 			class="goal-list"

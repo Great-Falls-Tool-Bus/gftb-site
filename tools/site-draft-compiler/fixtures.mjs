@@ -43,9 +43,14 @@ export function seal(input) {
 		(a, b) => b.split('/').length - a.split('/').length || b.length - a.length,
 	);
 	for (const directory of deepestFirst) {
-		const children = directories.get(directory).sort((a, b) =>
-			Buffer.compare(Buffer.from(a.name + (a.mode === '40000' ? '/' : '')), Buffer.from(b.name + (b.mode === '40000' ? '/' : ''))),
-		);
+		const children = directories
+			.get(directory)
+			.sort((a, b) =>
+				Buffer.compare(
+					Buffer.from(a.name + (a.mode === '40000' ? '/' : '')),
+					Buffer.from(b.name + (b.mode === '40000' ? '/' : '')),
+				),
+			);
 		const bytes = Buffer.concat(
 			children.map((item) => Buffer.concat([Buffer.from(`${item.mode} ${item.name}\0`), Buffer.from(item.oid, 'hex')])),
 		);

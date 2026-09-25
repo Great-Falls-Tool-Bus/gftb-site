@@ -141,14 +141,18 @@ in `scripts/lib/log-content.mjs`) into the leak-scan denylist on every
 build, so the remote `site-build` action selected by `just build` proves — not
 just assumes — that no draft's content shipped.
 
-## The merge is the publish
+## Review and website publication
 
-The operator reads the draft, rewrites it in their own words (or replaces
-it outright), and only then flips `published: true`. Once that PR merges
-to `main` and the next build ships, the entry is live. There is no
-separate publish step: the merge, with `published: true` already set by
-the operator's own hand, is what makes an entry public. Agents open the
-PR; only the operator merges it.
+Draft source and draft pull requests are publicly readable on GitHub.
+`published: false` excludes an entry from the website; it does not make that
+source private. The operator or another developer with repository authority
+reviews the exact text and naming consent before explicitly setting
+`published: true`. Agents create drafts; they do not publish or merge them.
+
+After the reviewed change merges to `main`, website publication still requires
+the existing owner release and served proof. The intended GF convergence
+develops in parallel; a merge alone is not deployment evidence. These boundaries
+follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/main/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
 
 ## What an agent PR looks like
 
@@ -166,6 +170,37 @@ PR; only the operator merges it.
   still build input and are never a place to stash anything sensitive).
 - A normal PR the operator reviews and merges like any other change. No
   auto-merge, no agent merge authority over content PRs.
+
+## Questions people ask
+
+The home `#faq` section (`src/routes/+page.svelte`) carries three answers
+written by a club member on 2026-09-19 and shipped verbatim, with one
+substitution by operator ruling: the nonprofit sentence reads "an
+independent, member-run club; our nonprofit status is in progress" until a
+filing is ratified, and no 501(c) subsection is claimed. The availability
+rule applies to it as to every page: it says what to do now and claims
+nothing live. The four invitation lines from the same author sit in the hero as the pitch (`ul.pitch` in `src/routes/+page.svelte`), verbatim. Each answer ends in a `TODO(jess)` marker until the author line
+is recorded.
+
+## A build sheet in an entry
+
+The port-side shelves entry (2026-09-19) is the pattern for carrying a
+drawing set: the mod README from the cad repository verbatim under a short
+callout, the renders as 1280 renditions in `static/photos/log/`, and the
+compiled cut sheet served from `static/cad/` inside an `object` element with
+a plain link in its fallback and a print-only link after it. Name the
+repository in prose and link only the organisation root: the leak rule bans
+repository URLs and bare 40-character commit shas in the artifact, so the
+snapshot sha is recorded in `docs/attribution.md` and shortened in the entry.
+
+## The legal route
+
+`/legal` embeds the club's agreements as the compiled documents themselves
+(`src/routes/legal/+page.svelte`): each PDF is fetched at build time from a
+public release of the meta repository's tectonic pipeline, pinned by URL and
+sha256 in `MODULE.bazel`, and copied to `static/agreements/` by the Bazel build.
+No status line: the document carries its own date. Rows in
+`e2e/acceptance-legal.spec.ts`.
 
 ## Home Notes & Goals, help asks, and member benefits
 
@@ -191,8 +226,14 @@ the glass, the WebGPU tier with its WebGL2 fallback, and the rails). Content
 authors need no knowledge of it: a row is a row, the wiper pages whatever the
 manifest publishes, a note that straddles the two blades on a wide screen is
 wiped by both, the outgoing page leaves as one row ahead of the blade that
-reaches it first, and the detent a visitor picks on the stalk is remembered
-by their browser. Each row carries an "Edit" link to its own source file and
+reaches it first, and the stalk starts on High on every load (nothing about
+the wiper is stored). On every full load of the home page the site opens with a
+veil on which the brand mark drives in from the left and parks at centre (the
+one place the mark may travel; the bus itself stays parked), holds it until
+the wiper stack has hydrated (at least 3 seconds, at most 5.5 seconds), and
+then carries the visitor down to this section (`src/lib/intro`); any input ends it at once, reduced
+motion, forced colours, a hidden tab and a URL fragment never start it, and
+it never touches the rows or the manifest. Each row carries an "Edit" link to its own source file and
 the section links the whole collection (`/tree/<branch>/src/content/goals`):
 the SourceLink "edit this page"
 exception extended to the collection, built from `source-map.json` and the

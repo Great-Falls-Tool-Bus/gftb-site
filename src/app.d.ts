@@ -15,6 +15,11 @@ declare global {
 	// public identity from the projected source marker; dev/test renders without
 	// that adapter have no provenance.
 	const __COMMIT_SHORT__: string | undefined;
+
+	// Build-time flag injected by vite.config.ts from PUBLIC_SUBSCRIBE_CAPTURE.
+	// Absent outside a Vite build; src/lib/subscribe-capture-flag.ts guards it
+	// and resolves to off.
+	const __SUBSCRIBE_CAPTURE__: boolean | undefined;
 }
 
 export {};

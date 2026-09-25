@@ -4,11 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
-import {
-	assertVerifiedSiteDraftCandidate,
-	prepareDraftProjection,
-	SiteDraftRefusal,
-} from '@gftb/site-draft-compiler';
+import { assertVerifiedSiteDraftCandidate, prepareDraftProjection, SiteDraftRefusal } from '@gftb/site-draft-compiler';
 import { object, seal, semanticSources } from './fixtures.mjs';
 
 const entry = import.meta.resolve('@gftb/site-draft-compiler');
@@ -32,7 +28,10 @@ async function fixture() {
 	const bodies = new Map([
 		['.prettierrc', formatText],
 		['package.json', readFileSync(new URL('package.json', source), 'utf8')],
-		['tinyland.repo.json', JSON.stringify({ repo: { github: 'Great-Falls-Tool-Bus/gftb-site', defaultBranch: 'main' } })],
+		[
+			'tinyland.repo.json',
+			JSON.stringify({ repo: { github: 'Great-Falls-Tool-Bus/gftb-site', defaultBranch: 'main' } }),
+		],
 		[manifest, await renderLogManifest([], format)],
 		[sourceMap, renderSourceMap(repo, ['src/routes/+page.svelte'], [])],
 	]);
@@ -54,14 +53,18 @@ published: false
 		repositoryId: '12345',
 		baseSha: 'a'.repeat(40),
 		baseTreeSha: '',
-		tree: [...bodies].map(([path]) => ({ path, mode: '100644', oid: '' })).concat([
-			...semanticSources.filter((path) => !bodies.has(path)).map((path) => ({
-				path,
-				mode: '100644',
-				oid: object('blob', readFileSync(new URL(path, source))),
-			})),
-			{ path: 'src/routes/+page.svelte', mode: '100644', oid: object('blob', Buffer.from('<h1>Home</h1>')) },
-		]),
+		tree: [...bodies]
+			.map(([path]) => ({ path, mode: '100644', oid: '' }))
+			.concat([
+				...semanticSources
+					.filter((path) => !bodies.has(path))
+					.map((path) => ({
+						path,
+						mode: '100644',
+						oid: object('blob', readFileSync(new URL(path, source))),
+					})),
+				{ path: 'src/routes/+page.svelte', mode: '100644', oid: object('blob', Buffer.from('<h1>Home</h1>')) },
+			]),
 		blobs: [...bodies].map(([path, content]) => ({ path, content })),
 		candidate: { path: 'src/content/log/2026-09-09-tools-ready.svx', content, sha256: sha(content) },
 	});

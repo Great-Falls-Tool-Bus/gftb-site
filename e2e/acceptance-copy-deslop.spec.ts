@@ -169,19 +169,31 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		expect(lede).toContain('community-run tool library');
 	});
 
-	test('the hero carries the Thursday hours once and retains the local contact CTA', async ({ page }) => {
-		// September 8 placement supersedes the earlier yellow session band.
+	test('the FAQ carries the Thursday hours once and retains the local contact CTA', async ({ page }) => {
+		// Operator ruling 2026-09-19: the recurring hours moved out of the hero
+		// box into the FAQ, where the questions people ask already live. The hero
+		// box now carries what the club is, in one statement and two callouts.
 		await page.goto('/');
-		const session = page.locator('.hero .hero-session');
+		const session = page.locator('#faq');
 		await expect(session).toContainText(
 			'Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the contact form to confirm before traveling.',
 		);
 		await expect(session.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
 		await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
 		await expect(page.locator('.next-session')).toHaveCount(0);
+		await expect(page.locator('.hero-session')).toHaveCount(0);
 		await expect(page.locator('#status > p')).toHaveCount(1);
-		await expect(page.locator('#contact a')).toHaveCount(1);
-		await expect(page.locator('#contact a')).toHaveAttribute('href', '/contact');
+		await expect(page.locator('#status .callouts > li')).toHaveCount(2);
+		await expect(page.locator('#status .credit')).toHaveText('Words by Tool Bus Member Katherine T.');
+		// The credit is a <small>, not a <footer>: a second footer element on the
+		// page breaks the strict-mode locator in e2e/home-goals.spec.ts.
+		await expect(page.locator('#status footer')).toHaveCount(0);
+		// Operator ruling 2026-09-19 added a button row under the sentence
+		// (Contact a keyholder + Discussion board), so the section now carries
+		// three anchors instead of one; the inline sentence link is still the
+		// first and still points at the contact page.
+		await expect(page.locator('#contact a')).toHaveCount(3);
+		await expect(page.locator('#contact a').first()).toHaveAttribute('href', '/contact');
 	});
 
 	test('every interim string still carries its TODO(jess) marker', async () => {

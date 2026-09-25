@@ -31,7 +31,7 @@ interface HeaderNavItem extends NavItemBase {
 interface FooterNavItem extends NavItemBase {
 	primary?: never;
 	/** Which footer group this item is demoted into. */
-	footerGroup: 'About' | 'Get involved';
+	footerGroup: 'About' | 'Get involved' | 'Site';
 	/**
 	 * Destination leaves the site — the footer renders it through
 	 * ExternalLink (rel/target + the [↗] mark) instead of a bare anchor.
@@ -44,6 +44,10 @@ export type NavItem = HeaderNavItem | FooterNavItem;
 export const navItems: NavItem[] = [
 	{ label: 'Log', href: '/log', match: ['/log'], primary: true },
 	{ label: 'Contact', href: '/contact', match: ['/contact'], primary: true },
+	// Operator ruling 2026-09-19: FAQ in the header, linking to the home
+	// FAQ section. The footer's own "Questions" row is retired in the same
+	// ruling; the fuller footer sitemap (below) carries FAQ instead.
+	{ label: 'FAQ', href: '/#faq', match: [], primary: true },
 	// Operator ruling 2026-08-31: GitHub in the header. The org page is the
 	// public target (gftb-site itself is private; a repo link would 404 for
 	// visitors, review E4).
@@ -70,21 +74,48 @@ export const navItems: NavItem[] = [
 		primary: true,
 		external: true,
 	},
-	// Footer navigation.
+	// Footer navigation: the fuller tinyland.dev-pattern sitemap (operator
+	// ruling 2026-09-19). These are separate objects from their header/body
+	// counterparts on purpose, since a footer row can carry its own label
+	// ("Discussion board" here vs. "Discussion archive" in the header) while
+	// still pointing at the same destination; the "Log archive" row below
+	// already established the pattern before this ruling.
+	{ label: 'Home', href: '/', match: ['/'], footerGroup: 'About' },
+	{ label: 'FAQ', href: '/#faq', match: [], footerGroup: 'About' },
+	{ label: 'Notes & Goals', href: '/#goals', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
+	{
+		label: 'Discussion board',
+		href: 'https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/',
+		match: [],
+		footerGroup: 'Get involved',
+		external: true,
+	},
+	{
+		label: 'GitHub',
+		href: 'https://github.com/Great-Falls-Tool-Bus',
+		match: [],
+		footerGroup: 'Get involved',
+		external: true,
+	},
+	{ label: 'Privacy', href: '/privacy', match: ['/privacy'], footerGroup: 'Site' },
+	{ label: 'Refund policy', href: '/refund-policy', match: ['/refund-policy'], footerGroup: 'Site' },
+	{ label: 'Legal', href: '/legal', match: ['/legal'], footerGroup: 'Site' },
+	// Same-origin resource, not an outbound destination, so a plain anchor.
+	{ label: 'Sitemap', href: '/sitemap.xml', match: [], footerGroup: 'Site' },
 ];
 
 /** Header bar items — derived, never hand-duplicated. */
 export const primaryNavItems: NavItem[] = navItems.filter((item) => item.primary);
 
 /** Footer-demoted items, grouped in `navItems` order within each group. */
-export const footerNavGroups: Array<{ heading: string; items: NavItem[] }> = (['About', 'Get involved'] as const).map(
-	(heading) => ({
-		heading,
-		items: navItems.filter((item) => item.footerGroup === heading),
-	}),
-);
+export const footerNavGroups: Array<{ heading: string; items: NavItem[] }> = (
+	['About', 'Get involved', 'Site'] as const
+).map((heading) => ({
+	heading,
+	items: navItems.filter((item) => item.footerGroup === heading),
+}));
 
 /**
  * True when `pathname` (base-stripped, "/" for root) is at or under any of

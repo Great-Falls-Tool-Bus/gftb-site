@@ -36,21 +36,34 @@ const PUBLIC_LOG_KEYS = new Set<string>([...PUBLIC_LOG_REQUIRED_KEYS, ...PUBLIC_
 const branded = new WeakSet<object>();
 
 const TOOL_FILES = [
-	'MODULE.bazel', 'pnpm-lock.yaml', 'package.json', '.prettierrc',
-	'tools/site-draft-compiler/defs.bzl', 'tools/site-draft-compiler/BUILD.bazel',
+	'MODULE.bazel',
+	'pnpm-lock.yaml',
+	'package.json',
+	'.prettierrc',
+	'tools/site-draft-compiler/defs.bzl',
+	'tools/site-draft-compiler/BUILD.bazel',
 	'tools/site-draft-compiler/compiler.ts',
 	'tools/site-draft-compiler/package.json',
-	'src/lib/public-log-schema.ts', 'src/lib/featured-image-schema.ts',
-	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
-	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
-	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
+	'src/lib/public-log-schema.ts',
+	'src/lib/featured-image-schema.ts',
+	'scripts/lib/log-content.mjs',
+	'scripts/lib/log-projection.mjs',
+	'scripts/lib/log-source-guard.mjs',
+	'scripts/lib/featured-image.mjs',
+	'scripts/lib/leak-scan.mjs',
+	'scripts/lib/leak-scan-rules.json',
 ] as const;
 
 const RUNTIME_FILES = [
-	'package.json', 'src/lib/public-log-schema.js', 'src/lib/featured-image-schema.js',
-	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
-	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
-	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
+	'package.json',
+	'src/lib/public-log-schema.js',
+	'src/lib/featured-image-schema.js',
+	'scripts/lib/log-content.mjs',
+	'scripts/lib/log-projection.mjs',
+	'scripts/lib/log-source-guard.mjs',
+	'scripts/lib/featured-image.mjs',
+	'scripts/lib/leak-scan.mjs',
+	'scripts/lib/leak-scan-rules.json',
 ] as const;
 
 /**
@@ -60,11 +73,18 @@ const RUNTIME_FILES = [
  * what the current site will accept. Content-only main changes need no repin.
  */
 const SITE_SEMANTIC_FILES = [
-	'MODULE.bazel', 'pnpm-lock.yaml', 'package.json', '.prettierrc',
-	'src/lib/public-log-schema.ts', 'src/lib/featured-image-schema.ts',
-	'scripts/lib/log-content.mjs', 'scripts/lib/log-projection.mjs',
-	'scripts/lib/log-source-guard.mjs', 'scripts/lib/featured-image.mjs',
-	'scripts/lib/leak-scan.mjs', 'scripts/lib/leak-scan-rules.json',
+	'MODULE.bazel',
+	'pnpm-lock.yaml',
+	'package.json',
+	'.prettierrc',
+	'src/lib/public-log-schema.ts',
+	'src/lib/featured-image-schema.ts',
+	'scripts/lib/log-content.mjs',
+	'scripts/lib/log-projection.mjs',
+	'scripts/lib/log-source-guard.mjs',
+	'scripts/lib/featured-image.mjs',
+	'scripts/lib/leak-scan.mjs',
+	'scripts/lib/leak-scan-rules.json',
 ] as const;
 
 export interface SiteTreeEntry {
@@ -140,14 +160,24 @@ function gitObject(kind: string, bytes: Buffer): string {
 }
 
 function textBytes(value: unknown): asserts value is string {
-	requireFact(typeof value === 'string' && Buffer.byteLength(value) <= MAX_FILE_BYTES &&
-		Buffer.from(value).toString('utf8') === value && !value.includes('\0'));
+	requireFact(
+		typeof value === 'string' &&
+			Buffer.byteLength(value) <= MAX_FILE_BYTES &&
+			Buffer.from(value).toString('utf8') === value &&
+			!value.includes('\0'),
+	);
 }
 
 function validPath(value: unknown): asserts value is string {
-	requireFact(typeof value === 'string' && value.length > 0 && value.length <= 512 &&
-		Buffer.from(value).toString('utf8') === value && !/[\u0000-\u001f\u007f\\]/.test(value) &&
-		value.split('/').every((part) => part !== '' && part !== '.' && part !== '..'));
+	requireFact(
+		typeof value === 'string' &&
+			value.length > 0 &&
+			value.length <= 512 &&
+			Buffer.from(value).toString('utf8') === value &&
+			!value.includes('\\') &&
+			Array.from(value).every((character) => character.charCodeAt(0) > 0x1f && character.charCodeAt(0) !== 0x7f) &&
+			value.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
+	);
 }
 
 type TreeNode = Map<string, TreeNode | SiteTreeEntry>;
@@ -175,9 +205,10 @@ function treeOid(entries: readonly SiteTreeEntry[]): string {
 			const directory = value instanceof Map;
 			const mode = directory ? '40000' : value.mode;
 			const oid = directory ? hash(value) : value.oid;
-			return { key: Buffer.from(name + (directory ? '/' : '')), bytes: Buffer.concat([
-				Buffer.from(`${mode} ${name}\0`), Buffer.from(oid, 'hex'),
-			]) };
+			return {
+				key: Buffer.from(name + (directory ? '/' : '')),
+				bytes: Buffer.concat([Buffer.from(`${mode} ${name}\0`), Buffer.from(oid, 'hex')]),
+			};
 		});
 		rows.sort((left, right) => Buffer.compare(left.key, right.key));
 		return gitObject('tree', Buffer.concat(rows.map((row) => row.bytes)));
@@ -189,7 +220,10 @@ function canonical(value: unknown): string {
 	if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
 	if (value !== null && typeof value === 'object') {
 		const record = value as Record<string, unknown>;
-		return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`).join(',')}}`;
+		return `{${Object.keys(record)
+			.sort()
+			.map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
+			.join(',')}}`;
 	}
 	const encoded = JSON.stringify(value);
 	requireFact(encoded !== undefined);
@@ -217,12 +251,20 @@ function parseEntry(path: string, content: string) {
 	const block = /^---\n([\s\S]*?)\n---/.exec(content)?.[1];
 	requireFact(block);
 	const keys = [...block.matchAll(/^([A-Za-z][\w-]*):/gm)].map((match) => match[1]);
-	requireFact(new Set(keys).size === keys.length && keys.every((key) => PUBLIC_LOG_KEYS.has(key)) &&
-		/^published:\s*(?:true|false)$/m.test(block));
+	requireFact(
+		new Set(keys).size === keys.length &&
+			keys.every((key) => PUBLIC_LOG_KEYS.has(key)) &&
+			/^published:\s*(?:true|false)$/m.test(block),
+	);
 	if (!metadata.published) requireFact(parsed.body.includes('TODO(jess)'));
 	publicText(content);
-	return { file: path.slice('src/content/log/'.length), slug: path.slice('src/content/log/'.length, -4),
-		sourcePath: path, metadata: metadata as PublicLogMetadata & Record<string, unknown>, body: parsed.body };
+	return {
+		file: path.slice('src/content/log/'.length),
+		slug: path.slice('src/content/log/'.length, -4),
+		sourcePath: path,
+		metadata: metadata as PublicLogMetadata & Record<string, unknown>,
+		body: parsed.body,
+	};
 }
 
 function astRecord(value: unknown): Record<string, unknown> {
@@ -230,7 +272,7 @@ function astRecord(value: unknown): Record<string, unknown> {
 	return value as Record<string, unknown>;
 }
 
-/** Validate the pinned parser's actual modern shape, not its stale legacy types. */
+/** Validate the pinned parser's public modern fragment shape. */
 function inertFragment(value: unknown): void {
 	const fragment = astRecord(value);
 	requireFact(fragment.type === 'Fragment' && Array.isArray(fragment.nodes));
@@ -243,8 +285,12 @@ function inertFragment(value: unknown): void {
 			requireFact(typeof node.data === 'string' && node.data.includes('TODO(jess)'));
 			publicText(node.data);
 		} else {
-			requireFact(node.type === 'RegularElement' && (node.name === 'p' || node.name === 'br') &&
-				Array.isArray(node.attributes) && node.attributes.length === 0);
+			requireFact(
+				node.type === 'RegularElement' &&
+					(node.name === 'p' || node.name === 'br') &&
+					Array.isArray(node.attributes) &&
+					node.attributes.length === 0,
+			);
 			inertFragment(node.fragment);
 		}
 	}
@@ -252,14 +298,22 @@ function inertFragment(value: unknown): void {
 
 function metadataScript(code: string): string {
 	const root = astRecord(parseSvelte(code, { modern: true }));
-	requireFact(root.type === 'Root' && root.options === null && root.css === null &&
-		Array.isArray(root.js) && root.js.length === 1);
+	// The pinned parser initializes options/css to null and adds each script
+	// field only when that script exists. Its unused internal js array is empty.
+	requireFact(root.type === 'Root' && root.options === null && root.css === null && root.instance === undefined);
 	inertFragment(root.fragment);
-	const script = astRecord(root.js[0]);
-	requireFact(script.type === 'Script' && script.context === 'module' &&
-		typeof script.start === 'number' && Number.isInteger(script.start) && script.start >= 0 &&
-		typeof script.end === 'number' && Number.isInteger(script.end) && script.end > script.start &&
-		script.end <= code.length);
+	const script = astRecord(root.module);
+	requireFact(
+		script.type === 'Script' &&
+			script.context === 'module' &&
+			typeof script.start === 'number' &&
+			Number.isInteger(script.start) &&
+			script.start >= 0 &&
+			typeof script.end === 'number' &&
+			Number.isInteger(script.end) &&
+			script.end > script.start &&
+			script.end <= code.length,
+	);
 	return code.slice(script.start, script.end);
 }
 
@@ -269,8 +323,9 @@ async function checkCandidate(content: string, metadata: PublicLogMetadata): Pro
 	requireFact(frontmatter);
 	const result = await compileMarkdown(content);
 	const control = await compileMarkdown(`${frontmatter}\n<p>Plain compiler control.</p>\n`);
-	requireFact(result && control && isDeepStrictEqual(result.data?.fm, metadata) &&
-		isDeepStrictEqual(control.data?.fm, metadata));
+	requireFact(
+		result && control && isDeepStrictEqual(result.data?.fm, metadata) && isDeepStrictEqual(control.data?.fm, metadata),
+	);
 	// mdsvex owns one metadata module. Submitted prose may neither add a script
 	// nor alter that exact module; a safe body with the same frontmatter pins it.
 	requireFact(metadataScript(result.code) === metadataScript(control.code));
@@ -281,7 +336,8 @@ function toolCustody() {
 	const sourceRoot = new URL('source/', packageRoot);
 	const contents = new Map(TOOL_FILES.map((path) => [path, readFileSync(new URL(path, sourceRoot))]));
 	const files: Array<{ path: string; sha256: string }> = TOOL_FILES.map((path) => ({
-		path, sha256: sha256(contents.get(path)!),
+		path,
+		sha256: sha256(contents.get(path)!),
 	}));
 	files.push({ path: 'compiler-runtime', sha256: sha256(readFileSync(fileURLToPath(import.meta.url))) });
 	for (const path of RUNTIME_FILES) {
@@ -294,19 +350,36 @@ function toolCustody() {
 export async function prepareDraftProjection(input: SiteDraftProjectionInput): Promise<VerifiedSiteDraftCandidate> {
 	try {
 		// Copy all caller-controlled bytes and arrays before the first await.
-		requireFact(input.repository === REPOSITORY && typeof input.repositoryId === 'string' &&
-			/^[1-9]\d{0,18}$/.test(input.repositoryId) && typeof input.baseSha === 'string' &&
-			OID.test(input.baseSha) && typeof input.baseTreeSha === 'string' && OID.test(input.baseTreeSha));
-		requireFact(Array.isArray(input.tree) && input.tree.length > 0 && input.tree.length <= MAX_TREE_FILES &&
-			Array.isArray(input.blobs) && input.blobs.length <= MAX_TREE_FILES);
-		const repositoryId = input.repositoryId, baseSha = input.baseSha, baseTreeSha = input.baseTreeSha;
+		requireFact(
+			input.repository === REPOSITORY &&
+				typeof input.repositoryId === 'string' &&
+				/^[1-9]\d{0,18}$/.test(input.repositoryId) &&
+				typeof input.baseSha === 'string' &&
+				OID.test(input.baseSha) &&
+				typeof input.baseTreeSha === 'string' &&
+				OID.test(input.baseTreeSha),
+		);
+		requireFact(
+			Array.isArray(input.tree) &&
+				input.tree.length > 0 &&
+				input.tree.length <= MAX_TREE_FILES &&
+				Array.isArray(input.blobs) &&
+				input.blobs.length <= MAX_TREE_FILES,
+		);
+		const repositoryId = input.repositoryId,
+			baseSha = input.baseSha,
+			baseTreeSha = input.baseTreeSha;
 		const tree = input.tree.map(({ path, mode, oid }) => ({ path, mode, oid }));
 		const blobs = input.blobs.map(({ path, content }) => ({ path, content }));
 		const candidate = { ...input.candidate };
 		textBytes(candidate.content);
 		validPath(candidate.path);
-		requireFact(LOG_PATH.test(candidate.path) && typeof candidate.sha256 === 'string' &&
-			SHA256.test(candidate.sha256) && sha256(candidate.content) === candidate.sha256);
+		requireFact(
+			LOG_PATH.test(candidate.path) &&
+				typeof candidate.sha256 === 'string' &&
+				SHA256.test(candidate.sha256) &&
+				sha256(candidate.content) === candidate.sha256,
+		);
 		requireFact(treeOid(tree) === baseTreeSha);
 		const treeByPath = new Map(tree.map((entry) => [entry.path, entry]));
 		const required = new Set(['.prettierrc', 'tinyland.repo.json', 'package.json', MANIFEST, SOURCE_MAP]);
@@ -325,7 +398,11 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 			bytes += Buffer.byteLength(blob.content);
 		}
 		requireFact(bytes <= MAX_INPUT_BYTES);
-		const get = (path: string): string => { const content = contents.get(path); requireFact(content !== undefined); return content; };
+		const get = (path: string): string => {
+			const content = contents.get(path);
+			requireFact(content !== undefined);
+			return content;
+		};
 		const custody = toolCustody();
 		// A complete authenticated tree is sufficient for this check. Never fetch
 		// or execute the canonical tree's code to compensate for a stale package.
@@ -342,7 +419,10 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 		format.plugins = [createRequire(import.meta.url).resolve('prettier-plugin-svelte')];
 		const repository = resolveSourceRepository(JSON.parse(get('tinyland.repo.json')), JSON.parse(get('package.json')));
 		requireFact(repository.repoUrl === `https://github.com/${REPOSITORY}` && repository.branch === 'main');
-		const entries = [...required].filter((path) => LOG_PATH.test(path)).sort().map((path) => parseEntry(path, get(path)));
+		const entries = [...required]
+			.filter((path) => LOG_PATH.test(path))
+			.sort()
+			.map((path) => parseEntry(path, get(path)));
 		requireFact(entries.length === [...required].filter((path) => path.endsWith('.svx')).length);
 		requireFact(new Set(entries.map((entry) => entry.metadata.date)).size === entries.length);
 		for (const entry of entries) {
@@ -357,7 +437,7 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 		const pagePaths = pages.map((entry) => entry.path).sort();
 		await checkCandidate(candidate.content, incoming.metadata);
 		// Reject stale generated preimages before constructing an amendment.
-		requireFact(await renderLogManifest(entries, format) === get(MANIFEST));
+		requireFact((await renderLogManifest(entries, format)) === get(MANIFEST));
 		requireFact(renderSourceMap(repository, pagePaths, entries) === get(SOURCE_MAP));
 		const previous = entries.find((entry) => entry.metadata.date === incoming.metadata.date);
 		const canonicalDayPath = previous?.sourcePath ?? candidate.path;
@@ -372,28 +452,56 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 		} else requireFact(!treeByPath.has(candidate.path));
 		textBytes(content);
 		const finalEntry = parseEntry(canonicalDayPath, content);
-		const prospective = entries.filter((entry) => entry.sourcePath !== canonicalDayPath).concat(finalEntry)
-			.sort((left, right) => left.file < right.file ? -1 : left.file > right.file ? 1 : 0);
-		const outputs = [content, await renderLogManifest(prospective, format), renderSourceMap(repository, pagePaths, prospective)];
+		const prospective = entries
+			.filter((entry) => entry.sourcePath !== canonicalDayPath)
+			.concat(finalEntry)
+			.sort((left, right) => (left.file < right.file ? -1 : left.file > right.file ? 1 : 0));
+		const outputs = [
+			content,
+			await renderLogManifest(prospective, format),
+			renderSourceMap(repository, pagePaths, prospective),
+		];
 		const paths = [canonicalDayPath, MANIFEST, SOURCE_MAP];
 		const files = outputs.map((output, index) => {
 			textBytes(output);
-			return { path: paths[index], content: output, sha256: sha256(output), previousBlobSha: treeByPath.get(paths[index])?.oid ?? null };
+			return {
+				path: paths[index],
+				content: output,
+				sha256: sha256(output),
+				previousBlobSha: treeByPath.get(paths[index])?.oid ?? null,
+			};
 		}) as unknown as [SiteDraftOutput, SiteDraftOutput, SiteDraftOutput];
-		const replacements = new Map(files.map((file) => [file.path, { path: file.path, mode: '100644' as const,
-			oid: gitObject('blob', Buffer.from(file.content)) }]));
+		const replacements = new Map(
+			files.map((file) => [
+				file.path,
+				{ path: file.path, mode: '100644' as const, oid: gitObject('blob', Buffer.from(file.content)) },
+			]),
+		);
 		const nextTree = tree.filter((entry) => !replacements.has(entry.path)).concat([...replacements.values()]);
-		const sortedTree = [...nextTree].sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+		const sortedTree = [...nextTree].sort((left, right) =>
+			left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+		);
 		const facts = {
-			repository: REPOSITORY, repositoryId, baseSha, baseTreeSha, prospectiveTreeSha: treeOid(nextTree),
+			repository: REPOSITORY,
+			repositoryId,
+			baseSha,
+			baseTreeSha,
+			prospectiveTreeSha: treeOid(nextTree),
 			candidateTreeSha256: sha256(canonical(['gftb.site-draft-tree/1', sortedTree])),
 			originalCandidate: { path: candidate.path, sha256: candidate.sha256 },
-			date: incoming.metadata.date, canonicalDayPath, files,
-			sourceInputs: blobs.map((blob) => ({ path: blob.path, oid: treeByPath.get(blob.path)!.oid,
-				sha256: sha256(blob.content) })).sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0),
-			toolInputs: custody.files, nodeVersion: process.version,
+			date: incoming.metadata.date,
+			canonicalDayPath,
+			files,
+			sourceInputs: blobs
+				.map((blob) => ({ path: blob.path, oid: treeByPath.get(blob.path)!.oid, sha256: sha256(blob.content) }))
+				.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0)),
+			toolInputs: custody.files,
+			nodeVersion: process.version,
 		} as const;
-		const receiptFacts = { ...facts, files: files.map(({ path, sha256: digest, previousBlobSha }) => ({ path, sha256: digest, previousBlobSha })) };
+		const receiptFacts = {
+			...facts,
+			files: files.map(({ path, sha256: digest, previousBlobSha }) => ({ path, sha256: digest, previousBlobSha })),
+		};
 		const result = freeze({ ...facts, receiptSha256: sha256(canonical(receiptFacts)) });
 		branded.add(result);
 		return result;

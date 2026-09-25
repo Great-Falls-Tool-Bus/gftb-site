@@ -1,14 +1,40 @@
 """Source exports for the root-scoped compiler graph; no registry release is asserted."""
 
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+
 filegroup(
     name = "source_inputs",
     srcs = ["BUILD.bazel", "compiler.test.mjs", "compiler.ts", "consumer.test.mjs", "defs.bzl", "fixtures.mjs", "package.json"],
     visibility = ["//visibility:public"],
 )
 
-filegroup(
+js_library(
+    name = "compiler_test_source",
+    srcs = ["compiler.test.mjs"],
+    visibility = ["//visibility:public"],
+)
+
+js_library(
+    name = "consumer_test_source",
+    srcs = ["consumer.test.mjs"],
+    visibility = ["//visibility:public"],
+)
+
+js_library(
+    name = "fixtures_source",
+    srcs = ["fixtures.mjs"],
+    visibility = ["//visibility:public"],
+)
+
+js_library(
     name = "format_inputs",
-    srcs = ["compiler.ts", "compiler.test.mjs", "consumer.test.mjs", "fixtures.mjs", "package.json"],
+    srcs = [
+        ":compiler_test_source",
+        ":consumer_test_source",
+        ":fixtures_source",
+        "compiler.ts",
+        "package.json",
+    ],
     visibility = ["//visibility:public"],
 )
 

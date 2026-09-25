@@ -19,6 +19,9 @@
 		<meta name="theme-color" content="#564682" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#28222b" media="(prefers-color-scheme: dark)" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="32x32" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<link rel="manifest" href="%sveltekit.assets%/site.webmanifest" />
 		<script>
 			// FOUC prevention (D02, ported from the demo app.html:8-33): read
 			// color-mode and theme from localStorage and apply data-mode +
@@ -47,11 +50,36 @@
 					if (!reduceMotion) {
 						document.documentElement.classList.add('motion-safe-ready');
 						// Fail-open: if the app never hydrates (bundle load fails),
-						// un-hide reveal content so a broken enhancement layer cannot
-						// strand it. +layout.svelte cancels this on mount.
+						// un-hide reveal content and drop the home intro veil so a
+						// broken enhancement layer cannot strand either.
+						// +layout.svelte cancels this on mount; the intro controller
+						// then owns its own class.
 						window.__gftbRevealFailsafe = setTimeout(function () {
 							document.documentElement.classList.remove('motion-safe-ready');
+							document.documentElement.classList.remove('intro-armed');
 						}, 3000);
+						// Home intro (operator rulings 2026-09-10): every full load of the
+						// home path, never with a fragment, never while <html data-intro-off>
+						// (the test and LOOK hook) is present; no storage. Armed before
+						// first paint so the veil is the first frame and the page holds the
+						// top beneath it; the stylesheet ends it hidden by itself. Any input
+						// before hydration disarms it; src/lib/intro takes over on mount.
+						var forcedColors = window.matchMedia && window.matchMedia('(forced-colors: active)').matches;
+						if (
+							!forcedColors &&
+							location.pathname === '/' &&
+							location.hash === '' &&
+							!window.__gftbIntroOff &&
+							!document.documentElement.hasAttribute('data-intro-off')
+						) {
+							document.documentElement.classList.add('intro-armed');
+							var disarmIntro = function () {
+								document.documentElement.classList.remove('intro-armed');
+							};
+							['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (type) {
+								window.addEventListener(type, disarmIntro, { capture: true, passive: true, once: true });
+							});
+						}
 					}
 				} catch (e) {
 					// localStorage unavailable (privacy mode, etc.): keep defaults.

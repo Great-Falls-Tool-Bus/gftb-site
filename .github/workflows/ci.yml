@@ -20,11 +20,17 @@ concurrency:
 # runner. The adopting organization supplies the generic gf-v4-dispatch edge.
 jobs:
   validate:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
+    uses: xoxd-ai/ci-templates/.github/workflows/spoke-ci-v4.yml@c732248e379e276d9d98b601519c161a03bffe09 # main 2026-09-22, fork_owner_allowlist
     with:
+      # GF v4 fork pilot: admit pull requests from the operator fork only; a
+      # fork run gets the same read-only token and no secrets.
+      fork_owner_allowlist: Jesssullivan
       action_name: validate
 
   site-build:
-    uses: tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f # v5.1.0
+    uses: xoxd-ai/ci-templates/.github/workflows/spoke-ci-v4.yml@c732248e379e276d9d98b601519c161a03bffe09 # main 2026-09-22, fork_owner_allowlist
     with:
+      # GF v4 fork pilot: admit pull requests from the operator fork only; a
+      # fork run gets the same read-only token and no secrets.
+      fork_owner_allowlist: Jesssullivan
       action_name: site-build

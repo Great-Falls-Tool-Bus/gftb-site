@@ -7,7 +7,7 @@
  * e2e/acceptance-sharp-edges.spec.ts. */
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
-/* CityLink palette (TIN-3853/3854) — active via data-theme='gftb' on <html>. */
+/* CityLink palette (the palette ruling) — active via data-theme='gftb' on <html>. */
 @import './lib/styles/theme-gftb.css';
 /* Self-hosted typefaces (D08/D12, the merged demo #29 / Wave-2.5 pairing;
  * all @fontsource files ship font-display:swap):
@@ -86,7 +86,7 @@
 	line-gap-override: 0%;
 }
 
-/* Role layer (TIN-3854). Every rule below paints through a role, never a raw
+/* Role layer (the palette ruling). Every rule below paints through a role, never a raw
  * hex or a raw palette token, so a colour decision is made once and here.
  * The `[data-mode='dark']` block at the end of this file redefines every
  * scheme role in full; that block is the only place a second colour scheme
@@ -200,7 +200,7 @@
 
 /* ===== Semantic z-index scale =====
  * One ladder for every stacked surface: dropdown < sticky < modal-backdrop <
- * modal < toast < tooltip. Never an arbitrary 999/9999. Rules consume the
+ * modal < intro < toast < tooltip. Never an arbitrary 999/9999. Rules consume the
  * tokens through var() directly. Declared in its own :root block on purpose:
  * the role block above is scheme-swept by design-token-contrast.test.ts, and
  * these are not colours. (Ported from the previous apex, fix #139 era.) */
@@ -209,6 +209,7 @@
 	--z-sticky: 40;
 	--z-modal-backdrop: 50;
 	--z-modal: 60;
+	--z-intro: 65;
 	--z-toast: 70;
 	--z-tooltip: 80;
 }
@@ -321,6 +322,144 @@ body {
 @media (prefers-reduced-motion: reduce) {
 	.brand-vectors-bg * {
 		transition: none !important;
+	}
+}
+
+/* ===== Home intro (operator rulings 2026-09-10 and 2026-09-19) =====
+ * A first-load veil on the home route: page ground, the brand mark driving
+ * in from the left and parking at centre (the one place it may travel), then a
+ * scripted scroll to Notes & Goals (src/lib/intro). Hidden by default and
+ * painted ONLY under html.intro-armed, a class the app.html sync script sets
+ * before first paint on every full load (home path, no fragment, motion
+ * allowed, no data-intro-off hook). Three states: armed alone times itself
+ * out (a page with no bundle at all clears itself in three seconds, the
+ * same window as the reveal system's fail-open timer); intro-live, set by
+ * the controller once it owns the veil, holds it steady until the wiper
+ * stack reports ready; intro-lifting runs the lift and the mark's fade-out.
+ * Every timed rule sits under no-preference. Pointer-inert: a tap during
+ * the veil reaches the page (the device-motion handshake listens on
+ * #main-content). No focusable node, so the tab order is untouched. Below
+ * the skip link on the z ladder, above the sticky header. Paper drops it. */
+.home-intro {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-intro);
+	display: grid;
+	place-items: center;
+	overflow: clip;
+	pointer-events: none;
+	background: var(--bg);
+	color: var(--accent);
+	visibility: hidden;
+	opacity: 0;
+}
+
+.home-intro__mark {
+	width: clamp(11rem, 34vw, 20rem);
+	height: auto;
+	opacity: 0;
+	transform: translateX(-140vw);
+}
+
+@keyframes intro-veil {
+	0%,
+	85% {
+		opacity: 1;
+		visibility: visible;
+		animation-timing-function: ease-out;
+	}
+
+	100% {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+@keyframes intro-lift {
+	0% {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	100% {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+/* The mark drives in from the left and parks at centre (P23 amendment,
+ * 2026-09-19): a long ease-out with a two-frame settle, then no movement at
+ * all while it dwells. The fade-out keeps the parked position, so the mark
+ * never jumps back to its off-screen resting transform as the veil lifts. */
+@keyframes intro-mark-drive {
+	0% {
+		opacity: 1;
+		transform: translateX(-140vw);
+	}
+
+	80% {
+		transform: translateX(1.5vw);
+	}
+
+	100% {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes intro-mark-out {
+	0% {
+		opacity: 1;
+		transform: translateX(0);
+	}
+
+	100% {
+		opacity: 0;
+		transform: translateX(0);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html.intro-armed .home-intro {
+		animation: intro-veil 3000ms linear both;
+	}
+
+	html.intro-armed .home-intro__mark {
+		animation: intro-mark-drive 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+
+	html.intro-armed.intro-live .home-intro {
+		animation: none;
+		visibility: visible;
+		opacity: 1;
+	}
+
+	html.intro-armed.intro-live .home-intro__mark {
+		animation: intro-mark-drive 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+
+	html.intro-armed.intro-lifting .home-intro {
+		animation: intro-lift 900ms ease-out both;
+	}
+
+	html.intro-armed.intro-lifting .home-intro__mark {
+		animation: intro-mark-out 900ms ease-in both;
+	}
+}
+
+/* While the intro owns the page, the browser's scroll anchoring must not
+ * move the visitor when an image decodes or a section reveals above the
+ * fold: the tween reads scrollY every frame and treats any move that is not
+ * its own as a cancel. */
+html.intro-live {
+	overflow-anchor: none;
+}
+
+/* Forced colours stand the wiper enhancement down, so there is nothing for
+ * the veil to lead to; the sync script does not arm it there either. */
+@media (forced-colors: active) {
+	.home-intro {
+		display: none !important;
 	}
 }
 
@@ -529,10 +668,10 @@ li {
 	overflow-wrap: anywhere;
 }
 
-.brand img {
-	width: 3.2rem;
+.brand__mark {
+	flex: none;
+	width: 2rem;
 	height: 2rem;
-	object-fit: contain;
 }
 
 .site-nav {
@@ -611,7 +750,10 @@ li {
  * the hostile-brand header ceiling (≤92px, mobile-nav.spec.ts) intact.
  * This block must sit AFTER the `.site-nav a` base rule: the padding
  * override ties on specificity and wins only on source order (CI round 3
- * proved the earlier placement silently lost that tie). */
+ * proved the earlier placement silently lost that tie).
+ *
+ * Five anchors since the FAQ ruling of 2026-09-19: the gap and font below
+ * were re-measured in a browser at 320px (see the rule's comment). */
 @media (max-width: 28rem) {
 	.site-header__inner {
 		grid-template-columns: minmax(0, auto) minmax(0.5rem, 1fr) minmax(min-content, 60%);
@@ -620,8 +762,12 @@ li {
 	.site-nav {
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0 0.6rem;
-		font-size: 0.78rem;
+		/* 0.4rem and 0.76rem (2026-09-19, five anchors): Log, Contact, FAQ and
+		 * GitHub share the first row, Discussion archive the second, the mode
+		 * switch the third; measured 84.9px against the 92px ceiling with the
+		 * hostile brand, row targets 27px. */
+		gap: 0 0.4rem;
+		font-size: 0.76rem;
 	}
 
 	.site-nav a {
@@ -866,7 +1012,9 @@ li {
  * carries that now — but are kept as a visual invariant: ink should not
  * visually sit on the heavier edge tint. Sized to contain the TRUE measured
  * ink span at every acceptance-responsive breakpoint (widest at 320px,
- * 11.6%-88.4%, review measurement 2026-08-20); design-token-contrast.test.ts
+ * 7.3%-92.7%, re-measured 2026-09-19 after the pitch list and the about box
+ * changed the hero's height; the stops follow the ink, which is what this
+ * invariant asks for); design-token-contrast.test.ts
  * asserts the stops against that fixture, with a staleness guard (review
  * round 2, finding B.3.1) and rule-anchored regexes (finding B.3.2) so a
  * decoy rule elsewhere in the file cannot satisfy the match. The horizontal
@@ -883,8 +1031,8 @@ li {
 		linear-gradient(
 			180deg,
 			var(--hero-scrim-edge-top) 0%,
-			var(--hero-scrim-content) 10%,
-			var(--hero-scrim-content) 90%,
+			var(--hero-scrim-content) 6%,
+			var(--hero-scrim-content) 94%,
 			var(--hero-scrim-edge-bottom) 100%
 		),
 		linear-gradient(
@@ -930,6 +1078,19 @@ li {
 .lede {
 	max-width: 43rem;
 	font-size: clamp(1.15rem, 3vw, 1.45rem);
+}
+
+/* The pitch (2026-09-19): four invitation lines inside the hero glass, set as
+ * a plain list between the lede and the buttons. Text only; no marks, no box. */
+.pitch {
+	margin: 0 0 1.4rem;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.55rem;
+	max-width: 46ch;
+	font-size: 1.02rem;
+	line-height: 1.45;
 }
 
 .button-row {
@@ -1184,6 +1345,28 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	transform: none;
 }
 
+/* Questions people ask (2026-09-19): a plain definition list, text only,
+ * no card, no widget; the same rendering with scripts off and on paper. */
+.faq-body {
+	max-width: 62ch;
+}
+
+.faq dt {
+	margin-top: 1.25rem;
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+	font-weight: 700;
+}
+
+.faq dt:first-child {
+	margin-top: 0;
+}
+
+.faq dd {
+	margin: 0.4rem 0 0;
+	line-height: 1.55;
+}
+
 .section-heading {
 	max-width: 48rem;
 	margin-bottom: 2rem;
@@ -1203,8 +1386,27 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	color: var(--accent);
 }
 
-.hero-session {
-	margin-top: 1.5rem;
+/* The hero box's two callouts and the credit lines (2026-09-19). Text only:
+ * no marks, no box, no radius, and no timed rule. The credit is a footer
+ * inside the box rather than a paragraph, so the acceptance row that counts
+ * direct-child paragraphs of the box still reads one. */
+.callouts {
+	margin: 0.9rem 0 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.4rem;
+	line-height: 1.45;
+}
+
+.credit {
+	display: block;
+	margin-top: 1rem;
+	font-size: 0.85rem;
+}
+
+.faq + .credit {
+	margin-top: 1.25rem;
 }
 
 /* Log rows remain borderless. The full entry now shares the glass treatment;
@@ -1220,6 +1422,46 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* E3 (UI-QA 2026-08-30): air between the read-more and the next paragraph. */
+/* A build sheet in a log entry (2026-09-19): a plain aside for the callout,
+ * the PDF in an object element sized as a letter page, and a one-line
+ * provenance note. No card chrome, no radius; paper shows the link instead. */
+.log-entry__body .callout {
+	margin: 0 0 1.5rem;
+	padding: 0.9rem 1.1rem;
+	border-left: 0.25rem solid var(--accent);
+}
+
+.log-entry__body .callout p {
+	margin: 0;
+}
+
+.log-entry__body .pdf-embed {
+	display: block;
+	width: 100%;
+	aspect-ratio: 8.5 / 11;
+	border: 0;
+}
+
+.log-entry__body .pdf-embed p {
+	margin: 0;
+}
+
+.log-entry__body .pdf-print-link {
+	display: none;
+}
+
+.log-entry__body .log-provenance {
+	font-size: 0.85rem;
+	color: var(--fg-muted);
+}
+
+/* A long single word in an entry title (2026-09-19, "Hyperdimensional") must
+ * break rather than widen a 320 px page; the display face has no hyphens. */
+.log-entry__header h1 {
+	overflow-wrap: anywhere;
+	hyphens: auto;
+}
+
 .log-entry + p {
 	margin-top: 1.25rem;
 }
@@ -2055,6 +2297,12 @@ figcaption {
 	margin: 0;
 }
 
+.site-footer__mark {
+	width: 1.6rem;
+	height: 1.6rem;
+	margin-bottom: 0.5rem;
+}
+
 .site-footer__intro {
 	display: grid;
 	gap: 0.35rem;
@@ -2087,14 +2335,15 @@ figcaption {
 		align-items: center;
 	}
 
-	/* Four explicit tracks, the demo's intro-weighted footer template
-	 * (demo +layout.svelte footer: md:grid-cols-[2fr_1fr_1fr_1fr] — the
-	 * intro column plus three nav groups). e2e/footer.spec.ts asserts the
-	 * computed track count matches this template at 768/1440 and collapses
-	 * to a single column below (the B4 breakpoint row); the #103 one-child-
+	/* Five explicit tracks, the demo's intro-weighted footer template
+	 * extended by the operator's 2026-09-19 fuller footer sitemap ruling
+	 * (a new Site group alongside About / Get involved / Meta): the intro
+	 * column plus four nav groups. e2e/footer.spec.ts asserts the computed
+	 * track count matches this template at 768/1440 and collapses to a
+	 * single column below (the B4 breakpoint row); the #103 one-child-
 	 * per-track lesson still holds. */
 	.site-footer__inner {
-		grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
 		align-items: start;
 	}
 }
@@ -2118,7 +2367,8 @@ figcaption {
 	.site-footer,
 	.skip-link,
 	.hero__media,
-	.brand-vectors-bg {
+	.brand-vectors-bg,
+	.home-intro {
 		display: none !important;
 	}
 
@@ -2250,6 +2500,15 @@ figcaption {
 	.qr {
 		print-color-adjust: exact;
 		-webkit-print-color-adjust: exact;
+	}
+
+	/* The embedded cut sheet is a plugin surface; paper gets the link. */
+	.log-entry__body .pdf-embed {
+		display: none !important;
+	}
+
+	.log-entry__body .pdf-embed + .pdf-print-link {
+		display: block;
 	}
 }
 
@@ -2454,4 +2713,61 @@ figcaption {
 	--glass-link: var(--color-primary-50);
 	--glass-accent: var(--color-primary-100);
 	--glass-danger: var(--color-error-50);
+}
+
+/* The toolbox-bus brand mark's own colours (operator ruling 2026-09-19):
+ * sampled from the sketch, carried by the inline mark (ToolBusMark.svelte) and
+ * mirrored in static/brand/*.svg and static/favicon.svg. Not theme tokens: the
+ * theme SSOT is byte-stable and the role blocks' declared sets are pinned, so
+ * these live on html, outside both, and belong to the mark alone. */
+html {
+	--tb-body: #8878c0;
+	--tb-band: #6850b0;
+	--tb-glass: #c8c8d0;
+	--tb-lid: #d0b020;
+	--tb-olive: #887018;
+	--tb-lamp: #c07018;
+	--tb-wheel: #c8c8d0;
+}
+
+html[data-mode='dark'] {
+	--tb-body: #9d8fd8;
+	--tb-glass: #3a3542;
+	--tb-wheel: #8d8797;
+}
+
+/* The inline marks paint through these rules (fills never sit in attributes),
+ * scoped to the .tb-mark root so the part names cannot collide. Under forced
+ * colours the fills give way to CanvasText and the mark reads as one
+ * silhouette with its window holes, which is the mono glyph by design. */
+.tb-mark .body,
+.tb-mark .front {
+	fill: var(--tb-body);
+}
+
+.tb-mark .band {
+	fill: var(--tb-band);
+}
+
+.tb-mark .windows,
+.tb-mark .glass {
+	fill: var(--tb-glass);
+}
+
+.tb-mark .lid {
+	fill: var(--tb-lid);
+}
+
+.tb-mark .handle,
+.tb-mark .dome {
+	fill: var(--tb-olive);
+}
+
+.tb-mark .lamps {
+	fill: var(--tb-lamp);
+}
+
+.tb-mark .wheel,
+.tb-mark .wheels {
+	fill: var(--tb-wheel);
 }

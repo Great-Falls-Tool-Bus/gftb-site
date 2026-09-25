@@ -41,8 +41,34 @@ if (analyzeRequested) {
 	);
 }
 
+// Rehearsal-only list-signup capture modal (src/lib/components/SubscribeCapture.svelte),
+// off unless the build sets PUBLIC_SUBSCRIBE_CAPTURE=1 (or true). The flag is
+// exported to the app as __SUBSCRIBE_CAPTURE__ (below) so an off build
+// tree-shakes the mount; this plugin closes the remaining gap, because the
+// bundler still emits a chunk for a dynamic import it has resolved even once
+// the call site is gone. With the flag off, the component's one import edge
+// (src/lib/subscribe-capture-load.ts) resolves to a stub that exports null,
+// so no byte of the component, its copy or its endpoint reaches the artifact.
+const subscribeCaptureEnabled =
+	process.env.PUBLIC_SUBSCRIBE_CAPTURE === '1' || process.env.PUBLIC_SUBSCRIBE_CAPTURE === 'true';
+const SUBSCRIBE_CAPTURE_OFF_ID = '\0gftb:subscribe-capture-off';
+function subscribeCaptureFlagPlugin(enabled: boolean): Plugin {
+	return {
+		name: 'gftb-subscribe-capture-flag',
+		enforce: 'pre',
+		resolveId(source) {
+			if (enabled) return null;
+			return source.endsWith('components/SubscribeCapture.svelte') ? SUBSCRIBE_CAPTURE_OFF_ID : null;
+		},
+		load(id) {
+			return id === SUBSCRIBE_CAPTURE_OFF_ID ? 'export default null;' : null;
+		},
+	};
+}
+
 export default defineConfig({
 	plugins: [
+		subscribeCaptureFlagPlugin(subscribeCaptureEnabled),
 		tailwindcss(),
 		accessibilityPlugin({
 			wcagLevel: 'AA',
@@ -58,6 +84,10 @@ export default defineConfig({
 		__VERSION__: JSON.stringify(buildInfo.version),
 		__COMMIT_HASH__: JSON.stringify(buildInfo.commitHash),
 		__COMMIT_SHORT__: JSON.stringify(buildInfo.commitShort),
+		// Rehearsal-only list-signup capture modal. Off unless the build sets
+		// PUBLIC_SUBSCRIBE_CAPTURE=1 (or true); off means the component is
+		// neither imported nor mounted (src/lib/subscribe-capture-flag.ts).
+		__SUBSCRIBE_CAPTURE__: JSON.stringify(subscribeCaptureEnabled),
 	},
 
 	build: {

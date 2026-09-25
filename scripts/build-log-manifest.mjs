@@ -28,10 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 import { resolveConfig } from 'prettier';
 
-import {
-	assertFeaturedImageFrontmatter,
-	assertPublishedImageAsset,
-} from './lib/featured-image.mjs';
+import { assertFeaturedImageFrontmatter, assertPublishedImageAsset } from './lib/featured-image.mjs';
 import { generatedFileCheckMode, writeOrCheckGeneratedFile } from './lib/generated-file.mjs';
 import { readLogEntries } from './lib/log-content.mjs';
 import { renderLogManifest } from './lib/log-projection.mjs';

@@ -32,8 +32,9 @@ boolean, caller assertion, or consumer execution path supplies that authority.
 
 `.github/workflows/ci.yml` is a thin v4 caller. It dispatches exactly the two
 actions in `.github/lanes.json` through ci-templates commit
-`32e39ced0008edf4564ebeb173a5e8fbf069e28f` (signed immutable release
-`v5.1.0`). It contains no runner, provider, endpoint, cache mode, tenant,
+`c732248e379e276d9d98b601519c161a03bffe09` from `xoxd-ai/ci-templates`.
+It preserves the existing `Jesssullivan` fork allowlist without granting
+publication or installed execution authority. It contains no runner, provider, endpoint, cache mode, tenant,
 credential, local-execution, or fallback choice. The generic
 `gf-v4-dispatch` edge is provisioned by the adopting organization, not selected
 by this repository.

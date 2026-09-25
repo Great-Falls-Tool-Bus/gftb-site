@@ -6,7 +6,10 @@
 // (a test and LOOK hook; no URL query, no storage). Nothing GPU-shaped is
 // imported statically, so the SSR graph stays clean. The WebGL2 chunk is
 // fetched alongside the WebGPU rung, so a demotion (a deadline, a refusal,
-// a loss) costs no second round trip.
+// a loss) costs no second round trip. A lost WebGL2 context does not lower
+// the ceiling: the browser restores such contexts, and a GPU reset that
+// takes one takes every rung with it, so the host tries WebGL2 again on
+// fresh canvases and only a creation failure ends the ladder.
 import type { RendererOptions, RendererSelection, RendererTier } from './types';
 
 const RANK: Record<RendererTier, number> = { none: 0, webgl2: 1, webgpu: 2 };
@@ -17,19 +20,26 @@ function lowerCeiling(to: RendererTier): void {
 	if (RANK[to] < RANK[pageCeiling]) pageCeiling = to;
 }
 
-/** The highest rung to try, given the html attribute and the page's own ceiling. */
-export function resolveCeiling(raw: string | undefined, ceiling: RendererTier = pageCeiling): RendererTier {
-	const asked: RendererTier = raw === 'webgl2' || raw === 'none' ? raw : 'webgpu';
+/**
+ * The highest rung to try, given the html attribute, the page's own ceiling
+ * and how the document was reached. A reload starts on WebGL2: Chrome drops
+ * the new document's WebGPU device while it tears the old one down, and the
+ * two rungs paint the same picture, so the reload takes the rung that holds.
+ */
+export function resolveCeiling(
+	raw: string | undefined,
+	ceiling: RendererTier = pageCeiling,
+	navigation: string | undefined = navigationType(),
+): RendererTier {
+	const asked: RendererTier = raw === 'webgl2' || raw === 'none' ? raw : navigation === 'reload' ? 'webgl2' : 'webgpu';
 	return RANK[asked] < RANK[ceiling] ? asked : ceiling;
 }
 
-/** Test seam: the page ceiling as it stands. */
-export function currentCeiling(): RendererTier {
-	return pageCeiling;
-}
-
-export function masksSupported(): boolean {
-	return typeof CSS !== 'undefined' && CSS.supports('mask-image', 'conic-gradient(#000, #000)');
+/** How this document was reached, from the navigation timing entry; unknown where the API is absent. */
+export function navigationType(): string | undefined {
+	if (typeof performance === 'undefined' || typeof performance.getEntriesByType !== 'function') return undefined;
+	const entry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+	return entry?.type;
 }
 
 export async function selectRenderer(
@@ -62,9 +72,7 @@ export async function selectRenderer(
 	if (!webgl2Chunk) return { ok: false, why: { kind: 'no-api' } };
 	try {
 		const { createWebGL2Renderer } = await webgl2Chunk;
-		const picked = createWebGL2Renderer(canvas, options);
-		if (picked.ok) picked.handle.onLost(() => lowerCeiling('none'));
-		return picked;
+		return createWebGL2Renderer(canvas, options);
 	} catch {
 		return { ok: false, why: { kind: 'no-context' } };
 	}
