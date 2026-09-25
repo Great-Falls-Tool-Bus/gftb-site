@@ -4,13 +4,12 @@ import { accessibilityPlugin } from '@tummycrypt/vite-plugin-a11y';
 import { defineConfig, type Plugin, type PluginOption } from 'vite';
 import pkg from './package.json';
 
-// Stamped Bazel build actions set BUILD_COMMIT_SHA from their stable-status
-// input. Dev runs may supply it explicitly; otherwise they report unknown.
-// The stamp (scripts/bazel/workspace-status.sh) carries an EXPLICITLY
-// supplied identity only and is already truncated to 7 chars at that source,
-// so no 40-hex value can ever be inlined below. The footer provenance line
-// (src/lib/build-info.ts) consumes __COMMIT_SHORT__ and renders nothing for
-// 'unknown', which keeps local builds provenance-free.
+// The source-marker action projects native BUILD_EMBED_LABEL into health.sha.
+// The build adapter reads that exact file, not Bazel's whole status files, and
+// sets BUILD_COMMIT_SHA to its seven-character prefix. Missing or malformed
+// identity fails before Vite runs. Caddy serves the full SHA at /health.sha;
+// it is excluded from page bundles, not private. Dev/test rendering without
+// that adapter has no provenance and the footer renders no line for 'unknown'.
 const commitHash = process.env.BUILD_COMMIT_SHA || 'unknown';
 const buildInfo = {
 	version: pkg.version,
@@ -18,8 +17,9 @@ const buildInfo = {
 	commitShort: commitHash === 'unknown' ? 'unknown' : commitHash.slice(0, 7),
 };
 
-// Bundle profiling: `ANALYZE=1 just build` (or `just analyze`) emits an
-// interactive treemap at .bundle-stats/stats.html. Loaded lazily at module
+// The parked //:analyze graph target emits an interactive bundle treemap.
+// It is not a declared ActionPlan action or a local execution entrypoint.
+// Loaded lazily at module
 // scope so ordinary builds never touch the plugin (it is a devDependency
 // only). BUILD_ANALYZE is honored for backwards compatibility with the old
 // Justfile recipe. Mirrors MassageIthaca/vite.config.ts.

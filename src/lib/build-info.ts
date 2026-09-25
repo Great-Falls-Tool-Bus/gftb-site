@@ -1,14 +1,12 @@
 // Build provenance for the footer "built from <sha>" line — a port of the old
-// apex's #140 mechanism onto this repo's one build-constant channel: the Bazel
-// stable-status stamp (scripts/bazel/workspace-status.sh) flows through
-// vite.config.ts's `define` block as __COMMIT_SHORT__. The stamp carries an
-// EXPLICITLY supplied identity only (BUILD_COMMIT_SHA / GITHUB_SHA — CI and
-// publish invocations) and is truncated to 7 chars AT THE SOURCE, so the
-// 40-hex form never reaches Vite and can never be inlined into shipped bytes
-// (the leak-scan gate rejects 40-hex in the artifact as its backstop). An
-// unidentified (local / dev) build stamps the literal 'unknown', so the
-// footer renders nothing. Fail-quiet: absence renders nothing, never a
-// broken value.
+// apex's #140 mechanism onto this repo's one build-constant channel. The Bazel
+// source-marker action projects native BUILD_EMBED_LABEL into health.sha.
+// The build adapter reads that file, truncates it to 7 chars, and passes it
+// through vite.config.ts's `define` block as __COMMIT_SHORT__. Caddy serves the
+// full SHA publicly at /health.sha outside the scanned page tree; it is not
+// private. The leak scan rejects full SHAs in page bytes. The build refuses
+// an absent marker. A dev/test render without a define has no footer
+// provenance: absence renders nothing, never a broken value.
 
 // vitest evaluates this module without Vite's define step, so the global can
 // be absent entirely; the typeof guard keeps that path (and any future

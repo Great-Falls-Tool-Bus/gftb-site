@@ -3,10 +3,10 @@ import { buildShaShort, normalizeSha } from './build-info';
 
 // build-info wires the footer "built from <sha>" provenance line (the old
 // apex's #140 mechanism, ported). The value arrives through vite.config.ts's
-// __COMMIT_SHORT__ define, stamped by scripts/bazel/workspace-status.sh only
-// for builds whose commit identity was explicitly supplied, and truncated to
-// 7 chars at that source. The normalizer must fail-quiet — anything that is
-// not exactly a 7-char hex sha (unset, the literal 'unknown', noise, or an
+// __COMMIT_SHORT__ define, derived by the Bazel build adapter from the projected
+// source-marker file and truncated to 7 chars before Vite. The normalizer must
+// fail-quiet — anything not exactly a 7-char hex sha (unset, the literal
+// 'unknown', noise, or an
 // untruncated sha from a channel that skipped the source truncation) must
 // read as '' so the footer renders no line rather than a bogus value.
 describe('normalizeSha', () => {
@@ -16,7 +16,7 @@ describe('normalizeSha', () => {
 
 	it('rejects an untruncated 40-char sha — truncation happens at the stamp, never here', () => {
 		// A full sha reaching this module means the source truncation in
-		// workspace-status.sh was bypassed; rendering nothing is the safe
+		// the Bazel build adapter was bypassed; rendering nothing is the safe
 		// answer (and the leak-scan backstop would fail the build anyway).
 		expect(normalizeSha('0123456789abcdef0123456789abcdef01234567')).toBe('');
 	});

@@ -4,7 +4,8 @@
 
 This public repository builds the public static site at
 `greatfallstoolbus.org`. It owns reviewed public page copy, build-time `.svx`
-daily logs, the static build graph, and a candidate OCI publisher.
+daily logs, the static build graph, a qualified application layer, and its
+source-independent runtime-base definition.
 
 **Source visibility (operator ruling, 2026-09-09).** This repository's source
 is public. This explicitly supersedes the earlier instruction to keep
@@ -19,10 +20,9 @@ browser may submit the public contact form to the separately owned
 The production image identity is exactly
 `ghcr.io/great-falls-tool-bus/gftb-site`. Publishing a `sha-<40 hex SHA>` image
 does not deploy it. Infra selection, digest pinning, apex cutover, served
-readback, and rollback remain outside this repo: the attended transaction is
-the `web-release-*` recipes of `great-falls-tool-bus-infra`
-(`docs/runbooks/oncluster-web-cutover.md` there), run from a clean checkout
-of that repo's canonical `main`.
+readback, and rollback remain outside this repo. The owner installation and
+application lifecycle belong to `great-falls-tool-bus-infra`; its separate
+attended continuity path is not evidence of automatic GF convergence.
 
 ## Public-content boundary
 
@@ -63,27 +63,30 @@ is not public.
 
 ## Entrypoints and stack
 
-- Use `just <recipe>` for every operation. Do not invoke pnpm, Vite, or Bazel
-  directly outside the Justfile.
-- Enter through `nix develop` / direnv. CI runs Just inside Nix.
-- `just build` materializes `//:scanned_build`: the adapter-static `//:build`
-  output copied and leak-scanned inside one Bazel action. A scan failure yields
-  no declared output, and `//:deployment_bundle` can package only that scanned
-  TreeArtifact. A published tree that has never been scanned is not publishable.
-- `just check` executes the same cacheable `//:ci_validation_suite` selected by
-  the protected v4 `validate` action. It registers the schema/conformance and
-  immutable-caller contract, current-source Gitleaks, generated source/log/goal
-  manifest drift checks, hermetic actionlint, ESLint, Prettier, Svelte checks,
-  unit tests, and five Chromium acceptance specs over the declared static
-  build. The browser target requires GF's provisioned Chromium; it never
-  installs a browser or attaches to an ambient preview. Local Just output
-  is never v4 evidence. A passing browser target is not a deployed LOOK.
-  The suite also carries the served-artifact proof for the tinyvectors pin
-  (`//:served_tinyvectors_test`): `MODULE.bazel` is the package's only
-  resolution, and a build made off-fabric (`vite build` against a stray
-  `node_modules/@tummycrypt/tinyvectors`) can bundle another release with
-  every other check green; such output is never evidence for blob feel.
-- `just conformance` enters the registered `//:bazel_output_contract_test`.
+- Use `just <recipe>` for every operation. Builds and checks call the
+  image-custodied `gf-action-client`; never run Bazel, Vite, or tests locally
+  as an execution fallback. Nix supplies source-editing tools, not admission.
+- `just build` selects `site-build` and writes the qualified result into a new
+  absolute directory (default `.gf-site-build-result` in this checkout).
+  Supply another new absolute directory for another export; the client never
+  overwrites an existing result. It does not materialize an unqualified local
+  `build/` tree. `//:deployment_bundle` packages the leak-scanned TreeArtifact
+  at `/srv` with only the reviewed first-party `Caddyfile`, exact source marker,
+  and `/tmp` mode alongside it. Unscanned public site bytes are not publishable.
+- `just check` selects the same v4 `validate` action as CI. Its cacheable
+  `//:ci_validation_suite` registers current-source Gitleaks, generated
+  source/log/goal manifest drift checks, hermetic actionlint, ESLint,
+  Prettier, Svelte checks, unit tests, and five Chromium acceptance specs
+  over the declared static build. The browser target requires GF's
+  provisioned Chromium; it never installs a
+  browser or attaches to an ambient preview. It does not prove a deployed LOOK.
+  The suite also carries `//:served_tinyvectors_test`, which checks the declared
+  client chunks against the TinyVectors version in `MODULE.bazel`. An ambient
+  package or a separately rebuilt tree cannot establish that package proof.
+  The source SHA comes from the exact checkout; the client owns identity
+  verification and refuses missing v4 authority.
+- `just conformance`, `test-unit`, `typecheck`, `lint`, and the other check
+  aliases select that same suite, not independent local jobs.
 - `just qr-verify` cross-checks the pinned payload URL against
   `package.json`'s `homepage`, then regenerates the printed apex QR with the
   pinned qrencode invocation and byte-compares the committed SVG, stripping
@@ -97,16 +100,16 @@ is not public.
   flow. The name `qa-look` is reserved for the PullRequestEnvironment/v1
   consumer flow: a routable, tailnet-only, reapable, exact-head QA environment
   per pull request plus the operator LOOK ("the pr-N lane IS the QA
-  evidence"). See `docs/qa-look.md`. The browser acceptance suite
-  (`just test-e2e`, `preview-e2e`, `playwright.config.ts`, `e2e/`) is
-  unaffected.
-- `just leak-scan` runs the rules in `scripts/lib/leak-scan-rules.json` over a
-  built artefact. `scripts/check-build-output.mjs` is a thin runner over
+  evidence"). See `docs/qa-look.md`. The finite Chromium acceptance target
+  belongs to the remote `validate` suite. It serves only its declared build
+  inside that test action; it does not create a deployed preview or LOOK.
+  The former local launcher and preview recipe remain removed.
+- `just leak-scan` selects `site-build`, whose build graph runs the rules in
+  `scripts/lib/leak-scan-rules.json`. `scripts/check-build-output.mjs` is a thin runner over
   `scripts/lib/leak-scan.mjs`, the same module `src/lib/leak-scan.test.ts`
   exercises: one implementation, tested once. It fails closed — a missing or
   empty directory, or a file whose extension is in neither `TEXT_EXTENSIONS`
-  nor `SKIP_EXTENSIONS`, is a failure, not a pass. Set `GFTB_LEAK_SCAN_DENY`
-  to add operator-held literals; never commit them.
+  nor `SKIP_EXTENSIONS`, is a failure, not a pass.
 - `scripts/lib/*` is acceptance-test-only and deliberately outside `src/lib`:
   the leak ruleset carries credential-detection regexes and must never be
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from
@@ -122,9 +125,10 @@ is not public.
   lifecycle. `validate` is status-only. `site-build` requests the exact regular
   files in `//:deployment_bundle`'s `default` output group through
   `ActionOutputSet/v1`; the application workflow does not rediscover them.
-  That bundle depends on `//:scanned_build`, never directly on `//:build`.
+  The public `/srv` subtree depends on `//:scanned_build`, never directly on
+  `//:build`; the other three members are fixed deployment configuration.
 - `.github/workflows/ci.yml` contains only the two thin calls to immutable
-  ci-templates `v5.1.0`. The adopting organization installs its own App,
+  ci-templates revision `c732248e`. The adopting organization installs its own App,
   controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
   not enumerate or select them. There is no v3, local, cache-only, hosted,
   direct-endpoint, or repository-specific runner fallback.
@@ -138,20 +142,21 @@ is not public.
 
 ### Which CI job runs which gate
 
-CI calls the signed immutable schema-3 source
-`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f`.
-Signed tag object `9cea2460b01358bf6462e853b8ff38358f263638`
-(`v5.1.0`) peels to that exact commit. Each job selects one checked-in action
-name; the reusable workflow checks out the exact source and invokes the
-compiled GF client once.
+CI calls the immutable schema-3 source
+`xoxd-ai/ci-templates/.github/workflows/spoke-ci-v4.yml@c732248e379e276d9d98b601519c161a03bffe09`.
+The existing `Jesssullivan` fork allowlist remains a workflow admission hint,
+not publication or installed execution authority. Each job selects one
+checked-in action name; the reusable workflow checks out the exact source and
+invokes the compiled GF client once. This pin exports qualified action results;
+the separate GF-I09 publisher release and caller adoption remain required.
 
 | Caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |
 | `validate` | `validate` | `test //:ci_validation_suite` |
 | `site-build` | `site-build` | `build //:deployment_bundle` |
 
-`just ci` remains a local developer convenience. It is not CI evidence and is
-never an execution fallback for either v4 action.
+`just ci` selects both declared remote actions. There is no local browser,
+analysis, coverage, or candidate-publication recipe outside this plan.
 
 ## Home presentation layer
 
@@ -187,23 +192,39 @@ Test and LOOK hooks, read from `<html>` (no URL query, no storage):
 runs) keeps the intro from arming; `data-subscribe-capture-dwell-ms="<n>"`
 credits the list-signup capture modal's dwell (n=0 lets a rig arm it as soon
 as the hero is scrolled past) and is read only by that component, which only
-exists on a build made with `PUBLIC_SUBSCRIBE_CAPTURE=1` (default off,
-rehearsal only, no production exposure); the component publishes its arm
+exists on a build made with `PUBLIC_SUBSCRIBE_CAPTURE=1` (the committed Bazel
+build selects this flag; an off build excludes it); the component publishes its arm
 decision on `<html data-subscribe-capture>`. Specs whose scroll-position premises the
 intro would break opt out through `e2e/support/intro.ts`.
 
-Evidence on a developer host is a local `vite build` into a scratch directory
-(`BUILD_OUTPUT_DIR`), `scripts/check-build-output.mjs` on it, `scripts/bazel_output.py
-serve-static` on a port, and Playwright through `PLAYWRIGHT_PORT`; the
-`chromium-webgpu` project (`PLAYWRIGHT_WEBGPU=1`) covers the top rung on a
-software adapter. Operator-attended LOOKs happen in the operator's own browser.
+Execution evidence comes from the registered remote actions and their declared
+browser coverage, not a local Vite build or preview server. The interaction
+specs are preserved as source; their presence does not claim every spec is in
+the finite remote browser suite. Operator-attended LOOKs happen in the
+operator's own browser against the exact served PR environment.
 
 ## Deployment and package safety
 
-`.github/workflows/container-ghcr.yml` may publish only the immutable candidate
-tag for its exact commit. It has no production dispatch and no infra, DNS, or
-edge credentials. GitHub Pages workflows are forbidden. A merge, green CI, or
-successful package push is not served-site proof.
+Operator ruling, 2026-09-08: GFTB stays on GitHub Free. The September 9
+public-source ruling supersedes that ruling's private-source restriction.
+GitHub branch protection, rulesets, and a paid plan are not prerequisites for
+this site's integration or publication. The ruling
+is carried by Meta ADR 0014 section 7 and ADR 0022 Amendment 7 in
+[Meta #63](https://github.com/Great-Falls-Tool-Bus/meta/pull/63).
+
+Signed commits, exact-head independent review, and successful registered
+remote checks remain required. GF/org admission must bind the exact
+repository, source and workflow identities, qualified action output, and
+signed release verification. This contract does not claim those mechanisms
+are already installed or that a release has passed them. Keep their runtime
+and owner publication requirements intact; no consumer policy switch or
+fallback replaces them. See [the CI contract](docs/CI-SCHEMA.md).
+
+The GF-I09 publisher owns qualified application publication after the export
+action. This repository has no separate candidate workflow or local Nix
+application-image constructor. It owns neither production dispatch nor infra,
+DNS, or edge credentials. GitHub Pages workflows are forbidden. A merge,
+green CI, or successful package push is not served-site proof.
 
 Public source does not establish image-package visibility or pullability. The
 operator release lane may make only the reviewed web image package public

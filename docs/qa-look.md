@@ -29,6 +29,16 @@ plus the operator LOOK against it. Estate contract: "the pr-N lane IS the QA
 evidence." Until that flow lands here, nothing in this repository may reuse
 the name.
 
-The browser acceptance suite (`just test-e2e`, `just preview-e2e`,
-`playwright.config.ts`, `e2e/`) was never part of the excised apparatus and is
-untouched.
+The `validate` action in `.github/lanes.json` now selects
+`//:ci_validation_suite`, including `//:browser_smoke_test`. That registered
+test runs five Chromium acceptance specs from `e2e/` over its declared static
+build, using GF's provisioned browser inside the remote action. It installs no
+browser and uses no ambient preview. The former local preview launcher remains
+removed.
+
+This source registration is not proof that the action has executed, and a
+passing browser test is not a deployed PR environment or human LOOK. The
+owner controller must still create the routable exact-head environment and
+reap it on merge, close or expiry; the operator must LOOK at that served head
+before merge. No local server, screenshot packet or post-merge inspection
+substitutes for that lifecycle.

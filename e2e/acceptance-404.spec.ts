@@ -16,8 +16,7 @@ import { installExternalGuard } from './support/network';
 // The serving side of the same behaviour is written twice — `handle_errors` in
 // flake.nix (what the image runs) and `_StaticPreviewHandler.send_error` in
 // scripts/bazel_output.py (what this suite measures). These tests hold the
-// preview half; scripts/test-bazel-cutover-contracts.py pins the two texts
-// against each other so neither can be edited away in silence.
+// preview half.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 

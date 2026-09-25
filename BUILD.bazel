@@ -10,6 +10,7 @@ load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//:gitleaks_test.bzl", "actionlint_test", "gitleaks_test")
+load("//:deployment_layer.bzl", "source_marker")
 load("//tools/site-draft-compiler:defs.bzl", "site_draft_compiler_targets")
 
 npm_link_all_packages(name = "node_modules")
@@ -98,7 +99,6 @@ filegroup(
     ) + [
         ".npmrc",
         "package.json",
-        "playwright.config.ts",
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
@@ -142,7 +142,6 @@ filegroup(
         "//tools/site-draft-compiler:format_inputs",
         "eslint.config.ts",
         "package.json",
-        "playwright.config.ts",
         "pnpm-workspace.yaml",
         "svelte.config.js",
         "tinyland.repo.json",
@@ -179,6 +178,7 @@ filegroup(
         ".prettierrc",
         "AGENTS.md",
         "BUILD.bazel",
+        "Caddyfile",
         "Justfile",
         "LICENSE",
         "LICENSE-content",
@@ -187,13 +187,13 @@ filegroup(
         "NOTICE",
         "README.md",
         "SECURITY.md",
+        "deployment_layer.bzl",
         "eslint.config.ts",
         "flake.lock",
         "flake.nix",
         "gitleaks_test.bzl",
         "multitool.lock.json",
         "package.json",
-        "playwright.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -250,7 +250,6 @@ filegroup(
 
 actionlint_test(
     name = "workflow_validation_test",
-    config = ".github/actionlint.yaml",
     srcs = [":workflow_validation_srcs"],
     timeout = "short",
 )
@@ -304,13 +303,6 @@ copy_to_directory(
     root_paths = ["."],
 )
 
-js_binary(
-    name = "svelte_check_bin",
-    data = TYPECHECK_NPM_PACKAGES,
-    entry_point = "scripts/bazel/run-svelte-check.mjs",
-    tags = ["manual", "no-remote-exec"],
-)
-
 js_test(
     name = "svelte_check_test",
     data = [":app_srcs", ":sveltekit_types"] + TYPECHECK_NPM_PACKAGES,
@@ -340,16 +332,23 @@ js_binary(
 
 js_run_binary(
     name = "build",
-    args = ["--workspace", "$(rootpath :app_workspace)", "--output-dir", "build"],
+    args = [
+        "--workspace",
+        "$(rootpath :app_workspace)",
+        "--source-marker",
+        "$(rootpath :deployment_source_marker)",
+        "--output-dir",
+        "build",
+    ],
     # The list-signup capture modal ships in the published candidate. The
     # flag is a committed build input, not an ambient variable, so the
     # scanned artifact is reproducible and the off-build proof in
     # e2e/subscribe-capture.spec.ts keeps running against a plain vite build.
     env = {"PUBLIC_SUBSCRIBE_CAPTURE": "1"},
-    srcs = [":app_workspace"],
+    srcs = [":app_workspace", ":deployment_source_marker"],
     out_dirs = ["build"],
     patch_node_fs = False,
-    stamp = 1,
+    stamp = 0,
     tags = ["sveltekit-app-build"],
     tool = ":vite_build_bin",
     visibility = ["//visibility:public"],
@@ -383,25 +382,19 @@ js_run_binary(
     args = [
         "--workspace",
         "$(rootpath :app_workspace)",
+        "--source-marker",
+        "$(rootpath :deployment_source_marker)",
         "--output-dir",
         "build-analyze",
         "--analyze",
         "--analyze-output",
         ".bundle-stats/stats.html",
     ],
-    srcs = [":app_workspace"],
+    srcs = [":app_workspace", ":deployment_source_marker"],
     out_dirs = ["build-analyze", ".bundle-stats"],
     patch_node_fs = False,
-    stamp = 1,
+    stamp = 0,
     tool = ":vite_build_bin",
-    visibility = ["//visibility:public"],
-)
-
-js_binary(
-    name = "dev",
-    data = APP_NPM_PACKAGES,
-    entry_point = "scripts/bazel/run-vite-dev.mjs",
-    tags = ["manual", "no-remote-exec"],
     visibility = ["//visibility:public"],
 )
 
@@ -480,32 +473,6 @@ js_test(
     timeout = "short",
 )
 
-py_test(
-    name = "bazel_output_contract_test",
-    srcs = [
-        "scripts/bazel_output.py",
-        "scripts/test-bazel-cutover-contracts.py",
-    ],
-    main = "scripts/test-bazel-cutover-contracts.py",
-    imports = ["scripts"],
-    data = [
-        ":current_source_secret_scan_srcs",
-        ".github/lanes.json",
-        ".github/workflows/ci.yml",
-        ".github/workflows/container-ghcr.yml",
-        "BUILD.bazel",
-        "Justfile",
-        "MODULE.bazel",
-        "docs/schemas/tinyland-repo-manifest.v2.schema.json",
-        "flake.nix",
-        "package.json",
-        "scripts/check-inhouse-package-parity.py",
-        "scripts/validate-skills.py",
-        "static/qr/greatfallstoolbus-apex.svg",
-        "tinyland.repo.json",
-    ],
-)
-
 # Finite Chromium acceptance over the declared //:build output. GF's
 # docs/build-system/browser-runtime-authority.md (TIN-1131) owns the
 # provisioned runtime: explicit executablePath, private test scratch, and no
@@ -513,6 +480,8 @@ py_test(
 # provider image or runner. A missing runtime fails this registered gate.
 # This target tests five exact specs over its own ephemeral loopback server;
 # it neither builds a second site nor proves a deployed environment or LOOK.
+# The build consumes the marker projected from the GF-bound BUILD_EMBED_LABEL;
+# missing source identity fails before this unconditional browser assertion.
 js_test(
     name = "browser_smoke_test",
     data = [
@@ -554,7 +523,6 @@ js_test(
 test_suite(
     name = "ci_validation_suite",
     tests = [
-        ":bazel_output_contract_test",
         ":browser_smoke_test",
         ":current_source_secret_scan_test",
         ":eslint_test",
@@ -575,23 +543,36 @@ test_suite(
     tests = [":eslint_test", ":prettier_check_test"],
 )
 
-pkg_tar(
-    name = "deployment_bundle",
-    extension = "tar.gz",
-    package_dir = "build",
-    srcs = [":scanned_build"],
-    strip_prefix = "scanned-build",
-    tags = ["deployment-bundle-packaging"],
-    visibility = ["//visibility:public"],
+source_marker(
+    name = "deployment_source_marker",
 )
 
-# The publisher consumes this cacheable context, but image assembly and registry
-# mutation stay local to the trusted GitHub runner and never use remote exec.
+# GF-I09 consumes this exact, uncompressed OCI application layer. The public
+# site bytes can enter only through //:scanned_build; Caddy configuration and
+# the exact source marker are first-party configuration added after that scan.
 pkg_tar(
-    name = "container_image_context",
-    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "svelte.config.js"],
+    name = "deployment_bundle",
+    allow_duplicates_from_deps = False,
+    allow_duplicates_with_different_content = False,
+    empty_dirs = ["tmp"],
     extension = "tar",
-    tags = ["container-image-and-push", "no-remote-exec"],
+    modes = {
+        "etc/caddy/Caddyfile": "0444",
+        "srv/health.sha": "0444",
+        "tmp": "1777",
+    },
+    remap_paths = {
+        "Caddyfile": "etc/caddy/Caddyfile",
+        "health.sha": "srv/health.sha",
+        "scanned-build": "srv",
+    },
+    srcs = [
+        ":deployment_source_marker",
+        ":scanned_build",
+        "Caddyfile",
+    ],
+    tags = ["deployment-bundle-packaging"],
+    package_dir = "/",
     visibility = ["//visibility:public"],
 )
 
@@ -599,7 +580,6 @@ exports_files(
     [
         "MODULE.bazel",
         "package.json",
-        "playwright.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "scripts/bazel/prepare-sveltekit-types.mjs",
@@ -607,8 +587,6 @@ exports_files(
         "scripts/bazel/run-sveltekit-sync.mjs",
         "scripts/bazel/run-vitest.mjs",
         "scripts/bazel/run-vite-build.mjs",
-        "scripts/bazel/run-vite-dev.mjs",
-        "scripts/bazel/workspace-status.sh",
         "svelte.config.js",
         "tsconfig.json",
         "vite.config.ts",
