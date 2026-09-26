@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShaShort, normalizeSha } from './build-info';
+import { buildShaShort, normalizeSha, sourceIdentityDigest } from './build-info';
 
 // build-info wires the footer "built from <sha>" provenance line (the old
 // apex's #140 mechanism, ported). The value arrives through vite.config.ts's
@@ -34,5 +34,6 @@ describe('normalizeSha', () => {
 describe('build provenance defaults', () => {
 	it('degrades to empty when no stamp was defined', () => {
 		expect(buildShaShort).toBe('');
+		expect(sourceIdentityDigest).toBe('');
 	});
 });
