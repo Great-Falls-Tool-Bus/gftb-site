@@ -25,9 +25,13 @@ Calling it `qa-look` was a hallucinated reading of the name.
 
 `qa-look` is reserved for the PullRequestEnvironment/v1 consumer flow: a
 routable, tailnet-only, reapable, exact-head QA environment per pull request,
-plus the operator LOOK against it. Estate contract: "the pr-N lane IS the QA
-evidence." Until that flow lands here, nothing in this repository may reuse
-the name.
+plus an automated browser check of the served head. The owner controller runs
+that check from a registered, digest-pinned Job and records URL, HTTP status,
+source identity, screenshot digest and checkedAt on the same request before
+`BrowserLookVerified` is True. Operator inspection can
+follow, but it does not replace the automated check. Estate contract: "the
+pr-N lane IS the QA evidence." Until that flow lands here, nothing in this
+repository may reuse the name.
 
 The `validate` action in `.github/lanes.json` now selects
 `//:ci_validation_suite`, including `//:browser_smoke_test`. That registered
@@ -37,8 +41,8 @@ browser and uses no ambient preview. The former local preview launcher remains
 removed.
 
 This source registration is not proof that the action has executed, and a
-passing browser test is not a deployed PR environment or human LOOK. The
+passing browser test is not a deployed PR environment or served browser LOOK. The
 owner controller must still create the routable exact-head environment and
-reap it on merge, close or expiry; the operator must LOOK at that served head
-before merge. No local server, screenshot packet or post-merge inspection
-substitutes for that lifecycle.
+reap it on merge, close or expiry; its registered browser Job must inspect the
+served head before `BrowserLookVerified` is True. No local server, screenshot
+packet or post-merge inspection substitutes for that lifecycle.
