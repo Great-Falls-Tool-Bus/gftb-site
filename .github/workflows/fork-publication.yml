@@ -1,0 +1,30 @@
+name: Fork application publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      intent_uid:
+        description: Immutable owner-controller fork intent UID
+        required: true
+        type: string
+      nonce:
+        description: One-use owner-controller dispatch nonce
+        required: true
+        type: string
+
+permissions: {}
+
+# The owner Product App dispatches this protected-main workflow with only its
+# exact intent selector. The pinned trusted publisher claims T/H and the
+# bounded recipe through the compiled GF client. Fork jobs receive no
+# upstream publication or registry credentials.
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    uses: xoxd-ai/ci-templates/.github/workflows/fork-publication.yml@b3d1a032a09f5044578fc7bacb5b9f2c83cf2170 # Draft source candidate; replace only with attended immutable release
+    permissions:
+      id-token: write
+      packages: write
+    with:
+      intent_uid: ${{ inputs.intent_uid }}
+      nonce: ${{ inputs.nonce }}

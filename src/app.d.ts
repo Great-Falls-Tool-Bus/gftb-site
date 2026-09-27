@@ -15,6 +15,9 @@ declare global {
 	// public identity from the projected source marker; dev/test renders without
 	// that adapter have no provenance.
 	const __COMMIT_SHORT__: string | undefined;
+	// One-way source identity for external served-page LOOK. The build adapter
+	// derives it from the full accepted source marker before Vite sees it.
+	const __SOURCE_IDENTITY_DIGEST__: string | undefined;
 
 	// Build-time flag injected by vite.config.ts from PUBLIC_SUBSCRIBE_CAPTURE.
 	// Absent outside a Vite build; src/lib/subscribe-capture-flag.ts guards it

@@ -99,8 +99,9 @@ is not public.
   a CI artifact), not a LOOK — no routable QA environment ever existed in that
   flow. The name `qa-look` is reserved for the PullRequestEnvironment/v1
   consumer flow: a routable, tailnet-only, reapable, exact-head QA environment
-  per pull request plus the operator LOOK ("the pr-N lane IS the QA
-  evidence"). See `docs/qa-look.md`. The finite Chromium acceptance target
+  per pull request plus an automated browser LOOK over the served head
+  ("the pr-N lane IS the QA evidence"). The operator may inspect that
+  environment separately. See `docs/qa-look.md`. The finite Chromium acceptance target
   belongs to the remote `validate` suite. It serves only its declared build
   inside that test action; it does not create a deployed preview or LOOK.
   The former local launcher and preview recipe remain removed.
@@ -132,6 +133,11 @@ is not public.
   controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
   not enumerate or select them. There is no v3, local, cache-only, hosted,
   direct-endpoint, or repository-specific runner fallback.
+- `.github/workflows/fork-publication.yml` is a held protected-main
+  `workflow_dispatch` caller. It accepts only the owner controller's immutable
+  intent UID and one-use nonce, then calls a SHA-pinned trusted publisher.
+  Fork CI receives no upstream publication or registry Secrets. The template
+  pin is a Draft source candidate, so this is not an activated fork path.
 - `tinyland.repo.json` is the schema-v2 consumer instance. It names only this
   forge identity and the consumer-owned `great-falls-tool-bus-infra` overlay;
   the house schema is vendored byte-for-byte from signed `site.scaffold` PR
@@ -200,8 +206,10 @@ intro would break opt out through `e2e/support/intro.ts`.
 Execution evidence comes from the registered remote actions and their declared
 browser coverage, not a local Vite build or preview server. The interaction
 specs are preserved as source; their presence does not claim every spec is in
-the finite remote browser suite. Operator-attended LOOKs happen in the
-operator's own browser against the exact served PR environment.
+the finite remote browser suite. The owner controller's registered browser
+Job must check the exact served PR head and retain its URL, status, source and
+screenshot-digest receipt on the request before `BrowserLookVerified` is True.
+Operator-attended inspection is a separate option.
 
 ## Deployment and package safety
 

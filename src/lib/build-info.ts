@@ -12,6 +12,8 @@
 // be absent entirely; the typeof guard keeps that path (and any future
 // non-Vite consumer) on the fail-quiet branch.
 const stamped = typeof __COMMIT_SHORT__ === 'undefined' ? '' : __COMMIT_SHORT__;
+const stampedSourceIdentity =
+	typeof __SOURCE_IDENTITY_DIGEST__ === 'undefined' ? '' : __SOURCE_IDENTITY_DIGEST__;
 
 /**
  * Normalize the stamped value to a trustworthy 7-char short sha, or '' when
@@ -30,3 +32,8 @@ export function normalizeSha(raw: unknown): string {
 
 /** 7-char short sha for the footer provenance line, or '' when unknown / local. */
 export const buildShaShort: string = normalizeSha(stamped);
+
+/** Full-source cryptographic identity without a public commit SHA. */
+export const sourceIdentityDigest: string = /^[0-9a-f]{64}$/.test(stampedSourceIdentity)
+	? stampedSourceIdentity
+	: '';

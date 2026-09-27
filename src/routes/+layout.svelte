@@ -7,7 +7,7 @@
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
-	import { buildShaShort } from '$lib/build-info';
+	import { buildShaShort, sourceIdentityDigest } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import BusMark from '$lib/components/BusMark.svelte';
 	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
@@ -186,6 +186,12 @@
 
 	const currentPath = $derived(page.url.pathname || '/');
 </script>
+
+<svelte:head>
+	{#if sourceIdentityDigest}
+		<meta name="gf-source-identity" content={sourceIdentityDigest} />
+	{/if}
+</svelte:head>
 
 <SEOHead
 	title={headTitle}

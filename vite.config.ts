@@ -11,6 +11,7 @@ import pkg from './package.json';
 // it is excluded from page bundles, not private. Dev/test rendering without
 // that adapter has no provenance and the footer renders no line for 'unknown'.
 const commitHash = process.env.BUILD_COMMIT_SHA || 'unknown';
+const sourceIdentityDigest = process.env.BUILD_SOURCE_IDENTITY_DIGEST || '';
 const buildInfo = {
 	version: pkg.version,
 	commitHash,
@@ -84,6 +85,7 @@ export default defineConfig({
 		__VERSION__: JSON.stringify(buildInfo.version),
 		__COMMIT_HASH__: JSON.stringify(buildInfo.commitHash),
 		__COMMIT_SHORT__: JSON.stringify(buildInfo.commitShort),
+		__SOURCE_IDENTITY_DIGEST__: JSON.stringify(sourceIdentityDigest),
 		// Rehearsal-only list-signup capture modal. Off unless the build sets
 		// PUBLIC_SUBSCRIBE_CAPTURE=1 (or true); off means the component is
 		// neither imported nor mounted (src/lib/subscribe-capture-flag.ts).

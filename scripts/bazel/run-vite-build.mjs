@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
 	chmodSync,
 	cpSync,
@@ -26,6 +27,7 @@ const childEnvironment = {
 	// The deployment bundle serves the site at its origin root; no ambient prefix.
 	BASE_PATH: '',
 	BUILD_COMMIT_SHA: metadata.commitSha,
+	BUILD_SOURCE_IDENTITY_DIGEST: metadata.sourceIdentityDigest,
 	BUILD_OUTPUT_DIR: resolve(actionRoot, options.outputDir),
 };
 if (options.analyze) {
@@ -163,5 +165,10 @@ function readBuildMetadata(sourceMarker) {
 	return {
 		// Caddy serves the full marker at /health.sha; page bundles use its prefix.
 		commitSha: sourceSha.slice(0, 7),
+		// A domain-separated one-way page identity allows an external browser
+		// check to bind HTML to the full source without publishing the commit SHA.
+		sourceIdentityDigest: createHash('sha256')
+			.update('gloriousflywheel.page-source-identity/v1\0' + sourceSha)
+			.digest('hex'),
 	};
 }
