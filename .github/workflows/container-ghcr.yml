@@ -1,32 +1,16 @@
 name: Publish candidate OCI
 
+# Operator ruling 2026-09-28: no push or pull_request triggers. The candidate
+# publishes only by attended dispatch of an exact commit until its lab-host
+# `just` recipe replaces this workflow.
+
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       expected_sha:
         description: Exact 40-character commit SHA selected for this candidate
         required: true
         type: string
-  pull_request:
-    paths:
-      - '.github/workflows/container-ghcr.yml'
-      - 'BUILD.bazel'
-      - 'MODULE.bazel'
-      - 'MODULE.bazel.lock'
-      - 'Justfile'
-      - 'flake.nix'
-      - 'flake.lock'
-      - 'gitleaks_test.bzl'
-      - 'multitool.lock.json'
-      - 'scripts/build-goals-manifest.mjs'
-      - 'scripts/build-log-manifest.mjs'
-      - 'scripts/build-source-map.mjs'
-      - 'scripts/check-build-output.mjs'
-      - 'scripts/lib/**'
-      - 'scripts/test-bazel-cutover-contracts.py'
 
 concurrency:
   group: candidate-oci-${{ github.ref }}
@@ -39,22 +23,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  verify-carrier:
-    name: Verify exact source carrier
-    if: github.event_name == 'pull_request'
-    runs-on: tinyland-nix
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      - name: Assert exact checkout
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-      - name: Prove the publisher container context
-        run: nix develop . -c just container-image-context
-
   publish:
     name: Build + push immutable static candidate
     if: github.event_name != 'pull_request'

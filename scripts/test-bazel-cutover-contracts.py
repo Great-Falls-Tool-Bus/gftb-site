@@ -26,7 +26,6 @@ from bazel_output import (
 
 
 ROOT = Path(__file__).resolve().parent.parent
-CI_TEMPLATES_V4_REF = "32e39ced0008edf4564ebeb173a5e8fbf069e28f"
 SCAFFOLD_SCHEMA_HEAD = "0abc7f9e93bf4b84c7550684c38fbf822eab7cd0"
 SCAFFOLD_SCHEMA_SHA256 = "9f60d0934e23f1f2437faade24630249b77c303b00d92cf372d1a4fc5252d83c"
 APPROVED_QR_SHA256 = "e72aeb84cf028b2d1070cd916925ac1b82869cc7874ba856e33f88478b900580"
@@ -486,13 +485,16 @@ class RepositoryContractTests(unittest.TestCase):
         cls.justfile = (ROOT / "Justfile").read_text()
         cls.build = (ROOT / "BUILD.bazel").read_text()
         cls.module = (ROOT / "MODULE.bazel").read_text()
-        cls.ci = (ROOT / ".github/workflows/ci.yml").read_text()
         cls.plan = json.loads((ROOT / ".github/lanes.json").read_text())
         cls.manifest = json.loads((ROOT / "tinyland.repo.json").read_text())
         cls.schema = json.loads(
             (ROOT / "docs/schemas/tinyland-repo-manifest.v2.schema.json").read_text()
         )
         cls.publisher = (ROOT / ".github/workflows/container-ghcr.yml").read_text()
+        cls.workflows = {
+            path.name: path.read_text(encoding="utf-8")
+            for path in sorted((ROOT / ".github/workflows").glob("*.y*ml"))
+        }
         cls.flake = (ROOT / "flake.nix").read_text()
         cls.playwright = (ROOT / "playwright.config.ts").read_text()
         cls.agents = (ROOT / "AGENTS.md").read_text()
@@ -576,7 +578,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('config = ".github/actionlint.yaml"', workflow_validation)
         self.assertIn('srcs = [":workflow_validation_srcs"]', workflow_validation)
 
-    def test_ci_uses_the_exact_immutable_v4_action_contract(self) -> None:
+    def test_v4_action_plan_is_exact_and_no_workflow_runs_on_push_or_pr(self) -> None:
         expected_plan = {
             "schema_version": 3,
             "actions": {
@@ -599,29 +601,19 @@ class RepositoryContractTests(unittest.TestCase):
         }
         self.assertEqual(self.plan, expected_plan)
 
-        caller = (
-            "tinyland-inc/ci-templates/.github/workflows/"
-            f"spoke-ci-v4.yml@{CI_TEMPLATES_V4_REF}"
-        )
-        uses = re.findall(r"(?m)^\s+uses:\s+(\S+)\s*(?:#.*)?$", self.ci)
-        self.assertEqual(uses, [caller, caller])
-        self.assertEqual(
-            re.findall(r"(?m)^\s+action_name:\s+([a-z0-9-]+)\s*$", self.ci),
-            ["validate", "site-build"],
-        )
-        self.assertNotRegex(self.ci, r"(?m)^\s+runs-on:")
-        self.assertNotRegex(self.ci, r"(?m)^\s+(?:environment|packages):")
-        for legacy_input in (
-            "flywheel_config:",
-            "cache_backed:",
-            "lanes_path:",
-            "default_runner_class:",
-            "runner_group:",
-            "secrets: inherit",
-            "workflow_dispatch:",
-        ):
-            with self.subTest(legacy_input=legacy_input):
-                self.assertNotIn(legacy_input, self.ci)
+        # Operator ruling 2026-09-28: GitHub Actions leave this repository.
+        # The v4 caller and the signed-commits check are gone; the pre-merge
+        # gate is a lab-host `just check` receipt. Remaining workflows are
+        # dispatch or schedule only, each awaiting its lab-host replacement.
+        self.assertFalse((ROOT / ".github/workflows/ci.yml").exists())
+        self.assertFalse((ROOT / ".github/workflows/signed-commits.yml").exists())
+        for name, source in self.workflows.items():
+            with self.subTest(workflow=name):
+                block = re.search(r"(?ms)^on:[ \t]*\n(.*?)(?=^\S|\Z)", source)
+                self.assertIsNotNone(block)
+                triggers = set(re.findall(r"(?m)^  ([A-Za-z_]+)[ \t]*:", block.group(1)))
+                self.assertTrue(triggers)
+                self.assertLessEqual(triggers, {"schedule", "workflow_dispatch"})
 
     def test_manifest_conforms_to_the_exact_signed_schema_163_carrier(self) -> None:
         schema_path = ROOT / "docs/schemas/tinyland-repo-manifest.v2.schema.json"
@@ -717,7 +709,7 @@ class RepositoryContractTests(unittest.TestCase):
             (ROOT / path).read_text(encoding="utf-8")
             for path in (
                 ".bazelrc",
-                ".github/workflows/ci.yml",
+                ".github/workflows/container-ghcr.yml",
                 "BUILD.bazel",
                 "MODULE.bazel",
                 "flake.nix",
@@ -727,7 +719,9 @@ class RepositoryContractTests(unittest.TestCase):
             endpoint_sources,
             r"(?:grpc|grpcs)://|https?://[^\s\"]*(?:bazel-cache|reapi)|10(?:\.[0-9]+){3}",
         )
-        self.assertNotRegex(self.ci, r"(?i)(?:ubuntu|macos|windows)-[a-z0-9.]+")
+        for name, source in self.workflows.items():
+            with self.subTest(workflow=name):
+                self.assertNotRegex(source, r"(?i)(?:ubuntu|macos|windows)-[a-z0-9.]+")
         self.assertFalse((ROOT / ".github/workflows/deploy-pages.yml").exists())
 
         for dead in (
@@ -889,10 +883,7 @@ class RepositoryContractTests(unittest.TestCase):
         )
         self.assertIn('python_version = "3.11"', self.module)
         self.assertIn("ignore_root_user_error = True", self.module)
-        self.assertIn("- 'MODULE.bazel'", self.publisher)
-        self.assertIn("- 'MODULE.bazel.lock'", self.publisher)
-        self.assertIn("- 'scripts/test-bazel-cutover-contracts.py'", self.publisher)
-        self.assertIn("nix develop . -c just container-image-context", self.publisher)
+        self.assertIn("nix develop . -c just container-image-publish", self.publisher)
 
     def test_image_serves_an_exact_generated_source_marker(self) -> None:
         self.assertIn("printf '%s' '${commitSha}' > \"$out/srv/health.sha\"", self.flake)

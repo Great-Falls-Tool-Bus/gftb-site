@@ -123,11 +123,13 @@ is not public.
   files in `//:deployment_bundle`'s `default` output group through
   `ActionOutputSet/v1`; the application workflow does not rediscover them.
   That bundle depends on `//:scanned_build`, never directly on `//:build`.
-- `.github/workflows/ci.yml` contains only the two thin calls to immutable
-  ci-templates `v5.1.0`. The adopting organization installs its own App,
-  controller, overlay, and generic `gf-v4-dispatch` edge; this repository does
-  not enumerate or select them. There is no v3, local, cache-only, hosted,
-  direct-endpoint, or repository-specific runner fallback.
+- No GitHub Actions workflow runs on push or pull request (operator ruling
+  2026-09-28); the former `.github/workflows/ci.yml` v4 caller is removed and
+  the pre-merge gate is a lab-host `just check` receipt posted on the PR. The
+  adopting organization installs its own App, controller, overlay, and generic
+  `gf-v4-dispatch` edge; this repository does not enumerate or select them.
+  There is no v3, local, cache-only, hosted, direct-endpoint, or
+  repository-specific runner fallback.
 - `tinyland.repo.json` is the schema-v2 consumer instance. It names only this
   forge identity and the consumer-owned `great-falls-tool-bus-infra` overlay;
   the house schema is vendored byte-for-byte from signed `site.scaffold` PR
@@ -138,14 +140,12 @@ is not public.
 
 ### Which CI job runs which gate
 
-CI calls the signed immutable schema-3 source
-`tinyland-inc/ci-templates/.github/workflows/spoke-ci-v4.yml@32e39ced0008edf4564ebeb173a5e8fbf069e28f`.
-Signed tag object `9cea2460b01358bf6462e853b8ff38358f263638`
-(`v5.1.0`) peels to that exact commit. Each job selects one checked-in action
-name; the reusable workflow checks out the exact source and invokes the
-compiled GF client once.
+The GitHub caller for these actions was removed under the 2026-09-28 operator
+ruling. Until a lab-host or in-cluster caller submits them, a lab-host
+`just check` (the same `//:ci_validation_suite`) posted on the PR is the
+pre-merge gate. The action plan is unchanged:
 
-| Caller job | Action plan entry | Requested Bazel action |
+| Former caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |
 | `validate` | `validate` | `test //:ci_validation_suite` |
 | `site-build` | `site-build` | `build //:deployment_bundle` |
@@ -201,7 +201,7 @@ software adapter. Operator-attended LOOKs happen in the operator's own browser.
 ## Deployment and package safety
 
 `.github/workflows/container-ghcr.yml` may publish only the immutable candidate
-tag for its exact commit. It has no production dispatch and no infra, DNS, or
+tag for its exact commit, by attended dispatch only. It has no production dispatch and no infra, DNS, or
 edge credentials. GitHub Pages workflows are forbidden. A merge, green CI, or
 successful package push is not served-site proof.
 

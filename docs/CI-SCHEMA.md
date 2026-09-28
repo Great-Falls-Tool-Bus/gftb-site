@@ -4,13 +4,15 @@ This is the live CI contract for `Great-Falls-Tool-Bus/gftb-site`.
 
 ## Validation
 
-`.github/workflows/ci.yml` is a thin v4 caller. It dispatches exactly the two
-actions in `.github/lanes.json` through ci-templates commit
-`32e39ced0008edf4564ebeb173a5e8fbf069e28f` (signed immutable release
-`v5.1.0`). It contains no runner, provider, endpoint, cache mode, tenant,
-credential, local-execution, or fallback choice. The generic
-`gf-v4-dispatch` edge is provisioned by the adopting organization, not selected
-by this repository.
+Operator ruling 2026-09-28: GitHub Actions leave every GFTB repository. No
+workflow here runs on push or pull request. The former thin v4 caller
+(`.github/workflows/ci.yml`) and the signed-commits check
+(`.github/workflows/signed-commits.yml`) are removed. The pre-merge gate is a
+lab-host `just check` receipt (host, commit, exit status) posted on the PR,
+with commit signatures verified at that head. The remaining
+`container-ghcr.yml` is dispatch-only and is deleted when its lab-host `just`
+recipe lands. The generic `gf-v4-dispatch` edge is provisioned by the adopting
+organization, not selected by this repository.
 
 Local developer operations enter through Just. `just check` selects the exact
 cacheable `//:ci_validation_suite` used by v4: schema/conformance and immutable
@@ -49,8 +51,8 @@ only. Container publication is not an action in the plan.
 
 ## Candidate image
 
-`.github/workflows/container-ghcr.yml` packages the exact Bazel-built static
-artifact into:
+`.github/workflows/container-ghcr.yml`, on attended dispatch of an exact
+commit, packages the exact Bazel-built static artifact into:
 
 `ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character commit SHA>`
 

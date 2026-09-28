@@ -491,7 +491,6 @@ py_test(
     data = [
         ":current_source_secret_scan_srcs",
         ".github/lanes.json",
-        ".github/workflows/ci.yml",
         ".github/workflows/container-ghcr.yml",
         "BUILD.bazel",
         "Justfile",
