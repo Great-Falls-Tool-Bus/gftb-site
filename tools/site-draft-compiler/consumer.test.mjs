@@ -72,7 +72,7 @@ published: false
 
 test('the isolated consumer imports the package without ambient runtime dependencies', () => {
 	assert.equal(packageMetadata.name, '@gftb/site-draft-compiler');
-	assert.equal(packageMetadata.version, '0.3.0');
+	assert.equal(packageMetadata.version, '0.3.1');
 	assert.equal(packageMetadata.private, true);
 	assert.equal(packageMetadata.exports['.'].import, './tools/site-draft-compiler/compiler.js');
 	assert.ok(existsSync(new URL(packageMetadata.exports['.'].types, runtime)));
