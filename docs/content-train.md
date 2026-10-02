@@ -110,9 +110,9 @@ schema by the existing `//:unit_tests` target (`just test-unit` and the remote
 build-output checks. No manifest regeneration is needed for an unpublished
 draft; publishing still follows the operator review below.
 
-## `published: false`, always, from an agent
+## `published: false` on every new entry
 
-Every entry an agent drafts ships as `published: false`. That is not a
+Every new entry ships as `published: false`. That is not a
 suggestion, it is enforced practice going back to addendum B1.2, and the
 exclusion happens at BUILD time, not by filtering at render time.
 
@@ -147,14 +147,14 @@ Draft source and draft pull requests are publicly readable on GitHub.
 `published: false` excludes an entry from the website; it does not make that
 source private. The operator or another developer with repository authority
 reviews the exact text and naming consent before explicitly setting
-`published: true`. Agents create drafts; they do not publish or merge them.
+`published: true`. Contributors open drafts; only the operator or a developer with repository authority sets published: true or merges.
 
 After the reviewed change merges to `main`, website publication still requires
 the existing owner release and served proof. The intended GF convergence
 develops in parallel; a merge alone is not deployment evidence. These boundaries
 follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/main/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
 
-## What an agent PR looks like
+## What a content PR looks like
 
 - One `.svx` file per entry (or a small batch of related entries), with verified
   public facts. Put supporting program-board receipts, PR numbers, commit SHAs,
@@ -169,7 +169,7 @@ follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/
   that runs over every draft in the tree, published or not (drafts are
   still build input and are never a place to stash anything sensitive).
 - A normal PR the operator reviews and merges like any other change. No
-  auto-merge, no agent merge authority over content PRs.
+  auto-merge; only the operator or a developer with repository authority merges content PRs.
 
 ## Questions people ask
 
