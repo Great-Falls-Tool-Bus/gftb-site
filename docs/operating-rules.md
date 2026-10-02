@@ -16,8 +16,12 @@ data, private mail, and private list archives stay outside this repository.
 
 It owns no member records, auth, payments, mail administration, private
 content, DNS, Cloudflare state, cluster state, or GitOps apply authority. The
-browser may submit the public contact form to the separately owned
-`forms.latoolb.us` API. This repo neither implements nor administers that API.
+browser may submit the public contact form and the work session RSVP dialog
+to the separately owned `forms.latoolb.us` API (the RSVP since operator
+interview 2026-10-02: it posts to `/api/contact` as a contact message whose
+name starts with `RSVP ` and whose message carries `Slot: <id>`; no
+acknowledgement is sent). This repo neither implements nor administers that
+API.
 
 The production image identity is exactly
 `ghcr.io/great-falls-tool-bus/gftb-site`. Publishing a `sha-<40 hex SHA>` image
@@ -139,7 +143,13 @@ that is complete without them.
   carousel under 48rem or a right-hand loop at 48rem and up that pauses on
   hover, on focus and by its own button. Reduced motion, forced colours, a
   short list and scripts off all render the static list, and the band clips
-  its own overflow. Rows in `e2e/home-hours.spec.ts`.
+  its own overflow. Rows in `e2e/home-hours.spec.ts`. Its RSVP button opens
+  the one RSVP dialog (`src/lib/components/RsvpDialog.svelte`,
+  `src/lib/rsvp-form.ts`), which posts through the contact relay, falls back
+  to a mailto RSVP when the relay cannot be reached, remembers a sent slot in
+  memory only and returns focus to the button. Rows in
+  `e2e/home-rsvp.spec.ts`. The three forms share one ALTCHA loader,
+  `src/lib/altcha-loader.ts`.
 - The first-load intro (`src/lib/intro/**`,
   `src/lib/components/{HomeIntro,BusMark}.svelte`, the sync script in
   `src/app.html`, the "Home intro" block in `src/app.css`) lands the work

@@ -11,6 +11,7 @@
 		type ContactFieldErrors,
 		type ContactFormValues,
 	} from '$lib/contact-form';
+	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '$lib/altcha-loader';
 
 	const formEndpoint = 'https://forms.latoolb.us';
 	const keyholders = 'keyholders@latoolb.us';
@@ -26,31 +27,15 @@
 	const mailtoHref = $derived(buildMailtoHref(keyholders, values));
 
 	$effect(() => {
-		if (typeof document === 'undefined' || document.querySelector('script[data-altcha]')) return;
-		const script = document.createElement('script');
-		script.src = '/vendor/altcha/altcha.js';
-		script.defer = true;
-		script.dataset.altcha = '';
-		document.head.appendChild(script);
+		loadAltchaWidget();
 	});
 
 	$effect(() => {
 		const element = widgetEl;
 		if (!element) return;
-		const onVerified = (event: Event) => {
-			const detail = (event as CustomEvent<{ payload?: string }>).detail;
-			altchaPayload = typeof detail?.payload === 'string' ? detail.payload : '';
-		};
-		const onState = (event: Event) => {
-			const detail = (event as CustomEvent<{ state?: string }>).detail;
-			if (detail?.state !== 'verified') altchaPayload = '';
-		};
-		element.addEventListener('verified', onVerified);
-		element.addEventListener('statechange', onState);
-		return () => {
-			element.removeEventListener('verified', onVerified);
-			element.removeEventListener('statechange', onState);
-		};
+		return watchAltcha(element, (payload) => {
+			altchaPayload = payload;
+		});
 	});
 
 	function focusFirstError() {
@@ -103,9 +88,7 @@
 		status = 'idle';
 		submitError = '';
 		altchaPayload = '';
-		const element = widgetEl as (HTMLElement & { reset?: () => void; solve?: () => void }) | undefined;
-		element?.reset?.();
-		element?.solve?.();
+		resolveAltcha(widgetEl);
 	}
 </script>
 
