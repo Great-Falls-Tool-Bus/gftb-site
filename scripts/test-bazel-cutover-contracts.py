@@ -787,7 +787,6 @@ class RepositoryContractTests(unittest.TestCase):
             "leak-scan-stamped",
             "leak-scan",
             "check",
-            "check-ci",
             "ci",
         )
         recursive_rm = re.compile(

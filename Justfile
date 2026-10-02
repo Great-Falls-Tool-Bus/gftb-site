@@ -134,9 +134,10 @@ endpoint-check:
     else echo "endpoint-check: no cache, executor, or private-network endpoint literals"; fi
 
 # Derive the page/post source map (demo #94 pattern; addendum B1.2 wires the
-# "Edit this page" affordance per log post). The former "no source-map
-# artifacts" posture was the stub's; the agent-surface bans it also carried
-# (no /agent route, no llms.txt, no agent-map.md) remain below.
+# "Edit this page" affordance per log post). Agent-surface bans (no /agent
+# route, no llms.txt, no agent-map.md) are enforced by
+# scripts/lib/leak-scan-rules.json (source-map-or-dev-artifact) and
+# test_public_agent_artifacts_are_absent in scripts/test-bazel-cutover-contracts.py.
 source-map-build:
     cd {{ root }} && node scripts/build-source-map.mjs
 
@@ -163,16 +164,6 @@ goals-manifest-build:
 
 goals-manifest-check:
     cd {{ root }} && bazelisk test //:goals_manifest_drift_test
-
-entrypoint-contract: conformance
-
-workflow-validate:
-    cd {{ root }} && bazelisk test //:workflow_validation_test
-
-repo-manifest-validate: conformance
-
-inhouse-package-parity:
-    cd {{ root }} && python3 scripts/check-inhouse-package-parity.py
 
 conformance:
     cd {{ root }} && bazelisk test //:bazel_output_contract_test
@@ -328,17 +319,13 @@ leak-scan build_dir="build":
 # `validate` action. //:deployment_bundle independently enforces the scanned
 # artifact boundary selected by `site-build`.
 #
-# The suite is the merge gate, so it stamps the checked-out commit the way the
-# retired v4 caller stamped GITHUB_SHA: //:browser_smoke_test asserts the
-# footer provenance that only a stamped build renders. An explicit
-# BUILD_COMMIT_SHA wins. `just build` stays unstamped unless one is supplied.
+# The suite is the merge gate, so it stamps the checked-out commit:
+# //:browser_smoke_test asserts the footer provenance that only a stamped
+# build renders. An explicit BUILD_COMMIT_SHA wins. `just build` stays
+# unstamped unless one is supplied.
 check: hooks-check
     cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite
     @echo "All checks passed."
-
-check-ci:
-    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test --config=ci //:ci_validation_suite
-    @echo "All CI artifact checks passed."
 
 # Local convenience aggregate. The v4 dispatcher does not invoke it.
 ci: check test-e2e
@@ -383,14 +370,3 @@ analyze:
 
 qr-generate:
     cd {{ root }} && mkdir -p static/qr && qrencode --type=SVG --svg-path --level=H --margin=2 --size=4 --output=static/qr/greatfallstoolbus-apex.svg "https://greatfallstoolbus.org/"
-
-bazel-graph:
-    cd {{ root }} && bazelisk mod graph
-
-bazel-query target="//:ci_validation_suite":
-    cd {{ root }} && bazelisk query "{{ target }}"
-
-info:
-    @echo "Site: greatfallstoolbus.org"
-    @echo "Repo: Great-Falls-Tool-Bus/gftb-site"
-    @echo "Root: {{ root }}"
