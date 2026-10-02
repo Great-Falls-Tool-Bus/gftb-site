@@ -44,6 +44,17 @@
 		type SubscribeFieldErrors,
 		type SubscribeFormValues,
 	} from '$lib/subscribe-form';
+	// The parts are bound to flat local names once, so the minified bundle
+	// carries no `X.Title`-style member access for the leak scan to read
+	// as a personal name (operator ruling 2026-10-02).
+	const {
+		Backdrop: DialogBackdrop,
+		Positioner: DialogPositioner,
+		Content: DialogContent,
+		Title: DialogTitle,
+		Description: DialogDescription,
+		CloseTrigger: DialogCloseTrigger,
+	} = Dialog;
 
 	const formEndpoint = 'https://forms.latoolb.us';
 	const requestTimeoutMs = 15_000;
@@ -319,42 +330,42 @@
 		preventScroll={false}
 		initialFocusEl={() => emailEl ?? null}
 	>
-		<Dialog.Backdrop class="subscribe-capture__backdrop" />
-		<Dialog.Positioner class="subscribe-capture__positioner">
-			<Dialog.Content class="subscribe-capture" data-testid="subscribe-capture">
+		<DialogBackdrop class="subscribe-capture__backdrop" />
+		<DialogPositioner class="subscribe-capture__positioner">
+			<DialogContent class="subscribe-capture" data-testid="subscribe-capture">
 				<!-- TODO(jess): capture wording. Every rendered string below is
 				     interim: a list signup only, no ask of any other kind. -->
 				{#if status === 'success'}
 					<div class="form-notice form-notice--success" role="status" aria-live="polite">
-						<Dialog.Title>
+						<DialogTitle>
 							{#snippet element(attributes)}
 								<h2 {...attributes} class="subscribe-capture__title">Thanks. Check your inbox.</h2>
 							{/snippet}
-						</Dialog.Title>
-						<Dialog.Description>
+						</DialogTitle>
+						<DialogDescription>
 							{#snippet element(attributes)}
 								<p {...attributes}>
 									We sent a confirmation email to <strong>{values.email.trim()}</strong>. The list only adds you once
 									you confirm it, and every message carries an unsubscribe link.
 								</p>
 							{/snippet}
-						</Dialog.Description>
+						</DialogDescription>
 					</div>
-					<Dialog.CloseTrigger class="button subscribe-capture__close">Close</Dialog.CloseTrigger>
+					<DialogCloseTrigger class="button subscribe-capture__close">Close</DialogCloseTrigger>
 				{:else}
-					<Dialog.Title>
+					<DialogTitle>
 						{#snippet element(attributes)}
 							<h2 {...attributes} class="subscribe-capture__title">Hear from the Tool Bus</h2>
 						{/snippet}
-					</Dialog.Title>
-					<Dialog.Description>
+					</DialogTitle>
+					<DialogDescription>
 						{#snippet element(attributes)}
 							<p {...attributes} class="subscribe-capture__lede">
 								An occasional email about open hours, workdays and what the club is up to. A few a month at most, and
 								every one carries an unsubscribe link.
 							</p>
 						{/snippet}
-					</Dialog.Description>
+					</DialogDescription>
 
 					<form
 						class="subscribe-capture__form"
@@ -408,14 +419,14 @@
 							<button class="button" type="submit" disabled={status === 'submitting'}>
 								{status === 'submitting' ? 'Sending…' : 'Join the list'}
 							</button>
-							<Dialog.CloseTrigger class="button button--secondary subscribe-capture__close"
-								>Not now</Dialog.CloseTrigger
+							<DialogCloseTrigger class="button button--secondary subscribe-capture__close"
+								>Not now</DialogCloseTrigger
 							>
 						</div>
 					</form>
 				{/if}
-			</Dialog.Content>
-		</Dialog.Positioner>
+			</DialogContent>
+		</DialogPositioner>
 	</Dialog>
 {/if}
 

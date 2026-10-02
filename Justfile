@@ -334,6 +334,8 @@ leak-scan build_dir="build":
 # unstamped unless one is supplied.
 check: hooks-check
     cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite
+    # Operator ruling 2026-10-02: the gate also builds and leak-scans the publishable tree.
+    cd {{ root }} && bazelisk build //:scanned_build
     @echo "All checks passed."
 
 # Local convenience aggregate. The v4 dispatcher does not invoke it.

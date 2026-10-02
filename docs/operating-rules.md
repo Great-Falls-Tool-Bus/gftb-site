@@ -78,6 +78,8 @@ whose archive is not public.
   yields no declared output, and `//:deployment_bundle` can package only that
   scanned tree. A published tree that has never been scanned is not
   publishable.
+- `just check` also builds `//:scanned_build`, so the leak scan over the
+  publishable tree is part of the merge gate (operator ruling 2026-10-02).
 - `just check` runs the cacheable `//:ci_validation_suite`: the
   schema/conformance contract, current-source Gitleaks, generated
   source/log/goal manifest drift checks, hermetic actionlint, ESLint,

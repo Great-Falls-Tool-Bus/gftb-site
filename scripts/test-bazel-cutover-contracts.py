@@ -507,6 +507,7 @@ class RepositoryContractTests(unittest.TestCase):
     def test_build_and_checks_enter_bazel(self) -> None:
         self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "build"))
         self.assertIn("bazelisk test //:ci_validation_suite", recipe(self.justfile, "check"))
+        self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "check"))
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "scanned_build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
