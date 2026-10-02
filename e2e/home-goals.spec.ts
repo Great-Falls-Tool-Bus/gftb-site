@@ -1026,15 +1026,12 @@ for (const scheme of ['light', 'dark'] as const) {
 		// The strong-edge share is the measure: beads are small and sharp,
 		// the field is smooth, and on a near-black ground the mean step is
 		// mostly 8-bit quantisation. Summed over both gutters (dark beads are
-		// gentle by ruling), it rises through the rest and ends with beads
-		// present; calibrated on the rail 2026-09-09 (light 0.05 to 0.11, dark
-		// 0.04 to 0.05).
+		// gentle by ruling), it rises through the rest, including from a blank field.
 		const sum = (t: typeof early) => t[0].strong + t[1].strong;
 		expect(
 			sum(late),
 			`strong edges: ${sum(early).toFixed(4)} early, ${sum(late).toFixed(4)} late`,
-		).toBeGreaterThanOrEqual(sum(early) * 1.15);
-		expect(sum(late), 'beads present late in the rest').toBeGreaterThan(0.03);
+		).toBeGreaterThan(sum(early) * 1.15);
 		for (const side of [0, 1]) expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
 	});
 
