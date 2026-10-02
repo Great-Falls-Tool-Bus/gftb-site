@@ -700,8 +700,10 @@ async function releaseHold(page: Page) {
 	});
 }
 
+// Canvas-reading tests: 90 s budget per operator ruling 2026-10-02; tracked in Linear under the canvas-reading tests issue.
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the glass panes keep the notes' ink on its floor over the scene (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -773,6 +775,7 @@ function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -875,6 +878,7 @@ async function gutterRects(page: Page) {
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -915,6 +919,7 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 
 	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
