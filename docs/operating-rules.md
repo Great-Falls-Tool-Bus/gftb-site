@@ -158,7 +158,10 @@ intro would break opt out through `e2e/support/intro.ts`.
 candidate tag for its exact commit, by attended dispatch only. It has no
 production dispatch and no infra, DNS, or edge credentials. GitHub Pages
 workflows are forbidden. A merge, a green gate, or a successful package push
-is not proof of what the site serves.
+is not proof of what the site serves. The image writes `/health.sha` at
+packaging time from the exact `BUILD_COMMIT_SHA`; served readback must equal
+the expected 40-character SHA. It also serves `/health` and `/healthz`
+(`200`, body `ok`).
 
 Public source does not establish image-package visibility or pullability. The
 release lane may make only the reviewed web image package public after
