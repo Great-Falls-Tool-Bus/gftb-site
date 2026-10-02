@@ -423,6 +423,22 @@ test.describe('with sessions on a fixed clock', () => {
 		await firstRsvp.blur();
 		await expect.poll(playState).toBe('running');
 
+		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+	});
+
+	// Split from the rows around it so each stays inside the per-test budget
+	// on a loaded lab host.
+	test('at 48rem and up the pause button holds the loop and shows that it is pressed', async ({ page }) => {
+		await withSessions(page);
+		await page.emulateMedia({ reducedMotion: 'no-preference' });
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'loop');
+		const track = band(page).locator('.hours-loop__track');
+		const playState = () => track.evaluate((element) => getComputedStyle(element).animationPlayState);
+		await page.mouse.move(0, 0);
+		await expect.poll(playState).toBe('running');
+
 		const pause = band(page).getByRole('button', { name: 'Pause the list' });
 		const pauseFill = () => pause.evaluate((element) => getComputedStyle(element).backgroundColor);
 		const unpressedFill = await pauseFill();
@@ -443,8 +459,6 @@ test.describe('with sessions on a fixed clock', () => {
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
 	});
 
-	// Split from the row above so each stays inside the per-test budget on a
-	// loaded lab host.
 	test('at 48rem and up the keyboard reaches each looped row once, inside the window', async ({ page }) => {
 		await withSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
