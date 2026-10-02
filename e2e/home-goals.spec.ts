@@ -3,6 +3,7 @@ import { skipHomeIntro } from './support/intro';
 
 import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
 import { readFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -874,7 +875,12 @@ async function gutterRects(page: Page) {
 }
 
 for (const scheme of ['light', 'dark'] as const) {
-	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }) => {
+	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }, testInfo) => {
+		const attachCapture = async (name: string, png: Buffer) => {
+			const file = testInfo.outputPath(`${name}.png`);
+			await writeFile(file, png);
+			await testInfo.attach(name, { path: file, contentType: 'image/png' });
+		};
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -910,6 +916,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			'#goals canvas.wiper__scene',
 			[rests.left, rests.right],
 			GLASS_HIDE,
+			(png) => attachCapture('glass-early', png),
 		);
 		const first = await page.waitForFunction(
 			({ node, expected }) => {
@@ -980,8 +987,14 @@ for (const scheme of ['light', 'dark'] as const) {
 			{ node: glass, baseline: start },
 		);
 		expect(await pane(page).getAttribute('data-state'), 'the held rest').toMatch(/dwell|paused/u);
-		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
-		await glass.evaluate(
+		const late = await measureTextureInRects(
+			page,
+			'#goals canvas.wiper__scene',
+			[rests.left, rests.right],
+			GLASS_HIDE,
+			(png) => attachCapture('glass-late', png),
+		);
+		const finalTime = await glass.evaluate(
 			(node, { baseline, ready }) => {
 				const canvas = node as HTMLCanvasElement;
 				const box = canvas.getBoundingClientRect();
@@ -999,9 +1012,13 @@ for (const scheme of ['light', 'dark'] as const) {
 					time < ready
 				)
 					throw new Error('the scene changed during the late sample');
+				return time;
 			},
 			{ baseline: start, ready: readyTime },
 		);
+		const metricsFile = testInfo.outputPath('glass-metrics.json');
+		await writeFile(metricsFile, JSON.stringify({ scheme, identity, startTime: start.time, readyTime, finalTime, early, late }));
+		await testInfo.attach('glass-metrics', { path: metricsFile, contentType: 'application/json' });
 		await releaseHold(page);
 		// The strong-edge share is the measure: beads are small and sharp,
 		// the field is smooth, and on a near-black ground the mean step is
