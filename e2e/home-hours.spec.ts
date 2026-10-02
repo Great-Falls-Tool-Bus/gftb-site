@@ -336,10 +336,19 @@ test.describe('with sessions on a fixed clock', () => {
 		await expect(lists.nth(0).locator('> li')).toHaveCount(SESSIONS.length);
 		await expect(lists.nth(0)).not.toHaveAttribute('aria-hidden', /./u);
 		await expect(lists.nth(0)).not.toHaveAttribute('inert');
-		// The duplicate only closes the loop: inert and hidden from assistive technology.
+		// The duplicate only closes the loop: hidden from assistive technology
+		// and out of the tab order, but not inert, so a visible RSVP in it
+		// still takes a click (the next test).
 		await expect(lists.nth(1)).toHaveAttribute('aria-hidden', 'true');
-		await expect(lists.nth(1)).toHaveAttribute('inert');
+		await expect(lists.nth(1)).not.toHaveAttribute('inert');
 		await expect(lists.nth(1).locator('> li')).toHaveCount(SESSIONS.length);
+		const duplicateButtons = lists.nth(1).locator('button');
+		await expect(duplicateButtons).toHaveCount(SESSIONS.length);
+		expect(
+			await duplicateButtons.evaluateAll((buttons) => buttons.map((button) => button.getAttribute('tabindex'))),
+		).toEqual(SESSIONS.map(() => '-1'));
+		await expect(lists.nth(1).locator('[data-rsvp-id]')).toHaveCount(0);
+		await expect(lists.nth(0).locator('[data-rsvp-id]')).toHaveCount(SESSIONS.length);
 
 		// The heading and its line on the left, the loop on the right.
 		const columns = await page.evaluate(() => {
@@ -411,6 +420,50 @@ test.describe('with sessions on a fixed clock', () => {
 		expect(stops[SESSIONS.length].inBand).toBe(false);
 
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+	});
+
+	test('an RSVP in the visible duplicate copy opens the dialog for its session', async ({ page, baseURL }) => {
+		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		await stubChallenge(page);
+		await withSessions(page);
+		await page.emulateMedia({ reducedMotion: 'no-preference' });
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'loop');
+		const loop = band(page).locator('.hours-loop');
+		const lists = loop.locator('.hours-loop__track > ol');
+
+		// Late in a pass the duplicate fills the window: hold the loop there.
+		await loop.evaluate((element) => {
+			const animation = element
+				.querySelector('.hours-loop__track')!
+				.getAnimations()
+				.find((candidate) => (candidate as CSSAnimation).animationName === 'hours-loop')!;
+			animation.pause();
+			animation.currentTime = Number(animation.effect!.getComputedTiming().duration) * 0.9;
+		});
+		const visible = await lists.nth(1).evaluate((list) => {
+			const frame = list.closest('.hours-loop')!.getBoundingClientRect();
+			return [...list.querySelectorAll('button')]
+				.map((button, index) => ({ index, box: button.getBoundingClientRect() }))
+				.filter(({ box }) => box.top >= frame.top && box.bottom <= frame.bottom)
+				.map(({ index }) => index);
+		});
+		expect(visible.length).toBeGreaterThan(0);
+		const index = visible[visible.length - 1];
+		const label = SESSIONS[index][1];
+
+		await loop.hover();
+		await lists.nth(1).locator('button').nth(index).click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog).toBeVisible();
+		await expect(dialog).toContainText(label);
+
+		// Focus went to the same session's button in the first copy, and
+		// comes back to it when the dialog closes.
+		await page.keyboard.press('Escape');
+		await expect(dialog).toHaveCount(0);
+		await expect(lists.nth(0).getByRole('button', { name: `RSVP for ${label}` })).toBeFocused();
 	});
 
 	test('a list that fits the window is shown whole at 48rem and up, without a loop', async ({ page }) => {
