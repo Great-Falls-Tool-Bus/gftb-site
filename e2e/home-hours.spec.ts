@@ -436,10 +436,25 @@ test.describe('with sessions on a fixed clock', () => {
 
 		// Keyboard: from the pause button, Tab reaches each row once, in the
 		// first copy, and then leaves the band; the duplicate is never a stop.
+		// Each focused RSVP is brought inside the loop's window, so the visitor
+		// sees what they activate (six rows, a window of three: rows 4 to 6
+		// start outside it).
+		const focusedInWindow = () =>
+			page.evaluate(() => {
+				const active = document.activeElement!.getBoundingClientRect();
+				const frame = document.querySelector('#hours .hours-loop')!.getBoundingClientRect();
+				return (
+					active.top >= frame.top - 1 &&
+					active.bottom <= frame.bottom + 1 &&
+					active.left >= frame.left - 1 &&
+					active.right <= frame.right + 1
+				);
+			});
 		await pause.focus();
 		const stops: Array<{ inBand: boolean; inDuplicate: boolean; label: string | null }> = [];
 		for (let step = 0; step < SESSIONS.length + 1; step += 1) {
 			await page.keyboard.press('Tab');
+			if (step < SESSIONS.length) await expect.poll(focusedInWindow).toBe(true);
 			stops.push(
 				await page.evaluate(() => {
 					const active = document.activeElement;
