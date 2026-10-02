@@ -17,8 +17,9 @@ export async function setScheme(page: Page, scheme: 'light' | 'dark') {
 		localStorage.setItem('color-mode', mode);
 		document.documentElement.setAttribute('data-mode', mode);
 	}, scheme);
-	await page.reload();
+	const response = await page.reload();
 	await page.waitForLoadState('networkidle');
+	return response;
 }
 
 /** Resolves a CSS custom property to true 8-bit sRGB via a canvas round-trip

@@ -186,8 +186,15 @@ test.describe('JavaScript enabled', () => {
 		if (options.cap) await forceTierMax(page, options.cap);
 		const guard = await installExternalGuard(page, baseUrl);
 		await stubChallenge(page);
-		await page.goto('/');
+		const response = await page.goto('/');
 		await page.waitForLoadState('networkidle');
+		// Temporary source-test diagnostic, not SLO evidence. Retire after the
+		// missing-document cause is fixed and both console cases qualify.
+		const responseUrl = new URL(response?.url() ?? page.url());
+		const finalUrl = new URL(page.url());
+		console.log(
+			`[console-navigation:${options.cap ?? 'default'}] status=${response?.status() ?? 'none'} response=${responseUrl.origin}${responseUrl.pathname} final=${finalUrl.origin}${finalUrl.pathname} goals=${await page.locator('#goals').count()}`,
+		);
 		// Bring the Notes & Goals scene into view and let it run: the strongest
 		// console gate on the site must cover the renderer, not only the load.
 		await page.locator('#goals').scrollIntoViewIfNeeded();

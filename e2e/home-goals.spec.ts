@@ -1081,9 +1081,21 @@ for (const scheme of ['light', 'dark'] as const) {
 				};
 			});
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/');
+		const response = await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		await setScheme(page, scheme);
+		// Temporary source-test diagnostic, not SLO evidence. Retire after the
+		// missing-document cause is fixed and both squeegee cases qualify.
+		const initialResponseUrl = new URL(response?.url() ?? page.url());
+		const initialFinalUrl = new URL(page.url());
+		console.log(
+			`[squeegee-navigation:${scheme}] status=${response?.status() ?? 'none'} response=${initialResponseUrl.origin}${initialResponseUrl.pathname} final=${initialFinalUrl.origin}${initialFinalUrl.pathname} goals=${await page.locator('#goals').count()}`,
+		);
+		const reloadResponse = await setScheme(page, scheme);
+		const reloadResponseUrl = new URL(reloadResponse?.url() ?? page.url());
+		const reloadFinalUrl = new URL(page.url());
+		console.log(
+			`[squeegee-reload:${scheme}] status=${reloadResponse?.status() ?? 'none'} response=${reloadResponseUrl.origin}${reloadResponseUrl.pathname} final=${reloadFinalUrl.origin}${reloadFinalUrl.pathname} goals=${await page.locator('#goals').count()}`,
+		);
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await awaitTier(page);

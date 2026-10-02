@@ -129,7 +129,14 @@ test('contact surface keeps public discussion and private access distinct', asyn
 });
 
 test('contact helper and validation text remain readable on the contact card', async ({ page }) => {
-	await page.goto('/contact');
+	const response = await page.goto('/contact');
+	// Temporary source-test diagnostic, not SLO evidence. Retire after the
+	// missing-document cause is fixed and this contact case qualifies.
+	const responseUrl = new URL(response?.url() ?? page.url());
+	const finalUrl = new URL(page.url());
+	console.log(
+		`[contact-navigation] status=${response?.status() ?? 'none'} response=${responseUrl.origin}${responseUrl.pathname} final=${finalUrl.origin}${finalUrl.pathname} form=${await page.locator('form.contact-form').count()} send=${await page.getByRole('button', { name: 'Send to keyholders' }).count()}`,
+	);
 	await page.getByRole('button', { name: 'Send to keyholders' }).click();
 
 	// The 2026-08-31 flattening left .contact-card with no fill of its own, so
