@@ -60,8 +60,8 @@ describe('leak-scan rule set', () => {
 });
 
 // A sequential, never-issued forge token shaped like a real one. Assembled at
-// run time so no gitleaks release (CI pins 8.21.2, whose github-pat rule fires
-// on the contiguous literal) sees a token in this file; the scanner under test
+// run time so no gitleaks release (whose github-pat rule fires on the
+// contiguous literal) sees a token in this file; the scanner under test
 // still receives the full string.
 const FAKE_FORGE_TOKEN = ['ghp_', '0123456789abcdefghijklmnopqrstuvwxyz'].join('');
 

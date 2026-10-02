@@ -71,8 +71,9 @@ for the full input list and checks. Do not copy those credentials here please.
 ## Source, publication, and deployment
 
 The current source declares two GF actions: `validate` runs the registered
-checks, and `site-build` requests the scanned deployment bundle. See
-[the CI contract](docs/CI-SCHEMA.md) for their exact targets and output rules.
+checks, and `site-build` requests the scanned deployment bundle. Both are
+declared, with their result disposition, in `.github/lanes.json`. See
+[the operating rules](docs/operating-rules.md) for their exact targets.
 
 The candidate workflow, now dispatch-only, calls `just container-image-publish`
 on Linux. No workflow runs on push or pull request; the pre-merge gate is a

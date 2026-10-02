@@ -30,16 +30,6 @@ build --show_timestamps
 build --@aspect_rules_ts//ts:skipLibCheck=always
 build --spawn_strategy=sandboxed,worker,local
 
-# Local non-v4 CI ergonomics only. The compiled action client supplies its own
-# fail-closed remote flags after resolving a signed v4 binding.
-build:ci --disk_cache=
-build:ci --remote_retries=3
-build:ci --jobs=auto
-build:ci --color=no
-build:ci --curses=no
-build:ci --show_progress_rate_limit=30
-build:ci --noshow_loading_progress
-
 # Test output
 test --test_output=errors
 test --test_summary=detailed

@@ -84,7 +84,6 @@ requests. See `NOTICE` for the concise distribution notice.
 ## Bus photographs
 
 - Files: `static/photos/goals/bus-side-bikes-1280.webp`,
-  `static/photos/goals/bus-interior-seats-1280.webp`,
   `static/photos/goals/bus-interior-cleared-1280.webp`,
   `static/photos/goals/bus-on-lawn-1280.webp`,
   `static/photos/goals/legacy-hardware-in-hand-1280.webp`,

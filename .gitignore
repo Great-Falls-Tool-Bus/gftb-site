@@ -5,7 +5,6 @@ node_modules/
 # Build outputs
 .svelte-kit/
 build/
-build-stamped/
 dist/
 
 # Local bundle analysis.
@@ -27,8 +26,6 @@ __pycache__/
 test-results/
 playwright-report/
 coverage/
-.lighthouseci/
-bundle-report.json
 
 # Editor
 .vscode/

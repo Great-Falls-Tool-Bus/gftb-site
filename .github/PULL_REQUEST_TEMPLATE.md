@@ -7,7 +7,7 @@
 <!--
 Paste the last lines of `just check` from a Linux lab host for this pull
 request's head commit, naming the host and the commit. See
-docs/operating-rules.md and docs/CI-SCHEMA.md.
+docs/operating-rules.md.
 -->
 
 ## Checklist
