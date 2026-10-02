@@ -2,7 +2,7 @@
 // apex's #140 mechanism onto this repo's one build-constant channel: the Bazel
 // stable-status stamp (scripts/bazel/workspace-status.sh) flows through
 // vite.config.ts's `define` block as __COMMIT_SHORT__. The stamp carries an
-// EXPLICITLY supplied identity only (BUILD_COMMIT_SHA / GITHUB_SHA — CI and
+// EXPLICITLY supplied identity only (BUILD_COMMIT_SHA, CI and
 // publish invocations) and is truncated to 7 chars AT THE SOURCE, so the
 // 40-hex form never reaches Vite and can never be inlined into shipped bytes
 // (the leak-scan gate rejects 40-hex in the artifact as its backstop). An
