@@ -5,6 +5,8 @@
 	import NotesAndGoals from '$lib/components/NotesAndGoals.svelte';
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import HomeIntro from '$lib/components/HomeIntro.svelte';
+	import HoursBand from '$lib/components/HoursBand.svelte';
+	import RsvpDialog from '$lib/components/RsvpDialog.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
@@ -139,6 +141,15 @@
 </section>
 
 <div class="page-shell">
+	<!-- Work sessions on the bus (operator interview 2026-10-02): the band sits
+	     beneath the hero and above Notes & Goals, as the first child of the
+	     page shell. That ruling supersedes the 2026-09-19 hours-in-FAQ ruling and
+	     the 2026-09-09 rotator ruling for this band only: under 48rem a
+	     carousel, at 48rem and up a right-hand vertical loop that pauses on
+	     hover and on focus, and a static list under reduced motion and without
+	     JavaScript. No use:reveal: it is the first thing under the hero. -->
+	<HoursBand />
+
 	<!-- Row 4 (spec §3 :88): notes, goals and specific ways to help. -->
 	<section
 		class="section section--bare reveal-armed"
@@ -252,15 +263,17 @@
 					<!-- TODO(jess): KT copy, 2026-09-19; the 501(c) line replaced by the operator's ruling -->
 				</dd>
 				<!-- The recurring hours moved here from the hero box (operator ruling
-				     2026-09-19). One spelling of the hours on the page inside this
-				     section; the two Notes and Goals panes carry the same window in
-				     their own frontmatter. Naming consent covers the schedule, not a
-				     live location. -->
+				     2026-09-19). One spelling of the hours inside this section; the two
+				     Notes and Goals panes carry the same window in their own
+				     frontmatter. Operator interview 2026-10-02: the Thursday window is
+				     3 to 4 PM ET; dated sessions appear in the work sessions band under
+				     the hero, and this answer points at it (#hours). Naming consent
+				     covers the schedule, not a live location. -->
 				<dt>When can I visit the bus?</dt>
 				<dd>
-					Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the
-					<a href="/contact">contact form</a> to confirm before traveling. Exact location details are shared directly, and
-					a confirmed one-off session will be posted here.
+					Jess is usually working on the bus Thursdays, 3 to 4 PM ET. Please use the
+					<a href="/contact">contact form</a> to confirm before traveling. Exact location details are shared directly,
+					and dated sessions are listed under <a href="#hours">Work sessions on the bus</a> at the top of this page.
 				</dd>
 			</dl>
 			<p class="credit muted">Answers by Tool Bus Member Katherine T., except the visiting hours.</p>
@@ -342,3 +355,9 @@
 
 	<SourceLink routeId="/" />
 </div>
+
+<!-- The one RSVP dialog for the band's sessions (operator interview
+     2026-10-02): it takes the band's open event, and renders nothing until
+     a visitor opens it. Outside the page shell so the shell's children are
+     only the page's sections. -->
+<RsvpDialog />

@@ -2,7 +2,7 @@
 kind: goal
 order: 50
 title: 'Build shelves in the bus'
-window: 'Thursdays, about 3 to 5 PM ET'
+window: 'Thursdays, 3 to 4 PM ET'
 cta_label: 'Help build shelves'
 cta_href: '/contact'
 image: '/photos/goals/bus-interior-cleared-1280.webp'

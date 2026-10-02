@@ -28,6 +28,8 @@ export default defineConfig({
 		'acceptance-no-js.spec.ts',
 		'brand-vectors-permission.spec.ts',
 		'home-goals.spec.ts',
+		'home-hours.spec.ts',
+		'home-rsvp.spec.ts',
 		'mobile-nav.spec.ts',
 	].map((name) => resolve(testDir, name)),
 	fullyParallel: false,
@@ -36,9 +38,11 @@ export default defineConfig({
 	workers: 1,
 	reporter: 'list',
 	timeout: 30_000,
-	// 68 tests run serially on one worker; a shared lab host needs more than
+	// About 80 tests run serially on one worker; a shared lab host needs more than
 	// three minutes for the set. Per-test and per-action limits are unchanged.
-	globalTimeout: 600_000,
+	// Operator ruling 2026-10-02: eight canvas-reading tests may take 90 s each,
+	// so the set gains 8 x 60 s; tracked in Linear under the canvas-reading tests issue.
+	globalTimeout: 1_080_000,
 	outputDir,
 	updateSnapshots: 'none',
 	use: {

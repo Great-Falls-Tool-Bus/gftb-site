@@ -1,10 +1,12 @@
 // The home page's first-load intro (operator rulings 2026-09-10 and
 // 2026-09-19, the mark drives in and parks): armed
 // before first paint on every full load, self-hiding with no bundle, the
-// veil held until the wiper stack has hydrated, landing Notes & Goals under
-// the header, replayed on a reload, never under reduce, a fragment, the
-// data-intro-off hook, JS off or paper, cancelled by any input, and never in
-// the way of the skip link.
+// veil held until the wiper stack has hydrated, landing the work sessions
+// band under the header (operator interview 2026-10-02: the scroll target is
+// #hours, while readiness is still read from the #goals canvases), replayed
+// on a reload, never under reduce, a fragment, the data-intro-off hook, JS
+// off or paper, cancelled by any input, and never in the way of the skip
+// link.
 import { expect, test, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
 import { forceTierMax } from './support/wiper-tier';
@@ -13,19 +15,19 @@ const intro = (page: Page) => page.getByTestId('home-intro');
 const armed = (page: Page) => page.evaluate(() => document.documentElement.classList.contains('intro-armed'));
 const state = (page: Page) => page.evaluate(() => document.documentElement.dataset.intro ?? null);
 const visibility = (page: Page) => intro(page).evaluate((el) => getComputedStyle(el).visibility);
-const goalsTop = (page: Page) =>
+const targetTop = (page: Page) =>
 	page.evaluate(() => {
-		const goals = document.querySelector('#goals');
-		if (!goals) return null;
-		const margin = Number.parseFloat(getComputedStyle(goals).scrollMarginTop) || 0;
+		const target = document.querySelector('#hours');
+		if (!target) return null;
+		const margin = Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
 		const max = document.documentElement.scrollHeight - window.innerHeight;
-		return { top: goals.getBoundingClientRect().top, margin, scrollY: window.scrollY, max };
+		return { top: target.getBoundingClientRect().top, margin, scrollY: window.scrollY, max };
 	});
-// The section's own reveal transition (a 10 px settle) may still be finishing
-// in the frames after the tween lands, so the landing is read with a short
-// settle window; the scroll position itself must not move in that window.
+// Layout below the band (a section's reveal settle) may still be finishing in
+// the frames after the tween lands, so the landing is read with a short settle
+// window; the scroll position itself must not move in that window.
 const landed = async (page: Page) => {
-	const first = await goalsTop(page);
+	const first = await targetTop(page);
 	expect(first).not.toBeNull();
 	if (!first) return;
 	const clamped = first.scrollY >= first.max - 1;
@@ -33,14 +35,14 @@ const landed = async (page: Page) => {
 		await expect
 			.poll(
 				async () => {
-					const box = await goalsTop(page);
+					const box = await targetTop(page);
 					return box ? Math.abs(box.top - box.margin) : Number.POSITIVE_INFINITY;
 				},
 				{ timeout: 1500, intervals: [50] },
 			)
 			.toBeLessThanOrEqual(2);
 	}
-	const settled = await goalsTop(page);
+	const settled = await targetTop(page);
 	expect(settled?.scrollY).toBe(first.scrollY);
 	expect(first.scrollY).toBeGreaterThan(0);
 };
@@ -78,7 +80,7 @@ test.describe('motion allowed', () => {
 		await expect.poll(() => armed(page), { timeout: 2000 }).toBe(false);
 	});
 
-	test('the veil waits for the wiper stack, then lands Notes & Goals under the header, and a reload replays it', async ({
+	test('the veil waits for the wiper stack, then lands the work sessions band under the header, and a reload replays it', async ({
 		page,
 	}) => {
 		const problems = cleanConsole(page);
@@ -140,7 +142,7 @@ test.describe('motion allowed', () => {
 		expect(Math.abs((await page.evaluate(() => window.scrollY)) - at)).toBeLessThanOrEqual(1);
 		expect(await state(page)).toBe('cancelled');
 		expect(await armed(page)).toBe(false);
-		const box = await goalsTop(page);
+		const box = await targetTop(page);
 		expect(box && Math.abs(box.top - box.margin) > 2).toBe(true);
 	});
 
@@ -216,7 +218,7 @@ test.describe('motion allowed', () => {
 		expect(liftedAt).toBeLessThan(9000);
 	});
 
-	test('a phone viewport lands the section under the header as well', async ({ page }) => {
+	test('a phone viewport lands the band under the header as well', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await expect.poll(() => state(page), { timeout: 20_000 }).toBe('done');

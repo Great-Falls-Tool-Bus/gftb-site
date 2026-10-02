@@ -202,6 +202,38 @@ sha256 in `MODULE.bazel`, and copied to `static/agreements/` by the Bazel build.
 No status line: the document carries its own date. Rows in
 `e2e/acceptance-legal.spec.ts`.
 
+## Work sessions on the bus (hours)
+
+Staffed work sessions live in `src/content/hours/<id>.json`, one file per
+slot, formatted by Prettier (tabs, width 120). They reach the site through
+`src/lib/generated/hours-manifest.ts` (`just hours-manifest-build`,
+drift-checked by `just hours-manifest-check` inside `just check`), published
+slots only. The contract is `src/lib/public-hours-schema.ts`, which fails
+closed: unknown keys are refused at both levels and no string may carry an em
+dash. Keys: `id` (kebab-case, equal to the file stem), `published`, `weekday`
+(`monday` to `sunday`), `start` and `end` (`HH:MM`, 06:00 to 23:00, end after
+start), `timezone` (always `America/New_York`), `staff` (0 to 3 first names
+from `CONSENTED_STAFF`; empty renders as "a keyholder"), `repeat`
+(`{kind: weekly | once, startsOn, count? or until?}`), and optionally `skip`
+(cancelled dates, each one a generated occurrence), `location` (only
+`"the bus"`), `notes` (at most 200 characters) and `source` (internal
+provenance, never emitted, no tracker ids).
+
+Nothing in the build reads the clock (operator interview 2026-10-02): the
+manifest carries rules, not dates, and `src/lib/hours-recurrence.ts` expands
+them on the visitor's clock after mount, four weeks ahead and at most six
+rows, with the New York offset resolved per date. Unpublished slots never reach
+the manifest, and their notes of 20 characters or more join the build-output
+leak denylist.
+
+The home page shows the published slots in the work sessions band under the
+hero (`src/lib/components/HoursBand.svelte`). The served HTML carries each
+slot's rule text, for example "Thursdays, 3 to 4 PM ET, from 8 October", with
+a mailto RSVP; after mount the band lists dated rows ("Thursday 8 October,
+3 to 4 PM ET", "Weekly" or "2 Mondays", "With Jess" or "With a keyholder",
+"On the bus", and "Today" on the day). With nothing published it says so and
+points at the contact form for a tour.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,

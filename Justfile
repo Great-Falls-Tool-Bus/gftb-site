@@ -170,6 +170,15 @@ goals-manifest-build:
 goals-manifest-check:
     cd {{ root }} && bazelisk test //:goals_manifest_drift_test
 
+# Derive src/lib/generated/hours-manifest.ts from src/content/hours/*.json,
+# PUBLISHED entries only and clock-free: the goals-manifest pattern for the
+# staffed work sessions on the bus (operator interview 2026-10-02).
+hours-manifest-build:
+    cd {{ root }} && node scripts/build-hours-manifest.mjs
+
+hours-manifest-check:
+    cd {{ root }} && bazelisk test //:hours_manifest_drift_test
+
 conformance:
     cd {{ root }} && bazelisk test //:bazel_output_contract_test
 
@@ -330,6 +339,8 @@ leak-scan build_dir="build":
 # unstamped unless one is supplied.
 check: hooks-check
     cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite
+    # Operator ruling 2026-10-02: the gate also builds and leak-scans the publishable tree.
+    cd {{ root }} && bazelisk build //:scanned_build
     @echo "All checks passed."
 
 # Local convenience aggregate. The v4 dispatcher does not invoke it.

@@ -126,7 +126,7 @@ try {
 	browser = undefined;
 
 	await runAcceptance(baseURL);
-	console.log(`declared-build Chromium smoke and five acceptance specs passed via ${chromiumPath}`);
+	console.log(`declared-build Chromium smoke and seven acceptance specs passed via ${chromiumPath}`);
 } finally {
 	try {
 		await browser?.close();
@@ -185,15 +185,15 @@ async function runAcceptance(baseURL) {
 		const code = await new Promise((resolveExit, rejectExit) => {
 			child.once('error', rejectExit);
 			child.once('close', (exitCode) => resolveExit(exitCode));
-			// Playwright owns the ordinary 600s suite deadline and browser
+			// Playwright owns the ordinary 1080s suite deadline and browser
 			// teardown. This outer bound also terminates a wedged CLI/process
 			// group, without touching another action's browser or server.
 			killTimer = setTimeout(() => {
 				timedOut = true;
 				stop();
-			}, 660_000);
+			}, 1_140_000);
 		});
-		if (timedOut || code !== 0) throw new Error('the five-spec browser acceptance suite failed');
+		if (timedOut || code !== 0) throw new Error('the seven-spec browser acceptance suite failed');
 	} finally {
 		clearTimeout(killTimer);
 		process.removeListener('SIGINT', onSignal);

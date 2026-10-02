@@ -26,7 +26,7 @@ export interface PublicLogMetadata extends FeaturedImageMetadata {
 const allowedKeys = new Set<string>([...PUBLIC_LOG_REQUIRED_KEYS, ...PUBLIC_LOG_OPTIONAL_KEYS]);
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
-function isValidIsoDate(value: unknown): value is string {
+export function isValidIsoDate(value: unknown): value is string {
 	if (typeof value !== 'string' || !isoDate.test(value)) return false;
 	const date = new Date(`${value}T00:00:00Z`);
 	return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;

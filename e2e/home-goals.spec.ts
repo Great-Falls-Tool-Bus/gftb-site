@@ -701,8 +701,10 @@ async function releaseHold(page: Page) {
 	});
 }
 
+// Canvas-reading tests: 90 s budget per operator ruling 2026-10-02; tracked in Linear under the canvas-reading tests issue.
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the glass panes keep the notes' ink on its floor over the scene (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -774,6 +776,7 @@ function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		// Source-test timing only, not SLO evidence. Retire these markers once the
 		// blocked await is fixed and this existing browser case is qualified.
 		const timed = async (label: string, work: () => Promise<void>) => {
@@ -900,6 +903,7 @@ async function gutterRects(page: Page) {
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }, testInfo) => {
+		test.setTimeout(90_000);
 		const attachCapture = async (name: string, png: Buffer) => {
 			const file = testInfo.outputPath(`${name}.png`);
 			await writeFile(file, png);
@@ -1059,6 +1063,7 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 
 	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }, testInfo) => {
+		test.setTimeout(90_000);
 		const attachBlade = async (name: string, body: Buffer | string, contentType: string, extension: string) => {
 			const file = testInfo.outputPath(`${name}.${extension}`);
 			await writeFile(file, body);
@@ -1344,9 +1349,11 @@ test('the FAQ carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
 	const session = page.locator('#faq');
 	await expect(session.getByRole('term').filter({ hasText: 'When can I visit the bus?' })).toHaveCount(1);
-	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
+	// Operator interview 2026-10-02: the Thursday window is 3 to 4 PM ET.
+	await expect(session).toContainText('Thursdays, 3 to 4 PM ET');
 	await expect(session).not.toContainText('3–5');
-	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
+	await expect(session).not.toContainText('3 to 5');
+	await expect(session.getByText(/Thursdays, 3 to 4 PM ET/u)).toHaveCount(1);
 });
 
 test('GitHub sits in the header as an outbound link and the AX footer row is gone', async ({ page }) => {

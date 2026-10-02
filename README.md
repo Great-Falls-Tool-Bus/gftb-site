@@ -41,6 +41,7 @@ directly. Nix supplies the tools; the Justfile supplies the commands.
 | Build and scan the static site | `just build` |
 | Update the daily-log manifest | `just log-manifest-build` |
 | Update the goals manifest | `just goals-manifest-build` |
+| Update the work-session hours manifest | `just hours-manifest-build` |
 | Update page source links | `just source-map-build` |
 
 The full validation suite includes browser tests that require GF's supplied

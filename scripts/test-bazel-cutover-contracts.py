@@ -507,6 +507,7 @@ class RepositoryContractTests(unittest.TestCase):
     def test_build_and_checks_enter_bazel(self) -> None:
         self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "build"))
         self.assertIn("bazelisk test //:ci_validation_suite", recipe(self.justfile, "check"))
+        self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "check"))
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "scanned_build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
@@ -548,6 +549,7 @@ class RepositoryContractTests(unittest.TestCase):
             ":browser_smoke_test",
             ":current_source_secret_scan_test",
             ":goals_manifest_drift_test",
+            ":hours_manifest_drift_test",
             ":log_manifest_drift_test",
             ":served_tinyvectors_test",
             ":source_map_drift_test",
@@ -560,6 +562,7 @@ class RepositoryContractTests(unittest.TestCase):
             ("source_map_drift_test", "scripts/build-source-map.mjs"),
             ("log_manifest_drift_test", "scripts/build-log-manifest.mjs"),
             ("goals_manifest_drift_test", "scripts/build-goals-manifest.mjs"),
+            ("hours_manifest_drift_test", "scripts/build-hours-manifest.mjs"),
         ):
             with self.subTest(name=name):
                 target = bazel_target(self.build, name)
@@ -646,7 +649,15 @@ class RepositoryContractTests(unittest.TestCase):
                         "module": "src/lib/components/ContactForm.svelte",
                         "url": "https://forms.latoolb.us/api/contact",
                         "method": "POST",
-                    }
+                    },
+                    # Operator interview 2026-10-02: the work session RSVP
+                    # rides the contact relay as a contact message.
+                    {
+                        "purpose": "contact-submit",
+                        "module": "src/lib/components/RsvpDialog.svelte",
+                        "url": "https://forms.latoolb.us/api/contact",
+                        "method": "POST",
+                    },
                 ]
             },
         )
