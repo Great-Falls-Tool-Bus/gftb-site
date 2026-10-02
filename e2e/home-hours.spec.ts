@@ -547,7 +547,7 @@ test.describe('with sessions on a fixed clock', () => {
 
 		// Focus went to the same session's button in the first copy, and
 		// comes back to it when the dialog closes.
-		await page.keyboard.press('Escape');
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
 		await expect(dialog).toHaveCount(0);
 		await expect(lists.nth(0).getByRole('button', { name: `RSVP for ${label}` })).toBeFocused();
 	});
