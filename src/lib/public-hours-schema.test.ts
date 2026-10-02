@@ -184,11 +184,11 @@ describe('hours manifest', () => {
 		expect(first).toContain('id: "friday-test"');
 	});
 
-	it('never reads the wall clock in the generator or its reader', () => {
-		for (const file of ['../../scripts/build-hours-manifest.mjs', '../../scripts/lib/hours-content.mjs']) {
-			const source = readFileSync(path.resolve(__dirname, file), 'utf8');
-			expect(source, file).not.toMatch(/Date\.now\(|new Date\(\)|performance\.now\(/u);
-		}
+	it('never reads the wall clock in the reader and renderer the generator delegates to', () => {
+		// scripts/build-hours-manifest.mjs only reads, renders through this
+		// module, and runs Prettier; //:hours_manifest_drift_test checks its bytes.
+		const source = readFileSync(path.resolve(__dirname, '../../scripts/lib/hours-content.mjs'), 'utf8');
+		expect(source).not.toMatch(/Date\.now\(|new Date\(\)|performance\.now\(/u);
 	});
 
 	it('emits published entries only and never the source key', () => {
