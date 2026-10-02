@@ -1017,7 +1017,10 @@ for (const scheme of ['light', 'dark'] as const) {
 			{ baseline: start, ready: readyTime },
 		);
 		const metricsFile = testInfo.outputPath('glass-metrics.json');
-		await writeFile(metricsFile, JSON.stringify({ scheme, identity, startTime: start.time, readyTime, finalTime, early, late }));
+		await writeFile(
+			metricsFile,
+			JSON.stringify({ scheme, identity, startTime: start.time, readyTime, finalTime, early, late }),
+		);
 		await testInfo.attach('glass-metrics', { path: metricsFile, contentType: 'application/json' });
 		await releaseHold(page);
 		// The strong-edge share is the measure: beads are small and sharp,
