@@ -327,12 +327,17 @@ leak-scan build_dir="build":
 # Local entrypoint for the exact cacheable suite selected by the protected v4
 # `validate` action. //:deployment_bundle independently enforces the scanned
 # artifact boundary selected by `site-build`.
+#
+# The suite is the merge gate, so it stamps the checked-out commit the way the
+# retired v4 caller stamped GITHUB_SHA: //:browser_smoke_test asserts the
+# footer provenance that only a stamped build renders. An explicit
+# BUILD_COMMIT_SHA wins. `just build` stays unstamped unless one is supplied.
 check: hooks-check
-    cd {{ root }} && bazelisk test //:ci_validation_suite
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite
     @echo "All checks passed."
 
 check-ci:
-    cd {{ root }} && bazelisk test --config=ci //:ci_validation_suite
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test --config=ci //:ci_validation_suite
     @echo "All CI artifact checks passed."
 
 # Local convenience aggregate. The v4 dispatcher does not invoke it.
