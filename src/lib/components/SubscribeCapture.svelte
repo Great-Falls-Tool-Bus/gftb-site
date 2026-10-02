@@ -419,9 +419,7 @@
 							<button class="button" type="submit" disabled={status === 'submitting'}>
 								{status === 'submitting' ? 'Sending…' : 'Join the list'}
 							</button>
-							<DialogCloseTrigger class="button button--secondary subscribe-capture__close"
-								>Not now</DialogCloseTrigger
-							>
+							<DialogCloseTrigger class="button button--secondary subscribe-capture__close">Not now</DialogCloseTrigger>
 						</div>
 					</form>
 				{/if}
