@@ -16,10 +16,11 @@ import { HOURS_FIXTURE_GLOBAL } from '../src/lib/hours-band';
 // (required), name or handle and "Anything we should know?" (both optional).
 // No acknowledgement is sent; a keyholder replies by hand.
 //
-// Every slot is still published: false, so these rows populate the band
-// through its schema-checked test hook (window.__gftbHoursFixture) on a fixed
-// clock. Nothing is published here; the flip PR does that. The relay and the
-// challenge are stubbed; no request leaves the page for a live endpoint.
+// Most rows populate the band through its schema-checked test hook
+// (window.__gftbHoursFixture) on a fixed clock, so they hold one slot only.
+// Both real slots are published (decision 0032); the last row RSVPs from the
+// published content itself. The relay and the challenge are stubbed; no
+// request leaves the page for a live endpoint.
 
 const NOW = new Date('2026-10-02T16:00:00Z');
 const FIXTURE = [
@@ -220,5 +221,34 @@ test.describe('the RSVP dialog', () => {
 		await expect(trigger).toBeFocused();
 		expect(capture.payloads).toEqual([]);
 		expect(await page.evaluate(() => document.documentElement.hasAttribute('data-rsvp-open'))).toBe(false);
+	});
+});
+
+test.describe('the RSVP dialog on the published content', () => {
+	test('posts a message carrying the Thursday 8 October slot, with no fixture', async ({ page, baseURL }) => {
+		// Decision 0032: both slots are published, so the real band rows carry
+		// the RSVP on the fixed clock, without the test hook.
+		await skipHomeIntro(page);
+		await page.clock.setFixedTime(NOW);
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		await stubChallenge(page);
+		const capture = await stubContactEndpoint(page);
+		await page.goto('/');
+		await expect(page.locator('#hours')).toHaveAttribute('data-hours-mode', 'static');
+		await page
+			.locator('#hours')
+			.getByRole('button', { name: `RSVP for ${LABEL}` })
+			.click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog).toContainText(LABEL);
+		await dialog.locator('#rsvp-email').fill(EMAIL);
+		await dialog.locator('#rsvp-handle').fill('Ada');
+		await expect.poll(() => widgetState(dialog), { message: 'the proof is solved before sending' }).toBe('verified');
+		await send(dialog);
+		await expect(dialog.getByRole('status')).toContainText('Your RSVP has been sent.');
+		expect(capture.payloads).toHaveLength(1);
+		expect(String(capture.payloads[0].name).startsWith('RSVP ')).toBe(true);
+		expect(String(capture.payloads[0].message)).toContain(`Slot: ${SLOT}`);
 	});
 });

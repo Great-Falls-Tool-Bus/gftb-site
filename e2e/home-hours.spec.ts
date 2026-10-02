@@ -4,7 +4,7 @@ import { installExternalGuard, stubChallenge } from './support/network';
 
 import { HOURS_FIXTURE_GLOBAL } from '../src/lib/hours-band';
 import { publicHoursSlots } from '../src/lib/public-hours';
-import { RSVP_OPEN_EVENT } from '../src/lib/rsvp-form';
+import { buildRsvpMailtoHref, RSVP_OPEN_EVENT } from '../src/lib/rsvp-form';
 
 // Work sessions on the bus (operator interview 2026-10-02): the band beneath
 // the hero and above Notes & Goals. The served HTML is clock-free; dates
@@ -14,10 +14,11 @@ import { RSVP_OPEN_EVENT } from '../src/lib/rsvp-form';
 // pauses on hover, on focus and by its button; reduced motion and no-JS get
 // the static list; the document never widens.
 //
-// Every slot is still published: false, so the real page shows the empty
-// state. The populated rows run on the band's test hook
-// (window.__gftbHoursFixture, published slots that pass the content schema)
-// on a fixed clock, which is what the visitor's clock would read.
+// Both slots are published (decision 0032): the real content rows run on a
+// fixed clock, which is what the visitor's clock would read. The layout rows
+// below still run on the band's test hook (window.__gftbHoursFixture,
+// published slots that pass the content schema), and the empty state runs on
+// an empty fixture, since the real page is no longer empty.
 
 const NOW = new Date('2026-10-02T16:00:00Z');
 const FIXTURE = [
@@ -76,37 +77,125 @@ test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
 });
 
-test.describe('the empty state while every slot is unpublished', () => {
-	test('the content is still unpublished', () => {
-		// The flip PR publishes the slots and replaces these rows with the
-		// fixed-clock rows of the real content.
-		expect(publicHoursSlots).toEqual([]);
+// Beneath the hero, above Notes & Goals, and the document never widens.
+async function expectPlacement(page: Page) {
+	const order = await page.evaluate(() => {
+		const shell = document.querySelector('.page-shell');
+		return [shell?.firstElementChild?.id, document.querySelector('#hours + #goals') !== null];
+	});
+	expect(order).toEqual(['hours', true]);
+	expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+}
+
+// Decision 0032 (operator interview 2026-10-02): both slots are published.
+// The served HTML carries one clock-free rule row per slot, Monday first.
+const RULES = [
+	['monday-october', 'Mondays 5 and 12 October, 5 to 6 PM ET'],
+	['thursday-weekly', 'Thursdays, 3 to 4 PM ET, from 8 October'],
+] as const;
+
+test.describe('the published content', () => {
+	test('both slots are published, Monday first', () => {
+		expect(publicHoursSlots.map((slot) => [slot.id, slot.published])).toEqual([
+			['monday-october', true],
+			['thursday-weekly', true],
+		]);
 	});
 
-	for (const javaScriptEnabled of [true, false]) {
-		test.describe(javaScriptEnabled ? 'with JavaScript' : 'without JavaScript', () => {
-			test.use({ javaScriptEnabled });
+	test.describe('without JavaScript', () => {
+		test.use({ javaScriptEnabled: false });
 
-			test('says nothing is scheduled and points at the contact form for a tour', async ({ page }) => {
-				await page.goto('/');
-				await expect(band(page)).toHaveAttribute('data-hours-mode', 'empty');
-				await expect(band(page).getByRole('heading', { level: 2 })).toHaveText('Work sessions on the bus');
-				await expect(band(page)).toContainText(EMPTY_TEXT);
-				await expect(band(page).getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute(
+		test('shows the rule text with a mailto RSVP per slot, and no dates', async ({ page }) => {
+			await page.goto('/');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'rules');
+			await expect(band(page).getByRole('heading', { level: 2 })).toHaveText('Work sessions on the bus');
+			const rows = band(page).locator('.hours-list > li');
+			await expect(rows).toHaveCount(RULES.length);
+			await expect(rows.locator('.hours-row__when')).toHaveText(RULES.map(([, rule]) => rule));
+			await expect(band(page).locator('time, button, [inert], .hours-row__today')).toHaveCount(0);
+			for (const [index, [slotId, rule]] of RULES.entries()) {
+				await expect(rows.nth(index).getByRole('link', { name: `RSVP for ${rule}` })).toHaveAttribute(
 					'href',
-					'/contact',
+					buildRsvpMailtoHref('keyholders@latoolb.us', { slotId, label: rule }),
 				);
-				await expect(band(page).locator('button, ol, [inert]')).toHaveCount(0);
-				// Beneath the hero, above Notes & Goals.
-				const order = await page.evaluate(() => {
-					const shell = document.querySelector('.page-shell');
-					return [shell?.firstElementChild?.id, document.querySelector('#hours + #goals') !== null];
-				});
-				expect(order).toEqual(['hours', true]);
-				expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
-			});
+			}
+			await expect(rows.nth(0)).toContainText('2 Mondays');
+			await expect(rows.nth(1)).toContainText('Weekly');
+			for (const index of [0, 1]) {
+				await expect(rows.nth(index)).toContainText('With Jess');
+				await expect(rows.nth(index)).toContainText('On the bus');
+			}
+			await expect(band(page)).not.toContainText(EMPTY_TEXT);
+			await expectPlacement(page);
 		});
-	}
+	});
+
+	test('at 2026-10-02T16:00Z the rows are Monday 5, Thursday 8 and Monday 12 October onward', async ({ page }) => {
+		await page.clock.setFixedTime(NOW);
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		const rows = band(page).locator('.hours-list > li');
+		await expect(rows).toHaveCount(SESSIONS.length);
+		await expect(rows.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
+		for (const [index, [, label, datetime]] of SESSIONS.entries()) {
+			await expect(rows.nth(index).locator('time')).toHaveAttribute('datetime', datetime);
+			await expect(rows.nth(index).getByRole('button', { name: `RSVP for ${label}` })).toBeVisible();
+			await expect(rows.nth(index)).toContainText('With Jess');
+		}
+		await expect(rows.nth(0)).toContainText('2 Mondays');
+		await expect(rows.nth(1)).toContainText('Weekly');
+		await expectPlacement(page);
+	});
+
+	test('at 2026-10-13 the Monday series is exhausted and only Thursdays remain', async ({ page }) => {
+		await page.clock.setFixedTime(new Date('2026-10-13T16:00:00Z'));
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		const times = band(page).locator('.hours-list > li time');
+		await expect(times).toHaveText([
+			'Thursday 15 October, 3 to 4 PM ET',
+			'Thursday 22 October, 3 to 4 PM ET',
+			'Thursday 29 October, 3 to 4 PM ET',
+			'Thursday 5 November, 3 to 4 PM ET',
+		]);
+		await expect(times.nth(3)).toHaveAttribute('datetime', '2026-11-05T15:00-05:00');
+		await expect(band(page)).not.toContainText('Monday');
+	});
+
+	test('under 48rem the carousel carries both entries', async ({ page }) => {
+		await page.clock.setFixedTime(NOW);
+		await page.emulateMedia({ reducedMotion: 'no-preference' });
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'carousel');
+		const cards = band(page).locator('.hours-carousel__track > li');
+		await expect(cards).toHaveCount(SESSIONS.length);
+		await expect(band(page).locator('.hours-carousel__dot')).toHaveCount(SESSIONS.length);
+		await expect(cards.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
+		await expect(cards.filter({ hasText: '2 Mondays' })).toHaveCount(2);
+		await expect(cards.filter({ hasText: 'Weekly' })).toHaveCount(4);
+		await expectPlacement(page);
+	});
+});
+
+test.describe('the empty state', () => {
+	test('with nothing to show, says so and points at the contact form for a tour', async ({ page }) => {
+		// The real page is no longer empty; an empty, schema-valid fixture
+		// stands in for a schedule with no upcoming session.
+		await withSessions(page, NOW, []);
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'empty');
+		await expect(band(page).getByRole('heading', { level: 2 })).toHaveText('Work sessions on the bus');
+		await expect(band(page)).toContainText(EMPTY_TEXT);
+		await expect(band(page).getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute(
+			'href',
+			'/contact',
+		);
+		await expect(band(page).locator('button, ol, [inert]')).toHaveCount(0);
+		await expectPlacement(page);
+	});
 });
 
 test.describe('with sessions on a fixed clock', () => {
