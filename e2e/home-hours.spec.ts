@@ -440,6 +440,19 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.mouse.move(0, 0);
 		await expect.poll(playState).toBe('running');
 
+		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+	});
+
+	// Split from the row above so each stays inside the per-test budget on a
+	// loaded lab host.
+	test('at 48rem and up the keyboard reaches each looped row once, inside the window', async ({ page }) => {
+		await withSessions(page);
+		await page.emulateMedia({ reducedMotion: 'no-preference' });
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'loop');
+		const pause = band(page).getByRole('button', { name: 'Pause the list' });
+
 		// Keyboard: from the pause button, Tab reaches each row once, in the
 		// first copy, and then leaves the band; the duplicate is never a stop.
 		// Each focused RSVP is brought inside the loop's window, so the visitor
