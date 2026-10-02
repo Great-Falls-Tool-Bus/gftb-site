@@ -36,7 +36,9 @@ export default defineConfig({
 	workers: 1,
 	reporter: 'list',
 	timeout: 30_000,
-	globalTimeout: 180_000,
+	// 68 tests run serially on one worker; a shared lab host needs more than
+	// three minutes for the set. Per-test and per-action limits are unchanged.
+	globalTimeout: 600_000,
 	outputDir,
 	updateSnapshots: 'none',
 	use: {

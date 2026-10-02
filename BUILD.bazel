@@ -519,12 +519,25 @@ js_test(
         ":node_modules/@playwright/test",
     ],
     entry_point = "e2e/bazel/run-browser-smoke.mjs",
+    # The harness spawns the Playwright CLI, which imports the ESM specs.
+    # Node's ESM resolver ignores the rules_js fs patches while CommonJS
+    # honours them, so under linux-sandbox the runner and the specs loaded
+    # two Playwright copies. Unpatched, both resolve the same files.
+    patch_node_fs = False,
     env = {
         "GF_BROWSER_SMOKE_BUILD_DIR": "$(rootpath :build)",
         "GF_RBE_CHROMIUM_EXECUTABLE": "/bin/chromium",
         "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
     },
-    tags = ["browser-acceptance"],
+    # The harness serves loopback only. Its own network namespace also keeps
+    # host interface churn from failing navigations with ERR_NETWORK_CHANGED,
+    # and running alone keeps the suite's software rendering off a host that
+    # is busy with the rest of the validation suite.
+    tags = [
+        "block-network",
+        "browser-acceptance",
+        "exclusive",
+    ],
     timeout = "long",
 )
 
