@@ -713,7 +713,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await awaitTier(page);
 		// A rest held open: no note moves while the pixels are read.
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 90_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 		await page.waitForTimeout(1500);
 		// Mid-sweep a pane is masked along with its text, so a text box can lie
@@ -890,7 +890,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		// rest slowly (a frame advances it a second at most), so allow a while.
 		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 90_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		const rests = await gutterRects(page);
 		await page.waitForTimeout(150);
 		const early = await measureTextureInRects(
@@ -932,7 +932,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		// so the left gutter lies behind the left blade and the right gutter
 		// ahead of the right blade.
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 90_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		await page.waitForTimeout(4000);
 		await selectDetent(page, 'High');
 		await holdStroke(page, '0.5');
