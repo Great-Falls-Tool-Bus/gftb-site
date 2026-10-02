@@ -124,6 +124,11 @@ test.describe('the RSVP dialog', () => {
 		const status = dialog.getByRole('status');
 		await expect(status).toContainText('Thanks. Your RSVP has been sent.');
 		await expect(status).toContainText('Replies usually come within three business days.');
+		// The Send button is gone: focus moves to the confirmation, inside the dialog.
+		await expect(dialog.getByRole('heading', { name: 'Thanks. Your RSVP has been sent.' })).toBeFocused();
+		expect(await page.evaluate(() => document.activeElement?.closest('[data-testid="rsvp-dialog"]') !== null)).toBe(
+			true,
+		);
 		expect(capture.payloads).toHaveLength(1);
 		const payload = capture.payloads[0];
 		expect(Object.keys(payload).sort()).toEqual(['altcha', 'email', 'message', 'name', 'website']);
@@ -207,6 +212,7 @@ test.describe('the RSVP dialog', () => {
 		await dialog.locator('#rsvp-website').fill('https://spam.example', { force: true });
 		await send(dialog);
 		await expect(dialog.getByRole('status')).toContainText('Your RSVP has been sent.');
+		await expect(dialog.getByRole('heading', { name: 'Thanks. Your RSVP has been sent.' })).toBeFocused();
 		expect(capture.payloads, 'honeypot submissions must not be forwarded').toEqual([]);
 	});
 

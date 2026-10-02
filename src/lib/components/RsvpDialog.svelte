@@ -147,6 +147,14 @@
 		}
 	}
 
+	// The form, and the Send button that had focus, give way to the
+	// confirmation: focus moves to its heading so the confirmation is read
+	// out and keyboard focus stays in the dialog.
+	async function focusConfirmation() {
+		await tick();
+		document.querySelector<HTMLElement>('[data-testid="rsvp-dialog"] .rsvp-dialog__title')?.focus();
+	}
+
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		if (status === 'submitting') return;
@@ -154,6 +162,7 @@
 			// A filled honeypot is not a person: the quiet outcome, nothing sent.
 			sentEmail = values.email.trim();
 			status = 'success';
+			await focusConfirmation();
 			return;
 		}
 
@@ -192,6 +201,7 @@
 			if (current()) {
 				sentEmail = payload.email;
 				status = 'success';
+				await focusConfirmation();
 			}
 		} catch (error) {
 			if (run === submitSeq) inFlightSlotId = '';
@@ -228,7 +238,7 @@
 					<div class="form-notice form-notice--success" role="status" aria-live="polite">
 						<DialogTitle>
 							{#snippet element(attributes)}
-								<h2 {...attributes} class="rsvp-dialog__title">Thanks. Your RSVP has been sent.</h2>
+								<h2 {...attributes} class="rsvp-dialog__title" tabindex="-1">Thanks. Your RSVP has been sent.</h2>
 							{/snippet}
 						</DialogTitle>
 						<DialogDescription>
@@ -401,6 +411,12 @@
 		margin: 0 0 0.5rem;
 		color: var(--heading);
 		font-size: 1.35rem;
+	}
+
+	/* The confirmation heading takes focus only to be read out; it is not a
+	   control, so it draws no ring. */
+	:global(.rsvp-dialog__title[tabindex='-1']:focus) {
+		outline: none;
 	}
 
 	:global(.rsvp-dialog__session) {
