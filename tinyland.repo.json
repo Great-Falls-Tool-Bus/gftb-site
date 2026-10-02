@@ -33,7 +33,7 @@
 		]
 	},
 	"contracts": {
-		"agent_contract": "AGENTS.md",
+		"agent_contract": "CONTRIBUTING.md",
 		"just": "Justfile",
 		"nix": "flake.nix",
 		"github_actions": ".github/workflows",

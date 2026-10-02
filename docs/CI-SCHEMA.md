@@ -8,14 +8,10 @@ Operator ruling 2026-09-28: GitHub Actions leave every GFTB repository. No
 workflow here runs on push or pull request. The former thin v4 caller
 (`.github/workflows/ci.yml`) and the signed-commits check
 (`.github/workflows/signed-commits.yml`) are removed. The pre-merge gate is a
-lab-host `just check` receipt or the ruling's equivalent-validator receipt
-posted on the PR. For this workflow-retirement source change, the equivalent
-check is the existing `just conformance`, `just workflow-validate`,
-`just skills-validate`, and `just secrets-scan-dir` on the exact signed head,
-with host, commit, and each exit status recorded. It qualifies only the
-changed source surfaces. The unchanged full `just check` suite includes five
-Chromium acceptance specs that require GF-provisioned `/bin/chromium`; no
-ambient lab browser, download, or substitute qualifies that target. Full
+lab-host `just check` receipt posted on the PR, naming the host and the
+exact signed head. The full `just check` suite includes five Chromium
+acceptance specs that require GF-provisioned `/bin/chromium`; no ambient lab
+browser, download, or substitute qualifies that target. Full
 action execution and deployed LOOK remain separate evidence. The remaining
 `container-ghcr.yml` is dispatch-only and is deleted when its lab-host `just`
 recipe lands. The generic `gf-v4-dispatch` edge is provisioned by the adopting
@@ -64,7 +60,7 @@ commit, packages the exact Bazel-built static artifact into:
 `ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character commit SHA>`
 
 The source repository is public under the 2026-09-09 operator ruling in
-[AGENTS.md](../AGENTS.md#role-and-authority), which supersedes the earlier
+[the operating rules](operating-rules.md#role-and-authority), which supersedes the earlier
 private-source requirement. Source visibility does not establish image-package
 visibility. After a reviewed publish, the operator lane may make only this web
 image package public, then must prove an anonymous manifest lookup and digest

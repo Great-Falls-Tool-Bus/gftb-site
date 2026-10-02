@@ -285,7 +285,7 @@
 				     /commit page because that repo is public; this carrier is
 				     private and the leak-scan internal-tracker-reference rule bans
 				     the repo's pull/issues/commit path segments in the artifact by
-				     name (AGENTS.md sanctions exactly one repository pointer, the
+				     name (docs/operating-rules.md sanctions exactly one repository pointer, the
 				     SourceLink affordance) — no sha length escapes a path-segment
 				     ban, and a stamped `just build` fails on the href. The
 				     leak-scan-stamped gate and src/lib/leak-scan.test.ts pin this;

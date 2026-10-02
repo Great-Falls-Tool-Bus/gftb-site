@@ -115,7 +115,6 @@ filegroup(
     name = "format_srcs",
     srcs = glob(
         [
-            ".agents/**/*.yaml",
             ".github/**/*.json",
             ".github/**/*.yaml",
             ".github/**/*.yml",
@@ -177,8 +176,8 @@ filegroup(
         ".nvmrc",
         ".prettierignore",
         ".prettierrc",
-        "AGENTS.md",
         "BUILD.bazel",
+        "CONTRIBUTING.md",
         "Justfile",
         "LICENSE",
         "LICENSE-content",
@@ -203,7 +202,6 @@ filegroup(
         "vitest.config.ts",
     ] + glob(
         [
-            ".agents/**",
             ".github/**",
             "docs/**",
             "e2e/**",
@@ -499,7 +497,6 @@ py_test(
         "flake.nix",
         "package.json",
         "scripts/check-inhouse-package-parity.py",
-        "scripts/validate-skills.py",
         "static/qr/greatfallstoolbus-apex.svg",
         "tinyland.repo.json",
     ],

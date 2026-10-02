@@ -170,9 +170,6 @@ workflow-validate:
 
 repo-manifest-validate: conformance
 
-skills-validate:
-    cd {{ root }} && python3 scripts/validate-skills.py
-
 inhouse-package-parity:
     cd {{ root }} && python3 scripts/check-inhouse-package-parity.py
 

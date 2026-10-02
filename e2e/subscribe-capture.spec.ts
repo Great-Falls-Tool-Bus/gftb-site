@@ -3,8 +3,8 @@
 // decision on <html data-subscribe-capture>, and a build made with the flag
 // off never sets it, so the suite skips itself there instead of failing.
 //
-// The dwell hook `data-subscribe-capture-dwell-ms` (AGENTS.md "Test and LOOK
-// hooks") credits the 45 s dwell; the scroll-past-the-hero half of the arm
+// The dwell hook `data-subscribe-capture-dwell-ms` (docs/operating-rules.md
+// "Test hooks") credits the 45 s dwell; the scroll-past-the-hero half of the arm
 // rule is still exercised for real, as is every suppression below.
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';

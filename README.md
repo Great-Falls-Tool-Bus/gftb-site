@@ -88,7 +88,7 @@ merge or image push alone does not prove that production serves that version.
 ## Content and licensing
 
 Static build logs live in `src/content/log/`. Use only the frontmatter fields allowed
-by [the content contract](AGENTS.md#public-content-boundary), including its
+by [the content contract](docs/operating-rules.md#public-content-boundary), including its
 optional image group. Follow [the content guide](docs/content-train.md) for the
 review process. Only `published: true` entries enter the public manifest.
 Unpublished drafts are readable on GitHub. `published: false` controls rendered
