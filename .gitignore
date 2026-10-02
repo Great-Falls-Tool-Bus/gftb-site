@@ -53,10 +53,8 @@ bazel-testlogs/
 bazel-gftb_site/
 .cache/bazel-*
 
-# AI/LLM tooling (CLAUDE.md, AGENTS.md, and project skills are tracked house contracts)
-.claude/*
-!.claude/skills/
-!.claude/skills/**
+# Local AI/LLM tooling state (never tracked)
+.claude/
 .gstack/
 .serena/
 .aider*

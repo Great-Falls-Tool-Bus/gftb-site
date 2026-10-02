@@ -7,12 +7,18 @@ import { fileURLToPath } from 'node:url';
 const baseURL = process.env.GF_BROWSER_ACCEPTANCE_BASE_URL;
 const outputDir = process.env.GF_BROWSER_ACCEPTANCE_OUTPUT_DIR;
 const executablePath = process.env.GF_RBE_CHROMIUM_EXECUTABLE;
+// The harness's short browser-only TMPDIR, where Chromium binds its
+// process-singleton socket; the 108-byte socket limit rules out the scratch.
+const chromiumTmpdir = process.env.GF_BROWSER_ACCEPTANCE_CHROMIUM_TMPDIR;
 const testDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (!baseURL || !/^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/u.test(baseURL) || !outputDir) {
 	throw new Error('the declared-build browser harness must supply its loopback URL and scratch output');
 }
 if (executablePath !== '/bin/chromium') {
 	throw new Error('the GF provisioned Chromium runtime is required');
+}
+if (!chromiumTmpdir || !/^\/tmp\/gftb-chromium-[^/]+$/u.test(chromiumTmpdir)) {
+	throw new Error('the declared-build browser harness must supply its short Chromium TMPDIR');
 }
 
 export default defineConfig({
@@ -30,7 +36,9 @@ export default defineConfig({
 	workers: 1,
 	reporter: 'list',
 	timeout: 30_000,
-	globalTimeout: 180_000,
+	// 68 tests run serially on one worker; a shared lab host needs more than
+	// three minutes for the set. Per-test and per-action limits are unchanged.
+	globalTimeout: 600_000,
 	outputDir,
 	updateSnapshots: 'none',
 	use: {
@@ -44,6 +52,7 @@ export default defineConfig({
 		launchOptions: {
 			executablePath,
 			timeout: 15_000,
+			env: { ...process.env, TMPDIR: chromiumTmpdir },
 			args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
 		},
 	},

@@ -497,7 +497,7 @@ class RepositoryContractTests(unittest.TestCase):
         }
         cls.flake = (ROOT / "flake.nix").read_text()
         cls.playwright = (ROOT / "playwright.config.ts").read_text()
-        cls.agents = (ROOT / "AGENTS.md").read_text()
+        cls.operating_rules = (ROOT / "docs/operating-rules.md").read_text()
 
     def test_package_scripts_delegate_only_to_just(self) -> None:
         for name, command in self.package["scripts"].items():
@@ -618,8 +618,8 @@ class RepositoryContractTests(unittest.TestCase):
     def test_manifest_conforms_to_the_exact_signed_schema_163_carrier(self) -> None:
         schema_path = ROOT / "docs/schemas/tinyland-repo-manifest.v2.schema.json"
         self.assertEqual(sha256(schema_path), SCAFFOLD_SCHEMA_SHA256)
-        self.assertIn(SCAFFOLD_SCHEMA_HEAD, self.agents)
-        self.assertIn(SCAFFOLD_SCHEMA_SHA256, self.agents)
+        self.assertIn(SCAFFOLD_SCHEMA_HEAD, self.operating_rules)
+        self.assertIn(SCAFFOLD_SCHEMA_SHA256, self.operating_rules)
 
         self.assertEqual(self.schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
         self.assertFalse(self.schema["additionalProperties"])
@@ -683,7 +683,6 @@ class RepositoryContractTests(unittest.TestCase):
     def test_existing_conformance_helpers_run_inside_the_bazel_contract(self) -> None:
         for script, args in (
             ("scripts/check-inhouse-package-parity.py", []),
-            ("scripts/validate-skills.py", [str(ROOT)]),
         ):
             with self.subTest(script=script):
                 completed = subprocess.run(
@@ -934,7 +933,14 @@ class RepositoryContractTests(unittest.TestCase):
         # the generated route->source map behind the SourceLink edit-this-page
         # affordance (demo #94, addendum B1.2), drift-gated by
         # `just source-map-check`. The agent surfaces stay banned.
-        for path in ("static/llms.txt", "static/agent-map.md", "src/routes/agent"):
+        for path in (
+            "static/llms.txt",
+            "static/agent-map.md",
+            "src/routes/agent",
+            "AGENTS.md",
+            ".agents",
+            "scripts/validate-skills.py",
+        ):
             self.assertFalse((ROOT / path).exists(), path)
         self.assertTrue((ROOT / "src/lib/generated/source-map.json").exists(), "source map (B1.2) must be committed")
 

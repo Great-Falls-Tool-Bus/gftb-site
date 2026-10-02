@@ -7,7 +7,8 @@ root := justfile_directory()
 _default:
     @just --list --unsorted
 
-setup:
+# Install the git hooks, then the locked dependencies.
+setup: hooks-install
     cd {{ root }} && pnpm install --frozen-lockfile
 
 deps-lock:
@@ -170,14 +171,54 @@ workflow-validate:
 
 repo-manifest-validate: conformance
 
-skills-validate:
-    cd {{ root }} && python3 scripts/validate-skills.py
-
 inhouse-package-parity:
     cd {{ root }} && python3 scripts/check-inhouse-package-parity.py
 
 conformance:
     cd {{ root }} && bazelisk test //:bazel_output_contract_test
+
+# Git hooks (fork-first contribution; see CONTRIBUTING.md).
+# The hook files, byte-identical to the organization .github mirror.
+hook_files := "_lib.sh pre-commit commit-msg pre-push test.sh"
+hooks_mirror := "https://raw.githubusercontent.com/Great-Falls-Tool-Bus/.github/main/githooks"
+
+# Use .githooks for this clone, push to the fork by default, and disable pushes to upstream.
+hooks-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ root }}"
+    git config core.hooksPath .githooks
+    git config remote.pushDefault origin
+    if git remote get-url upstream >/dev/null 2>&1; then
+      git remote set-url --push upstream DISABLED-fork-first
+    fi
+    if [ "$(git config --get commit.gpgsign || true)" != "true" ]; then
+      echo "warning: commit.gpgsign is not set; the pre-push hook refuses unsigned commits." >&2
+      echo "         run: git config --global commit.gpgsign true (with a signing key configured)" >&2
+    fi
+    echo "Git hooks installed from .githooks; pushes default to origin."
+
+# Fail when .githooks differs from the organization .github mirror.
+hooks-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ root }}"
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    status=0
+    for f in {{ hook_files }}; do
+      curl -fsSL "{{ hooks_mirror }}/$f" -o "$tmp/$f"
+      if ! cmp -s "$tmp/$f" ".githooks/$f"; then
+        echo "hooks-check: .githooks/$f differs from {{ hooks_mirror }}/$f" >&2
+        status=1
+      fi
+    done
+    [ "$status" -eq 0 ] && echo "hooks-check: .githooks matches the organization mirror."
+    exit "$status"
+
+# Run the hook self-test against a throwaway repository.
+hooks-test:
+    cd {{ root }} && bash .githooks/test.sh
 
 # Byte-reproducibility proof for the printed apex QR: regenerate the code from
 # the canonical URL and compare it to the committed artefact. The pinned URL is
@@ -286,12 +327,17 @@ leak-scan build_dir="build":
 # Local entrypoint for the exact cacheable suite selected by the protected v4
 # `validate` action. //:deployment_bundle independently enforces the scanned
 # artifact boundary selected by `site-build`.
-check:
-    cd {{ root }} && bazelisk test //:ci_validation_suite
+#
+# The suite is the merge gate, so it stamps the checked-out commit the way the
+# retired v4 caller stamped GITHUB_SHA: //:browser_smoke_test asserts the
+# footer provenance that only a stamped build renders. An explicit
+# BUILD_COMMIT_SHA wins. `just build` stays unstamped unless one is supplied.
+check: hooks-check
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite
     @echo "All checks passed."
 
 check-ci:
-    cd {{ root }} && bazelisk test --config=ci //:ci_validation_suite
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test --config=ci //:ci_validation_suite
     @echo "All CI artifact checks passed."
 
 # Local convenience aggregate. The v4 dispatcher does not invoke it.

@@ -161,7 +161,7 @@ describe('leak-scan detections', () => {
 	it('bans the repo commit path a stamped footer link would emit, at any sha length', () => {
 		// Review B1: the D10 footer sha must stay a bare <code> — the
 		// internal-tracker-reference rule bans this repo's pull/issues/commit
-		// path segments in published output (AGENTS.md sanctions exactly one
+		// path segments in published output (docs/operating-rules.md sanctions exactly one
 		// repository pointer, the SourceLink affordance), and no sha length
 		// escapes a path-segment ban. Local builds stamp 'unknown' and render
 		// no provenance line at all, so these rows plus the `just

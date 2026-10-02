@@ -92,6 +92,9 @@
           echo "  just     $(just --version)"
           echo "  bazel    $(bazelisk --version 2>&1 | head -n1)"
           echo "  gitleaks $(gitleaks version 2>&1 | head -n1)"
+          if [ "$(git config --get core.hooksPath 2>/dev/null)" != ".githooks" ]; then
+            echo "warning: repository git hooks are not installed; run 'just hooks-install' (see CONTRIBUTING.md)" >&2
+          fi
         '';
         playwrightHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
           unset LD_LIBRARY_PATH

@@ -47,6 +47,19 @@ for (const [name, leaf] of [
 }
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1';
 
+// Chromium binds its process-singleton Unix socket inside a fresh directory
+// under its own TMPDIR, and a socket path is capped at 108 bytes. The private
+// scratch above sits deep in the Bazel test tree, so the browser process alone
+// gets a short owner-only directory under /tmp (per-action and hermetic under
+// Bazel's sandbox). The profile, cache and results stay in the scratch.
+const chromiumTmp = mkdtempSync('/tmp/gftb-chromium-');
+const singletonSocket = join(chromiumTmp, '.org.chromium.Chromium.XXXXXX', 'SingletonSocket');
+if (Buffer.byteLength(singletonSocket) >= 100) {
+	rmSync(chromiumTmp, { recursive: true, force: true });
+	throw new Error(`the Chromium singleton socket path is too long: ${singletonSocket}`);
+}
+const chromiumEnv = { ...process.env, TMPDIR: chromiumTmp };
+
 const server = createServer((request, response) => {
 	if (request.method !== 'GET' && request.method !== 'HEAD') {
 		response.writeHead(405).end();
@@ -92,6 +105,7 @@ try {
 		executablePath: chromiumPath,
 		headless: true,
 		timeout: 15_000,
+		env: chromiumEnv,
 		args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
 	});
 	const page = await browser.newPage();
@@ -119,7 +133,8 @@ try {
 	} finally {
 		server.closeAllConnections();
 		await new Promise((resolveClose) => server.close(resolveClose));
-		// Only the exact nonempty directory created above is removed.
+		// Only the exact nonempty directories created above are removed.
+		rmSync(chromiumTmp, { recursive: true, force: true });
 		rmSync(scratch, { recursive: true, force: true });
 	}
 }
@@ -144,6 +159,7 @@ async function runAcceptance(baseURL) {
 				...process.env,
 				GF_BROWSER_ACCEPTANCE_BASE_URL: baseURL,
 				GF_BROWSER_ACCEPTANCE_OUTPUT_DIR: join(scratch, 'results'),
+				GF_BROWSER_ACCEPTANCE_CHROMIUM_TMPDIR: chromiumTmp,
 			},
 		},
 	);
@@ -167,13 +183,13 @@ async function runAcceptance(baseURL) {
 		const code = await new Promise((resolveExit, rejectExit) => {
 			child.once('error', rejectExit);
 			child.once('close', (exitCode) => resolveExit(exitCode));
-			// Playwright owns the ordinary 180s suite deadline and browser
+			// Playwright owns the ordinary 600s suite deadline and browser
 			// teardown. This outer bound also terminates a wedged CLI/process
 			// group, without touching another action's browser or server.
 			killTimer = setTimeout(() => {
 				timedOut = true;
 				stop();
-			}, 240_000);
+			}, 660_000);
 		});
 		if (timedOut || code !== 0) throw new Error('the five-spec browser acceptance suite failed');
 	} finally {
