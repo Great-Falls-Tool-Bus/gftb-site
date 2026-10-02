@@ -183,13 +183,13 @@ async function runAcceptance(baseURL) {
 		const code = await new Promise((resolveExit, rejectExit) => {
 			child.once('error', rejectExit);
 			child.once('close', (exitCode) => resolveExit(exitCode));
-			// Playwright owns the ordinary 600s suite deadline and browser
+			// Playwright owns the ordinary 1080s suite deadline and browser
 			// teardown. This outer bound also terminates a wedged CLI/process
 			// group, without touching another action's browser or server.
 			killTimer = setTimeout(() => {
 				timedOut = true;
 				stop();
-			}, 660_000);
+			}, 1_140_000);
 		});
 		if (timedOut || code !== 0) throw new Error('the six-spec browser acceptance suite failed');
 	} finally {

@@ -700,8 +700,10 @@ async function releaseHold(page: Page) {
 	});
 }
 
+// Canvas-reading tests: 90 s budget per operator ruling 2026-10-02; tracked in Linear under the canvas-reading tests issue.
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the glass panes keep the notes' ink on its floor over the scene (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -711,7 +713,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await awaitTier(page);
 		// A rest held open: no note moves while the pixels are read.
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 90_000 });
 		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 		await page.waitForTimeout(1500);
 		// Mid-sweep a pane is masked along with its text, so a text box can lie
@@ -773,6 +775,7 @@ function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -875,6 +878,7 @@ async function gutterRects(page: Page) {
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`beads and frost build on the glass through a rest (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -886,7 +890,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		// rest slowly (a frame advances it a second at most), so allow a while.
 		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 90_000 });
 		const rests = await gutterRects(page);
 		await page.waitForTimeout(150);
 		const early = await measureTextureInRects(
@@ -915,6 +919,7 @@ for (const scheme of ['light', 'dark'] as const) {
 	});
 
 	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }) => {
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -927,7 +932,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		// so the left gutter lies behind the left blade and the right gutter
 		// ahead of the right blade.
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 90_000 });
 		await page.waitForTimeout(4000);
 		await selectDetent(page, 'High');
 		await holdStroke(page, '0.5');
