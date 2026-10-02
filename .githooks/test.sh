@@ -6,12 +6,19 @@
 # bad branch names), pushes to local bare repositories standing in for the
 # organization remote and a fork, and asserts exit codes and warnings. The
 # operator's own git configuration is never read: HOME and the global config
-# point into the temporary directory, which is removed on exit.
+# point into the temporary directory, which is removed on exit. The real HOME
+# is restored before that removal, because a home-root delete guard refuses to
+# remove any ancestor of the current HOME.
 set -euo pipefail
 
 hooks="$(cd "$(dirname "$0")" && pwd -P)"
+real_home="${HOME:-}"
 work="$(mktemp -d "${TMPDIR:-/tmp}/gftb-hooks-test.XXXXXX")"
-trap 'rm -rf "$work"' EXIT
+cleanup() {
+  export HOME="$real_home"
+  rm -rf "$work"
+}
+trap cleanup EXIT
 
 export HOME="$work/home"
 export GIT_CONFIG_GLOBAL="$work/gitconfig"
