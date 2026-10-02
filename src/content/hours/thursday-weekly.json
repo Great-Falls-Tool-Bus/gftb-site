@@ -1,6 +1,6 @@
 {
 	"id": "thursday-weekly",
-	"published": false,
+	"published": true,
 	"weekday": "thursday",
 	"start": "15:00",
 	"end": "16:00",
