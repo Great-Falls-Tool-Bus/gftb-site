@@ -7,15 +7,20 @@ import { decodePng } from './support/png-luminance';
 // The phone-motion permission is a silent first-gesture handshake (operator
 // ruling 2026-09-09): no control is rendered, the visitor's first
 // neutral tap inside main is borrowed once, and taps on links, buttons and
-// fields are never borrowed. Headless Chromium has no
-// `DeviceOrientationEvent.requestPermission`, so the harness below installs
-// one that counts calls, and holds the layout's idle mount so the deferred
-// binding (the moment the handshake can arm) is under test control.
+// fields are never borrowed. Chromium now ships
+// `DeviceOrientationEvent.requestPermission`, so the harness below replaces
+// it with one that counts calls (or, for 'absent', with event classes that
+// have no permission API at all), and holds the layout's idle mount so the
+// deferred binding (the moment the handshake can arm) is under test control.
 type PermissionApi = 'granted' | 'denied' | 'absent';
 
 async function holdVectorMount(page: Page, permission: PermissionApi = 'granted') {
 	await page.addInitScript((result) => {
-		if (result !== 'absent') {
+		if (result === 'absent') {
+			for (const name of ['DeviceOrientationEvent', 'DeviceMotionEvent']) {
+				Object.defineProperty(window, name, { configurable: true, value: class extends Event {} });
+			}
+		} else {
 			let permissionCalls = 0;
 			Object.defineProperty(window, 'DeviceOrientationEvent', {
 				configurable: true,
