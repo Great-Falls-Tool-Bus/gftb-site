@@ -69,7 +69,11 @@ The current source declares two GF actions: `validate` runs the registered
 checks, and `site-build` requests the scanned deployment bundle. See
 [the CI contract](docs/CI-SCHEMA.md) for their exact targets and output rules.
 
-The existing candidate workflow calls `just container-image-publish` on Linux.
+The candidate workflow, now dispatch-only, calls `just container-image-publish`
+on Linux. No workflow runs on push or pull request; the pre-merge gate is a
+lab-host `just check` receipt or the ruling's equivalent-validator source
+receipt posted on the PR. The source receipt does not qualify the full
+GF-image-bound Chromium suite or remote Execute.
 
 It packages the static build as
 `ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>`. It does not

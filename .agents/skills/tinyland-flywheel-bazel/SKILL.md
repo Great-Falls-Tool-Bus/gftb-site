@@ -23,9 +23,12 @@ producer-owned consumer registry to enroll GFTB.
 
 ## CI shape
 
-`.github/workflows/ci.yml` contains one thin reusable-workflow call per action
-name. The released reusable workflow invokes `gf-action-client run`; source
-presence alone is not evidence that the client is installed, an owner overlay
+No GitHub Actions workflow runs on push or pull request (operator ruling
+2026-09-28); the former `.github/workflows/ci.yml` caller is removed and the
+pre-merge gate is a lab-host `just check` receipt or the ruling's bounded
+equivalent-validator source receipt for changed surfaces. The full suite's
+Chromium target still requires GF-provisioned `/bin/chromium`. A future caller invokes
+`gf-action-client run`; source presence alone is not evidence that the client is installed, an owner overlay
 is admitted, or an action executed remotely. Those missing authorities fail
 closed. Do not add a v3, hosted, local, cache-only, DinD, wrapper, or
 shell-based execution alternative.
