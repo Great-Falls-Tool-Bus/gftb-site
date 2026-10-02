@@ -201,6 +201,19 @@ def _assert_named_transaction_custody(
     _assert_same_mount(expected_mount, _mount_identity(transaction_fd, held_metadata), transaction_name)
 
 
+def _grant_owner_write_to_staged_directories(stage_fd: int, stage: Path) -> None:
+    """Make every staged directory owner-writable before the atomic move.
+
+    Bazel 9.2 emits read-only output directories and copytree keeps that mode;
+    renaming a directory to a new parent needs write permission on it.
+    """
+
+    staged_directories = sorted(path for path in stage.rglob("*") if path.is_dir() and not path.is_symlink())
+    for directory in staged_directories:
+        os.chmod(directory, stat.S_IMODE(directory.lstat().st_mode) | stat.S_IWUSR)
+    os.chmod(stage_fd, stat.S_IMODE(os.fstat(stage_fd).st_mode) | stat.S_IWUSR)
+
+
 def _rename_directory_noreplace(
     source_fd: int,
     source_name: str,
@@ -340,6 +353,7 @@ def materialize_tree(source: Path, destination: Path, required_path: Path, manif
             stage_mount = _mount_identity(stage_fd, held_stage_metadata)
             _assert_same_mount(transaction_mount, stage_mount, "stage")
             _assert_required_file_at(stage_fd, required_path)
+            _grant_owner_write_to_staged_directories(stage_fd, stage)
 
             _assert_named_transaction_custody(
                 parent_fd,
