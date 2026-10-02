@@ -226,13 +226,13 @@ test.describe('the RSVP dialog', () => {
 		await send(dialog);
 		await expect(dialog.getByRole('button', { name: 'Sending…' })).toBeDisabled();
 		await expect.poll(() => capture.payloads.length).toBe(1);
-		await page.keyboard.press('Escape');
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 
 		// The same slot, reopened while the send is in flight, cannot send twice.
 		await trigger.click();
 		await expect(page.getByRole('dialog').getByRole('button', { name: 'Sending…' })).toBeDisabled();
-		await page.keyboard.press('Escape');
+		await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 
 		// Another session's dialog is open when the first answer lands: it
@@ -250,13 +250,13 @@ test.describe('the RSVP dialog', () => {
 		await expect(other.getByRole('heading', { level: 2 })).toHaveText('RSVP for a work session');
 		await expect(other.locator('.form-notice--success')).toHaveCount(0);
 		await expect(other.getByRole('button', { name: 'Send RSVP' })).toBeEnabled();
-		await page.keyboard.press('Escape');
+		await other.getByRole('button', { name: 'Cancel' }).click();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 
 		// The slot that was sent is the one marked, from memory.
 		await trigger.click();
 		await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText('Already sent');
-		await page.keyboard.press('Escape');
+		await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 		await next.click();
 		await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText('RSVP for a work session');
