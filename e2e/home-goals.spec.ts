@@ -887,7 +887,23 @@ for (const scheme of ['light', 'dark'] as const) {
 		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
 		await holdRest(page);
 		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		const glass = await scene(page).elementHandle();
+		if (!glass) throw new Error('the scene canvas disappeared before the rest sample');
 		const rests = await gutterRects(page);
+		const identity = await glass.evaluate((node) => {
+			const canvas = node as HTMLCanvasElement;
+			if (!canvas.isConnected || document.querySelector('#goals canvas.wiper__scene') !== canvas)
+				throw new Error('the scene canvas was replaced before the early sample');
+			const box = canvas.getBoundingClientRect();
+			return {
+				tier: canvas.dataset.tier,
+				width: canvas.width,
+				height: canvas.height,
+				cssWidth: box.width,
+				cssHeight: box.height,
+			};
+		});
+		if (identity.tier !== 'webgpu' && identity.tier !== 'webgl2') throw new Error('the scene renderer was lost');
 		await page.waitForTimeout(150);
 		const early = await measureTextureInRects(
 			page,
@@ -895,9 +911,91 @@ for (const scheme of ['light', 'dark'] as const) {
 			[rests.left, rests.right],
 			GLASS_HIDE,
 		);
-		await page.waitForTimeout(4000);
+		const first = await page.waitForFunction(
+			({ node, expected }) => {
+				const canvas = node as HTMLCanvasElement;
+				if (!canvas.isConnected || document.querySelector('#goals canvas.wiper__scene') !== canvas)
+					throw new Error('the scene canvas was replaced during the early sample');
+				const box = canvas.getBoundingClientRect();
+				if (
+					canvas.dataset.tier !== expected.tier ||
+					canvas.width !== expected.width ||
+					canvas.height !== expected.height ||
+					box.width !== expected.cssWidth ||
+					box.height !== expected.cssHeight
+				) throw new Error('the scene renderer or dimensions changed during the early sample');
+				const raw = canvas.dataset.glassTime;
+				if (raw === undefined) return false;
+				const time = Number(raw);
+				if (!Number.isFinite(time)) throw new Error('the rendered droplet clock is invalid');
+				return time;
+			},
+			{ node: glass, expected: identity },
+			{ timeout: 5000 },
+		);
+		const start = { ...identity, time: (await first.jsonValue()) as number };
+		const readyTime = await page.evaluate(
+			({ node, baseline }) =>
+				new Promise<number>((resolve, reject) => {
+					const canvas = node as HTMLCanvasElement;
+					let previous = baseline.time;
+					let frame = 0;
+					const timeout = window.setTimeout(() => {
+						cancelAnimationFrame(frame);
+						reject(new Error('the rendered droplet clock did not advance four seconds during the held rest'));
+					}, 30_000);
+					const check = () => {
+						try {
+							const box = canvas.getBoundingClientRect();
+							if (
+								!canvas.isConnected ||
+								document.querySelector('#goals canvas.wiper__scene') !== canvas ||
+								canvas.dataset.tier !== baseline.tier ||
+								canvas.width !== baseline.width ||
+								canvas.height !== baseline.height ||
+								box.width !== baseline.cssWidth ||
+								box.height !== baseline.cssHeight
+							) throw new Error('the scene canvas or renderer changed during the held rest');
+							if (document.documentElement.dataset.wiperFreeze !== 'rest')
+								throw new Error('the rest hold ended before the late sample');
+							const state = document.querySelector('#goals .wiper')?.getAttribute('data-state');
+							if (state !== 'dwell' && state !== 'paused') throw new Error('the held rest changed state');
+							const time = Number(canvas.dataset.glassTime);
+							if (!Number.isFinite(time) || time < previous)
+								throw new Error('the rendered droplet clock is missing or moved backward');
+							previous = time;
+							if (time - baseline.time >= 4) {
+								window.clearTimeout(timeout);
+								resolve(time);
+							} else frame = requestAnimationFrame(check);
+						} catch (error) {
+							window.clearTimeout(timeout);
+							reject(error);
+						}
+					};
+					frame = requestAnimationFrame(check);
+				}),
+			{ node: glass, baseline: start },
+		);
 		expect(await pane(page).getAttribute('data-state'), 'the held rest').toMatch(/dwell|paused/u);
 		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
+		await glass.evaluate((node, { baseline, ready }) => {
+			const canvas = node as HTMLCanvasElement;
+			const box = canvas.getBoundingClientRect();
+			const time = Number(canvas.dataset.glassTime);
+			if (
+				!canvas.isConnected ||
+				document.querySelector('#goals canvas.wiper__scene') !== canvas ||
+				canvas.dataset.tier !== baseline.tier ||
+				canvas.width !== baseline.width ||
+				canvas.height !== baseline.height ||
+				box.width !== baseline.cssWidth ||
+				box.height !== baseline.cssHeight ||
+				document.documentElement.dataset.wiperFreeze !== 'rest' ||
+				!Number.isFinite(time) ||
+				time < ready
+			) throw new Error('the scene changed during the late sample');
+		}, { baseline: start, ready: readyTime });
 		await releaseHold(page);
 		// The strong-edge share is the measure: beads are small and sharp,
 		// the field is smooth, and on a near-black ground the mean step is

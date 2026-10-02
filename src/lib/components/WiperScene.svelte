@@ -126,6 +126,7 @@
 		const demote = () => {
 			if (!alive) return;
 			alive = false;
+			delete element.dataset.glassTime;
 			if (raf) cancelAnimationFrame(raf);
 			raf = 0;
 			renderer?.destroy();
@@ -144,6 +145,7 @@
 		// remount, the loss is a demotion like any other.
 		const lose = () => {
 			if (!alive) return;
+			delete element.dataset.glassTime;
 			if (!onlost) {
 				demote();
 				return;
@@ -230,7 +232,12 @@
 			const over = blades;
 			// Layer 0 reads the arms for its swept edge only; it draws no blade.
 			scene.render({ ...frame, arms });
-			if (!alive || blades !== over) return;
+			if (!alive || renderer !== scene || blades !== over) return;
+			// The rest-freeze probe reads the droplet clock only after this exact
+			// canvas has drawn it; wall time can outrun the capped field step.
+			if (document.documentElement.dataset.wiperFreeze === 'rest' && drops && geometry)
+				element.dataset.glassTime = String(drops.time);
+			else delete element.dataset.glassTime;
 			// Parked blades cost nothing: the layer is cleared once when the
 			// arms come to rest and left alone until one moves again.
 			const idle = arms.every((arm) => arm.travel === 0);
@@ -366,6 +373,7 @@
 
 		return () => {
 			alive = false;
+			delete element.dataset.glassTime;
 			if (raf) cancelAnimationFrame(raf);
 			resize.disconnect();
 			intersection.disconnect();
