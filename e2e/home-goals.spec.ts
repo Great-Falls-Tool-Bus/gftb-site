@@ -1028,14 +1028,34 @@ for (const scheme of ['light', 'dark'] as const) {
 		// mostly 8-bit quantisation. Summed over both gutters (dark beads are
 		// gentle by ruling), it rises through the rest, including from a blank field.
 		const sum = (t: typeof early) => t[0].strong + t[1].strong;
-		expect(
-			sum(late),
-			`strong edges: ${sum(early).toFixed(4)} early, ${sum(late).toFixed(4)} late`,
-		).toBeGreaterThan(sum(early) * 1.15);
+		expect(sum(late), `strong edges: ${sum(early).toFixed(4)} early, ${sum(late).toFixed(4)} late`).toBeGreaterThan(
+			sum(early) * 1.15,
+		);
 		for (const side of [0, 1]) expect(late[side].sampled, `pixels, side ${side}`).toBeGreaterThan(1000);
 	});
 
-	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }) => {
+	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }, testInfo) => {
+		const attachBlade = async (name: string, body: Buffer | string, contentType: string, extension: string) => {
+			const file = testInfo.outputPath(`${name}.${extension}`);
+			await writeFile(file, body);
+			await testInfo.attach(name, { path: file, contentType });
+		};
+		const sceneState = () =>
+			page.evaluate(() => {
+				const canvas = document.querySelector<HTMLCanvasElement>('#goals canvas.wiper__scene');
+				const box = canvas?.getBoundingClientRect();
+				const wiper = document.querySelector<HTMLElement>('#goals .wiper');
+				return {
+					tier: canvas?.dataset.tier ?? null,
+					width: canvas?.width ?? null,
+					height: canvas?.height ?? null,
+					cssWidth: box?.width ?? null,
+					cssHeight: box?.height ?? null,
+					freeze: document.documentElement.dataset.wiperFreeze ?? null,
+					wipeU: wiper?.style.getPropertyValue('--wipe-u') ?? null,
+					state: wiper?.dataset.state ?? null,
+				};
+			});
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -1058,6 +1078,13 @@ for (const scheme of ['light', 'dark'] as const) {
 			'#goals canvas.wiper__scene',
 			[rests.left, rests.right, rests.rightLow],
 			GLASS_HIDE,
+			(png) => attachBlade('blade-mid', png, 'image/png', 'png'),
+		);
+		await attachBlade(
+			'blade-mid-metrics',
+			JSON.stringify({ scheme, rects: rests, scene: await sceneState(), samples: mid }),
+			'application/json',
+			'json',
 		);
 		// Behind a blade the strong-edge share falls to nothing (probe: 0.002
 		// light, 0 dark) while ahead it carries the beads (0.05 light, 0.03 dark).
@@ -1069,7 +1096,19 @@ for (const scheme of ['light', 'dark'] as const) {
 		// Move the hold near the turnaround: the right blade has passed the
 		// lower right gutter too.
 		await holdStroke(page, '0.98');
-		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.rightLow], GLASS_HIDE);
+		const late = await measureTextureInRects(
+			page,
+			'#goals canvas.wiper__scene',
+			[rests.rightLow],
+			GLASS_HIDE,
+			(png) => attachBlade('blade-late', png, 'image/png', 'png'),
+		);
+		await attachBlade(
+			'blade-late-metrics',
+			JSON.stringify({ scheme, rect: rests.rightLow, scene: await sceneState(), samples: late }),
+			'application/json',
+			'json',
+		);
 		expect(
 			late[0].strong,
 			`behind the right blade: ${late[0].strong.toFixed(4)} vs ahead ${mid[2].strong.toFixed(4)}`,
