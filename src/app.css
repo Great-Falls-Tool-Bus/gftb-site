@@ -1500,7 +1500,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * copy on --highlight-contrast, headings, anchors and control edges on
  * --highlight-heading (both pairs swept by design-token-contrast.test.ts in
  * both schemes; the livery does not flip). Not glass and not a card: radius
- * 0, the site .button in its secondary form, rows parted by a rule. That
+ * 0, the site .button in its secondary form, rows parted by air (the
+ * 2026-08-30 borderless/never-cards ruling stands for this band). That
  * ruling supersedes the 2026-09-09 rotator ruling and the 2026-09-19
  * hours-in-FAQ ruling for this band: under 48rem a carousel (CSS scroll snap,
  * one card per view, steps and dots, no auto-advance), at 48rem and up a
@@ -1514,7 +1515,6 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--heading: var(--highlight-heading);
 	--link: var(--highlight-heading);
 	--accent: var(--highlight-heading);
-	--hours-rule: color-mix(in oklab, var(--highlight-heading) 40%, transparent);
 	--hours-row-estimate: 6.5rem;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -1578,7 +1578,6 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 0.35rem 1rem;
-	border-top: 1px solid var(--hours-rule);
 	padding-block: 0.9rem;
 }
 
@@ -1666,7 +1665,6 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 .hours-carousel__track > .hours-row {
 	grid-template-columns: minmax(0, 1fr);
 	align-content: start;
-	border: 2px solid var(--highlight-heading);
 	padding: 1rem;
 	scroll-snap-align: start;
 }
