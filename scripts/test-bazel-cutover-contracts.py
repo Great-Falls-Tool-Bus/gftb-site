@@ -933,8 +933,6 @@ class RepositoryContractTests(unittest.TestCase):
         # affordance (demo #94, addendum B1.2), drift-gated by
         # `just source-map-check`. The agent surfaces stay banned.
         for path in (
-            "static/llms.txt",
-            "static/agent-map.md",
             "src/routes/agent",
             "AGENTS.md",
             ".agents",

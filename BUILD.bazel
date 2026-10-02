@@ -102,6 +102,10 @@ filegroup(
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
+        # The served-tinyvectors proof and its unit test, collected by
+        # //:unit_tests (vitest includes scripts/**/*.test.mts).
+        "scripts/check-served-tinyvectors.mjs",
+        "scripts/check-served-tinyvectors.test.mts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
