@@ -14,6 +14,11 @@ setup: hooks-install
 deps-lock:
     cd {{ root }} && pnpm install --lockfile-only
 
+# Regenerate the Bazel module graph, including every declared extension.
+# Run from a clean checkout in the locked Nix shell; review MODULE.bazel.lock.
+module-lock:
+    cd {{ root }} && USE_BAZEL_VERSION="$(cat .bazelversion)" BAZELISK_SKIP_WRAPPER=1 bazelisk --nosystem_rc --nohome_rc mod deps --lockfile_mode=update
+
 flake-lock:
     cd {{ root }} && nix flake lock
 
