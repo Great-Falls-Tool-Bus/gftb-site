@@ -1,0 +1,16 @@
+{
+	"id": "monday-october",
+	"published": false,
+	"weekday": "monday",
+	"start": "17:00",
+	"end": "18:00",
+	"timezone": "America/New_York",
+	"staff": ["Jess"],
+	"repeat": {
+		"kind": "weekly",
+		"startsOn": "2026-10-05",
+		"count": 2
+	},
+	"location": "the bus",
+	"source": "operator interview 2026-10-02 (staffed hours rulings)"
+}

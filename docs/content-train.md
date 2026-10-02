@@ -202,6 +202,30 @@ sha256 in `MODULE.bazel`, and copied to `static/agreements/` by the Bazel build.
 No status line: the document carries its own date. Rows in
 `e2e/acceptance-legal.spec.ts`.
 
+## Work sessions on the bus (hours)
+
+Staffed work sessions live in `src/content/hours/<id>.json`, one file per
+slot, formatted by Prettier (tabs, width 120). They reach the site through
+`src/lib/generated/hours-manifest.ts` (`just hours-manifest-build`,
+drift-checked by `just hours-manifest-check` inside `just check`), published
+slots only. The contract is `src/lib/public-hours-schema.ts`, which fails
+closed: unknown keys are refused at both levels and no string may carry an em
+dash. Keys: `id` (kebab-case, equal to the file stem), `published`, `weekday`
+(`monday` to `sunday`), `start` and `end` (`HH:MM`, 06:00 to 23:00, end after
+start), `timezone` (always `America/New_York`), `staff` (0 to 3 first names
+from `CONSENTED_STAFF`; empty renders as "a keyholder"), `repeat`
+(`{kind: weekly | once, startsOn, count? or until?}`), and optionally `skip`
+(cancelled dates, each one a generated occurrence), `location` (only
+`"the bus"`), `notes` (at most 200 characters) and `source` (internal
+provenance, never emitted, no tracker ids).
+
+Nothing in the build reads the clock (operator interview 2026-10-02): the
+manifest carries rules, not dates, and `src/lib/hours-recurrence.ts` expands
+them on the visitor's clock after mount, four weeks ahead and at most six
+rows, with the New York offset resolved per date. Unpublished slots never reach
+the manifest, and their notes of 20 characters or more join the build-output
+leak denylist.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,

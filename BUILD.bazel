@@ -483,6 +483,20 @@ js_test(
     timeout = "short",
 )
 
+js_test(
+    name = "hours_manifest_drift_test",
+    args = ["--check"],
+    data = [
+        ":app_srcs",
+        ".prettierrc",
+        ":node_modules/prettier",
+        ":node_modules/prettier-plugin-svelte",
+        ":node_modules/svelte",
+    ],
+    entry_point = "scripts/build-hours-manifest.mjs",
+    timeout = "short",
+)
+
 py_test(
     name = "bazel_output_contract_test",
     srcs = [
@@ -570,6 +584,7 @@ test_suite(
         ":current_source_secret_scan_test",
         ":eslint_test",
         ":goals_manifest_drift_test",
+        ":hours_manifest_drift_test",
         ":log_manifest_drift_test",
         ":prettier_check_test",
         ":served_tinyvectors_test",
