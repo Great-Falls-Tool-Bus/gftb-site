@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
 import {
+	CONTACT_URL,
 	installExternalGuard,
 	stubChallenge,
 	stubContactEndpoint,
@@ -38,6 +39,7 @@ const FIXTURE = [
 ];
 const SLOT = 'thursday-weekly@2026-10-08';
 const LABEL = 'Thursday 8 October, 3 to 4 PM ET';
+const NEXT_LABEL = 'Thursday 15 October, 3 to 4 PM ET';
 const EMAIL = 'ada@example.org';
 
 interface Opened {
@@ -206,6 +208,52 @@ test.describe('the RSVP dialog', () => {
 		await send(dialog);
 		await expect(dialog.getByRole('status')).toContainText('Your RSVP has been sent.');
 		expect(capture.payloads, 'honeypot submissions must not be forwarded').toEqual([]);
+	});
+
+	test('a send still in flight when the dialog closes marks only its own slot', async ({ page, baseURL }) => {
+		let release = () => {};
+		const hold = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const { capture, dialog, trigger } = await openRsvp(page, baseURL, { relay: { hold } });
+		await dialog.locator('#rsvp-email').fill(EMAIL);
+		await send(dialog);
+		await expect(dialog.getByRole('button', { name: 'Sending…' })).toBeDisabled();
+		await expect.poll(() => capture.payloads.length).toBe(1);
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+
+		// The same slot, reopened while the send is in flight, cannot send twice.
+		await trigger.click();
+		await expect(page.getByRole('dialog').getByRole('button', { name: 'Sending…' })).toBeDisabled();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+
+		// Another session's dialog is open when the first answer lands: it
+		// stays on its own form and is not marked sent.
+		const next = page.locator('#hours').getByRole('button', { name: `RSVP for ${NEXT_LABEL}` });
+		await next.click();
+		const other = page.getByRole('dialog');
+		await expect(other).toContainText(NEXT_LABEL);
+		const answered = page.waitForResponse(
+			(response) => response.url() === CONTACT_URL && response.request().method() === 'POST',
+		);
+		release();
+		await answered;
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		await expect(other.getByRole('heading', { level: 2 })).toHaveText('RSVP for a work session');
+		await expect(other.locator('.form-notice--success')).toHaveCount(0);
+		await expect(other.getByRole('button', { name: 'Send RSVP' })).toBeEnabled();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+
+		// The slot that was sent is the one marked, from memory.
+		await trigger.click();
+		await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText('Already sent');
+		await page.keyboard.press('Escape');
+		await next.click();
+		await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText('RSVP for a work session');
+		expect(capture.payloads).toHaveLength(1);
 	});
 
 	test('focus returns to the trigger on Escape and on Cancel', async ({ page, baseURL }) => {

@@ -93,6 +93,8 @@ export interface ContactStubOptions {
 	body?: unknown;
 	/** Abort instead of answering, standing in for an endpoint that is down. */
 	abort?: boolean;
+	/** Answer only once this settles, so a spec can act while a send is in flight. */
+	hold?: Promise<void>;
 }
 
 export async function stubContactEndpoint(
@@ -128,6 +130,8 @@ export async function stubContactEndpoint(
 		} catch {
 			payloads.push({ unparseableBody: request.postData() ?? '' });
 		}
+
+		if (options.hold) await options.hold;
 
 		if (options.abort) {
 			await route.abort('connectionrefused');

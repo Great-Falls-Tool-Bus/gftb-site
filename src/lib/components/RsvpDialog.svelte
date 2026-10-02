@@ -14,7 +14,10 @@
 	// the same RSVP by email. A filled honeypot shows the quiet success and
 	// sends nothing. A sent slot is remembered in memory only, for this page
 	// view: reopening it says "Already sent". The trigger stays enabled, and
-	// focus goes back to it whenever the dialog closes.
+	// focus goes back to it whenever the dialog closes. A send keeps running
+	// when the dialog closes: its answer marks its own slot as sent and shows
+	// only while that slot's dialog is open, and reopening that slot while it
+	// is in flight shows the disabled "Sending…" button again.
 	//
 	// The Dialog anatomy is the one SubscribeCapture.svelte adopted (see the
 	// ADOPTION RECORD there); the dress is this file's own :global block.
@@ -72,6 +75,10 @@
 	/** Slots sent from this page view; memory only, never stored. */
 	const sent = new SvelteSet<string>();
 	let trigger: HTMLElement | null = null;
+	/** Counts submits, so only the latest one's answer reaches the dialog. */
+	let submitSeq = 0;
+	/** The slot whose send is in flight, or '' when none is. */
+	let inFlightSlotId = '';
 
 	const mailtoHref = $derived(buildRsvpMailtoHref(keyholders, slot, { handle: values.handle, note: values.note }));
 
@@ -87,7 +94,8 @@
 			slot = { slotId: detail.slotId, label: detail.label };
 			fieldErrors = {};
 			altchaPayload = '';
-			status = sent.has(detail.slotId) ? 'already' : 'idle';
+			if (inFlightSlotId === detail.slotId) status = 'submitting';
+			else status = sent.has(detail.slotId) ? 'already' : 'idle';
 			open = true;
 		};
 		window.addEventListener(RSVP_OPEN_EVENT, onOpen);
@@ -117,7 +125,6 @@
 	async function close() {
 		if (!open) return;
 		open = false;
-		if (status === 'submitting') status = 'idle';
 		await tick();
 		requestAnimationFrame(() => {
 			if (trigger?.isConnected) trigger.focus();
@@ -159,7 +166,12 @@
 		}
 
 		status = 'submitting';
-		const payload = toRsvpPayload(slot, values, altchaPayload);
+		const sentSlot = slot;
+		const run = ++submitSeq;
+		inFlightSlotId = sentSlot.slotId;
+		// The answer belongs to the dialog only while it still shows this send.
+		const current = () => open && run === submitSeq && slot.slotId === sentSlot.slotId;
+		const payload = toRsvpPayload(sentSlot, values, altchaPayload);
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
 		try {
@@ -171,14 +183,21 @@
 			});
 			if (!response.ok) {
 				const body: unknown = await response.json().catch(() => null);
-				await fail(rsvpFailureFor(response.status, body));
+				if (run === submitSeq) inFlightSlotId = '';
+				if (current()) await fail(rsvpFailureFor(response.status, body));
 				return;
 			}
-			sent.add(slot.slotId);
-			sentEmail = payload.email;
-			status = 'success';
+			sent.add(sentSlot.slotId);
+			if (run === submitSeq) inFlightSlotId = '';
+			if (current()) {
+				sentEmail = payload.email;
+				status = 'success';
+			}
 		} catch (error) {
-			await fail(error instanceof DOMException && error.name === 'AbortError' ? 'timeout' : 'unreachable');
+			if (run === submitSeq) inFlightSlotId = '';
+			if (current()) {
+				await fail(error instanceof DOMException && error.name === 'AbortError' ? 'timeout' : 'unreachable');
+			}
 		} finally {
 			clearTimeout(timer);
 		}
