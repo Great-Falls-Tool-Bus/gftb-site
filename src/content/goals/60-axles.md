@@ -2,7 +2,7 @@
 kind: goal
 order: 60
 title: 'Reinstall the axles'
-window: 'Thursdays, about 3 to 5 PM ET'
+window: 'Thursdays, 3 to 4 PM ET'
 cta_label: 'Help with the axles plz'
 cta_href: '/contact'
 image: '/photos/goals/bus-on-lawn-1280.webp'

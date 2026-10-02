@@ -1152,9 +1152,11 @@ test('the FAQ carries one spelling of the Thursday hours', async ({ page }) => {
 	await page.goto('/');
 	const session = page.locator('#faq');
 	await expect(session.getByRole('term').filter({ hasText: 'When can I visit the bus?' })).toHaveCount(1);
-	await expect(session).toContainText('Thursdays, about 3 to 5 PM ET');
+	// Operator interview 2026-10-02: the Thursday window is 3 to 4 PM ET.
+	await expect(session).toContainText('Thursdays, 3 to 4 PM ET');
 	await expect(session).not.toContainText('3–5');
-	await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
+	await expect(session).not.toContainText('3 to 5');
+	await expect(session.getByText(/Thursdays, 3 to 4 PM ET/u)).toHaveCount(1);
 });
 
 test('GitHub sits in the header as an outbound link and the AX footer row is gone', async ({ page }) => {

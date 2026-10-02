@@ -62,7 +62,7 @@ function surfaces(scheme: SchemeName) {
 		card,
 		/** Contact field fill; glass surfaces are modeled separately below. */
 		panel: resolveRole(tokens, '--panel'),
-		/** the .skip-link chip and the restored .next-session livery band */
+		/** the .skip-link chip and the work sessions .hours-band livery */
 		yellow: resolveRole(tokens, '--highlight'),
 		/** the restored inverted contact panel (gen_board.py:170) */
 		inversePanel: resolveRole(tokens, '--inverse-panel'),
@@ -104,7 +104,8 @@ const textPairs: Pair[] = [
 	{ name: 'link on the page', role: '--link', on: 'page', minimum: AA },
 	{ name: 'link on a card', role: '--link', on: 'card', minimum: AA },
 	{ name: 'skip-link label on its chip', role: '--highlight-contrast', on: 'yellow', minimum: AA },
-	// The restored yellow livery band (.next-session; gen_board.py:166-168):
+	// The yellow livery band (the work sessions .hours-band, operator interview
+	// 2026-10-02; gen_board.py:166-168):
 	// copy on the ratified contrast token, headings and anchors on
 	// --highlight-heading.
 	{ name: 'copy on the yellow livery band', role: '--highlight-contrast', on: 'yellow', minimum: AA },

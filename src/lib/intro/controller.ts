@@ -31,6 +31,13 @@ export const INTRO_LIFTING_CLASS = 'intro-lifting';
  */
 export const INTRO_OFF_ATTR = 'data-intro-off';
 export const INTRO_OFF_GLOBAL = '__gftbIntroOff';
+/**
+ * Where the first-load scroll lands (operator interview 2026-10-02): the work
+ * sessions band under the hero. Readiness is still read from the wiper
+ * canvases under `#goals`; a page without the band lands on `#goals` itself.
+ */
+export const INTRO_TARGET_ID = 'hours';
+export const INTRO_READINESS_ID = 'goals';
 
 const CANCEL_EVENTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
 
@@ -58,8 +65,9 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 	// animation frames, so the veil would sit until the tab is shown and then
 	// run against a clock started long ago. It runs on the next full load.
 	if (reduce || forced || document.hidden || location.hash !== '' || off) return skip();
-	const goals = document.getElementById('goals');
+	const goals = document.getElementById(INTRO_READINESS_ID);
 	if (!goals) return skip();
+	const target = document.getElementById(INTRO_TARGET_ID) ?? goals;
 
 	// The controller owns the veil from here: steady until it lifts. A reload
 	// has its old scroll position restored beneath the veil by now; the page
@@ -113,10 +121,10 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 			tier: canvas.dataset.tier ?? '',
 			warm: canvas.dataset.warm !== undefined,
 		}));
-	// Where the goals land: the same place an anchor jump puts them, under the
-	// sticky header by their scroll margin, never past the page's end. Read
-	// through the offset chain, which ignores transforms: the section is still
-	// carrying its reveal translate while the tween measures it.
+	// Where the band lands: the same place an anchor jump puts it, under the
+	// sticky header by its scroll margin, never past the page's end. Read
+	// through the offset chain, which ignores transforms: a section may still
+	// be carrying its reveal translate while the tween measures it.
 	const documentTop = (element: HTMLElement) => {
 		let top = 0;
 		for (let node: HTMLElement | null = element; node; node = node.offsetParent as HTMLElement | null) {
@@ -125,8 +133,8 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 		return top;
 	};
 	const targetFor = () => {
-		const margin = Number.parseFloat(getComputedStyle(goals).scrollMarginTop) || 0;
-		const top = documentTop(goals) - margin;
+		const margin = Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+		const top = documentTop(target) - margin;
 		const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
 		return Math.max(0, Math.min(top, max));
 	};

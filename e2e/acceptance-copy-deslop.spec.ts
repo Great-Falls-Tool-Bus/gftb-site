@@ -173,14 +173,24 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		// Operator ruling 2026-09-19: the recurring hours moved out of the hero
 		// box into the FAQ, where the questions people ask already live. The hero
 		// box now carries what the club is, in one statement and two callouts.
+		// Operator interview 2026-10-02 (staffed hours rulings): the Thursday
+		// window is 3 to 4 PM ET, and dated sessions get their own band under
+		// the hero, superseding the FAQ-only placement for that band. The hero
+		// box still carries no hours.
 		await page.goto('/');
 		const session = page.locator('#faq');
 		await expect(session).toContainText(
-			'Jess is usually working on the bus Thursdays, about 3 to 5 PM ET. Please use the contact form to confirm before traveling.',
+			'Jess is usually working on the bus Thursdays, 3 to 4 PM ET. Please use the contact form to confirm before traveling.',
 		);
 		await expect(session.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
-		await expect(session.getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
-		await expect(page.locator('.next-session')).toHaveCount(0);
+		await expect(session.getByText(/Thursdays, 3 to 4 PM ET/u)).toHaveCount(1);
+		// The 2026-10-02 band replaces the old count-0 pins on .next-session and
+		// .hero-session: exactly one band, the first child of the page shell
+		// (beneath the hero, above Notes & Goals), and still nothing in the hero.
+		await expect(page.locator('#hours')).toHaveCount(1);
+		await expect(page.locator('.page-shell > #hours:first-child')).toHaveCount(1);
+		await expect(page.locator('#hours')).toHaveClass(/hours-band/u);
+		await expect(page.locator('.hero #hours, .hero .hours-band, #status .hours-band')).toHaveCount(0);
 		await expect(page.locator('.hero-session')).toHaveCount(0);
 		await expect(page.locator('#status > p')).toHaveCount(1);
 		await expect(page.locator('#status .callouts > li')).toHaveCount(2);

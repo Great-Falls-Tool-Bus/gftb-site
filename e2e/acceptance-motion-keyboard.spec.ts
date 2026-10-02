@@ -89,6 +89,11 @@ test.describe('keyboard operability', () => {
 				focusable
 					.filter((element) => !element.closest('.honeypot'))
 					.filter((element) => element.getAttribute('tabindex') !== '-1')
+					// Operator interview 2026-10-02: the work sessions loop repeats its
+					// rows in a duplicate track that only closes the loop. That copy is
+					// inert and aria-hidden, so it is never a tab stop and is not
+					// expected as one; every row is still reached once, in its first copy.
+					.filter((element) => !element.closest('[inert], [aria-hidden="true"]'))
 					// A native radio group is one tab stop: the checked radio, or the
 					// first when none is (the wiper stalk's four detents).
 					.filter((element) => {
@@ -159,7 +164,11 @@ test.describe('keyboard operability', () => {
 				document.querySelectorAll<HTMLElement>(
 					'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), textarea, summary',
 				),
-			).filter((element) => !element.closest('.honeypot'));
+			)
+				.filter((element) => !element.closest('.honeypot'))
+				// The work sessions loop's inert duplicate track (operator interview
+				// 2026-10-02) cannot take focus at all; its first copy is measured.
+				.filter((element) => !element.closest('[inert], [aria-hidden="true"]'));
 
 			// Reactive components apply their focus state on the next render
 			// (Zag transitions the machine, Svelte writes data-focus-visible),

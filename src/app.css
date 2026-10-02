@@ -1495,10 +1495,298 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	text-decoration-thickness: 2px;
 }
 
+/* ===== Work sessions on the bus (operator interview 2026-10-02) =====
+ * The band beneath the hero and above Notes & Goals, on the yellow livery:
+ * copy on --highlight-contrast, headings, anchors and control edges on
+ * --highlight-heading (both pairs swept by design-token-contrast.test.ts in
+ * both schemes; the livery does not flip). Not glass and not a card: radius
+ * 0, the site .button in its secondary form, rows parted by a rule. That
+ * ruling supersedes the 2026-09-09 rotator ruling and the 2026-09-19
+ * hours-in-FAQ ruling for this band: under 48rem a carousel (CSS scroll snap,
+ * one card per view, steps and dots, no auto-advance), at 48rem and up a
+ * right-hand vertical loop that pauses on hover, on focus and by its button.
+ * Reduced motion, forced colours and no-JS get the static list. The band
+ * clips its own overflow, so neither the carousel track nor the loop's
+ * duplicate can widen the document. */
+.page-shell > .hours-band {
+	--fg: var(--highlight-contrast);
+	--fg-muted: var(--highlight-contrast);
+	--heading: var(--highlight-heading);
+	--link: var(--highlight-heading);
+	--accent: var(--highlight-heading);
+	--hours-rule: color-mix(in oklab, var(--highlight-heading) 40%, transparent);
+	--hours-row-estimate: 6.5rem;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 1.25rem 2.5rem;
+	overflow: hidden;
+	border-radius: 0;
+	background: var(--highlight);
+	color: var(--fg);
+}
+
+@media (min-width: 48rem) {
+	.page-shell > .hours-band {
+		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+		align-items: start;
+	}
+}
+
+.hours-band__intro h2 {
+	margin-bottom: 0;
+}
+
+.hours-band__intro p {
+	max-width: 40ch;
+	margin: 0.5rem 0 0;
+}
+
+.hours-band__pause {
+	margin-top: 1.25rem;
+}
+
+.hours-band__empty {
+	margin: 0;
+}
+
+.hours-band a:not(.button) {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+/* Room for the rows before the swap, from a clock-free upper bound the
+ * server writes (--hours-reserve): only where a script will swap them
+ * (html.motion-safe-ready), so no-JS and reduced motion keep the plain list. */
+html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
+	min-height: calc(var(--hours-row-estimate) + min(var(--hours-reserve) - 1, 1) * 3.75rem);
+}
+
+@media (min-width: 48rem) {
+	html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
+		min-height: calc(min(var(--hours-reserve), 3) * var(--hours-row-estimate));
+	}
+}
+
+.hours-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.hours-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.35rem 1rem;
+	border-top: 1px solid var(--hours-rule);
+	padding-block: 0.9rem;
+}
+
+.hours-row__when {
+	margin: 0;
+	color: var(--heading);
+	font-family: var(--font-sans);
+	font-weight: 800;
+	line-height: 1.35;
+}
+
+.hours-row__today {
+	display: inline-block;
+	margin-right: 0.5rem;
+	padding: 0.05rem 0.4rem;
+	background: var(--highlight-heading);
+	color: var(--highlight);
+	font-size: 0.8rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.hours-row__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 0.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-family: var(--font-sans);
+	font-size: 0.92rem;
+}
+
+.hours-row__meta li {
+	line-height: 1.45;
+}
+
+.hours-row__meta li + li::before {
+	content: '\00b7' / '';
+	margin-right: 0.5rem;
+}
+
+.hours-row__notes {
+	margin: 0;
+	font-size: 0.92rem;
+	line-height: 1.45;
+}
+
+.hours-row__when,
+.hours-row__meta,
+.hours-row__notes {
+	grid-column: 1;
+}
+
+.hours-row__action {
+	grid-column: 2;
+	grid-row: 1 / span 3;
+}
+
+/* One ring for every control on the livery: the base button ring is a
+ * yellow mix, which vanishes on a yellow ground. */
+.hours-band .button:focus-visible,
+.hours-carousel__dot:focus-visible {
+	outline: 3px solid var(--highlight-heading);
+	outline-offset: 3px;
+	box-shadow: none;
+}
+
+/* Carousel (under 48rem): the track scrolls natively and snaps one card per
+ * view; the band clips it. */
+.hours-carousel__track {
+	display: grid;
+	grid-auto-columns: 100%;
+	grid-auto-flow: column;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scroll-snap-type: x mandatory;
+	scrollbar-width: none;
+}
+
+.hours-carousel__track::-webkit-scrollbar {
+	display: none;
+}
+
+.hours-carousel__track > .hours-row {
+	grid-template-columns: minmax(0, 1fr);
+	align-content: start;
+	border: 2px solid var(--highlight-heading);
+	padding: 1rem;
+	scroll-snap-align: start;
+}
+
+.hours-carousel__track .hours-row__action {
+	grid-column: 1;
+	grid-row: auto;
+	margin-top: 0.5rem;
+}
+
+.hours-carousel__controls {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.75rem;
+}
+
+.hours-carousel__step {
+	min-width: 3rem;
+	padding-inline: 0.75rem;
+}
+
+.hours-carousel__step[aria-disabled='true'] {
+	border-style: dashed;
+	cursor: default;
+}
+
+.hours-carousel__dots {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.hours-carousel__dot {
+	display: inline-grid;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border: 0;
+	border-radius: 0;
+	padding: 0;
+	background: transparent;
+	cursor: pointer;
+}
+
+.hours-carousel__dot::before {
+	content: '';
+	width: 0.65rem;
+	height: 0.65rem;
+	border: 2px solid var(--highlight-heading);
+}
+
+.hours-carousel__dot[aria-current='true']::before {
+	background: var(--highlight-heading);
+}
+
+/* Loop (48rem and up): a window of three rows over a track that holds the
+ * list twice; one pass moves it by exactly one copy, so the seam never shows.
+ * The script sets the window's height from the real rows. */
+.hours-loop {
+	position: relative;
+	overflow: hidden;
+}
+
+.hours-loop__track {
+	animation: hours-loop var(--hours-loop-duration, 24s) linear infinite;
+}
+
+.hours-loop:hover .hours-loop__track,
+.hours-loop:focus-within .hours-loop__track,
+.hours-loop[data-paused] .hours-loop__track {
+	animation-play-state: paused;
+}
+
+@keyframes hours-loop {
+	from {
+		transform: translateY(0);
+	}
+
+	to {
+		transform: translateY(-50%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hours-loop__track {
+		animation: none;
+	}
+
+	.hours-loop__dup {
+		display: none;
+	}
+}
+
+@media (forced-colors: active) {
+	.hours-loop__track {
+		animation: none;
+	}
+
+	.hours-loop__dup {
+		display: none;
+	}
+
+	.hours-carousel__dot::before {
+		border-color: ButtonText;
+	}
+
+	.hours-carousel__dot[aria-current='true']::before {
+		background: ButtonText;
+	}
+}
+
 /* Notes & Goals: the borderless grid of every note. Operator ruling 2026-09-09:
  * the wiper rotator is off the public surface until the ratified replacement
- * lands (see the parent issue). No horizontal scroller in any state; the
- * document never widens. */
+ * lands (see the parent issue). This grid is no horizontal scroller in any
+ * state; the document never widens. The work sessions band above it carries
+ * the one sanctioned carousel (operator interview 2026-10-02, which
+ * supersedes the old no-scroller pin for that band only), clipped inside the
+ * band, so the document still never widens. */
 .goal-list {
 	margin: 0;
 	padding: 0;
@@ -1974,7 +2262,9 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 /* Wrap-not-scroll, ahead of the log content pipeline: log bodies render
  * operator-authored markdown, where a long unbroken token (URL, sha, path)
  * must wrap rather than widen the document. Prose tables are the one
- * sanctioned horizontal scroller. (Previous apex guard kit.) */
+ * sanctioned horizontal scroller in prose; the home page's work sessions
+ * carousel (operator interview 2026-10-02) is the other, clipped inside its
+ * band. (Previous apex guard kit.) */
 .log-entry__body :is(a, li, blockquote, td),
 .prior-logs details :is(a, li, blockquote, td) {
 	overflow-wrap: anywhere;
@@ -1997,7 +2287,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * code surface, and pre blocks that WRAP rather than scroll — a long line
  * breaks on word boundaries and unbreakable tokens use overflow-wrap:
  * anywhere; prose tables above stay the one sanctioned horizontal
- * scroller. */
+ * scroller in prose. */
 code,
 kbd,
 pre,
@@ -2474,6 +2764,39 @@ figcaption {
 
 	.goal-list > li::before {
 		display: none !important;
+	}
+
+	/* The work sessions band prints its rows once, at rest: no loop, no
+	 * duplicate, no carousel chrome, every card in the flow. */
+	.page-shell > .hours-band {
+		overflow: visible !important;
+	}
+
+	.hours-loop {
+		height: auto !important;
+		overflow: visible !important;
+	}
+
+	.hours-loop__track {
+		animation: none !important;
+		transform: none !important;
+	}
+
+	.hours-loop__dup,
+	.hours-carousel__controls,
+	.hours-band__pause {
+		display: none !important;
+	}
+
+	.hours-carousel__track {
+		display: block !important;
+		overflow: visible !important;
+	}
+
+	.hours-row__today {
+		border: 1px solid #000;
+		background: none !important;
+		color: #000 !important;
 	}
 
 	/* A print begun before the reveal IO ever fires must still show every

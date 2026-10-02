@@ -34,8 +34,11 @@ test.describe('JavaScript disabled', () => {
 		await expect(page.getByRole('heading', { name: 'Great Falls Tool Bus', level: 1 })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'What we are about' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Questions people ask' })).toBeVisible();
-		await expect(page.locator('#faq')).toContainText('Thursdays, about 3 to 5 PM ET');
-		await expect(page.locator('#faq').getByText(/Thursdays, about 3 to 5 PM ET/u)).toHaveCount(1);
+		// Operator interview 2026-10-02: the work sessions band sits under the
+		// hero, and the Thursday window is 3 to 4 PM ET.
+		await expect(page.getByRole('heading', { name: 'Work sessions on the bus' })).toBeVisible();
+		await expect(page.locator('#faq')).toContainText('Thursdays, 3 to 4 PM ET');
+		await expect(page.locator('#faq').getByText(/Thursdays, 3 to 4 PM ET/u)).toHaveCount(1);
 		await expect(page.getByRole('heading', { name: 'Notes & Goals' })).toBeVisible();
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
