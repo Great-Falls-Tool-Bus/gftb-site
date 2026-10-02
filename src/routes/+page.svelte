@@ -6,6 +6,7 @@
 	import SourceLink from '$lib/components/SourceLink.svelte';
 	import HomeIntro from '$lib/components/HomeIntro.svelte';
 	import HoursBand from '$lib/components/HoursBand.svelte';
+	import RsvpDialog from '$lib/components/RsvpDialog.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
 
@@ -266,12 +267,13 @@
 				     Notes and Goals panes carry the same window in their own
 				     frontmatter. Operator interview 2026-10-02: the Thursday window is
 				     3 to 4 PM ET; dated sessions appear in the work sessions band under
-				     the hero. Naming consent covers the schedule, not a live location. -->
+				     the hero, and this answer points at it (#hours). Naming consent
+				     covers the schedule, not a live location. -->
 				<dt>When can I visit the bus?</dt>
 				<dd>
 					Jess is usually working on the bus Thursdays, 3 to 4 PM ET. Please use the
-					<a href="/contact">contact form</a> to confirm before traveling. Exact location details are shared directly, and
-					a confirmed one-off session will be posted here.
+					<a href="/contact">contact form</a> to confirm before traveling. Exact location details are shared directly,
+					and dated sessions are listed under <a href="#hours">Work sessions on the bus</a> at the top of this page.
 				</dd>
 			</dl>
 			<p class="credit muted">Answers by Tool Bus Member Katherine T., except the visiting hours.</p>
@@ -353,3 +355,9 @@
 
 	<SourceLink routeId="/" />
 </div>
+
+<!-- The one RSVP dialog for the band's sessions (operator interview
+     2026-10-02): it takes the band's open event, and renders nothing until
+     a visitor opens it. Outside the page shell so the shell's children are
+     only the page's sections. -->
+<RsvpDialog />

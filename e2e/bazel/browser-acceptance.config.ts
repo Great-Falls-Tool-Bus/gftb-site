@@ -29,6 +29,7 @@ export default defineConfig({
 		'brand-vectors-permission.spec.ts',
 		'home-goals.spec.ts',
 		'home-hours.spec.ts',
+		'home-rsvp.spec.ts',
 		'mobile-nav.spec.ts',
 	].map((name) => resolve(testDir, name)),
 	fullyParallel: false,

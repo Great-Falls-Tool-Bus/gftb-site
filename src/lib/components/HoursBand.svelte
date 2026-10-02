@@ -10,8 +10,9 @@
 	// its own button; reduced motion, forced colours, a short list and no-JS
 	// get the static list. The band clips its own overflow, so the document
 	// never widens. The RSVP control is a mailto link until hydration and a
-	// button after it; the button raises RSVP_OPEN_EVENT for the RSVP dialog
-	// and, while nothing takes it, goes to the contact section instead.
+	// button after it; the button raises RSVP_OPEN_EVENT, which the home
+	// page's RsvpDialog takes, and while nothing takes it (a page without the
+	// dialog) goes to the contact section instead.
 	import { onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { publicHoursSlots } from '$lib/public-hours';
@@ -78,7 +79,10 @@
 		};
 	});
 
-	function openRsvp(row: HoursBandRow) {
+	function openRsvp(row: HoursBandRow, button: HTMLElement) {
+		// Focus the trigger first (some browsers do not focus a clicked
+		// button), so the RSVP dialog can hand focus back to it on close.
+		button.focus();
 		const detail: RsvpOpenDetail = { slotId: row.id, label: row.when };
 		const event = new CustomEvent<RsvpOpenDetail>(RSVP_OPEN_EVENT, { detail, cancelable: true });
 		// A cancelled event was taken by the RSVP dialog.
@@ -168,7 +172,7 @@
 					type="button"
 					class="button button--secondary"
 					aria-label={`RSVP for ${row.when}`}
-					onclick={() => openRsvp(row)}>RSVP</button
+					onclick={(event) => openRsvp(row, event.currentTarget)}>RSVP</button
 				>
 			{:else}
 				<a

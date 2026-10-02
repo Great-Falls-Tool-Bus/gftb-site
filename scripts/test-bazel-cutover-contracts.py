@@ -648,7 +648,15 @@ class RepositoryContractTests(unittest.TestCase):
                         "module": "src/lib/components/ContactForm.svelte",
                         "url": "https://forms.latoolb.us/api/contact",
                         "method": "POST",
-                    }
+                    },
+                    # Operator interview 2026-10-02: the work session RSVP
+                    # rides the contact relay as a contact message.
+                    {
+                        "purpose": "contact-submit",
+                        "module": "src/lib/components/RsvpDialog.svelte",
+                        "url": "https://forms.latoolb.us/api/contact",
+                        "method": "POST",
+                    },
                 ]
             },
         )

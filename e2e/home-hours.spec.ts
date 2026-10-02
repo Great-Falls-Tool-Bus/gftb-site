@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
+import { installExternalGuard, stubChallenge } from './support/network';
 
 import { HOURS_FIXTURE_GLOBAL } from '../src/lib/hours-band';
 import { publicHoursSlots } from '../src/lib/public-hours';
@@ -141,7 +142,9 @@ test.describe('with sessions on a fixed clock', () => {
 		}
 	});
 
-	test('the RSVP button raises the open event, then goes to the contact section', async ({ page }) => {
+	test('the RSVP button raises the open event, and the RSVP dialog takes it', async ({ page, baseURL }) => {
+		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
+		await stubChallenge(page);
 		await withSessions(page);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
@@ -149,18 +152,19 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.evaluate((name) => {
 			const seen: unknown[] = [];
 			(window as unknown as Record<string, unknown>).__rsvpSeen = seen;
-			window.addEventListener(name, (event) => seen.push((event as CustomEvent).detail));
+			window.addEventListener(name, (event) => seen.push([(event as CustomEvent).detail, event.defaultPrevented]));
 		}, RSVP_OPEN_EVENT);
 		const [slotId, label] = SESSIONS[1];
 		await band(page)
 			.getByRole('button', { name: `RSVP for ${label}` })
 			.click();
+		// Operator interview 2026-10-02 (PR 3 of 4): the RSVP dialog now takes
+		// the event (cancels it) instead of the band handing the visitor to
+		// the contact section. The dialog's own rows are in e2e/home-rsvp.spec.ts.
 		expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__rsvpSeen)).toEqual([
-			{ slotId, label },
+			[{ slotId, label }, true],
 		]);
-		// Nothing took the event yet (the RSVP dialog lands later), so the
-		// band hands the visitor to the contact section.
-		await expect(page.locator('#contact').getByRole('link', { name: 'Contact a keyholder' })).toBeFocused();
+		await expect(page.getByRole('dialog')).toContainText(label);
 	});
 
 	test('a session on the current New York day is marked Today', async ({ page }) => {

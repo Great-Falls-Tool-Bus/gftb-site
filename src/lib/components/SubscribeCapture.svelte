@@ -16,8 +16,10 @@
 	// an unsubscribe link in every message. The request goes to the same
 	// separately owned forms API the contact form uses, with the same
 	// honeypot and the same ALTCHA proof-of-work (the vendored widget script
-	// is loaded once, the way ContactForm.svelte loads it, and only once the
-	// modal has actually armed so a visit that never arms fetches nothing).
+	// is loaded once, through the loader ContactForm.svelte and the RSVP
+	// dialog share, and only once the modal has actually armed so a visit
+	// that never arms fetches nothing). It never arms while the RSVP dialog
+	// is open (<html data-rsvp-open>).
 	//
 	// Test and LOOK hook, read from <html> (no URL query, no storage):
 	// `data-subscribe-capture-dwell-ms="<n>"` credits the dwell already
@@ -28,6 +30,8 @@
 	import { page } from '$app/state';
 	import { INTRO_ARMED_CLASS, INTRO_LIFTING_CLASS, INTRO_LIVE_CLASS } from '$lib/intro/controller';
 	import { contactChallengeUrl, hasErrors, isHoneypotTripped } from '$lib/contact-form';
+	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '$lib/altcha-loader';
+	import { RSVP_OPEN_ATTR } from '$lib/rsvp-form';
 	import {
 		CAPTURE_DWELL_MS,
 		armCapture,
@@ -114,7 +118,7 @@
 
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const check = () => {
-			if (settled || open) return;
+			if (settled || open || root.hasAttribute(RSVP_OPEN_ATTR)) return;
 			const decision = armCapture({
 				dwellMs: dwellCredit + dwellMs(),
 				scrolledPast: scrolledPast(),
@@ -205,33 +209,17 @@
 	});
 
 	// The vendored ALTCHA widget script, loaded once and only once the modal
-	// has armed (same element and guard as ContactForm.svelte).
+	// has armed (the shared loader in src/lib/altcha-loader.ts).
 	$effect(() => {
-		if (!open || typeof document === 'undefined' || document.querySelector('script[data-altcha]')) return;
-		const script = document.createElement('script');
-		script.src = '/vendor/altcha/altcha.js';
-		script.defer = true;
-		script.dataset.altcha = '';
-		document.head.appendChild(script);
+		if (open) loadAltchaWidget();
 	});
 
 	$effect(() => {
 		const element = widgetEl;
 		if (!element) return;
-		const onVerified = (event: Event) => {
-			const detail = (event as CustomEvent<{ payload?: string }>).detail;
-			altchaPayload = typeof detail?.payload === 'string' ? detail.payload : '';
-		};
-		const onState = (event: Event) => {
-			const detail = (event as CustomEvent<{ state?: string }>).detail;
-			if (detail?.state !== 'verified') altchaPayload = '';
-		};
-		element.addEventListener('verified', onVerified);
-		element.addEventListener('statechange', onState);
-		return () => {
-			element.removeEventListener('verified', onVerified);
-			element.removeEventListener('statechange', onState);
-		};
+		return watchAltcha(element, (payload) => {
+			altchaPayload = payload;
+		});
 	});
 
 	function dismiss() {
@@ -295,9 +283,7 @@
 		status = 'idle';
 		submitError = '';
 		altchaPayload = '';
-		const element = widgetEl as (HTMLElement & { reset?: () => void; solve?: () => void }) | undefined;
-		element?.reset?.();
-		element?.solve?.();
+		resolveAltcha(widgetEl);
 	}
 </script>
 
