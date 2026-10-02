@@ -923,7 +923,8 @@ for (const scheme of ['light', 'dark'] as const) {
 					canvas.height !== expected.height ||
 					box.width !== expected.cssWidth ||
 					box.height !== expected.cssHeight
-				) throw new Error('the scene renderer or dimensions changed during the early sample');
+				)
+					throw new Error('the scene renderer or dimensions changed during the early sample');
 				const raw = canvas.dataset.glassTime;
 				if (raw === undefined) return false;
 				const time = Number(raw);
@@ -955,7 +956,8 @@ for (const scheme of ['light', 'dark'] as const) {
 								canvas.height !== baseline.height ||
 								box.width !== baseline.cssWidth ||
 								box.height !== baseline.cssHeight
-							) throw new Error('the scene canvas or renderer changed during the held rest');
+							)
+								throw new Error('the scene canvas or renderer changed during the held rest');
 							if (document.documentElement.dataset.wiperFreeze !== 'rest')
 								throw new Error('the rest hold ended before the late sample');
 							const state = document.querySelector('#goals .wiper')?.getAttribute('data-state');
@@ -979,23 +981,27 @@ for (const scheme of ['light', 'dark'] as const) {
 		);
 		expect(await pane(page).getAttribute('data-state'), 'the held rest').toMatch(/dwell|paused/u);
 		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.left, rests.right], GLASS_HIDE);
-		await glass.evaluate((node, { baseline, ready }) => {
-			const canvas = node as HTMLCanvasElement;
-			const box = canvas.getBoundingClientRect();
-			const time = Number(canvas.dataset.glassTime);
-			if (
-				!canvas.isConnected ||
-				document.querySelector('#goals canvas.wiper__scene') !== canvas ||
-				canvas.dataset.tier !== baseline.tier ||
-				canvas.width !== baseline.width ||
-				canvas.height !== baseline.height ||
-				box.width !== baseline.cssWidth ||
-				box.height !== baseline.cssHeight ||
-				document.documentElement.dataset.wiperFreeze !== 'rest' ||
-				!Number.isFinite(time) ||
-				time < ready
-			) throw new Error('the scene changed during the late sample');
-		}, { baseline: start, ready: readyTime });
+		await glass.evaluate(
+			(node, { baseline, ready }) => {
+				const canvas = node as HTMLCanvasElement;
+				const box = canvas.getBoundingClientRect();
+				const time = Number(canvas.dataset.glassTime);
+				if (
+					!canvas.isConnected ||
+					document.querySelector('#goals canvas.wiper__scene') !== canvas ||
+					canvas.dataset.tier !== baseline.tier ||
+					canvas.width !== baseline.width ||
+					canvas.height !== baseline.height ||
+					box.width !== baseline.cssWidth ||
+					box.height !== baseline.cssHeight ||
+					document.documentElement.dataset.wiperFreeze !== 'rest' ||
+					!Number.isFinite(time) ||
+					time < ready
+				)
+					throw new Error('the scene changed during the late sample');
+			},
+			{ baseline: start, ready: readyTime },
+		);
 		await releaseHold(page);
 		// The strong-edge share is the measure: beads are small and sharp,
 		// the field is smooth, and on a near-black ground the mean step is
