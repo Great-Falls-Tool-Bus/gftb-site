@@ -158,7 +158,9 @@ async function runAcceptance(baseURL) {
 			env: {
 				...process.env,
 				GF_BROWSER_ACCEPTANCE_BASE_URL: baseURL,
-				GF_BROWSER_ACCEPTANCE_OUTPUT_DIR: join(scratch, 'results'),
+				GF_BROWSER_ACCEPTANCE_OUTPUT_DIR: process.env.TEST_UNDECLARED_OUTPUTS_DIR
+					? join(process.env.TEST_UNDECLARED_OUTPUTS_DIR, 'browser-acceptance')
+					: join(scratch, 'results'),
 				GF_BROWSER_ACCEPTANCE_CHROMIUM_TMPDIR: chromiumTmp,
 			},
 		},

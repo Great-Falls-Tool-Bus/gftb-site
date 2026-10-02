@@ -17,8 +17,9 @@ export async function setScheme(page: Page, scheme: 'light' | 'dark') {
 		localStorage.setItem('color-mode', mode);
 		document.documentElement.setAttribute('data-mode', mode);
 	}, scheme);
-	await page.reload();
+	const response = await page.reload();
 	await page.waitForLoadState('networkidle');
+	return response;
 }
 
 /** Resolves a CSS custom property to true 8-bit sRGB via a canvas round-trip
@@ -131,7 +132,7 @@ async function captureElement(page: Page, selector: string, hideSelector?: strin
 		});
 	}
 	const image = decodePng(buffer);
-	return { image, scaleX: image.width / box.width, scaleY: image.height / box.height };
+	return { image, png: buffer, scaleX: image.width / box.width, scaleY: image.height / box.height };
 }
 
 const channel = (r: number) => (r <= 0.03928 ? r / 12.92 : ((r + 0.055) / 1.055) ** 2.4);
@@ -201,8 +202,10 @@ export async function measureTextureInRects(
 	selector: string,
 	rects: InkSampleRect[],
 	hideSelector?: string,
+	onCapture?: (png: Buffer) => Promise<void>,
 ) {
-	const { image, scaleX, scaleY } = await captureElement(page, selector, hideSelector);
+	const { image, png, scaleX, scaleY } = await captureElement(page, selector, hideSelector);
+	await onCapture?.(png);
 	return rects.map((rect) => {
 		const { x0, y0, x1, y1 } = pngBounds(rect, image, scaleX, scaleY);
 		let sum = 0;

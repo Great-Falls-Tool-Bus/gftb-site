@@ -547,11 +547,11 @@ js_test(
         "GF_RBE_CHROMIUM_EXECUTABLE": "/bin/chromium",
         "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
     },
-    # Running alone keeps the suite's software rendering off a host that is
-    # busy with the rest of the validation suite.
+    # Run alone when local so software rendering does not contend with the
+    # other tests; remote execution remains eligible.
     tags = [
         "browser-acceptance",
-        "exclusive",
+        "exclusive-if-local",
     ],
     timeout = "long",
 )
