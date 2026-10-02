@@ -165,6 +165,15 @@ goals-manifest-build:
 goals-manifest-check:
     cd {{ root }} && bazelisk test //:goals_manifest_drift_test
 
+# Derive src/lib/generated/hours-manifest.ts from src/content/hours/*.json,
+# PUBLISHED entries only and clock-free: the goals-manifest pattern for the
+# staffed work sessions on the bus (operator interview 2026-10-02).
+hours-manifest-build:
+    cd {{ root }} && node scripts/build-hours-manifest.mjs
+
+hours-manifest-check:
+    cd {{ root }} && bazelisk test //:hours_manifest_drift_test
+
 conformance:
     cd {{ root }} && bazelisk test //:bazel_output_contract_test
 

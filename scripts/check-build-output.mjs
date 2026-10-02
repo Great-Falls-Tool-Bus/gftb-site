@@ -36,6 +36,7 @@ import process from 'node:process';
 
 import { readLogEntries, distinctiveDraftLiterals } from './lib/log-content.mjs';
 import { readGoalEntries, distinctiveDraftGoalLiterals } from './lib/goals-content.mjs';
+import { readHoursEntries, distinctiveDraftHoursLiterals } from './lib/hours-content.mjs';
 import { LEAK_RULES, REPO_ROOT, UnclassifiedOutputError, scanBuildDirectory } from './lib/leak-scan.mjs';
 
 const options = parseOptions(process.argv.slice(2));
@@ -89,8 +90,17 @@ const draftLogEntries = readLogEntries(path.join(REPO_ROOT, 'src', 'content', 'l
 const draftDeniedLiterals = distinctiveDraftLiterals(draftLogEntries);
 const draftGoalEntries = readGoalEntries(path.join(REPO_ROOT, 'src', 'content', 'goals'));
 const draftGoalDeniedLiterals = distinctiveDraftGoalLiterals(draftGoalEntries);
+// Unpublished hours files contribute only their notes of 20 characters or
+// more: staff names, times and "the bus" already render in the FAQ.
+const draftHoursEntries = readHoursEntries(path.join(REPO_ROOT, 'src', 'content', 'hours'));
+const draftHoursDeniedLiterals = distinctiveDraftHoursLiterals(draftHoursEntries);
 
-const deniedLiterals = [...operatorDeniedLiterals, ...draftDeniedLiterals, ...draftGoalDeniedLiterals];
+const deniedLiterals = [
+	...operatorDeniedLiterals,
+	...draftDeniedLiterals,
+	...draftGoalDeniedLiterals,
+	...draftHoursDeniedLiterals,
+];
 
 let report;
 try {
@@ -127,7 +137,8 @@ console.log(
 		`using ${LEAK_RULES.length} rules, host and mailbox allowlists, ${denyNote}, and ` +
 		`${draftDeniedLiterals.length} unpublished-draft literal(s) from ${draftLogEntries.length} content/log entr` +
 		`${draftLogEntries.length === 1 ? 'y' : 'ies'} plus ${draftGoalDeniedLiterals.length} from ${draftGoalEntries.length} content/goals entr` +
-		`${draftGoalEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
+		`${draftGoalEntries.length === 1 ? 'y' : 'ies'} plus ${draftHoursDeniedLiterals.length} from ${draftHoursEntries.length} content/hours entr` +
+		`${draftHoursEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
 );
 
 function parseOptions(args) {
