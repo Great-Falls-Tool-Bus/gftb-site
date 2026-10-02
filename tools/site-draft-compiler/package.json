@@ -1,6 +1,6 @@
 {
 	"name": "@gftb/site-draft-compiler",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"private": true,
 	"type": "module",
 	"description": "Checked unpublished draft compiler from the gftb_site Bazel module",

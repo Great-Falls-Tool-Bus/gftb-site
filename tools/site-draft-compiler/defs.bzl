@@ -139,7 +139,7 @@ def site_draft_compiler_targets():
         # npm_link_package consumers receive this complete dependency closure.
         data = [":site_draft_compiler_runtime_dependencies"],
         package = "@gftb/site-draft-compiler",
-        version = "0.3.0",
+        version = "0.3.1",
         root_paths = ["."],
         replace_prefixes = {
             "site-draft-compiler-runtime/": "",
