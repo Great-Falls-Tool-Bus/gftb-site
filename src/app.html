@@ -31,6 +31,10 @@
 			// light-switch trade (attribute keying replaces the media-query dark
 			// block, so dark requires the attribute to be set).
 			(function () {
+				// Scripts run, whatever the motion setting: CSS keyed to html.js
+				// reserves room for what a script will swap in after mount (the
+				// work sessions band), which no-JS visitors never get.
+				document.documentElement.classList.add('js');
 				try {
 					var stored = localStorage.getItem('color-mode');
 					var prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

@@ -1555,8 +1555,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* Room for the rows before the swap, from a clock-free upper bound the
- * server writes (--hours-reserve): only where a script will swap them
- * (html.motion-safe-ready), so no-JS and reduced motion keep the plain list. */
+ * server writes (--hours-reserve), so the swap after mount shifts nothing.
+ * Only where a script will swap them: no-JS keeps the plain rule list with
+ * no reserve. With motion allowed (html.motion-safe-ready) the room is the
+ * carousel's one card and controls, or the loop's window of three rows.
+ * Reduced motion and forced colours get the static list of every row, at
+ * any width, so they reserve the whole bound (html.js, set whenever scripts
+ * run). */
 html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 	min-height: calc(var(--hours-row-estimate) + min(var(--hours-reserve) - 1, 1) * 3.75rem);
 }
@@ -1564,6 +1569,12 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 @media (min-width: 48rem) {
 	html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 		min-height: calc(min(var(--hours-reserve), 3) * var(--hours-row-estimate));
+	}
+}
+
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+	html.js .hours-band[data-hours-mode='rules'] .hours-band__body {
+		min-height: calc(var(--hours-reserve) * var(--hours-row-estimate));
 	}
 }
 

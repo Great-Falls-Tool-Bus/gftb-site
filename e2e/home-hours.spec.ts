@@ -164,6 +164,39 @@ test.describe('the published content', () => {
 		await expect(band(page)).not.toContainText('Monday');
 	});
 
+	// The static list (reduced motion, forced colours) shows every row, so the
+	// server render reserves the whole clock-free bound for it whenever scripts
+	// run: the section after the band does not move when the rows swap in.
+	for (const [name, media] of [
+		['reduced motion', { reducedMotion: 'reduce' }],
+		['forced colours', { reducedMotion: 'no-preference', forcedColors: 'active' }],
+	] as const) {
+		test(`with ${name} the swap after mount does not move Notes & Goals`, async ({ page }) => {
+			await page.clock.setFixedTime(NOW);
+			await page.emulateMedia(media);
+			await page.setViewportSize({ width: 1280, height: 900 });
+			const goalsTop = () =>
+				page.evaluate(async () => {
+					await document.fonts.ready;
+					return document.querySelector('#goals')!.getBoundingClientRect().top + window.scrollY;
+				});
+
+			// First paint with scripts on but the bundle held back: the rule rows.
+			const bundle = '**/_app/immutable/**/*.js';
+			await page.route(bundle, (route) => route.abort());
+			await page.goto('/');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'rules');
+			expect(await page.evaluate(() => document.documentElement.classList.contains('js'))).toBe(true);
+			const before = await goalsTop();
+
+			await page.unroute(bundle);
+			await page.goto('/');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+			await expect(band(page).locator('.hours-list > li')).toHaveCount(SESSIONS.length);
+			expect(Math.abs((await goalsTop()) - before)).toBeLessThanOrEqual(1);
+		});
+	}
+
 	test('under 48rem the carousel carries both entries', async ({ page }) => {
 		await page.clock.setFixedTime(NOW);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
