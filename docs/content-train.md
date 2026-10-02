@@ -226,6 +226,14 @@ rows, with the New York offset resolved per date. Unpublished slots never reach
 the manifest, and their notes of 20 characters or more join the build-output
 leak denylist.
 
+The home page shows the published slots in the work sessions band under the
+hero (`src/lib/components/HoursBand.svelte`). The served HTML carries each
+slot's rule text, for example "Thursdays, 3 to 4 PM ET, from 8 October", with
+a mailto RSVP; after mount the band lists dated rows ("Thursday 8 October,
+3 to 4 PM ET", "Weekly" or "2 Mondays", "With Jess" or "With a keyholder",
+"On the bus", and "Today" on the day). With nothing published it says so and
+points at the contact form for a tour.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,

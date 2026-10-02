@@ -121,7 +121,7 @@ whose archive is not public.
 
 ## Home presentation layer
 
-Two enhancement layers sit on the home page, both additive over served HTML
+Three enhancement layers sit on the home page, all additive over served HTML
 that is complete without them.
 
 - The Notes & Goals windshield wiper (`src/lib/wiper/**` and
@@ -132,9 +132,19 @@ that is complete without them.
   row, which is the rollback surface. Nothing about the wiper is stored.
   Contract pins live in `src/lib/wiper/contract.test.ts`; browser rows in
   `e2e/home-goals.spec.ts` and `e2e/wiper-parity.spec.ts`.
+- The work sessions band (`src/lib/components/HoursBand.svelte`,
+  `src/lib/hours-{band,format}.ts`; operator interview 2026-10-02) sits
+  beneath the hero. Its served HTML is clock-free rule text or the empty
+  state; after mount the rows are dated on the visitor's clock and become a
+  carousel under 48rem or a right-hand loop at 48rem and up that pauses on
+  hover, on focus and by its own button. Reduced motion, forced colours, a
+  short list and scripts off all render the static list, and the band clips
+  its own overflow. Rows in `e2e/home-hours.spec.ts`.
 - The first-load intro (`src/lib/intro/**`,
   `src/lib/components/{HomeIntro,BusMark}.svelte`, the sync script in
-  `src/app.html`, the "Home intro" block in `src/app.css`) uses no storage.
+  `src/app.html`, the "Home intro" block in `src/app.css`) lands the work
+  sessions band under the header once the Notes & Goals canvases are ready,
+  and uses no storage.
   Any input, a hidden tab, a URL fragment, reduced motion, forced colours, or
   any scroll that is not its own cancels it; focus is never moved. Pins in
   `src/lib/intro/contract.test.ts`; rows in `e2e/home-intro.spec.ts`.
@@ -151,6 +161,10 @@ on a build made with `PUBLIC_SUBSCRIBE_CAPTURE=1` (default off, rehearsal
 only). The component publishes its arm decision on
 `<html data-subscribe-capture>`. Specs whose scroll-position premises the
 intro would break opt out through `e2e/support/intro.ts`.
+`window.__gftbHoursFixture`, set before the bundle mounts, stands in for the
+published work-session slots after mount; every entry must pass the content
+schema and be published, or the band ignores the fixture. The band publishes
+its shape on `#hours[data-hours-mode]`.
 
 ## Deployment and package safety
 
