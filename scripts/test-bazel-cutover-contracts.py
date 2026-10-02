@@ -508,6 +508,10 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "build"))
         self.assertIn("bazelisk test //:ci_validation_suite", recipe(self.justfile, "check"))
         self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "check"))
+        self.assertIn(
+            'BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk build //:scanned_build',
+            recipe(self.justfile, "check"),
+        )
         self.assertIn('name = "build"', self.build)
         self.assertIn('name = "scanned_build"', self.build)
         self.assertIn('name = "deployment_bundle"', self.build)
