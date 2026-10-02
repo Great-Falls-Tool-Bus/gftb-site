@@ -7,6 +7,5 @@ dist
 coverage
 test-results
 playwright-report
-.lighthouseci
 tmp
 static/agreements
