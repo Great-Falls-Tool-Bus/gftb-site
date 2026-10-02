@@ -234,6 +234,37 @@ a mailto RSVP; after mount the band lists dated rows ("Thursday 8 October,
 "On the bus", and "Today" on the day). With nothing published it says so and
 points at the contact form for a tour.
 
+### Change the hours
+
+Visitors see a change only after it is merged, built and released, so make
+it as early as you can. Until the release lands, the site still shows the
+old sessions and still takes RSVPs for them.
+
+- Cancel one date: add it to `skip`, for example `"skip": ["2026-10-15"]`.
+  The rule text then says "except 15 October".
+- End a series: set `published: false`, or end it with `repeat.until` or
+  `repeat.count`.
+- Add a session: add a slot file, or change `weekday`, `start`, `end` or
+  `repeat` on an existing one.
+- Name a new staffer: record their consent first, then add the first name to
+  `CONSENTED_STAFF` in both `src/lib/public-hours-schema.ts` and
+  `scripts/lib/hours-content.mjs`.
+
+Then, in the same pull request:
+
+1. Run `just hours-manifest-build` and commit the regenerated
+   `src/lib/generated/hours-manifest.ts`.
+2. Update the rows that pin the published content: `RULES`, `SESSIONS` and
+   the "the published content" rows in `e2e/home-hours.spec.ts`, and the
+   published-content row in `e2e/home-rsvp.spec.ts`.
+3. Run `just check` and post the receipt from a Linux lab host.
+
+After the merge, the attended `web-release-*` run from
+`great-falls-tool-bus-infra` puts the change live (see
+[operating-rules.md](operating-rules.md), "Role and authority"). For a
+cancelled date, a keyholder writes back by hand to anyone whose RSVP for
+that date is already in keyholders@latoolb.us.
+
 ## Home Notes & Goals, help asks, and member benefits
 
 The home page's "Notes & Goals" row renders from `src/content/goals/*.md`,

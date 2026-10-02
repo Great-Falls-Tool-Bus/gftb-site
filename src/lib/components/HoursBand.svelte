@@ -90,6 +90,16 @@
 		document.querySelector<HTMLElement>('#contact a.button')?.focus();
 	}
 
+	// The loop's duplicate copy is visible for much of every pass, so its RSVP
+	// buttons take clicks too. Each one hands over to the button for the same
+	// session in the first copy (a press never focuses the hidden copy): focus
+	// lands on a reachable control, which onLoopFocusIn brings into the window
+	// and the dialog returns to on close.
+	function openRsvpFromDuplicate(row: HoursBandRow) {
+		const button = loopList?.querySelector<HTMLElement>(`[data-rsvp-id="${CSS.escape(row.id)}"]`);
+		if (button) openRsvp(row, button);
+	}
+
 	function onTrackScroll() {
 		if (scrollFrame) return;
 		scrollFrame = requestAnimationFrame(() => {
@@ -154,7 +164,7 @@
 	}
 </script>
 
-{#snippet sessionRow(row: HoursBandRow, hydrated: boolean)}
+{#snippet sessionRow(row: HoursBandRow, hydrated: boolean, duplicate: boolean)}
 	<li class="hours-row">
 		<p class="hours-row__when">
 			{#if row.today}<strong class="hours-row__today">Today</strong>{/if}
@@ -167,10 +177,20 @@
 		</ul>
 		{#if row.notes}<p class="hours-row__notes">{row.notes}</p>{/if}
 		<div class="hours-row__action">
-			{#if hydrated}
+			{#if hydrated && duplicate}
 				<button
 					type="button"
 					class="button button--secondary"
+					tabindex="-1"
+					aria-label={`RSVP for ${row.when}`}
+					onmousedown={(event) => event.preventDefault()}
+					onclick={() => openRsvpFromDuplicate(row)}>RSVP</button
+				>
+			{:else if hydrated}
+				<button
+					type="button"
+					class="button button--secondary"
+					data-rsvp-id={row.id}
 					aria-label={`RSVP for ${row.when}`}
 					onclick={(event) => openRsvp(row, event.currentTarget)}>RSVP</button
 				>
@@ -219,7 +239,7 @@
 			<div class="hours-carousel" role="region" aria-label="Upcoming work sessions">
 				<ol class="hours-list hours-carousel__track" bind:this={track} onscroll={onTrackScroll}>
 					{#each rows as row (row.id)}
-						{@render sessionRow(row, true)}
+						{@render sessionRow(row, true, false)}
 					{/each}
 				</ol>
 				<div class="hours-carousel__controls">
@@ -265,14 +285,17 @@
 				<div class="hours-loop__track">
 					<ol class="hours-list" bind:this={loopList}>
 						{#each rows as row (row.id)}
-							{@render sessionRow(row, true)}
+							{@render sessionRow(row, true, false)}
 						{/each}
 					</ol>
-					<!-- The second copy only closes the loop: inert and hidden from
-					     assistive technology, so the rows are read and reached once. -->
-					<ol class="hours-list hours-loop__dup" aria-hidden="true" inert>
+					<!-- The second copy only closes the loop: hidden from assistive
+					     technology and out of the tab order (tabindex -1), so the rows
+					     are read and reached once. It is not inert, because it fills
+					     the window for much of each pass and its RSVP must still take a
+					     click; that click opens the RSVP from the first copy. -->
+					<ol class="hours-list hours-loop__dup" aria-hidden="true">
 						{#each rows as row (row.id)}
-							{@render sessionRow(row, true)}
+							{@render sessionRow(row, true, true)}
 						{/each}
 					</ol>
 				</div>
@@ -280,7 +303,7 @@
 		{:else}
 			<ol class="hours-list">
 				{#each rows as row (row.id)}
-					{@render sessionRow(row, mounted)}
+					{@render sessionRow(row, mounted, false)}
 				{/each}
 			</ol>
 		{/if}

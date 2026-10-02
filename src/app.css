@@ -1500,7 +1500,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
  * copy on --highlight-contrast, headings, anchors and control edges on
  * --highlight-heading (both pairs swept by design-token-contrast.test.ts in
  * both schemes; the livery does not flip). Not glass and not a card: radius
- * 0, the site .button in its secondary form, rows parted by a rule. That
+ * 0, the site .button in its secondary form, rows parted by air (the
+ * 2026-08-30 borderless/never-cards ruling stands for this band). That
  * ruling supersedes the 2026-09-09 rotator ruling and the 2026-09-19
  * hours-in-FAQ ruling for this band: under 48rem a carousel (CSS scroll snap,
  * one card per view, steps and dots, no auto-advance), at 48rem and up a
@@ -1514,8 +1515,10 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--heading: var(--highlight-heading);
 	--link: var(--highlight-heading);
 	--accent: var(--highlight-heading);
-	--hours-rule: color-mix(in oklab, var(--highlight-heading) 40%, transparent);
 	--hours-row-estimate: 6.5rem;
+	/* One row of the static list: at 48rem and up its rows sit on one line
+	 * beside the RSVP button, so they are shorter than a carousel card. */
+	--hours-static-row-estimate: 6.5rem;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	gap: 1.25rem 2.5rem;
@@ -1527,6 +1530,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 @media (min-width: 48rem) {
 	.page-shell > .hours-band {
+		--hours-static-row-estimate: 5.375rem;
 		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
 		align-items: start;
 	}
@@ -1545,6 +1549,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: 1.25rem;
 }
 
+/* Pressed (the loop is held): filled, so a sighted visitor sees the toggle's
+ * state, not only a screen reader. The same pair as the Today mark. */
+.hours-band__pause[aria-pressed='true'] {
+	background: var(--highlight-heading);
+	color: var(--highlight);
+}
+
 .hours-band__empty {
 	margin: 0;
 }
@@ -1555,8 +1566,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* Room for the rows before the swap, from a clock-free upper bound the
- * server writes (--hours-reserve): only where a script will swap them
- * (html.motion-safe-ready), so no-JS and reduced motion keep the plain list. */
+ * server writes (--hours-reserve), so the swap after mount shifts nothing.
+ * Only where a script will swap them: no-JS keeps the plain rule list with
+ * no reserve. With motion allowed (html.motion-safe-ready) the room is the
+ * carousel's one card and controls, or the loop's window of three rows.
+ * Reduced motion and forced colours get the static list of every row, at
+ * any width, so they reserve the whole bound (html.js, set whenever scripts
+ * run). */
 html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 	min-height: calc(var(--hours-row-estimate) + min(var(--hours-reserve) - 1, 1) * 3.75rem);
 }
@@ -1564,6 +1580,12 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 @media (min-width: 48rem) {
 	html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 		min-height: calc(min(var(--hours-reserve), 3) * var(--hours-row-estimate));
+	}
+}
+
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+	html.js .hours-band[data-hours-mode='rules'] .hours-band__body {
+		min-height: calc(var(--hours-reserve) * var(--hours-static-row-estimate));
 	}
 }
 
@@ -1578,7 +1600,6 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 0.35rem 1rem;
-	border-top: 1px solid var(--hours-rule);
 	padding-block: 0.9rem;
 }
 
@@ -1666,7 +1687,6 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 .hours-carousel__track > .hours-row {
 	grid-template-columns: minmax(0, 1fr);
 	align-content: start;
-	border: 2px solid var(--highlight-heading);
 	padding: 1rem;
 	scroll-snap-align: start;
 }

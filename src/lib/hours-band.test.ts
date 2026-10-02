@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -11,6 +13,7 @@ import {
 	type HoursModeInput,
 } from './hours-band';
 import { upcomingSessions } from './hours-recurrence';
+import { publicHoursSlots } from './public-hours';
 import { assertPublicHoursSlot } from './public-hours-schema';
 
 const thursdayInput = {
@@ -195,6 +198,52 @@ describe('reserveRows (the clock-free room the server keeps)', () => {
 			'2026-11-20T12:00:00Z',
 		]) {
 			expect(upcomingSessions(slots, new Date(iso)).length).toBeLessThanOrEqual(reserveRows(slots));
+		}
+	});
+});
+
+describe('the server render is clock-free', () => {
+	const savedTz = process.env.TZ;
+
+	afterEach(() => {
+		vi.useRealTimers();
+		if (savedTz === undefined) delete process.env.TZ;
+		else process.env.TZ = savedTz;
+	});
+
+	// What the prerendered home HTML is built from: the rule rows and the
+	// reserve, for the published content and for the fixtures above. The
+	// cached build must not bake in the build day.
+	function serverRender() {
+		return JSON.stringify([publicHoursSlots, [thursday, monday]].map((slots) => [ruleRows(slots), reserveRows(slots)]));
+	}
+
+	it('renders identical rows under two wall clocks and two time zones', () => {
+		vi.useFakeTimers();
+		process.env.TZ = 'UTC';
+		vi.setSystemTime(new Date('2026-10-02T16:00:00Z'));
+		const first = serverRender();
+		process.env.TZ = 'Pacific/Auckland';
+		vi.setSystemTime(new Date('2027-03-14T06:30:00Z'));
+		const second = serverRender();
+		expect(second).toBe(first);
+		expect(first).not.toContain('"datetime"');
+		expect(first).toContain('Thursdays, 3 to 4 PM ET');
+	});
+
+	it('reads no clock and no locale on the server path', () => {
+		const read = (relative: string) => readFileSync(path.resolve(__dirname, relative), 'utf8');
+		const clockOrLocale = /Date\.now\(|new Date\(|performance\.now\(|toLocale|Intl\./u;
+		for (const file of ['hours-format.ts', 'public-hours.ts', 'components/HoursBand.svelte']) {
+			expect(read(file), file).not.toMatch(clockOrLocale);
+		}
+		// hours-band.ts reads the visitor's clock in rowsOnVisitorClock only.
+		const band = read('hours-band.ts');
+		for (const name of ['ruleRows', 'reserveRows', 'datedRows', 'chooseHoursMode']) {
+			const start = band.indexOf(`export function ${name}(`);
+			expect(start, name).toBeGreaterThanOrEqual(0);
+			const end = band.indexOf('\n}\n', start);
+			expect(band.slice(start, end), name).not.toMatch(clockOrLocale);
 		}
 	});
 });
