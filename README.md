@@ -29,8 +29,8 @@ Push branches to `origin` and open pull requests from there; see
 [CONTRIBUTING.md](CONTRIBUTING.md) and
 [docs/operating-rules.md](docs/operating-rules.md).
 
-`just setup` installs the locked dependencies. `just dev` starts the
-development server. Run `just` to list all recipes. Do not run package or build tools
+`just setup` installs the shared git hooks and the locked dependencies.
+`just dev` starts the development server. Run `just` to list all recipes. Do not run package or build tools
 directly. Nix supplies the tools; the Justfile supplies the commands.
 
 | Task | Command |
