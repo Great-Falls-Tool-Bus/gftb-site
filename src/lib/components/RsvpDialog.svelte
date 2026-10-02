@@ -19,6 +19,7 @@
 	// The Dialog anatomy is the one SubscribeCapture.svelte adopted (see the
 	// ADOPTION RECORD there); the dress is this file's own :global block.
 	import { onMount, tick } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { contactApiUrl, contactChallengeUrl, hasErrors, isHoneypotTripped } from '$lib/contact-form';
 	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '$lib/altcha-loader';
@@ -58,7 +59,7 @@
 	let emailEl = $state<HTMLInputElement | undefined>();
 	let sentEmail = $state('');
 	/** Slots sent from this page view; memory only, never stored. */
-	const sent = new Set<string>();
+	const sent = new SvelteSet<string>();
 	let trigger: HTMLElement | null = null;
 
 	const mailtoHref = $derived(buildRsvpMailtoHref(keyholders, slot, { handle: values.handle, note: values.note }));
