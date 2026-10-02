@@ -774,13 +774,27 @@ function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi
 
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/');
-		await page.waitForLoadState('networkidle');
-		await setScheme(page, scheme);
-		await pane(page).scrollIntoViewIfNeeded();
-		await pointerAway(page);
-		await awaitTier(page);
+		// Source-test timing only, not SLO evidence. Retire these markers once the
+		// blocked await is fixed and this existing browser case is qualified.
+		const timed = async (label: string, work: () => Promise<void>) => {
+			const started = performance.now();
+			console.log(`[blade-phase:${scheme}] ${label} start t=${started.toFixed(1)}ms`);
+			await work();
+			console.log(`[blade-phase:${scheme}] ${label} complete +${(performance.now() - started).toFixed(1)}ms`);
+		};
+		await timed('navigation', async () => {
+			await page.setViewportSize({ width: 1440, height: 900 });
+			await page.goto('/');
+			await page.waitForLoadState('networkidle');
+		});
+		await timed('scheme', async () => {
+			await setScheme(page, scheme);
+		});
+		await timed('tier', async () => {
+			await pane(page).scrollIntoViewIfNeeded();
+			await pointerAway(page);
+			await awaitTier(page);
+		});
 		const box = await page.locator('#goals .goal-list').evaluate((el) => {
 			const r = el.getBoundingClientRect();
 			return { width: r.width, height: r.height };
@@ -835,17 +849,27 @@ for (const scheme of ['light', 'dark'] as const) {
 			);
 			await page.waitForTimeout(150);
 		};
-		await hold(targets[0].unit);
-		await selectDetent(page, 'High');
-		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
-		await hold(targets[0].unit);
-		expect(await peak(targets[0].rect), 'left blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
-		await hold(targets[1].unit);
-		expect(await peak(targets[1].rect), 'right blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		await timed('initial hold', async () => {
+			await hold(targets[0].unit);
+		});
+		await timed('High and wiping', async () => {
+			await selectDetent(page, 'High');
+			await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+		});
+		await timed('left hold and capture', async () => {
+			await hold(targets[0].unit);
+			expect(await peak(targets[0].rect), 'left blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		});
+		await timed('right hold and capture', async () => {
+			await hold(targets[1].unit);
+			expect(await peak(targets[1].rect), 'right blade on its ray').toBeGreaterThanOrEqual(BLADE_CONTRAST);
+		});
 		// At the vertical both blades stand over the span midpoints, far from either gutter.
-		await hold('0.5');
-		expect(await peak(targets[0].rect), 'left gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
-		expect(await peak(targets[1].rect), 'right gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+		await timed('vertical hold and captures', async () => {
+			await hold('0.5');
+			expect(await peak(targets[0].rect), 'left gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+			expect(await peak(targets[1].rect), 'right gutter with the blade elsewhere').toBeLessThan(BLADE_CONTRAST);
+		});
 		await page.evaluate(() => {
 			delete document.documentElement.dataset.wiperFreeze;
 		});
