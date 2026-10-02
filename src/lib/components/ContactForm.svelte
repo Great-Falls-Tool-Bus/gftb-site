@@ -124,6 +124,10 @@
 		     knows: the request was accepted. -->
 		<h3>Thanks. Your note has been sent.</h3>
 		<p>A keyholder will reply to the email address you provided.</p>
+		<p>
+			Replies usually come within three business days. The usual next step is an invitation to visit the bus for a tour
+			or a work session, and membership applications open after that visit.
+		</p>
 	</div>
 {:else}
 	<form class="contact-form" method="post" action={contactApiUrl(formEndpoint)} onsubmit={handleSubmit} novalidate>
@@ -189,6 +193,10 @@
 		<button class="button" type="submit" disabled={status === 'submitting'}>
 			{status === 'submitting' ? 'Sending…' : 'Send to keyholders'}
 		</button>
+		<p>
+			A keyholder reads every message and replies by email, usually within three business days. The usual next step is
+			an invitation to visit the bus for a tour or a work session. Membership applications open after that visit.
+		</p>
 		<noscript>
 			<p>Email <a href={`mailto:${keyholders}`}>{keyholders}</a> if JavaScript is unavailable.</p>
 		</noscript>
