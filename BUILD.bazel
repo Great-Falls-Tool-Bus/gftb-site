@@ -529,12 +529,9 @@ js_test(
         "GF_RBE_CHROMIUM_EXECUTABLE": "/bin/chromium",
         "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
     },
-    # The harness serves loopback only. Its own network namespace also keeps
-    # host interface churn from failing navigations with ERR_NETWORK_CHANGED,
-    # and running alone keeps the suite's software rendering off a host that
-    # is busy with the rest of the validation suite.
+    # Running alone keeps the suite's software rendering off a host that is
+    # busy with the rest of the validation suite.
     tags = [
-        "block-network",
         "browser-acceptance",
         "exclusive",
     ],
