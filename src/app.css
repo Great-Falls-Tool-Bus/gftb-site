@@ -1516,6 +1516,9 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	--link: var(--highlight-heading);
 	--accent: var(--highlight-heading);
 	--hours-row-estimate: 6.5rem;
+	/* One row of the static list: at 48rem and up its rows sit on one line
+	 * beside the RSVP button, so they are shorter than a carousel card. */
+	--hours-static-row-estimate: 6.5rem;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	gap: 1.25rem 2.5rem;
@@ -1527,6 +1530,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 @media (min-width: 48rem) {
 	.page-shell > .hours-band {
+		--hours-static-row-estimate: 5.375rem;
 		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
 		align-items: start;
 	}
@@ -1581,7 +1585,7 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 
 @media (prefers-reduced-motion: reduce), (forced-colors: active) {
 	html.js .hours-band[data-hours-mode='rules'] .hours-band__body {
-		min-height: calc(var(--hours-reserve) * var(--hours-row-estimate));
+		min-height: calc(var(--hours-reserve) * var(--hours-static-row-estimate));
 	}
 }
 

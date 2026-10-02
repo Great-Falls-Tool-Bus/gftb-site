@@ -257,6 +257,7 @@ test.describe('the RSVP dialog', () => {
 		await trigger.click();
 		await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText('Already sent');
 		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
 		await next.click();
 		await expect(page.getByRole('dialog').getByRole('heading', { level: 2 })).toHaveText('RSVP for a work session');
 		expect(capture.payloads).toHaveLength(1);
