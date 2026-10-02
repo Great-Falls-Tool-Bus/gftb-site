@@ -103,6 +103,34 @@ class StaticOutputTests(unittest.TestCase):
             self.assertIn("serve-static", command)
             self.assertEqual(self._transaction_residues(root), [])
 
+    def test_read_only_bazel_directories_materialize_owner_writable(self) -> None:
+        # Bazel 9.2 emits read-only output directories; the move must still publish.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "tinyland.repo.json"
+            manifest.write_text('{"taxonomy":{"primary_role":"static-spoke"}}', encoding="utf-8")
+            source = root / "bazel-bin" / "scanned-build"
+            destination = root / "build"
+            (source / "nested").mkdir(parents=True)
+            (source / "index.html").write_bytes(b"index")
+            (source / "nested" / "asset.bin").write_bytes(b"\x00asset")
+            read_only = [source / "nested" / "asset.bin", source / "index.html", source / "nested", source]
+            for path in read_only:
+                os.chmod(path, 0o555 if path.is_dir() else 0o444)
+            try:
+                expected = self._tree_bytes(source)
+                materialize_tree(source, Path("build"), Path("index.html"), manifest)
+            finally:
+                for path in reversed(read_only):
+                    os.chmod(path, 0o755 if path.is_dir() else 0o644)
+
+            self.assertEqual(self._tree_bytes(destination), expected)
+            for directory in (destination, destination / "nested"):
+                with self.subTest(directory=directory):
+                    self.assertTrue(directory.stat().st_mode & 0o200)
+            self.assertEqual((destination / "index.html").stat().st_mode & 0o777, 0o444)
+            self.assertEqual(self._transaction_residues(root), [])
+
     def test_second_materialization_fails_before_transaction_and_preserves_exact_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -361,7 +389,6 @@ class StaticOutputTests(unittest.TestCase):
             "_delete_cleanup_entries",
             "_remove_owned_transaction",
             "os.walk(",
-            ".chmod(",
             "os.fchmod(",
             "os.unlink(",
             "os.replace(",
@@ -369,6 +396,12 @@ class StaticOutputTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, implementation)
         self.assertEqual(implementation.count("os.rmdir("), 1)
+        # The one permitted mode change grants owner write to staged directories
+        # before publication; it never serves cleanup.
+        self.assertEqual(implementation.count(".chmod("), 2)
+        self.assertEqual(implementation.count("os.chmod(directory, "), 1)
+        self.assertEqual(implementation.count("os.chmod(stage_fd, "), 1)
+        self.assertEqual(implementation.count("_grant_owner_write_to_staged_directories("), 2)
 
     def test_materialize_destination_is_one_allowlisted_manifest_child(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
