@@ -175,10 +175,12 @@ test.describe('the published content', () => {
 			await page.clock.setFixedTime(NOW);
 			await page.emulateMedia(media);
 			await page.setViewportSize({ width: 1280, height: 900 });
+			// Measured from the band's own top, so only the band's height counts.
 			const goalsTop = () =>
 				page.evaluate(async () => {
 					await document.fonts.ready;
-					return document.querySelector('#goals')!.getBoundingClientRect().top + window.scrollY;
+					const top = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().top;
+					return top('#goals') - top('#hours');
 				});
 
 			// First paint with scripts on but the bundle held back: the rule rows.
