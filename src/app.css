@@ -1545,6 +1545,13 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: 1.25rem;
 }
 
+/* Pressed (the loop is held): filled, so a sighted visitor sees the toggle's
+ * state, not only a screen reader. The same pair as the Today mark. */
+.hours-band__pause[aria-pressed='true'] {
+	background: var(--highlight-heading);
+	color: var(--highlight);
+}
+
 .hours-band__empty {
 	margin: 0;
 }

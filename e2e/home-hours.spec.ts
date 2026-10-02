@@ -418,13 +418,18 @@ test.describe('with sessions on a fixed clock', () => {
 		await expect.poll(playState).toBe('running');
 
 		const pause = band(page).getByRole('button', { name: 'Pause the list' });
+		const pauseFill = () => pause.evaluate((element) => getComputedStyle(element).backgroundColor);
+		const unpressedFill = await pauseFill();
 		await pause.click();
 		await expect(pause).toHaveAttribute('aria-pressed', 'true');
+		// The pressed state shows: the button fills.
+		expect(await pauseFill()).not.toBe(unpressedFill);
 		await pause.blur();
 		await page.mouse.move(0, 0);
 		await expect.poll(playState).toBe('paused');
 		await pause.click();
 		await expect(pause).toHaveAttribute('aria-pressed', 'false');
+		expect(await pauseFill()).toBe(unpressedFill);
 		await pause.blur();
 		await page.mouse.move(0, 0);
 		await expect.poll(playState).toBe('running');
