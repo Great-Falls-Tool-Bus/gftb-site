@@ -13,19 +13,24 @@ Inc.  GFTB is an alpha adopter of the GloriousFlywheel build system.
 
 ## Start work
 
-You need Git and Nix. Clone the public source and enter the pinned Nix shell.
-Then use Just for repository operations:
+You need Git, Nix, and the GitHub CLI. Work happens on your own fork: fork and
+clone it, enter the pinned Nix shell, then use Just for repository operations:
 
 ```bash
-git clone https://github.com/Great-Falls-Tool-Bus/gftb-site.git
+gh repo fork Great-Falls-Tool-Bus/gftb-site --clone --remote
 cd gftb-site
 nix develop
 just setup
 just dev
 ```
 
-`just setup` installs the locked dependencies. `just dev` starts the development
-server. Run `just` to list all recipes. Do not run package or build tools
+The fork command names your fork `origin` and this repository `upstream`.
+Push branches to `origin` and open pull requests from there; see
+[CONTRIBUTING.md](CONTRIBUTING.md) and
+[docs/operating-rules.md](docs/operating-rules.md).
+
+`just setup` installs the locked dependencies. `just dev` starts the
+development server. Run `just` to list all recipes. Do not run package or build tools
 directly. Nix supplies the tools; the Justfile supplies the commands.
 
 | Task | Command |

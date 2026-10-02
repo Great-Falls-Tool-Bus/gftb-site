@@ -1,25 +1,17 @@
-## Summary
+## What changed
 
-<!-- One-paragraph description of what this PR changes and why. -->
+<!-- What this pull request changes and why, in a few sentences. -->
 
-## Contract reference
+## Gate receipt
 
-<!-- Point to AGENTS.md, docs/CI-SCHEMA.md, or the public-content rule affected. -->
+<!--
+Paste the last lines of `just check` from a Linux lab host for this pull
+request's head commit, naming the host and the commit. See
+docs/operating-rules.md and docs/CI-SCHEMA.md.
+-->
 
-## Validation
+## Checklist
 
-- [ ] Remote CI `spoke-ci` is green
-- [ ] `just conformance` or its remote equivalent is green
-- [ ] `just inhouse-package-parity` or its remote equivalent is green
-- [ ] No new gitleaks findings
-- [ ] GFTB Skeleton `5.0.0` exact pin preserved
-- [ ] Bazel graph / RBE proof evidence is linked when Bazel authority changes
-- [ ] QA review requested (out of band; QA reviewers hold Triage).
-
-## Screenshots / Output
-
-<!-- For UI changes, include before/after screenshots or command output. -->
-
-## Risk
-
-<!-- What could break? What's the rollback path? -->
+- [ ] Opened from a fork, not from a branch on this repository
+- [ ] Every commit is signed
+- [ ] No AI attribution in commits or in this description
