@@ -1096,12 +1096,8 @@ for (const scheme of ['light', 'dark'] as const) {
 		// Move the hold near the turnaround: the right blade has passed the
 		// lower right gutter too.
 		await holdStroke(page, '0.98');
-		const late = await measureTextureInRects(
-			page,
-			'#goals canvas.wiper__scene',
-			[rests.rightLow],
-			GLASS_HIDE,
-			(png) => attachBlade('blade-late', png, 'image/png', 'png'),
+		const late = await measureTextureInRects(page, '#goals canvas.wiper__scene', [rests.rightLow], GLASS_HIDE, (png) =>
+			attachBlade('blade-late', png, 'image/png', 'png'),
 		);
 		await attachBlade(
 			'blade-late-metrics',
