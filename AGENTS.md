@@ -125,7 +125,12 @@ is not public.
   That bundle depends on `//:scanned_build`, never directly on `//:build`.
 - No GitHub Actions workflow runs on push or pull request (operator ruling
   2026-09-28); the former `.github/workflows/ci.yml` v4 caller is removed and
-  the pre-merge gate is a lab-host `just check` receipt posted on the PR. The
+  the pre-merge gate is a lab-host `just check` receipt or the ruling's
+  equivalent-validator receipt posted on the PR. For this workflow-retirement
+  change, existing `just conformance`, `just workflow-validate`,
+  `just skills-validate`, and `just secrets-scan-dir` check the changed source
+  surfaces on the exact signed head. The full `just check` suite remains unrun
+  until GF-provisioned `/bin/chromium` is available. The
   adopting organization installs its own App, controller, overlay, and generic
   `gf-v4-dispatch` edge; this repository does not enumerate or select them.
   There is no v3, local, cache-only, hosted, direct-endpoint, or
@@ -141,9 +146,10 @@ is not public.
 ### Which CI job runs which gate
 
 The GitHub caller for these actions was removed under the 2026-09-28 operator
-ruling. Until a lab-host or in-cluster caller submits them, a lab-host
-`just check` (the same `//:ci_validation_suite`) posted on the PR is the
-pre-merge gate. The action plan is unchanged:
+ruling. Until a lab-host or in-cluster caller submits them, the PR carries
+the lab-host `just check` receipt or the bounded equivalent-validator source
+receipt described above. Neither is a v4 action result. The action plan is
+unchanged:
 
 | Former caller job | Action plan entry | Requested Bazel action |
 | --- | --- | --- |

@@ -8,8 +8,15 @@ Operator ruling 2026-09-28: GitHub Actions leave every GFTB repository. No
 workflow here runs on push or pull request. The former thin v4 caller
 (`.github/workflows/ci.yml`) and the signed-commits check
 (`.github/workflows/signed-commits.yml`) are removed. The pre-merge gate is a
-lab-host `just check` receipt (host, commit, exit status) posted on the PR,
-with commit signatures verified at that head. The remaining
+lab-host `just check` receipt or the ruling's equivalent-validator receipt
+posted on the PR. For this workflow-retirement source change, the equivalent
+check is the existing `just conformance`, `just workflow-validate`,
+`just skills-validate`, and `just secrets-scan-dir` on the exact signed head,
+with host, commit, and each exit status recorded. It qualifies only the
+changed source surfaces. The unchanged full `just check` suite includes five
+Chromium acceptance specs that require GF-provisioned `/bin/chromium`; no
+ambient lab browser, download, or substitute qualifies that target. Full
+action execution and deployed LOOK remain separate evidence. The remaining
 `container-ghcr.yml` is dispatch-only and is deleted when its lab-host `just`
 recipe lands. The generic `gf-v4-dispatch` edge is provisioned by the adopting
 organization, not selected by this repository.
