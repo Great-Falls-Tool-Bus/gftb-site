@@ -134,6 +134,7 @@ test('browsers without a permission API never arm and still mount the layer', as
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await holdVectorMount(page, 'absent');
 	await guardedPage();
+	await expect(html(page)).toHaveAttribute('data-vector-mount-waiting', 'true');
 	await releaseMount(page);
 	await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
 	await neutralSpot(page).click();
@@ -147,6 +148,7 @@ test('the contact page never borrows a tap', async ({ page, guardedPage }) => {
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await holdVectorMount(page, 'granted');
 	await guardedPage('/contact');
+	await expect(html(page)).toHaveAttribute('data-vector-mount-waiting', 'true');
 	await releaseMount(page);
 	await expect(page.getByTestId('brand-vectors-bg')).toHaveCount(1);
 	await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
