@@ -1,9 +1,9 @@
 // The home page's first-load intro (operator rulings 2026-09-10 and
 // 2026-09-19, the mark drives in and parks): armed
 // before first paint on every full load, self-hiding with no bundle, the
-// veil held until the wiper stack has hydrated, landing the work sessions
-// band under the header (operator interview 2026-10-02: the scroll target is
-// #hours, while readiness is still read from the #goals canvases), replayed
+// veil held until the wiper stack has hydrated, landing Notes & Goals under
+// the header (the work sessions band left the top of the page on 2026-10-02,
+// so the scroll target is #goals again, the readiness source too), replayed
 // on a reload, never under reduce, a fragment, the data-intro-off hook, JS
 // off or paper, cancelled by any input, and never in the way of the skip
 // link.
@@ -17,7 +17,7 @@ const state = (page: Page) => page.evaluate(() => document.documentElement.datas
 const visibility = (page: Page) => intro(page).evaluate((el) => getComputedStyle(el).visibility);
 const targetTop = (page: Page) =>
 	page.evaluate(() => {
-		const target = document.querySelector('#hours');
+		const target = document.querySelector('#goals');
 		if (!target) return null;
 		const margin = Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
 		const max = document.documentElement.scrollHeight - window.innerHeight;

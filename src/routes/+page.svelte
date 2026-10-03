@@ -141,15 +141,6 @@
 </section>
 
 <div class="page-shell">
-	<!-- Work sessions on the bus (operator interview 2026-10-02): the band sits
-	     beneath the hero and above Notes & Goals, as the first child of the
-	     page shell. That ruling supersedes the 2026-09-19 hours-in-FAQ ruling and
-	     the 2026-09-09 rotator ruling for this band only: under 48rem a
-	     carousel, at 48rem and up a right-hand vertical loop that pauses on
-	     hover and on focus, and a static list under reduced motion and without
-	     JavaScript. No use:reveal: it is the first thing under the hero. -->
-	<HoursBand />
-
 	<!-- Row 4 (spec §3 :88): notes, goals and specific ways to help. -->
 	<section
 		class="section section--bare reveal-armed"
@@ -266,26 +257,34 @@
 				     2026-09-19). One spelling of the hours inside this section; the two
 				     Notes and Goals panes carry the same window in their own
 				     frontmatter. Operator interview 2026-10-02: the Thursday window is
-				     3 to 4 PM ET; dated sessions appear in the work sessions band under
-				     the hero, and this answer points at it (#hours). Naming consent
+				     3 to 4 PM ET; dated sessions appear in the work sessions band right
+				     after this section, and this answer points at it (#hours). Naming consent
 				     covers the schedule, not a live location. -->
 				<dt>When can I visit the bus?</dt>
 				<dd>
 					Jess is usually working on the bus Thursdays, 3 to 4 PM ET. Please use the
 					<a href="/contact">contact form</a> to confirm before traveling. Exact location details are shared directly,
-					and dated sessions are listed under <a href="#hours">Work sessions on the bus</a> at the top of this page.
+					and dated sessions are listed under <a href="#hours">Work sessions on the bus</a> just below.
 				</dd>
 			</dl>
 			<p class="credit muted">Answers by Tool Bus Member Katherine T., except the visiting hours.</p>
 		</div>
 	</section>
 
+	<!-- Work sessions on the bus (operator interview 2026-10-02; placement
+	     revised the same day): the band sits between the FAQ and the log, a
+	     full-width marquee whose cards scroll right to left and hold still
+	     under a pointer, a press, a hand scroll, keyboard focus and the open
+	     RSVP dialog; a static list under reduced motion and without
+	     JavaScript. It reveals in the same stagger as its neighbours. -->
+	<HoursBand revealDelay={210} />
+
 	<!-- Rows 5 and 6 (spec §3 :89-91): the latest five log entries, then
 	     older entries through the paginated /log archive (its pagination is
 	     plain prerendered links — the no-JavaScript path). Operator ruling
 	     2026-09-01: latest five minified logs on home supersedes the
 	     one-entry row this comment used to describe. -->
-	<section class="section reveal-armed" use:reveal={{ delay: 210 }} id="log" aria-labelledby="log-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="log" aria-labelledby="log-title">
 		<div class="section-heading">
 			<h2 id="log-title">Public log</h2>
 		</div>
@@ -340,7 +339,7 @@
 	     pattern as the hero CTA row, pointing at the contact page and the
 	     sanctioned public discussion board (already a nav-items.ts
 	     destination). -->
-	<section class="section reveal-armed" use:reveal={{ delay: 280 }} id="contact" aria-labelledby="contact-title">
+	<section class="section reveal-armed" use:reveal={{ delay: 350 }} id="contact" aria-labelledby="contact-title">
 		<div class="section-heading">
 			<h2 id="contact-title">Contact and discussion</h2>
 			<p>Reach a keyholder through the <a href="/contact">contact page</a>.</p>

@@ -896,6 +896,8 @@ li {
 .page-shell > .section:not(.section--bare),
 .page-shell > .log-entry,
 .page-shell > .contact-card,
+.hours-band,
+.rsvp-dialog,
 .site-footer {
 	--fg: var(--glass-fg);
 	--fg-muted: var(--glass-muted);
@@ -919,6 +921,8 @@ li {
 	.page-shell > .section:not(.section--bare),
 	.page-shell > .log-entry,
 	.page-shell > .contact-card,
+	.hours-band,
+	.rsvp-dialog,
 	.site-footer {
 		backdrop-filter: blur(12px) saturate(118%);
 	}
@@ -929,6 +933,8 @@ li {
 	.page-shell > .section:not(.section--bare),
 	.page-shell > .log-entry,
 	.page-shell > .contact-card,
+	.hours-band,
+	.rsvp-dialog,
 	.site-footer {
 		backdrop-filter: none;
 	}
@@ -1496,44 +1502,28 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 /* ===== Work sessions on the bus (operator interview 2026-10-02) =====
- * The band beneath the hero and above Notes & Goals, on the yellow livery:
- * copy on --highlight-contrast, headings, anchors and control edges on
- * --highlight-heading (both pairs swept by design-token-contrast.test.ts in
- * both schemes; the livery does not flip). Not glass and not a card: radius
- * 0, the site .button in its secondary form, rows parted by air (the
- * 2026-08-30 borderless/never-cards ruling stands for this band). That
- * ruling supersedes the 2026-09-09 rotator ruling and the 2026-09-19
- * hours-in-FAQ ruling for this band: under 48rem a carousel (CSS scroll snap,
- * one card per view, steps and dots, no auto-advance), at 48rem and up a
- * right-hand vertical loop that pauses on hover, on focus and by its button.
- * Reduced motion, forced colours and no-JS get the static list. The band
- * clips its own overflow, so neither the carousel track nor the loop's
- * duplicate can widen the document. */
-.page-shell > .hours-band {
-	--fg: var(--highlight-contrast);
-	--fg-muted: var(--highlight-contrast);
-	--heading: var(--highlight-heading);
-	--link: var(--highlight-heading);
-	--accent: var(--highlight-heading);
-	--hours-row-estimate: 6.5rem;
-	/* One row of the static list: at 48rem and up its rows sit on one line
-	 * beside the RSVP button, so they are shorter than a carousel card. */
-	--hours-static-row-estimate: 6.5rem;
+ * Layout revised the same day: the band sits between the FAQ and the log on
+ * the home page, and on the log pages as a sticky right-hand aside (desktop)
+ * or above the list (phones and tablets). It is the site's shared glass (the
+ * surface rule above lists .hours-band), and so is each row card, at a
+ * lighter tint over the band's own; yellow is an accent only: the cards' top
+ * rule, the Today mark's outline, the meta dots, the focus ring and the link
+ * underline. --highlight carries no text and no control boundary here, so
+ * the glass inks keep every contrast pair (design-token-contrast.test.ts,
+ * heroGrounds). Radius 0 throughout; the site .button in its secondary form.
+ * The marquee variant's cards scroll right to left over a duplicated track;
+ * the aside variant is a plain list. Reduced motion, forced colours and
+ * no-JS get the static list. The band clips its own overflow, so neither the
+ * marquee track nor its duplicate can widen the document. */
+.hours-band {
+	--hours-gap: 1rem;
+	--hours-row-estimate: 5.375rem;
+	/* One marquee card: its date, meta, a note line and the RSVP button. */
+	--hours-card-estimate: 12.5rem;
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 1.25rem 2.5rem;
+	gap: 1rem;
 	overflow: hidden;
-	border-radius: 0;
-	background: var(--highlight);
-	color: var(--fg);
-}
-
-@media (min-width: 48rem) {
-	.page-shell > .hours-band {
-		--hours-static-row-estimate: 5.375rem;
-		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-		align-items: start;
-	}
 }
 
 .hours-band__intro h2 {
@@ -1541,19 +1531,8 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 .hours-band__intro p {
-	max-width: 40ch;
+	max-width: 60ch;
 	margin: 0.5rem 0 0;
-}
-
-.hours-band__pause {
-	margin-top: 1.25rem;
-}
-
-/* Pressed (the loop is held): filled, so a sighted visitor sees the toggle's
- * state, not only a screen reader. The same pair as the Today mark. */
-.hours-band__pause[aria-pressed='true'] {
-	background: var(--highlight-heading);
-	color: var(--highlight);
 }
 
 .hours-band__empty {
@@ -1562,45 +1541,59 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 .hours-band a:not(.button) {
 	text-decoration: underline;
+	text-decoration-color: var(--highlight);
+	text-decoration-thickness: 2px;
 	text-underline-offset: 3px;
 }
 
 /* Room for the rows before the swap, from a clock-free upper bound the
- * server writes (--hours-reserve), so the swap after mount shifts nothing.
- * Only where a script will swap them: no-JS keeps the plain rule list with
- * no reserve. With motion allowed (html.motion-safe-ready) the room is the
- * carousel's one card and controls, or the loop's window of three rows.
- * Reduced motion and forced colours get the static list of every row, at
- * any width, so they reserve the whole bound (html.js, set whenever scripts
- * run). */
-html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
-	min-height: calc(var(--hours-row-estimate) + min(var(--hours-reserve) - 1, 1) * 3.75rem);
-}
-
-@media (min-width: 48rem) {
-	html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
-		min-height: calc(min(var(--hours-reserve), 3) * var(--hours-row-estimate));
-	}
+ * server writes (--hours-reserve), so the swap after mount shifts as little
+ * as it can. Only where a script will swap them: no-JS keeps the plain rule
+ * list with no reserve. With motion allowed (html.motion-safe-ready) the
+ * room is the marquee's one row of cards. Reduced motion and forced colours
+ * get the static list of every row, so they reserve the whole bound
+ * (html.js, set whenever scripts run). The aside sits in its own column and
+ * moves nothing when it grows. */
+html.motion-safe-ready .hours-band--marquee[data-hours-mode='rules'] .hours-band__body {
+	min-height: calc(min(var(--hours-reserve), 1) * var(--hours-card-estimate));
 }
 
 @media (prefers-reduced-motion: reduce), (forced-colors: active) {
-	html.js .hours-band[data-hours-mode='rules'] .hours-band__body {
-		min-height: calc(var(--hours-reserve) * var(--hours-static-row-estimate));
+	html.js .hours-band--marquee[data-hours-mode='rules'] .hours-band__body {
+		min-height: calc(var(--hours-reserve) * (var(--hours-row-estimate) + 0.75rem));
 	}
 }
 
 .hours-list {
+	display: grid;
+	gap: 0.75rem;
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
+/* A row card: the shared glass recipe at a lighter tint, over the band's. */
 .hours-row {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	align-items: center;
+	grid-template-columns: minmax(0, 1fr);
+	align-content: start;
 	gap: 0.35rem 1rem;
-	padding-block: 0.9rem;
+	border: 1px solid var(--rule);
+	border-top: 3px solid var(--highlight);
+	padding: 0.85rem 1rem;
+	background: color-mix(in oklab, var(--glass-panel) 55%, transparent);
+}
+
+@media (min-width: 48rem) {
+	.hours-band--marquee .hours-list:not(.hours-marquee__list) > .hours-row {
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+	}
+
+	.hours-band--marquee .hours-list:not(.hours-marquee__list) .hours-row__action {
+		grid-column: 2;
+		grid-row: 1 / span 3;
+	}
 }
 
 .hours-row__when {
@@ -1614,9 +1607,9 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 .hours-row__today {
 	display: inline-block;
 	margin-right: 0.5rem;
-	padding: 0.05rem 0.4rem;
-	background: var(--highlight-heading);
-	color: var(--highlight);
+	border: 2px solid var(--highlight);
+	padding: 0 0.35rem;
+	color: var(--heading);
 	font-size: 0.8rem;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
@@ -1625,6 +1618,7 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 .hours-row__meta {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	gap: 0 0.5rem;
 	margin: 0;
 	padding: 0;
@@ -1637,9 +1631,15 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 	line-height: 1.45;
 }
 
+/* The meta dots: a small yellow square between items, decorative only. */
 .hours-row__meta li + li::before {
-	content: '\00b7' / '';
+	content: '' / '';
+	display: inline-block;
+	width: 0.4rem;
+	height: 0.4rem;
 	margin-right: 0.5rem;
+	background: var(--highlight);
+	vertical-align: 0.1em;
 }
 
 .hours-row__notes {
@@ -1648,163 +1648,131 @@ html.motion-safe-ready .hours-band[data-hours-mode='rules'] .hours-band__body {
 	line-height: 1.45;
 }
 
-.hours-row__when,
-.hours-row__meta,
-.hours-row__notes {
-	grid-column: 1;
-}
-
 .hours-row__action {
-	grid-column: 2;
-	grid-row: 1 / span 3;
+	margin-top: 0.35rem;
 }
 
-/* One ring for every control on the livery: the base button ring is a
- * yellow mix, which vanishes on a yellow ground. */
-.hours-band .button:focus-visible,
-.hours-carousel__dot:focus-visible {
-	outline: 3px solid var(--highlight-heading);
-	outline-offset: 3px;
-	box-shadow: none;
+/* The focus ring: yellow on a solid ink ring, so it reads on light glass,
+ * dark glass and any backdrop between (the ink ring is the glass heading,
+ * a swept pair; the yellow is the accent). */
+.hours-band .button:focus-visible {
+	outline: 3px solid var(--highlight);
+	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--heading);
 }
 
-/* Carousel (under 48rem): the track scrolls natively and snaps one card per
- * view; the band clips it. */
-.hours-carousel__track {
-	display: grid;
-	grid-auto-columns: 100%;
-	grid-auto-flow: column;
+/* The marquee: a real horizontal scroller whose offset the script advances
+ * each frame, right to left. A finger or trackpad scrolls it directly (it
+ * snaps to cards while the visitor has it, data-marquee-hand), and the
+ * cards move on from where they were left. Its scrollbar is hidden: the
+ * part of the next card at the edge says there is more. */
+.hours-marquee {
 	overflow-x: auto;
+	overflow-y: hidden;
+	/* Room for the focus ring inside the scroller's clip. */
+	padding-block: 0.4rem;
 	overscroll-behavior-x: contain;
-	scroll-snap-type: x mandatory;
+	scroll-behavior: auto;
 	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+	touch-action: pan-x pan-y;
 }
 
-.hours-carousel__track::-webkit-scrollbar {
+.hours-marquee::-webkit-scrollbar {
 	display: none;
 }
 
-.hours-carousel__track > .hours-row {
-	grid-template-columns: minmax(0, 1fr);
-	align-content: start;
-	padding: 1rem;
+.hours-marquee[data-marquee-hand] {
+	scroll-snap-type: x proximity;
+}
+
+.hours-marquee__track {
+	display: flex;
+	width: max-content;
+}
+
+/* Each copy ends with the same gap that parts its cards, so one copy's
+ * width is exactly one pass and the seam never shows. */
+.hours-marquee__list {
+	display: flex;
+	gap: var(--hours-gap);
+	padding-right: var(--hours-gap);
+}
+
+.hours-marquee__list > .hours-row {
+	flex: 0 0 var(--hours-card-width, 17rem);
 	scroll-snap-align: start;
 }
 
-.hours-carousel__track .hours-row__action {
-	grid-column: 1;
-	grid-row: auto;
-	margin-top: 0.5rem;
+.hours-marquee .hours-row__action {
+	align-self: end;
 }
 
-.hours-carousel__controls {
-	display: grid;
-	grid-template-columns: auto minmax(0, 1fr) auto;
-	align-items: center;
-	gap: 0.5rem;
-	margin-top: 0.75rem;
-}
-
-.hours-carousel__step {
-	min-width: 3rem;
-	padding-inline: 0.75rem;
-}
-
-.hours-carousel__step[aria-disabled='true'] {
-	border-style: dashed;
-	cursor: default;
-}
-
-.hours-carousel__dots {
+/* The aside (log pages, desktop): a sticky glass column under the header,
+ * no taller than the viewport, whose list scrolls on its own. */
+.hours-band--aside {
+	position: sticky;
+	top: 5.5rem;
 	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
+	flex-direction: column;
+	max-height: calc(100vh - 7rem);
+	margin-top: 0;
+	border: 1px solid var(--rule);
 }
 
-.hours-carousel__dot {
-	display: inline-grid;
-	place-items: center;
-	width: 1.5rem;
-	height: 1.5rem;
-	border: 0;
-	border-radius: 0;
-	padding: 0;
-	background: transparent;
-	cursor: pointer;
+.hours-band--aside .hours-band__body {
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior-y: contain;
 }
 
-.hours-carousel__dot::before {
-	content: '';
-	width: 0.65rem;
-	height: 0.65rem;
-	border: 2px solid var(--highlight-heading);
+.hours-band--aside .hours-band__intro h2 {
+	font-size: 1.25rem;
 }
 
-.hours-carousel__dot[aria-current='true']::before {
-	background: var(--highlight-heading);
+/* The log pages: the list and the aside side by side on desktop; below that
+ * the aside is gone and the marquee sits above the list, under the intro. */
+.log-layout > .hours-band--aside {
+	display: none;
 }
 
-/* Loop (48rem and up): a window of three rows over a track that holds the
- * list twice; one pass moves it by exactly one copy, so the seam never shows.
- * The script sets the window's height from the real rows. */
-.hours-loop {
-	position: relative;
-	overflow: hidden;
+.log-layout__inline > .hours-band {
+	margin-block: 1.5rem 2rem;
 }
 
-.hours-loop__track {
-	animation: hours-loop var(--hours-loop-duration, 24s) linear infinite;
-}
-
-.hours-loop:hover .hours-loop__track,
-.hours-loop:focus-within .hours-loop__track,
-.hours-loop[data-paused] .hours-loop__track {
-	animation-play-state: paused;
-}
-
-@keyframes hours-loop {
-	from {
-		transform: translateY(0);
+@media (min-width: 64rem) {
+	.log-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem);
+		align-items: start;
+		gap: 2.5rem;
 	}
 
-	to {
-		transform: translateY(-50%);
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.hours-loop__track {
-		animation: none;
+	.log-layout > .hours-band--aside {
+		display: flex;
 	}
 
-	.hours-loop__dup {
+	.log-layout__inline {
 		display: none;
 	}
 }
 
 @media (forced-colors: active) {
-	.hours-loop__track {
-		animation: none;
+	.hours-row,
+	.hours-row__today {
+		border-color: CanvasText;
 	}
 
-	.hours-loop__dup {
-		display: none;
-	}
-
-	.hours-carousel__dot::before {
-		border-color: ButtonText;
-	}
-
-	.hours-carousel__dot[aria-current='true']::before {
-		background: ButtonText;
+	.hours-row__meta li + li::before {
+		background: CanvasText;
 	}
 }
 
 /* Notes & Goals: the borderless grid of every note. Operator ruling 2026-09-09:
  * the wiper rotator is off the public surface until the ratified replacement
  * lands (see the parent issue). This grid is no horizontal scroller in any
- * state; the document never widens. The work sessions band above it carries
- * the one sanctioned carousel (operator interview 2026-10-02, which
+ * state; the document never widens. The work sessions band further down
+ * carries the one sanctioned scroller (operator interview 2026-10-02, which
  * supersedes the old no-scroller pin for that band only), clipped inside the
  * band, so the document still never widens. */
 .goal-list {
@@ -2697,7 +2665,8 @@ figcaption {
 	.page-shell > .section:not(.section--bare),
 	.page-shell > .section--bare,
 	.page-shell > .log-entry,
-	.page-shell > .contact-card {
+	.page-shell > .contact-card,
+	.hours-band {
 		--fg: #000;
 		--fg-muted: #000;
 		--heading: #000;
@@ -2786,31 +2755,34 @@ figcaption {
 		display: none !important;
 	}
 
-	/* The work sessions band prints its rows once, at rest: no loop, no
-	 * duplicate, no carousel chrome, every card in the flow. */
-	.page-shell > .hours-band {
+	/* The work sessions band prints its rows once, at rest: no marquee, no
+	 * duplicate, every card in the flow, and the log aside unstuck. */
+	.hours-band,
+	.hours-marquee {
 		overflow: visible !important;
 	}
 
-	.hours-loop {
-		height: auto !important;
+	.hours-band--aside {
+		position: static !important;
+		max-height: none !important;
+	}
+
+	.hours-band--aside .hours-band__body {
 		overflow: visible !important;
 	}
 
-	.hours-loop__track {
-		animation: none !important;
-		transform: none !important;
+	.hours-marquee__track,
+	.hours-marquee__list {
+		display: block !important;
+		width: auto !important;
 	}
 
-	.hours-loop__dup,
-	.hours-carousel__controls,
-	.hours-band__pause {
+	.hours-marquee__dup {
 		display: none !important;
 	}
 
-	.hours-carousel__track {
-		display: block !important;
-		overflow: visible !important;
+	.hours-row {
+		background: none !important;
 	}
 
 	.hours-row__today {
