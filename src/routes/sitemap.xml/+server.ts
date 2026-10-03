@@ -9,6 +9,8 @@ const SITE = 'https://greatfallstoolbus.org';
 export const prerender = true;
 
 export const GET: RequestHandler = () => {
+	// /join is left out on purpose while the membership surface is behind its
+	// flag (operator rulings 2026-10-03; isUnlistedPath in src/lib/membership.ts).
 	// Nested pages are directory-shaped (trailingSlash 'always'), so their
 	// canonical URLs carry the trailing slash the server redirects to.
 	const pages: string[] = ['/', '/log/', '/contact/', '/privacy/', '/refund-policy/', '/legal/'];

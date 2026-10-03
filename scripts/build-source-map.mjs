@@ -32,6 +32,11 @@ const ROUTES_DIR = path.join(ROOT, 'src', 'routes');
 const LOG_DIR = path.join(ROOT, 'src', 'content', 'log');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'source-map.json');
 
+// Pages that stay reachable but unlisted: /join while the membership surface
+// is behind its flag (operator rulings 2026-10-03). Mirrors isUnlistedPath in
+// src/lib/membership.ts; scripts never import src.
+const UNLISTED_PAGES = new Set(['src/routes/join/+page.svelte']);
+
 const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));
 
 async function readJson(file) {
@@ -61,7 +66,9 @@ async function main() {
 		await readJson(path.join(ROOT, 'package.json')),
 	);
 	const pageFiles = await walkPageFiles(ROUTES_DIR);
-	const relativePages = pageFiles.map((full) => path.relative(ROOT, full).split(path.sep).join('/'));
+	const relativePages = pageFiles
+		.map((full) => path.relative(ROOT, full).split(path.sep).join('/'))
+		.filter((page) => !UNLISTED_PAGES.has(page));
 	const content = renderSourceMap(repository, relativePages, readLogEntries(LOG_DIR));
 
 	await writeOrCheckGeneratedFile(OUT_FILE, content, {

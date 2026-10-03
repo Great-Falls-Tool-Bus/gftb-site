@@ -1373,6 +1373,63 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	line-height: 1.55;
 }
 
+.faq dd p {
+	margin: 0 0 0.6rem;
+}
+
+/* The membership surface flag (operator rulings 2026-10-03,
+ * src/lib/flags/membership-surface.ts): every membership link or button is
+ * hidden until the root says the flag is on. visibility, not display, so the
+ * space is reserved and nothing moves when it appears; a hidden element is
+ * also out of the tab order and the accessibility tree. Without scripts the
+ * attribute never arrives, so the surface stays hidden. */
+.membership-surface {
+	visibility: hidden;
+}
+
+:root[data-membership-surface='on'] .membership-surface {
+	visibility: visible;
+}
+
+/* The header Join is the one exception: it leaves the layout (display: none)
+ * instead of reserving its space, so an anonymous visitor's nav has no gap
+ * and the 320px header does not grow a wrapped row for a hidden link. It
+ * joins the nav when the flag turns on. */
+.site-nav a.membership-surface {
+	display: none;
+}
+
+:root[data-membership-surface='on'] .site-nav a.membership-surface {
+	display: inline;
+}
+
+/* The public join path (src/lib/membership.ts): Apply as the house button,
+ * Sign in as a plain link beside it with the same 3rem tap height. Wraps to
+ * its own line on a phone rather than squeezing. */
+.join-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1.25rem;
+	margin-top: 0.9rem;
+}
+
+.join-actions__sign-in {
+	display: inline-flex;
+	align-items: center;
+	min-height: 3rem;
+	font-weight: 700;
+}
+
+.join-steps {
+	padding-left: 1.5rem;
+	line-height: 1.55;
+}
+
+.join-steps li + li {
+	margin-top: 0.4rem;
+}
+
 .section-heading {
 	max-width: 48rem;
 	margin-bottom: 2rem;
