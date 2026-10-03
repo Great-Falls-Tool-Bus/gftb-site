@@ -106,6 +106,9 @@ filegroup(
         # //:unit_tests (vitest includes scripts/**/*.test.mts).
         "scripts/check-served-tinyvectors.mjs",
         "scripts/check-served-tinyvectors.test.mts",
+        # scripts/lib/tailnet-probe-stamp.test.mts executes the status command
+        # to prove a malformed probe URL is neither echoed nor fatal.
+        "scripts/bazel/workspace-status.sh",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
         "svelte.config.js",
@@ -337,7 +340,8 @@ prettier_bin.prettier_test(
 
 js_binary(
     name = "vite_build_bin",
-    data = APP_NPM_PACKAGES,
+    # build-metadata.mjs: the stable-status reader shared with the leak scan.
+    data = APP_NPM_PACKAGES + ["scripts/bazel/build-metadata.mjs"],
     entry_point = "scripts/bazel/run-vite-build.mjs",
 )
 
@@ -377,6 +381,9 @@ js_run_binary(
     out_dirs = ["scanned-build"],
     patch_node_fs = False,
     srcs = [":build"],
+    # Stamped only to read STABLE_BUILD_TAILNET_PROBE_URL, the one tailnet
+    # host the stamped //:build may carry; the scan allows exactly that host.
+    stamp = 1,
     tool = ":leak_scan_build_bin",
     visibility = ["//visibility:public"],
 )

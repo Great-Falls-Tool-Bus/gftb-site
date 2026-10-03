@@ -105,6 +105,24 @@ whose archive is not public.
   directory, or a file whose extension is in neither `TEXT_EXTENSIONS` nor
   `SKIP_EXTENSIONS`, is a failure. Set `GFTB_LEAK_SCAN_DENY` to add
   operator-held literals; never commit them.
+- `PUBLIC_TAILNET_PROBE_URL` (the membership surface tailnet probe) is never
+  committed. A caller that exports it is the only source:
+  `scripts/bazel/workspace-status.sh` validates it (under `LC_ALL=C`, so
+  `[a-z]` is ASCII only) as exactly `https://<node>.<tailnet>.ts.net/<path>`
+  and stamps it as `STABLE_BUILD_TAILNET_PROBE_URL`; the Vite build reads it
+  from that stamp through `scripts/bazel/build-metadata.mjs`, and
+  `//:scanned_build` (also stamped, same reader) allows exactly that one host
+  and no other tailnet name or private address. Unset, the build names no
+  tailnet host. The publish workflow passes the repository variable of the
+  same name. A malformed exported value is never echoed or stamped: the
+  status command (which runs on every `bazel build` and `bazel test`) prints a
+  warning and stamps `__INVALID__`, so unrelated targets keep working while
+  `//:build` and `//:scanned_build` fail until the value is fixed or unset. A
+  direct `just leak-scan` reads the caller's variable instead of a stamp and,
+  when it finds a tailnet name, says the tree may have been built with a
+  different value. Do not set the variable anywhere until the lab runbook's
+  live Chrome Local Network Access check passes (operator ruling 2026-10-03,
+  "Verify live first").
 - `scripts/lib/*` is acceptance-test-only and deliberately outside `src/lib`:
   the leak ruleset carries credential-detection regexes and must never be
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from

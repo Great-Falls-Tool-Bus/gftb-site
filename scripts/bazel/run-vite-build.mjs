@@ -1,18 +1,10 @@
 import { spawn } from 'node:child_process';
-import {
-	chmodSync,
-	cpSync,
-	existsSync,
-	mkdtempSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	statSync,
-	symlinkSync,
-} from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+
+import { readBuildMetadata } from './build-metadata.mjs';
 
 const require = createRequire(import.meta.url);
 const viteCli = resolve(dirname(require.resolve('vite/package.json')), 'bin/vite.js');
@@ -26,6 +18,8 @@ const childEnvironment = {
 	BASE_PATH: metadata.basePath,
 	BUILD_COMMIT_SHA: metadata.commitSha,
 	BUILD_OUTPUT_DIR: resolve(actionRoot, options.outputDir),
+	// Always set, so the build sees the stamped value and never an ambient one.
+	PUBLIC_TAILNET_PROBE_URL: metadata.tailnetProbeUrl,
 };
 if (options.analyze) {
 	childEnvironment.ANALYZE = '1';
@@ -146,26 +140,4 @@ function parseOptions(args) {
 function requireValue(args, index, option) {
 	if (!args[index]) throw new Error(`${option} requires a value`);
 	return args[index];
-}
-
-function readBuildMetadata() {
-	const statusPath = process.env.BAZEL_STABLE_STATUS_FILE;
-	if (!statusPath) {
-		throw new Error('BAZEL_STABLE_STATUS_FILE is required; //:build and //:analyze must be stamped');
-	}
-	const declaredStatusPath = resolve(process.env.JS_BINARY__EXECROOT ?? process.cwd(), statusPath);
-	const values = new Map();
-	for (const line of readFileSync(declaredStatusPath, 'utf8').split(/\r?\n/)) {
-		const separator = line.indexOf(' ');
-		if (separator > 0) values.set(line.slice(0, separator), line.slice(separator + 1));
-	}
-	const encodedBasePath = values.get('STABLE_BUILD_BASE_PATH');
-	const commitSha = values.get('STABLE_BUILD_COMMIT_SHA');
-	if (encodedBasePath === undefined || !commitSha) {
-		throw new Error(`build metadata keys are missing from ${declaredStatusPath}`);
-	}
-	return {
-		basePath: encodedBasePath === '__EMPTY__' ? '' : encodedBasePath,
-		commitSha,
-	};
 }

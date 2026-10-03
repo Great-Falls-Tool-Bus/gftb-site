@@ -52,6 +52,10 @@ import { fileURLToPath } from 'node:url';
  *   public. Supplied at run time, never checked in.
  * @property {string[]} [allowedHosts]
  * @property {string[]} [allowedMailboxes]
+ * @property {string} [allowedTailnetProbeHost] The one tailnet probe host
+ *   the build was stamped with (see {@link tailnetProbeHost}). Exempts exactly
+ *   that host from the internal-hostname rule and the outbound host
+ *   allowlist; every other tailnet or private name still fails.
  */
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -107,6 +111,30 @@ export const SKIP_EXTENSIONS = new Set([
 ]);
 
 const URL_RE = /\bhttps?:\/\/([a-z0-9.-]+)/giu;
+
+/** https://<node>.<tailnet>.ts.net/<path>, the only shape a probe URL may take. */
+const TAILNET_PROBE_URL_RE =
+	/^https:\/\/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.ts\.net)\/[A-Za-z0-9._/-]*$/u;
+
+/**
+ * The host of the stamped tailnet probe URL, or '' when none is set. Throws on
+ * any other shape, without echoing the value, so a malformed stamp can never
+ * widen the scan.
+ *
+ * @param {string | undefined} url
+ * @returns {string}
+ */
+export function tailnetProbeHost(url) {
+	const value = (url ?? '').trim();
+	if (value === '' || value === '__EMPTY__') return '';
+	if (value === '__INVALID__') {
+		// scripts/bazel/workspace-status.sh stamps this instead of a malformed value.
+		throw new Error('PUBLIC_TAILNET_PROBE_URL was malformed when this build was stamped (value not shown)');
+	}
+	const match = TAILNET_PROBE_URL_RE.exec(value);
+	if (!match) throw new Error('tailnet probe URL must be https://<node>.<tailnet>.ts.net/<path>');
+	return match[1];
+}
 const MAILBOX_RE = /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/giu;
 
 /**
@@ -158,12 +186,16 @@ function compile(rule) {
 export function scanText(file, text, options = {}) {
 	/** @type {LeakFinding[]} */
 	const findings = [];
+	const probeHost = tailnetProbeHost(
+		options.allowedTailnetProbeHost ? `https://${options.allowedTailnetProbeHost}/` : '',
+	);
 
 	for (const rule of LEAK_RULES) {
 		const pattern = compile(rule);
 		for (const match of text.matchAll(pattern)) {
 			if (match.index === undefined) continue;
 			if (rule.id === 'private-personal-name' && match[0].trim() === PERMITTED_HOST_INITIAL) continue;
+			if (rule.id === 'internal-hostname' && probeHost && match[0].toLowerCase() === probeHost) continue;
 			findings.push({
 				file,
 				ruleId: rule.id,
@@ -192,6 +224,7 @@ export function scanText(file, text, options = {}) {
 	}
 
 	const allowedHosts = new Set(options.allowedHosts ?? ALLOWED_HOSTS);
+	if (probeHost) allowedHosts.add(probeHost);
 	URL_RE.lastIndex = 0;
 	for (const match of text.matchAll(URL_RE)) {
 		const host = match[1].toLowerCase().replace(/\.$/u, '');
