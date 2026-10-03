@@ -236,7 +236,11 @@ test.describe('JavaScript enabled', () => {
 		// fetch) moved to /contact (B1.4).
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		const rootOrigins = new Set(requested.map((url) => new URL(url).origin));
+		// The membership surface's one Access probe is the sole exception
+		// (src/lib/flags/membership-surface.ts).
+		const rootOrigins = new Set(
+			requested.filter((url) => !url.startsWith(`${ACCESS_PROBE_URL}?`)).map((url) => new URL(url).origin),
+		);
 		rootOrigins.delete(new URL(baseUrl).origin);
 		expect([...rootOrigins]).toEqual([]);
 

@@ -8,6 +8,7 @@ import {
 	MEMBER_SIGN_IN_URL,
 } from '../src/lib/membership';
 import { membershipCopyViolations } from '../src/lib/membership-copy';
+import { installExternalGuard, stubChallenge } from './support/network';
 import { skipHomeIntro } from './support/intro';
 import { ACCESS_PROBE_URL, MEMBERSHIP_SURFACE_ATTR } from '../src/lib/flags/membership-surface';
 
@@ -39,7 +40,7 @@ async function membershipLinks(page: Page) {
 		links.map((link) => ({
 			href: link.getAttribute('href'),
 			gated: link.closest('.membership-surface') !== null,
-			visible: getComputedStyle(link).visibility === 'visible',
+			visible: getComputedStyle(link).visibility === 'visible' && link.getClientRects().length > 0,
 		})),
 	);
 }
@@ -169,7 +170,10 @@ test('?flags=none clears the override', async ({ guardedPage }) => {
 	for (const link of await membershipLinks(page)) expect(link.visible, link.href ?? '').toBe(false);
 });
 
-test('a visitor with an Access session sees the membership surface', async ({ page, guardedPage }) => {
+test('a visitor with an Access session sees the membership surface', async ({ page, baseUrl }) => {
+	// Guard first so the probe route registered after it takes precedence.
+	await installExternalGuard(page, baseUrl);
+	await stubChallenge(page);
 	// Answer the probe as Access does for a signed-in visitor: the image itself.
 	await page.route(`${ACCESS_PROBE_URL}?*`, (route) =>
 		route.fulfill({
@@ -178,7 +182,7 @@ test('a visitor with an Access session sees the membership surface', async ({ pa
 			body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
 		}),
 	);
-	await guardedPage('/');
+	await page.goto('/');
 	await expect(page.locator(`html[${MEMBERSHIP_SURFACE_ATTR}="on"]`)).toHaveCount(1);
 	for (const link of await membershipLinks(page)) expect(link.visible, link.href ?? '').toBe(true);
 });
