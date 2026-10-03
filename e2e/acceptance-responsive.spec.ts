@@ -58,12 +58,12 @@ async function horizontalOverflow(page: Page) {
 			// and `pointer-events: none` with no interactive content (so the
 			// clipped-controls sweep still covers everything it ever did).
 			.filter((element) => !element.closest('.brand-vectors-bg'))
-			// Operator interview 2026-10-02: the work sessions carousel is a
+			// Operator interview 2026-10-02: the work sessions marquee is a
 			// sanctioned clipped scroll region inside its band. Its later cards
-			// lie past the viewport by design until they are scrolled in; the
-			// track itself is still measured here, and the document scroll
-			// width below still proves the page never widens.
-			.filter((element) => !element.closest('.hours-carousel__track > li'))
+			// (and its duplicate copy) lie past the viewport by design until they
+			// scroll in; the scroller itself is still measured here, and the
+			// document scroll width below still proves the page never widens.
+			.filter((element) => !element.closest('.hours-marquee__track'))
 			.map((element) => ({ tag: element.tagName, right: element.getBoundingClientRect().right }))
 			.filter((entry) => entry.right > window.innerWidth + 1)
 			.slice(0, 5),
@@ -87,13 +87,14 @@ async function clippedControls(page: Page, selector: string) {
 			if (element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')) continue;
 			if (element.offsetParent === null && getComputedStyle(element).position !== 'fixed') continue;
 			const box = element.getBoundingClientRect();
-			// A control on a work sessions card scrolled out of the carousel
-			// (operator interview 2026-10-02) is clipped by the track, not by
-			// the viewport; the card in view is measured like everything else.
-			const track = element.closest('.hours-carousel__track');
+			// A control on a work sessions card scrolled wholly or partly out of
+			// the moving marquee (operator interview 2026-10-02) is clipped by the
+			// scroller, not by the viewport; a card wholly in view is measured
+			// like everything else, and the scroller itself is a measured box.
+			const track = element.closest('.hours-marquee');
 			if (track) {
 				const region = track.getBoundingClientRect();
-				if (box.right <= region.left + 1 || box.left >= region.right - 1) continue;
+				if (box.left < region.left - 1 || box.right > region.right + 1) continue;
 			}
 			const label = `${element.tagName.toLowerCase()}:${(element.textContent ?? '').trim().slice(0, 24) || element.id}`;
 			if (box.width === 0 || box.height === 0 || box.left < -1 || box.right > window.innerWidth + 1) {

@@ -32,11 +32,13 @@ export const INTRO_LIFTING_CLASS = 'intro-lifting';
 export const INTRO_OFF_ATTR = 'data-intro-off';
 export const INTRO_OFF_GLOBAL = '__gftbIntroOff';
 /**
- * Where the first-load scroll lands (operator interview 2026-10-02): the work
- * sessions band under the hero. Readiness is still read from the wiper
- * canvases under `#goals`; a page without the band lands on `#goals` itself.
+ * Where the first-load scroll lands: the first section under the hero. The
+ * work sessions band was the target while it sat under the hero (operator
+ * interview 2026-10-02); it now sits between the FAQ and the log, so the
+ * landing is Notes & Goals again. Readiness is read from the wiper canvases
+ * under `#goals`; the target and the readiness source stay separate names.
  */
-export const INTRO_TARGET_ID = 'hours';
+export const INTRO_TARGET_ID = 'goals';
 export const INTRO_READINESS_ID = 'goals';
 
 const CANCEL_EVENTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;

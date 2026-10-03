@@ -6,7 +6,13 @@ import {
 	chooseHoursMode,
 	datedRows,
 	hoursFixtureSlots,
-	LOOP_VISIBLE_ROWS,
+	MARQUEE_CARD_REM,
+	MARQUEE_PX_PER_SECOND,
+	marqueeAdvance,
+	marqueeCardWidth,
+	marqueeFills,
+	marqueeHeld,
+	marqueeWrap,
 	reserveRows,
 	rowsOnVisitorClock,
 	ruleRows,
@@ -45,32 +51,80 @@ const monday = assertPublicHoursSlot(mondayInput);
 describe('chooseHoursMode', () => {
 	const at = (overrides: Partial<HoursModeInput>): HoursModeInput => ({
 		rows: 6,
-		wide: true,
+		variant: 'marquee',
+		fills: true,
 		reducedMotion: false,
 		forcedColors: false,
 		...overrides,
 	});
 
-	it('shows the empty state with no rows, whatever the media', () => {
+	it('shows the empty state with no rows, whatever the variant or media', () => {
 		expect(chooseHoursMode(at({ rows: 0 }))).toBe('empty');
-		expect(chooseHoursMode(at({ rows: 0, wide: false, reducedMotion: true }))).toBe('empty');
+		expect(chooseHoursMode(at({ rows: 0, variant: 'aside' }))).toBe('empty');
+		expect(chooseHoursMode(at({ rows: 0, fills: false, reducedMotion: true }))).toBe('empty');
 	});
 
-	it('loops at 48rem and up only when the list is longer than the window', () => {
-		expect(chooseHoursMode(at({ rows: LOOP_VISIBLE_ROWS + 1 }))).toBe('loop');
-		expect(chooseHoursMode(at({ rows: LOOP_VISIBLE_ROWS }))).toBe('static');
-		expect(chooseHoursMode(at({ rows: 1 }))).toBe('static');
+	it('runs the marquee only when one copy of the cards fills the band', () => {
+		expect(chooseHoursMode(at({}))).toBe('marquee');
+		expect(chooseHoursMode(at({ fills: false }))).toBe('static');
+		expect(chooseHoursMode(at({ rows: 1, fills: false }))).toBe('static');
 	});
 
-	it('is a carousel under 48rem once there is more than one card', () => {
-		expect(chooseHoursMode(at({ wide: false, rows: 2 }))).toBe('carousel');
-		expect(chooseHoursMode(at({ wide: false, rows: 1 }))).toBe('static');
+	it('never moves the aside: it is the static list at any size', () => {
+		expect(chooseHoursMode(at({ variant: 'aside' }))).toBe('static');
+		expect(chooseHoursMode(at({ variant: 'aside', fills: false }))).toBe('static');
 	});
 
-	it('stands every enhancement down under reduced motion and forced colours', () => {
-		for (const wide of [true, false]) {
-			expect(chooseHoursMode(at({ wide, reducedMotion: true }))).toBe('static');
-			expect(chooseHoursMode(at({ wide, forcedColors: true }))).toBe('static');
+	it('stands the marquee down under reduced motion and forced colours', () => {
+		for (const variant of ['marquee', 'aside'] as const) {
+			expect(chooseHoursMode(at({ variant, reducedMotion: true }))).toBe('static');
+			expect(chooseHoursMode(at({ variant, forcedColors: true }))).toBe('static');
+		}
+	});
+});
+
+describe('the marquee', () => {
+	it('sizes a card at most 17rem, and at 85% of a narrow band so the next card shows', () => {
+		expect(MARQUEE_CARD_REM).toBe(17);
+		expect(marqueeCardWidth(1100, 16)).toBe(272);
+		expect(marqueeCardWidth(358, 16)).toBe(272);
+		expect(marqueeCardWidth(288, 16)).toBe(244);
+		expect(marqueeCardWidth(0, 16)).toBe(0);
+	});
+
+	it('fills when one copy of the cards, gaps included, is at least as wide as the band', () => {
+		// A 1280px home page: a 1072px band, 272px cards and 16px gaps.
+		expect(marqueeFills({ rows: 6, cardPx: 272, gapPx: 16, viewportPx: 1072 })).toBe(true);
+		expect(marqueeFills({ rows: 4, cardPx: 272, gapPx: 16, viewportPx: 1072 })).toBe(true);
+		expect(marqueeFills({ rows: 3, cardPx: 272, gapPx: 16, viewportPx: 1072 })).toBe(false);
+		// A 390px phone: two cards already fill it.
+		expect(marqueeFills({ rows: 2, cardPx: 272, gapPx: 16, viewportPx: 326 })).toBe(true);
+		// One card never moves, and nothing moves before the band is measured.
+		expect(marqueeFills({ rows: 1, cardPx: 272, gapPx: 16, viewportPx: 200 })).toBe(false);
+		expect(marqueeFills({ rows: 6, cardPx: 272, gapPx: 16, viewportPx: 0 })).toBe(false);
+	});
+
+	it('scrolls right to left: the offset grows with time, so the cards move left', () => {
+		expect(MARQUEE_PX_PER_SECOND).toBeGreaterThan(0);
+		const after = marqueeAdvance(100, 1000, 1728);
+		expect(after).toBe(100 + MARQUEE_PX_PER_SECOND);
+		expect(after).toBeGreaterThan(100);
+	});
+
+	it('wraps seamlessly at one copy, where the duplicate shows what zero showed', () => {
+		expect(marqueeAdvance(1720, 1000, 1728)).toBeCloseTo(1720 + MARQUEE_PX_PER_SECOND - 1728);
+		expect(marqueeWrap(1728, 1728)).toBe(0);
+		expect(marqueeWrap(1800, 1728)).toBe(72);
+		expect(marqueeWrap(-10, 1728)).toBe(1718);
+		expect(marqueeWrap(50, 0)).toBe(0);
+		expect(marqueeAdvance(50, 1000, 0)).toBe(0);
+	});
+
+	it('is held still by any one of hover, focus, a press, a hand scroll or the open dialog', () => {
+		const none = { hover: false, focus: false, press: false, scroll: false, dialog: false };
+		expect(marqueeHeld(none)).toBe(false);
+		for (const hold of Object.keys(none) as Array<keyof typeof none>) {
+			expect(marqueeHeld({ ...none, [hold]: true }), hold).toBe(true);
 		}
 	});
 });
@@ -239,7 +293,7 @@ describe('the server render is clock-free', () => {
 		}
 		// hours-band.ts reads the visitor's clock in rowsOnVisitorClock only.
 		const band = read('hours-band.ts');
-		for (const name of ['ruleRows', 'reserveRows', 'datedRows', 'chooseHoursMode']) {
+		for (const name of ['ruleRows', 'reserveRows', 'datedRows', 'chooseHoursMode', 'marqueeFills', 'marqueeAdvance']) {
 			const start = band.indexOf(`export function ${name}(`);
 			expect(start, name).toBeGreaterThanOrEqual(0);
 			const end = band.indexOf('\n}\n', start);

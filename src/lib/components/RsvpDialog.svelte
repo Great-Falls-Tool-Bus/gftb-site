@@ -394,15 +394,16 @@
 		overflow: auto;
 	}
 
+	/* The box is the site's shared glass (app.css lists .rsvp-dialog with the
+	   surface rule, which sets its inks and fill), the same surface as the
+	   work sessions band that opens it; yellow is the accent edge only. */
 	:global(.rsvp-dialog) {
 		width: min(30rem, 100%);
 		max-height: calc(100vh - 2rem);
 		overflow: auto;
 		border: 1px solid var(--rule);
-		border-left: 0.4rem solid var(--highlight-edge);
+		border-left: 0.4rem solid var(--highlight);
 		border-radius: 0;
-		background: var(--panel);
-		color: var(--fg);
 		padding: 1.35rem;
 		box-shadow: 0 1px 30px color-mix(in oklab, var(--bg) 40%, transparent);
 	}
