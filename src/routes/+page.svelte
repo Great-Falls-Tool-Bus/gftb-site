@@ -9,6 +9,7 @@
 	import RsvpDialog from '$lib/components/RsvpDialog.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { reveal } from '$lib/motion.svelte';
+	import { INTEREST_PATH, JOIN_PATH, MEMBER_INTAKE, applyLink, signInLink } from '$lib/membership';
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
 	// 70ms stagger. The hidden start state only exists under
@@ -24,6 +25,11 @@
 	// never-inline-body clauses stand). Fewer than five published entries
 	// render however many exist.
 	const latestLogs = publicLogs.slice(0, HOME_LOG_COUNT);
+
+	// The public join path (src/lib/membership.ts): Apply follows the one
+	// intake switch, and Sign in always points at the member app.
+	const apply = applyLink();
+	const signIn = signInLink();
 
 	// Notes & Goals, help asks, and member benefits render from
 	// src/content/goals/*.md through the drift-checked manifest
@@ -196,6 +202,7 @@
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>
 							{/each}
 						</ul>
+						<p><a href={JOIN_PATH}>How membership works</a></p>
 					</div>
 				{/if}
 				{#if publicHelpAsks.length > 0}
@@ -234,15 +241,42 @@
 					and environmental conscientiousness with repair, reuse, and reduced consumerism.
 					<!-- KT copy, 2026-09-19; the author credit is live in the consented form (naming consent 2026-09-21) -->
 				</dd>
-				<dt>This sounds awesome! How do I become a member?</dt>
+				<!-- The membership answers (operator ruling 2026-10-03): the earlier
+				     answer conditioned membership on a donation and a minimum pledge,
+				     which the ratified membership rules forbid. Membership comes from
+				     an application, a tour, and a keyholder's approval; a contribution
+				     is optional, separate, and may be $0. The opening line is still
+				     Katherine T.'s. src/lib/membership-copy.ts holds the invariant
+				     both test suites apply to this copy. -->
+				<dt id="faq-membership">This sounds awesome! How do I become a member?</dt>
 				<dd>
-					I'm glad you asked, we're always looking for more people to join the club! To become a member, you simply need
-					to donate money, gear, or tools. We are currently looking for pledges of at least $100 to recoup our startup
-					costs. Examples of gear and tools include power tools, specialized hand tools like awls or precision
-					screwdrivers, life vests (personal floatation devices), skis and ski poles, snowshoes, sleds, and toboggans.
-					All items should be in good condition and functional at the time of donation, and if you're not sure if we'd
-					want something, <a href="/contact">send us a message</a>.
-					<!-- TODO(jess): KT copy, 2026-09-19; the hyphen aside became a comma -->
+					<p>
+						I'm glad you asked, we're always looking for more people to join the club! Members are adults 18 and older.
+						To join, you apply, take an in-person tour of the bus with a keyholder, and a keyholder approves your
+						application. <a href={JOIN_PATH}>How membership works</a>.
+					</p>
+					{#if MEMBER_INTAKE === 'closed'}
+						<p>
+							Applications are not open yet. Until they are, <a href={INTEREST_PATH}>send us a message</a> and we will let
+							you know when they open.
+						</p>
+					{/if}
+					<div class="join-actions">
+						{#if apply.external}
+							<ExternalLink href={apply.href} class="button">{apply.label}</ExternalLink>
+						{:else}
+							<a class="button" href={apply.href}>{apply.label}</a>
+						{/if}
+						<ExternalLink href={signIn.href} class="join-actions__sign-in">{signIn.label}</ExternalLink>
+					</div>
+				</dd>
+				<dt id="faq-contributions">Do I need to contribute money or tools to join?</dt>
+				<dd>
+					No. Contributions are optional and separate from membership, and $0 is always an option. Once you are a member
+					you can choose to contribute money, including by cash or check, if you want to. Gear and tools help too: power
+					tools, specialized hand tools like awls or precision screwdrivers, life vests (personal floatation devices),
+					skis and ski poles, snowshoes, sleds, and toboggans. Items should be in good condition and working, and if
+					you're not sure if we'd want something, <a href="/contact">send us a message</a>.
 				</dd>
 				<dt>Why do you have a purple bus? Is the Tool Bus part of CityLink?</dt>
 				<dd>
@@ -267,7 +301,9 @@
 					and dated sessions are listed under <a href="#hours">Work sessions on the bus</a> just below.
 				</dd>
 			</dl>
-			<p class="credit muted">Answers by Tool Bus Member Katherine T., except the visiting hours.</p>
+			<p class="credit muted">
+				Answers by Tool Bus Member Katherine T., except the membership answers and the visiting hours.
+			</p>
 		</div>
 	</section>
 

@@ -1373,6 +1373,37 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	line-height: 1.55;
 }
 
+.faq dd p {
+	margin: 0 0 0.6rem;
+}
+
+/* The public join path (src/lib/membership.ts): Apply as the house button,
+ * Sign in as a plain link beside it with the same 3rem tap height. Wraps to
+ * its own line on a phone rather than squeezing. */
+.join-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1.25rem;
+	margin-top: 0.9rem;
+}
+
+.join-actions__sign-in {
+	display: inline-flex;
+	align-items: center;
+	min-height: 3rem;
+	font-weight: 700;
+}
+
+.join-steps {
+	padding-left: 1.5rem;
+	line-height: 1.55;
+}
+
+.join-steps li + li {
+	margin-top: 0.4rem;
+}
+
 .section-heading {
 	max-width: 48rem;
 	margin-bottom: 2rem;

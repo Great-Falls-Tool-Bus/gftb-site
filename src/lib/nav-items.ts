@@ -1,3 +1,5 @@
+import { JOIN_PATH, MEMBER_SIGN_IN_URL } from './membership';
+
 // Single source of truth for navigation, ported from the demo site's
 // src/lib/nav-items.ts SSOT pattern (greatfallstoolbus.org@origin/main): the
 // header bar and the grouped footer both render from this one array, so the
@@ -84,6 +86,11 @@ export const navItems: NavItem[] = [
 	{ label: 'FAQ', href: '/#faq', match: [], footerGroup: 'About' },
 	{ label: 'Notes & Goals', href: '/#goals', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
+	// The public join path (src/lib/membership.ts): the explainer page and
+	// the member app's sign-in. Apply itself follows the intake switch, so it
+	// is a page call to action rather than a fixed footer row.
+	{ label: 'Join', href: JOIN_PATH, match: [JOIN_PATH], footerGroup: 'Get involved' },
+	{ label: 'Member sign in', href: MEMBER_SIGN_IN_URL, match: [], footerGroup: 'Get involved', external: true },
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
 	{
 		label: 'Discussion board',
