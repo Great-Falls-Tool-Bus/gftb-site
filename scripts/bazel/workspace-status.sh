@@ -34,5 +34,21 @@ if [[ "${commit_sha}" != "unknown" ]]; then
   commit_sha="${commit_sha:0:7}"
 fi
 
+# Tailnet probe URL for the membership surface flag, which vite.config.ts reads
+# as PUBLIC_TAILNET_PROBE_URL. It ships in the public bundle when set, but it
+# is never committed: only a caller that exports it (the publish lane, or an
+# operator build) carries it, and an unset value stamps the empty marker so
+# the default build names no tailnet host. Bazel actions do not inherit the
+# caller's environment, so this stable key is the one channel into the build.
+# The shape is exactly https://<node>.<tailnet>.ts.net/<path>: no port, query,
+# fragment or credentials. Anything else fails the build without echoing it.
+probe_url="${PUBLIC_TAILNET_PROBE_URL:-}"
+probe_url_re='^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.ts\.net/[A-Za-z0-9._/-]*$'
+if [[ -n "${probe_url}" && ! "${probe_url}" =~ ${probe_url_re} ]]; then
+  echo "PUBLIC_TAILNET_PROBE_URL must be empty or https://<node>.<tailnet>.ts.net/<path>" >&2
+  exit 1
+fi
+
 printf 'STABLE_BUILD_BASE_PATH %s\n' "${base_path:-__EMPTY__}"
 printf 'STABLE_BUILD_COMMIT_SHA %s\n' "${commit_sha}"
+printf 'STABLE_BUILD_TAILNET_PROBE_URL %s\n' "${probe_url:-__EMPTY__}"

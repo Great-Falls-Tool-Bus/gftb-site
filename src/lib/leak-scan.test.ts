@@ -17,6 +17,7 @@ import {
 	scanBuildDirectory,
 	scanFiles,
 	scanText,
+	tailnetProbeHost,
 } from '../../scripts/lib/leak-scan.mjs';
 import { distinctiveDraftLiterals, readLogEntries } from '../../scripts/lib/log-content.mjs';
 
@@ -422,5 +423,50 @@ describe('the credential ruleset stays unreachable from shipped code', () => {
 				/from\s+['"][^'"]*scripts\/lib\//u,
 			);
 		}
+	});
+});
+
+describe('stamped tailnet probe host allowance', () => {
+	const probeUrl = 'https://gftb-probe.example.ts.net/probe.svg';
+	const probeHost = 'gftb-probe.example.ts.net';
+	const bundle = `const u="${probeUrl}";`;
+	const ids = (text: string, host?: string) =>
+		new Set(scanText('fixture.js', text, { allowedTailnetProbeHost: host }).map((finding) => finding.ruleId));
+
+	it('rejects the probe URL when no host is stamped', () => {
+		const fired = ids(bundle);
+		expect(fired).toContain('internal-hostname');
+		expect(fired).toContain('unreviewed-outbound-host');
+	});
+
+	it('allows exactly the stamped host and nothing else', () => {
+		expect(ids(bundle, probeHost).size).toBe(0);
+		expect(ids('const u="https://other.example.ts.net/probe.svg";', probeHost)).toContain('internal-hostname');
+		expect(ids('const u="https://x.gftb-probe.example.ts.net/";', probeHost)).toContain('internal-hostname');
+		expect(ids('const u="https://api.svc.cluster.local/";', probeHost)).toContain('internal-hostname');
+		expect(ids('const a="100.101.102.103";', probeHost)).toContain('private-network-address');
+	});
+
+	it('parses only https://<node>.<tailnet>.ts.net/<path>', () => {
+		expect(tailnetProbeHost('')).toBe('');
+		expect(tailnetProbeHost(undefined)).toBe('');
+		expect(tailnetProbeHost('__EMPTY__')).toBe('');
+		expect(tailnetProbeHost(probeUrl)).toBe(probeHost);
+		for (const bad of [
+			'http://gftb-probe.example.ts.net/probe.svg',
+			'https://gftb-probe.example.ts.net:443/probe.svg',
+			'https://gftb-probe.example.ts.net/probe.svg?x=1',
+			'https://user@gftb-probe.example.ts.net/probe.svg',
+			'https://a.b.example.ts.net/probe.svg',
+			'https://example.ts.net/probe.svg',
+			'https://gftb-probe.example.com/probe.svg',
+			'https://GFTB-PROBE.example.ts.net/probe.svg',
+		]) {
+			expect(() => tailnetProbeHost(bad), bad).toThrow(/must be https:/u);
+		}
+	});
+
+	it('rejects a malformed allowance instead of widening the scan', () => {
+		expect(() => scanText('fixture.js', bundle, { allowedTailnetProbeHost: 'svc.cluster.local' })).toThrow();
 	});
 });

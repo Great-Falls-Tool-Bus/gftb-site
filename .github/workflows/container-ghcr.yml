@@ -49,4 +49,7 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_COMMIT_SHA: ${{ github.sha }}
           BUILD_COMMIT_REF: ${{ github.ref_name }}
+          # Repository variable, not a secret: the membership surface probe
+          # URL ships in the public bundle when set. Unset builds carry none.
+          PUBLIC_TAILNET_PROBE_URL: ${{ vars.PUBLIC_TAILNET_PROBE_URL }}
         run: cd overlay && nix develop . -c just container-image-publish
