@@ -434,7 +434,12 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 		requireFact(incoming.metadata.published === false);
 		const pages = tree.filter((entry) => /^src\/routes\/(?:[^/]+\/)*\+page\.svelte$/.test(entry.path));
 		requireFact(pages.every((entry) => entry.mode === '100644'));
-		const pagePaths = pages.map((entry) => entry.path).sort();
+		// Unlisted pages stay out of the source map (mirrors UNLISTED_PAGES in
+		// scripts/build-source-map.mjs): /join while the membership surface is flagged.
+		const pagePaths = pages
+			.map((entry) => entry.path)
+			.filter((path) => path !== 'src/routes/join/+page.svelte')
+			.sort();
 		await checkCandidate(candidate.content, incoming.metadata);
 		// Reject stale generated preimages before constructing an amendment.
 		requireFact((await renderLogManifest(entries, format)) === get(MANIFEST));

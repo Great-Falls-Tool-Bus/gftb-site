@@ -111,7 +111,7 @@ test('compiled shared renderers reproduce both actual checked-in manifests', asy
 		for (const file of readdirSync(directory, { withFileTypes: true })) {
 			const full = `${directory}/${file.name}`;
 			if (file.isDirectory()) walk(full);
-			else if (file.name === '+page.svelte') pages.push(full);
+			else if (file.name === '+page.svelte' && full !== 'src/routes/join/+page.svelte') pages.push(full);
 		}
 	}
 	walk('src/routes');
