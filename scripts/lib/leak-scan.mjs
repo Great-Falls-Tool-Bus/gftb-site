@@ -127,6 +127,10 @@ const TAILNET_PROBE_URL_RE =
 export function tailnetProbeHost(url) {
 	const value = (url ?? '').trim();
 	if (value === '' || value === '__EMPTY__') return '';
+	if (value === '__INVALID__') {
+		// scripts/bazel/workspace-status.sh stamps this instead of a malformed value.
+		throw new Error('PUBLIC_TAILNET_PROBE_URL was malformed when this build was stamped (value not shown)');
+	}
 	const match = TAILNET_PROBE_URL_RE.exec(value);
 	if (!match) throw new Error('tailnet probe URL must be https://<node>.<tailnet>.ts.net/<path>');
 	return match[1];

@@ -30,10 +30,11 @@
  * the scan succeeds; //:deployment_bundle consumes that fail-closed boundary.
  */
 
-import { cpSync, existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { readTailnetProbeUrl } from './bazel/build-metadata.mjs';
 import { readLogEntries, distinctiveDraftLiterals } from './lib/log-content.mjs';
 import { readGoalEntries, distinctiveDraftGoalLiterals } from './lib/goals-content.mjs';
 import { readHoursEntries, distinctiveDraftHoursLiterals } from './lib/hours-content.mjs';
@@ -113,8 +114,9 @@ const deniedLiterals = [
 // (scripts/bazel/workspace-status.sh); a direct `just leak-scan` reads the
 // caller's PUBLIC_TAILNET_PROBE_URL. Unset means no allowance at all.
 let allowedTailnetProbeHost;
+const tailnetProbe = readTailnetProbeUrl();
 try {
-	allowedTailnetProbeHost = tailnetProbeHost(readTailnetProbeUrl());
+	allowedTailnetProbeHost = tailnetProbeHost(tailnetProbe.url);
 } catch (error) {
 	console.error(`leak-scan: ${error instanceof Error ? error.message : 'invalid tailnet probe URL'}`);
 	process.exit(2);
@@ -143,6 +145,18 @@ if (findings.length > 0) {
 		console.error(`${finding.file}:${finding.line}: [${finding.ruleId}] ${finding.description} — ${finding.excerpt}`);
 	}
 	console.error(`leak-scan: ${findings.length} finding(s) in ${files.length} published file(s)`);
+	if (
+		tailnetProbe.source === 'environment' &&
+		findings.some((finding) => finding.ruleId === 'internal-hostname' && /\.ts\.net\b/iu.test(finding.excerpt))
+	) {
+		// A direct `just leak-scan` reads the caller's variable, while the tree
+		// may have been built with a different stamped value.
+		console.error(
+			"leak-scan: a tailnet name was found outside the allowance read from this shell's " +
+				'PUBLIC_TAILNET_PROBE_URL; if the tree was built with a different value, rerun with the ' +
+				'value it was built with, or use //:scanned_build, which reads the stamp itself.',
+		);
+	}
 	process.exit(1);
 }
 
@@ -159,19 +173,6 @@ console.log(
 		`${draftHoursEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)` +
 		(allowedTailnetProbeHost ? ', with the one stamped tailnet probe host allowed' : ''),
 );
-
-function readTailnetProbeUrl() {
-	const statusPath = process.env.BAZEL_STABLE_STATUS_FILE;
-	if (!statusPath) return process.env.PUBLIC_TAILNET_PROBE_URL ?? '';
-	const declaredStatusPath = path.resolve(process.env.JS_BINARY__EXECROOT ?? process.cwd(), statusPath);
-	for (const line of readFileSync(declaredStatusPath, 'utf8').split(/\r?\n/u)) {
-		const separator = line.indexOf(' ');
-		if (separator > 0 && line.slice(0, separator) === 'STABLE_BUILD_TAILNET_PROBE_URL') {
-			return line.slice(separator + 1);
-		}
-	}
-	return '';
-}
 
 function parseOptions(args) {
 	let buildDirectoryArgument = 'build';
