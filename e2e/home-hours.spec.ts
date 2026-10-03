@@ -509,6 +509,30 @@ test.describe('with sessions on a fixed clock', () => {
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
 	});
 
+	test('a hand scroll moves the cards, holds them, and they move on after a short rest', async ({ page }) => {
+		await withSessions(page);
+		await page.emulateMedia({ reducedMotion: 'no-preference' });
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto('/');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await band(page).scrollIntoViewIfNeeded();
+		await page.mouse.move(0, 0);
+		await expect.poll(() => marqueeState(band(page))).toBe('running');
+		const before = await scrollOffset(band(page));
+		// A sideways trackpad or wheel scroll over the cards, then the pointer leaves.
+		const frame = (await marquee(band(page)).boundingBox())!;
+		await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
+		await page.mouse.wheel(300, 0);
+		await page.mouse.move(0, 0);
+		await expect.poll(() => scrollOffset(band(page))).toBeGreaterThan(before + 150);
+		// Held by the hand scroll alone, through the rest that follows it.
+		expect(await marqueeState(band(page))).toBe('paused');
+		await page.waitForTimeout(1000);
+		expect(await marqueeState(band(page))).toBe('paused');
+		await expect.poll(() => marqueeState(band(page)), { timeout: MARQUEE_RESUME_MS + 4000 }).toBe('running');
+		await expectMovingRightToLeft(band(page));
+	});
+
 	test('the open RSVP dialog holds the cards, sits above everything, and hands focus back', async ({
 		page,
 		baseURL,
@@ -632,8 +656,10 @@ test.describe('with sessions on a fixed clock', () => {
 	});
 });
 
-// A phone with a touchscreen: a finger holds the cards while it is down and
-// scrolls them by hand; after a short rest they move on from there.
+// A phone with a touchscreen: a finger holds the cards while it is down, and
+// the scroller pans natively under it (the hand-scroll hold is the desktop
+// row above: the harness's headless Chromium does not turn synthetic touch
+// gestures into scrolls).
 test.describe('on a touch phone', () => {
 	test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
@@ -658,6 +684,7 @@ test.describe('on a touch phone', () => {
 		const { point, client } = await openOnPhone(page);
 		const geometry = await marquee(band(page)).evaluate((element) => ({
 			overflowX: getComputedStyle(element).overflowX,
+			touchAction: getComputedStyle(element).touchAction,
 			width: element.clientWidth,
 			cards: [...element.querySelectorAll('.hours-marquee__list > li')].map(
 				(card) => card.getBoundingClientRect().width,
@@ -665,6 +692,8 @@ test.describe('on a touch phone', () => {
 		}));
 		// A real scroller, and each card narrower than it, so the next one shows.
 		expect(geometry.overflowX).toBe('auto');
+		// A finger pans it sideways (and the page up and down) natively.
+		expect(geometry.touchAction).toBe('pan-x pan-y');
 		expect(geometry.cards.every((width) => width < geometry.width)).toBe(true);
 		await expect(band(page).getByRole('button', { name: /pause/iu })).toHaveCount(0);
 		await expectMovingRightToLeft(band(page));
@@ -677,30 +706,6 @@ test.describe('on a touch phone', () => {
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
 		await page.setViewportSize({ width: 320, height: 812 });
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
-	});
-
-	test('a swipe scrolls the cards by hand, and they move on after a short rest', async ({ page }) => {
-		const { point, client } = await openOnPhone(page);
-		await expect.poll(() => marqueeState(band(page))).toBe('running');
-		const before = await scrollOffset(band(page));
-		// From near the band's right edge, a finger drags 200px to the left.
-		const frame = (await marquee(band(page)).boundingBox())!;
-		await client.send('Input.synthesizeScrollGesture', {
-			x: Math.round(frame.x + frame.width - 24),
-			y: point.y,
-			xDistance: -200,
-			yDistance: 0,
-			gestureSourceType: 'touch',
-			speed: 1200,
-		});
-		// Further than the cards travel on their own in that time, and held.
-		expect(await scrollOffset(band(page))).toBeGreaterThan(before + 100);
-		// Held through the rest after the hand scroll, not only at its end.
-		expect(await marqueeState(band(page))).toBe('paused');
-		await page.waitForTimeout(1000);
-		expect(await marqueeState(band(page))).toBe('paused');
-		await expect.poll(() => marqueeState(band(page)), { timeout: MARQUEE_RESUME_MS + 4000 }).toBe('running');
-		await expectMovingRightToLeft(band(page));
 	});
 });
 
