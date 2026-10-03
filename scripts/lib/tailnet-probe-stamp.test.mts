@@ -3,7 +3,7 @@
 // (scripts/bazel/build-metadata.mjs) that //:build and //:scanned_build use.
 // Fixture hosts only; no real probe URL is set anywhere.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,12 +79,25 @@ describe('workspace-status.sh stamps the probe URL', () => {
 	});
 
 	it('uses byte-wise ranges whatever the caller locale', () => {
+		// No common locale makes bash's [a-z] match 'P', so the stamp alone
+		// cannot show that the script pins the locale. An EXIT trap installed
+		// through BASH_ENV records the LC_ALL the script's own shell ran its
+		// regex under; with the `export LC_ALL=C` line removed it records the
+		// caller's en_US.UTF-8 and this test fails.
+		const dir = mkdtempSync(join(tmpdir(), 'probe-locale-'));
+		dirs.push(dir);
+		const out = join(dir, 'lc_all');
+		const hook = join(dir, 'bash_env');
+		writeFileSync(hook, `trap 'printf "%s" "\${LC_ALL-unset}" > "${out}"' EXIT\n`);
 		const done = runStatus({
 			PUBLIC_TAILNET_PROBE_URL: 'https://gftb-Probe.example.ts.net/probe.svg',
 			LC_ALL: 'en_US.UTF-8',
 			LANG: 'en_US.UTF-8',
+			BASH_ENV: hook,
 		});
+		expect(done.status).toBe(0);
 		expect(done.stamped.get('STABLE_BUILD_TAILNET_PROBE_URL')).toBe(INVALID_MARKER);
+		expect(readFileSync(out, 'utf8')).toBe('C');
 	});
 });
 
