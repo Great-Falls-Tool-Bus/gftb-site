@@ -6,13 +6,15 @@ import {
 	JOIN_PATH,
 	JOIN_STEPS,
 	MEMBER_APPLY_URL,
+	MEMBER_APP_ORIGIN,
 	MEMBER_INTAKE,
 	MEMBER_SIGN_IN_URL,
 	applyLink,
+	isUnlistedPath,
 	signInLink,
 } from './membership';
 import { membershipCopyViolations, visibleSourceText } from './membership-copy';
-import { navItems } from './nav-items';
+import { navItems, publicPrimaryNavItems } from './nav-items';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (relative: string) => readFileSync(path.join(ROOT, relative), 'utf8');
@@ -94,17 +96,33 @@ describe('join path', () => {
 		expect(INTEREST_PATH).toBe('/contact');
 	});
 
-	it('lists Join and Member sign in under Get involved', () => {
+	it('puts Join in the header and Join and Member sign in under Get involved, all behind the flag', () => {
+		const header = navItems.filter((item) => item.primary && item.label === 'Join');
+		expect(header).toEqual([expect.objectContaining({ href: JOIN_PATH, membership: true })]);
+		expect(publicPrimaryNavItems.some((item) => item.label === 'Join')).toBe(false);
 		const involved = navItems.filter((item) => item.footerGroup === 'Get involved');
-		expect(involved.find((item) => item.label === 'Join')).toMatchObject({ href: JOIN_PATH });
+		expect(involved.find((item) => item.label === 'Join')).toMatchObject({ href: JOIN_PATH, membership: true });
 		expect(involved.find((item) => item.label === 'Member sign in')).toMatchObject({
 			href: MEMBER_SIGN_IN_URL,
 			external: true,
+			membership: true,
 		});
 	});
 
-	it('is in the sitemap and the source map', () => {
-		expect(read('src/routes/sitemap.xml/+server.ts')).toContain("'/join/'");
-		expect(JSON.parse(read('src/lib/generated/source-map.json')).routes['/join']).toBe('src/routes/join/+page.svelte');
+	it('every nav link into /join or the member app is a membership item', () => {
+		for (const item of navItems) {
+			if (item.href.startsWith(JOIN_PATH) || item.href.startsWith(MEMBER_APP_ORIGIN)) {
+				expect(item.membership, item.label).toBe(true);
+			}
+		}
+	});
+
+	it('keeps /join unlisted: out of the sitemap and the source map, noindex by path', () => {
+		expect(read('src/routes/sitemap.xml/+server.ts')).not.toContain("'/join/'");
+		expect(JSON.parse(read('src/lib/generated/source-map.json')).routes['/join']).toBeUndefined();
+		expect(isUnlistedPath('/join')).toBe(true);
+		expect(isUnlistedPath('/join/')).toBe(true);
+		expect(isUnlistedPath('/joinery')).toBe(false);
+		expect(isUnlistedPath('/')).toBe(false);
 	});
 });

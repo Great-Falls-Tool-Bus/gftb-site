@@ -202,7 +202,7 @@
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>
 							{/each}
 						</ul>
-						<p><a href={JOIN_PATH}>How membership works</a></p>
+						<p class="membership-surface"><a href={JOIN_PATH}>How membership works</a></p>
 					</div>
 				{/if}
 				{#if publicHelpAsks.length > 0}
@@ -247,13 +247,18 @@
 				     an application, a tour, and a keyholder's approval; a contribution
 				     is optional, separate, and may be $0. The opening line is still
 				     Katherine T.'s. src/lib/membership-copy.ts holds the invariant
-				     both test suites apply to this copy. -->
+				     both test suites apply to this copy. The links and buttons into
+				     /join and the member app carry .membership-surface and stay hidden
+				     until the membership surface flag is on (operator rulings
+				     2026-10-03, src/lib/flags/membership-surface.ts); the prose
+				     itself is public. -->
 				<dt id="faq-membership">This sounds awesome! How do I become a member?</dt>
 				<dd>
 					<p>
 						I'm glad you asked, we're always looking for more people to join the club! Members are adults 18 and older.
 						To join, you apply, take an in-person tour of the bus with a keyholder, and a keyholder approves your
-						application. <a href={JOIN_PATH}>How membership works</a>.
+						application.
+						<span class="membership-surface"><a href={JOIN_PATH}>How membership works</a>.</span>
 					</p>
 					{#if MEMBER_INTAKE === 'closed'}
 						<p>
@@ -261,7 +266,7 @@
 							you know when they open.
 						</p>
 					{/if}
-					<div class="join-actions">
+					<div class="join-actions membership-surface">
 						{#if apply.external}
 							<ExternalLink href={apply.href} class="button">{apply.label}</ExternalLink>
 						{:else}

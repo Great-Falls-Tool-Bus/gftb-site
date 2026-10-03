@@ -15,6 +15,12 @@ interface NavItemBase {
 	href: string;
 	/** Base-relative path patterns that light this item as the active section. */
 	match: string[];
+	/**
+	 * A membership entry point: rendered with the .membership-surface class,
+	 * so it stays hidden until the membership surface flag is on
+	 * (src/lib/flags/membership-surface.ts).
+	 */
+	membership?: true;
 }
 
 /**
@@ -50,6 +56,9 @@ export const navItems: NavItem[] = [
 	// FAQ section. The footer's own "Questions" row is retired in the same
 	// ruling; the fuller footer sitemap (below) carries FAQ instead.
 	{ label: 'FAQ', href: '/#faq', match: [], primary: true },
+	// Operator rulings 2026-10-03: Join in the header, shown only when the
+	// membership surface flag is on.
+	{ label: 'Join', href: JOIN_PATH, match: [JOIN_PATH], primary: true, membership: true },
 	// Operator ruling 2026-08-31: GitHub in the header. The org page is the
 	// public target (gftb-site itself is private; a repo link would 404 for
 	// visitors, review E4).
@@ -86,11 +95,18 @@ export const navItems: NavItem[] = [
 	{ label: 'FAQ', href: '/#faq', match: [], footerGroup: 'About' },
 	{ label: 'Notes & Goals', href: '/#goals', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
-	// The public join path (src/lib/membership.ts): the explainer page and
-	// the member app's sign-in. Apply itself follows the intake switch, so it
-	// is a page call to action rather than a fixed footer row.
-	{ label: 'Join', href: JOIN_PATH, match: [JOIN_PATH], footerGroup: 'Get involved' },
-	{ label: 'Member sign in', href: MEMBER_SIGN_IN_URL, match: [], footerGroup: 'Get involved', external: true },
+	// The join path (src/lib/membership.ts): the explainer page and the member
+	// app's sign-in, both behind the membership surface flag. Apply itself
+	// follows the intake switch, so it is a page call to action instead.
+	{ label: 'Join', href: JOIN_PATH, match: [JOIN_PATH], footerGroup: 'Get involved', membership: true },
+	{
+		label: 'Member sign in',
+		href: MEMBER_SIGN_IN_URL,
+		match: [],
+		footerGroup: 'Get involved',
+		external: true,
+		membership: true,
+	},
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
 	{
 		label: 'Discussion board',
@@ -115,6 +131,9 @@ export const navItems: NavItem[] = [
 
 /** Header bar items — derived, never hand-duplicated. */
 export const primaryNavItems: NavItem[] = navItems.filter((item) => item.primary);
+
+/** Header items every visitor sees (membership items wait for the flag). */
+export const publicPrimaryNavItems: NavItem[] = primaryNavItems.filter((item) => !item.membership);
 
 /** Footer-demoted items, grouped in `navItems` order within each group. */
 export const footerNavGroups: Array<{ heading: string; items: NavItem[] }> = (

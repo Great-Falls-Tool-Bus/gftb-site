@@ -20,6 +20,11 @@ declare global {
 	// Absent outside a Vite build; src/lib/subscribe-capture-flag.ts guards it
 	// and resolves to off.
 	const __SUBSCRIBE_CAPTURE__: boolean | undefined;
+
+	// Build-time tailnet probe URL from PUBLIC_TAILNET_PROBE_URL, empty by
+	// default. Absent outside a Vite build; src/lib/flags/membership-surface.ts
+	// guards it and resolves to empty.
+	const __TAILNET_PROBE_URL__: string | undefined;
 }
 
 export {};

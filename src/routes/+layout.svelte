@@ -9,6 +9,8 @@
 	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
+	import { applyMembershipSurface } from '$lib/flags/membership-surface';
+	import { isUnlistedPath } from '$lib/membership';
 	import BusMark from '$lib/components/BusMark.svelte';
 	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
 	import { theme } from '$lib/theme.svelte';
@@ -48,6 +50,17 @@
 		const handshake = motionHandshake;
 		const target = tinyVectorsRef;
 		untrack(() => handshake?.setTarget(target));
+	});
+
+	// Membership surface flag (operator rulings 2026-10-03): every membership
+	// link ships hidden; this turns them on for an Access session, a tailnet
+	// probe, or the ?flags=membership preview override. See
+	// src/lib/flags/membership-surface.ts.
+	onMount(() => {
+		void applyMembershipSurface(document.documentElement, {
+			search: window.location.search,
+			getStorage: () => window.localStorage,
+		});
 	});
 
 	onMount(() => {
@@ -192,7 +205,7 @@
 	description={headDescription}
 	siteName="Great Falls Tool Bus"
 	origin={siteUrl}
-	noindex={isErrorSurface}
+	noindex={isErrorSurface || isUnlistedPath(currentPath)}
 	canonical={isErrorSurface ? null : undefined}
 	jsonLd={isErrorSurface ? null : jsonLd}
 	image={`${siteUrl}/og/toolbus-1200x630.png`}
@@ -255,10 +268,14 @@
 			<nav class="site-nav" aria-label="Main navigation">
 				{#each primaryNavItems as item (item.href)}
 					{#if item.external}
-						<ExternalLink href={item.href}>{item.label}</ExternalLink>
+						<ExternalLink href={item.href} class={item.membership ? 'membership-surface' : ''}
+							>{item.label}</ExternalLink
+						>
 					{:else}
-						<a href={item.href} aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}
-							>{item.label}</a
+						<a
+							href={item.href}
+							class={item.membership ? 'membership-surface' : undefined}
+							aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}>{item.label}</a
 						>
 					{/if}
 				{/each}
@@ -311,7 +328,7 @@
 					<h2>{group.heading}</h2>
 					<ul>
 						{#each group.items as item (item.label)}
-							<li>
+							<li class={item.membership ? 'membership-surface' : undefined}>
 								{#if item.external}
 									<ExternalLink href={item.href}>{item.label}</ExternalLink>
 								{:else}

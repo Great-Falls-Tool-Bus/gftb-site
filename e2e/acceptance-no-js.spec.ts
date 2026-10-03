@@ -1,7 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 
-import { primaryNavItems } from '../src/lib/nav-items';
+import { publicPrimaryNavItems } from '../src/lib/nav-items';
+import { ACCESS_PROBE_URL } from '../src/lib/flags/membership-surface';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
 import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 import { forceTierMax } from './support/wiper-tier';
@@ -108,9 +109,12 @@ test.describe('JavaScript disabled', () => {
 		await page.goto('/');
 		// The nav SSOT's primary items (Log, Contact, FAQ since the operator
 		// ruling of 2026-09-19, GitHub since 2026-08-31, Discussion archive since
-		// 2026-09-01); the count derives from the SSOT so it cannot drift.
+		// 2026-09-01); the count derives from the SSOT so it cannot drift. Join
+		// (operator rulings 2026-10-03) is a membership item: without scripts the
+		// flag never turns on, so it stays hidden and out of the accessibility tree.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
-		await expect(headerLinks).toHaveCount(primaryNavItems.length);
+		await expect(headerLinks).toHaveCount(publicPrimaryNavItems.length);
+		await expect(page.locator('.site-nav a[href="/join"]')).toBeHidden();
 		await expect(headerLinks).toHaveText(['Log', 'Contact', 'FAQ', /^GitHub/u, /^Discussion archive/u]);
 
 		expect(await unresolvedHomeHashes(page), 'scriptless home hash targets without matching elements').toEqual([]);
@@ -206,8 +210,12 @@ test.describe('JavaScript enabled', () => {
 		expect(await unresolvedHomeHashes(page), 'hydrated home hash targets without matching elements').toEqual([]);
 		expect(pageErrors, 'uncaught page errors').toEqual([]);
 		expect(consoleErrors, 'console errors and warnings').toEqual([]);
-		// The only third party the page may talk to is the contact API origin.
-		for (const url of guard.attempted) expect(url.startsWith(FORM_ORIGIN)).toBe(true);
+		// The only third parties the page may talk to are the contact API origin
+		// and the membership surface's one Access probe (operator rulings
+		// 2026-10-03, src/lib/flags/membership-surface.ts).
+		for (const url of guard.attempted) {
+			expect(url.startsWith(FORM_ORIGIN) || url.startsWith(`${ACCESS_PROBE_URL}?`), url).toBe(true);
+		}
 	};
 
 	test('the page loads with a clean console', async ({ page, baseUrl }) => {

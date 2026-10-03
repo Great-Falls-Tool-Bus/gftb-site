@@ -1,5 +1,4 @@
 <script lang="ts">
-	import SourceLink from '$lib/components/SourceLink.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE, applyLink, signInLink } from '$lib/membership';
 
@@ -9,6 +8,13 @@
 	// out. The steps and the contribution answer follow the ratified
 	// membership rules: application, tour, keyholder approval, and a
 	// contribution that is optional, separate, and may be $0.
+	//
+	// While the membership surface is behind its flag (operator rulings
+	// 2026-10-03, src/lib/flags/membership-surface.ts) this page stays
+	// prerendered and directly reachable but unlisted: the layout marks it
+	// noindex, and it is left out of the sitemap and the source map (so it
+	// carries no "Edit this page" link). Its own Apply and Sign in follow
+	// the flag; the contact call to action stays public.
 	const apply = applyLink();
 	const signIn = signInLink();
 </script>
@@ -32,7 +38,7 @@
 				<h2 id="applications-title">Applications</h2>
 				{#if MEMBER_INTAKE === 'open'}
 					<p>Applications are open. The application form is on the member app.</p>
-					<div class="join-actions">
+					<div class="join-actions membership-surface">
 						<ExternalLink href={apply.href} class="button">{apply.label}</ExternalLink>
 						<ExternalLink href={signIn.href} class="join-actions__sign-in">{signIn.label}</ExternalLink>
 					</div>
@@ -43,7 +49,9 @@
 					</p>
 					<div class="join-actions">
 						<a class="button" href={INTEREST_PATH}>Tell us you're interested</a>
-						<ExternalLink href={signIn.href} class="join-actions__sign-in">{signIn.label}</ExternalLink>
+						<ExternalLink href={signIn.href} class="join-actions__sign-in membership-surface"
+							>{signIn.label}</ExternalLink
+						>
 					</div>
 				{/if}
 			</section>
@@ -69,6 +77,4 @@
 			</section>
 		</div>
 	</article>
-
-	<SourceLink routeId="/join" />
 </div>

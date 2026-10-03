@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test';
+import { ACCESS_PROBE_URL } from '../../src/lib/flags/membership-surface';
 
 /**
  * Shared network harness for the acceptance specs.
@@ -50,6 +51,15 @@ export async function installExternalGuard(page: Page, baseURL: string): Promise
 			return;
 		}
 		attempted.push(url);
+		// The membership surface's Access probe (src/lib/flags/membership-surface.ts)
+		// gets what an anonymous visitor gets: the Access login page, HTML, which
+		// an image cannot decode. Aborting it instead would print a network error
+		// no real visitor sees. A spec that needs a signed-in visitor routes the
+		// probe itself (routes registered later win).
+		if (url.startsWith(ACCESS_PROBE_URL)) {
+			await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Sign in</title>' });
+			return;
+		}
 		await route.abort('blockedbyclient');
 	});
 	return { attempted };

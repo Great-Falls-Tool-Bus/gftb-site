@@ -24,6 +24,15 @@ export const MEMBER_SIGN_IN_URL = `${MEMBER_APP_ORIGIN}/login`;
 /** The on-site page that explains how membership works. */
 export const JOIN_PATH = '/join';
 
+/**
+ * True for pages that stay prerendered and reachable but unlisted while the
+ * membership surface is behind its flag: noindex, and absent from the
+ * sitemap and the source map.
+ */
+export function isUnlistedPath(pathname: string): boolean {
+	return pathname === JOIN_PATH || pathname.startsWith(`${JOIN_PATH}/`);
+}
+
 /** Where an applicant goes while applications are closed. */
 export const INTEREST_PATH = '/contact';
 
