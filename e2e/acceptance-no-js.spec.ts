@@ -250,7 +250,9 @@ test.describe('JavaScript enabled', () => {
 		const challenge = page.waitForRequest((request) => request.url() === CHALLENGE_URL && request.method() === 'GET');
 		await Promise.all([challenge, page.goto('/contact')]);
 		await page.waitForLoadState('networkidle');
-		const contactOrigins = new Set(requested.map((url) => new URL(url).origin));
+		const contactOrigins = new Set(
+			requested.filter((url) => !url.startsWith(`${ACCESS_PROBE_URL}?`)).map((url) => new URL(url).origin),
+		);
 		contactOrigins.delete(new URL(baseUrl).origin);
 		expect([...contactOrigins]).toEqual([FORM_ORIGIN]);
 	});
