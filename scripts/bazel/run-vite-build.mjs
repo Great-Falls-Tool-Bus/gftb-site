@@ -26,6 +26,8 @@ const childEnvironment = {
 	BASE_PATH: metadata.basePath,
 	BUILD_COMMIT_SHA: metadata.commitSha,
 	BUILD_OUTPUT_DIR: resolve(actionRoot, options.outputDir),
+	// Always set, so the build sees the stamped value and never an ambient one.
+	PUBLIC_TAILNET_PROBE_URL: metadata.tailnetProbeUrl,
 };
 if (options.analyze) {
 	childEnvironment.ANALYZE = '1';
@@ -161,11 +163,13 @@ function readBuildMetadata() {
 	}
 	const encodedBasePath = values.get('STABLE_BUILD_BASE_PATH');
 	const commitSha = values.get('STABLE_BUILD_COMMIT_SHA');
-	if (encodedBasePath === undefined || !commitSha) {
+	const encodedTailnetProbeUrl = values.get('STABLE_BUILD_TAILNET_PROBE_URL');
+	if (encodedBasePath === undefined || !commitSha || !encodedTailnetProbeUrl) {
 		throw new Error(`build metadata keys are missing from ${declaredStatusPath}`);
 	}
 	return {
 		basePath: encodedBasePath === '__EMPTY__' ? '' : encodedBasePath,
 		commitSha,
+		tailnetProbeUrl: encodedTailnetProbeUrl === '__EMPTY__' ? '' : encodedTailnetProbeUrl,
 	};
 }

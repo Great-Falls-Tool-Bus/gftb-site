@@ -377,6 +377,9 @@ js_run_binary(
     out_dirs = ["scanned-build"],
     patch_node_fs = False,
     srcs = [":build"],
+    # Stamped only to read STABLE_BUILD_TAILNET_PROBE_URL, the one tailnet
+    # host the stamped //:build may carry; the scan allows exactly that host.
+    stamp = 1,
     tool = ":leak_scan_build_bin",
     visibility = ["//visibility:public"],
 )

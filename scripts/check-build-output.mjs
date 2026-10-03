@@ -30,14 +30,20 @@
  * the scan succeeds; //:deployment_bundle consumes that fail-closed boundary.
  */
 
-import { cpSync, existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 import { readLogEntries, distinctiveDraftLiterals } from './lib/log-content.mjs';
 import { readGoalEntries, distinctiveDraftGoalLiterals } from './lib/goals-content.mjs';
 import { readHoursEntries, distinctiveDraftHoursLiterals } from './lib/hours-content.mjs';
-import { LEAK_RULES, REPO_ROOT, UnclassifiedOutputError, scanBuildDirectory } from './lib/leak-scan.mjs';
+import {
+	LEAK_RULES,
+	REPO_ROOT,
+	UnclassifiedOutputError,
+	scanBuildDirectory,
+	tailnetProbeHost,
+} from './lib/leak-scan.mjs';
 
 const options = parseOptions(process.argv.slice(2));
 const buildDirectory = path.resolve(process.cwd(), options.buildDirectory);
@@ -102,9 +108,21 @@ const deniedLiterals = [
 	...draftHoursDeniedLiterals,
 ];
 
+// The one tailnet probe host the build was stamped with, if any. Inside Bazel
+// it comes from the same stable status the build read
+// (scripts/bazel/workspace-status.sh); a direct `just leak-scan` reads the
+// caller's PUBLIC_TAILNET_PROBE_URL. Unset means no allowance at all.
+let allowedTailnetProbeHost;
+try {
+	allowedTailnetProbeHost = tailnetProbeHost(readTailnetProbeUrl());
+} catch (error) {
+	console.error(`leak-scan: ${error instanceof Error ? error.message : 'invalid tailnet probe URL'}`);
+	process.exit(2);
+}
+
 let report;
 try {
-	report = scanBuildDirectory(scanDirectory, { deniedLiterals });
+	report = scanBuildDirectory(scanDirectory, { deniedLiterals, allowedTailnetProbeHost });
 } catch (error) {
 	if (error instanceof UnclassifiedOutputError) {
 		console.error(error.message);
@@ -138,8 +156,22 @@ console.log(
 		`${draftDeniedLiterals.length} unpublished-draft literal(s) from ${draftLogEntries.length} content/log entr` +
 		`${draftLogEntries.length === 1 ? 'y' : 'ies'} plus ${draftGoalDeniedLiterals.length} from ${draftGoalEntries.length} content/goals entr` +
 		`${draftGoalEntries.length === 1 ? 'y' : 'ies'} plus ${draftHoursDeniedLiterals.length} from ${draftHoursEntries.length} content/hours entr` +
-		`${draftHoursEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)`,
+		`${draftHoursEntries.length === 1 ? 'y' : 'ies'} (B1 regression gate)` +
+		(allowedTailnetProbeHost ? ', with the one stamped tailnet probe host allowed' : ''),
 );
+
+function readTailnetProbeUrl() {
+	const statusPath = process.env.BAZEL_STABLE_STATUS_FILE;
+	if (!statusPath) return process.env.PUBLIC_TAILNET_PROBE_URL ?? '';
+	const declaredStatusPath = path.resolve(process.env.JS_BINARY__EXECROOT ?? process.cwd(), statusPath);
+	for (const line of readFileSync(declaredStatusPath, 'utf8').split(/\r?\n/u)) {
+		const separator = line.indexOf(' ');
+		if (separator > 0 && line.slice(0, separator) === 'STABLE_BUILD_TAILNET_PROBE_URL') {
+			return line.slice(separator + 1);
+		}
+	}
+	return '';
+}
 
 function parseOptions(args) {
 	let buildDirectoryArgument = 'build';
