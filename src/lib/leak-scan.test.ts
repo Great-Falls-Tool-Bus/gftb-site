@@ -259,6 +259,9 @@ describe('leak-scan over the checked-in public inputs', () => {
 		for (const host of ALLOWED_HOSTS) expect(host).not.toMatch(/^\*|\s/u);
 		expect(ALLOWED_HOSTS).toContain('greatfallstoolbus.org');
 		expect(ALLOWED_HOSTS).toContain('forms.latoolb.us');
+		// Member app sign-in and apply links behind the membership surface flag;
+		// the host is protected by Cloudflare Access (operator ruling 2026-10-03).
+		expect(ALLOWED_HOSTS).toContain('members.greatfallstoolbus.org');
 	});
 });
 
