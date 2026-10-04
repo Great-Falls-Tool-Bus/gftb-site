@@ -52,6 +52,9 @@ describe('leak-scan rule set', () => {
 			'cache-or-executor-endpoint',
 			'private-personal-name',
 			'private-list-archive',
+			'gated-member-app-url',
+			'gated-join-link',
+			'gated-member-label',
 			'source-map-or-dev-artifact',
 			'internal-tracker-reference',
 		]) {
@@ -193,6 +196,50 @@ describe('leak-scan detections', () => {
 		);
 	});
 
+	// Operator interview 2026-10-04 (TIN-5371, TIN-5351): the gated membership
+	// links live in the member app's manifest, never in public HTML or JS. The
+	// manifest URL itself is the one member-app address the bundle may hold.
+	it('forbids member-app addresses and /join links in public output, but allows the manifest URL', () => {
+		const manifest = 'https://members.greatfallstoolbus.org/api/public-surface';
+		expect(idsFiring(`const u="${manifest}";`)).not.toContain('gated-member-app-url');
+		expect(idsFiring(`fetch('${manifest}',{credentials:'include'})`)).not.toContain('gated-member-app-url');
+		for (const leaked of [
+			'<a href="https://members.greatfallstoolbus.org/login">Sign in</a>',
+			'<a href="https://members.greatfallstoolbus.org/apply">Apply</a>',
+			'href:"https://members.greatfallstoolbus.org/"',
+			'https://members.greatfallstoolbus.org',
+			`${manifest}/extra`,
+			'https://members.greatfallstoolbus.org/api/public-surface-v2',
+		]) {
+			expect(idsFiring(leaked), leaked).toContain('gated-member-app-url');
+		}
+		for (const leaked of [
+			'<a href="/join">Join</a>',
+			'<a href="/join/">Join</a>',
+			"<a class=x href='/join'>Join</a>",
+			'<a href=/join>Join</a>',
+			'<a href="/join#applications">Join</a>',
+			'<a href="https://greatfallstoolbus.org/join">Join</a>',
+			'{href:"/join",label:"Join"}',
+			'$.set_attribute(a,"href","/join")',
+		]) {
+			expect(idsFiring(leaked), leaked).toContain('gated-join-link');
+		}
+		for (const fine of [
+			'<a href="/joinery">x</a>',
+			'<link rel="canonical" href="https://greatfallstoolbus.org/">',
+			'<link rel="canonical" href="https://greatfallstoolbus.org/join/">',
+			'<meta property="og:url" content="https://greatfallstoolbus.org/join/">',
+			'<a href="/contact">Tell us you are interested</a>',
+			'pathname === "/join"',
+			'<h2>How membership works</h2>',
+		]) {
+			expect(idsFiring(fine), fine).not.toContain('gated-join-link');
+		}
+		expect(idsFiring('<a>Member sign in</a>')).toContain('gated-member-label');
+		expect(idsFiring('<a>Sign in</a>')).not.toContain('gated-member-label');
+	});
+
 	it('flags any outbound host or mailbox that has not been reviewed', () => {
 		expect(idsFiring('<a href="https://analytics.example.com/x">x</a>')).toContain('unreviewed-outbound-host');
 		expect(idsFiring('<a href="https://greatfallstoolbus.org/">home</a>')).not.toContain('unreviewed-outbound-host');
@@ -260,8 +307,9 @@ describe('leak-scan over the checked-in public inputs', () => {
 		for (const host of ALLOWED_HOSTS) expect(host).not.toMatch(/^\*|\s/u);
 		expect(ALLOWED_HOSTS).toContain('greatfallstoolbus.org');
 		expect(ALLOWED_HOSTS).toContain('forms.latoolb.us');
-		// Member app sign-in and apply links behind the membership surface flag;
-		// the host is protected by Cloudflare Access (operator ruling 2026-10-03).
+		// The gated manifest's host, protected by Cloudflare Access (operator
+		// interview 2026-10-04). Only the manifest URL may name it: the
+		// gated-member-app-url rule refuses every other member-app address.
 		expect(ALLOWED_HOSTS).toContain('members.greatfallstoolbus.org');
 	});
 });
