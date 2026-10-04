@@ -18,6 +18,7 @@ class GatedSurface {
 		void resolveSurface({
 			search: window.location.search,
 			getStorage: () => window.localStorage,
+			getSession: () => window.sessionStorage,
 			pageOrigin: window.location.origin,
 			// The build flag is inlined by Vite, so this import is dead code (and
 			// the fixture module is dropped) in any build without it.

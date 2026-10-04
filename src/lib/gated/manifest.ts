@@ -40,6 +40,12 @@ export const FIXTURE_ENABLED: boolean = typeof __MEMBERSHIP_FIXTURE__ === 'boole
 /** localStorage key for the preview override. */
 export const OVERRIDE_KEY = 'gftb:flags:membership';
 
+/** sessionStorage key for the per-tab outcome cache. */
+export const CACHE_KEY = 'gftb:gated-surface';
+
+/** How long a cached "yes" lives, so a sign-out takes effect soon. A "no" lasts the tab. */
+export const CACHE_YES_TTL_MS = 5 * 60 * 1000;
+
 /** How long a manifest fetch may take before it counts as "no". */
 export const FETCH_TIMEOUT_MS = 4000;
 
@@ -187,9 +193,49 @@ export async function fetchManifest(
 	}
 }
 
+/** Reads the tab's cached outcome: items (possibly empty for "no"), or null on a miss. */
+export function readCache(
+	getSession: () => OverrideStorage | null,
+	now: number,
+	allowedOrigins: readonly string[],
+): SurfaceItem[] | null {
+	try {
+		const raw = getSession()?.getItem(CACHE_KEY);
+		if (!raw) return null;
+		const entry = JSON.parse(raw) as { at?: unknown; items?: unknown };
+		if (typeof entry.at !== 'number' || !Array.isArray(entry.items)) return null;
+		if (entry.items.length === 0) return [];
+		if (now - entry.at < 0 || now - entry.at >= CACHE_YES_TTL_MS) return null;
+		const items = parseManifest({ items: entry.items }, allowedOrigins);
+		return items.length > 0 ? items : null;
+	} catch {
+		return null;
+	}
+}
+
+/** Stores the tab's outcome. Storage failures are ignored. */
+export function writeCache(getSession: () => OverrideStorage | null, now: number, items: SurfaceItem[]): void {
+	try {
+		getSession()?.setItem(CACHE_KEY, JSON.stringify({ at: now, items }));
+	} catch {
+		/* no cache */
+	}
+}
+
+export function clearCache(getSession: () => OverrideStorage | null): void {
+	try {
+		getSession()?.removeItem(CACHE_KEY);
+	} catch {
+		/* no cache */
+	}
+}
+
 export interface ResolveInputs {
 	search: string;
 	getStorage: () => OverrideStorage | null;
+	/** Per-tab cache storage (sessionStorage). Default: none. */
+	getSession?: () => OverrideStorage | null;
+	now?: () => number;
 	/** This page's origin; manifest links to it are allowed. */
 	pageOrigin: string;
 	manifestUrl?: string;
@@ -225,7 +271,16 @@ export async function resolveSurface({
 	fixtureEnabled = FIXTURE_ENABLED,
 	loadFixture,
 	fetchSeams,
+	getSession = () => null,
+	now = Date.now,
 }: ResolveInputs): Promise<SurfaceItem[]> {
+	// An explicit ?flags= request starts from a clean slate.
+	try {
+		const requested = new URLSearchParams(search).get('flags');
+		if (requested === 'membership' || requested === 'none') clearCache(getSession);
+	} catch {
+		/* no request */
+	}
 	try {
 		if (fixtureEnabled && loadFixture && readOverride(search, getStorage)) return await loadFixture();
 	} catch {
@@ -236,6 +291,9 @@ export async function resolveSurface({
 	];
 	const tailnet = tailnetManifestUrl(tailnetUrl);
 	if (tailnet) sources.push({ url: tailnet, credentials: 'omit' });
+	const cacheOrigins = [pageOrigin, SITE_ORIGIN, ...sources.flatMap(({ url }) => originOf(url) ?? [])];
+	const cached = readCache(getSession, now(), cacheOrigins);
+	if (cached) return cached;
 	const pending = sources.map(({ url, credentials }) => {
 		const sourceOrigin = originOf(url);
 		const allowed = [pageOrigin, SITE_ORIGIN, ...(sourceOrigin ? [sourceOrigin] : [])];
@@ -243,11 +301,14 @@ export async function resolveSurface({
 			items.length > 0 ? items : Promise.reject(new Error('empty')),
 		);
 	});
+	let items: SurfaceItem[];
 	try {
-		return await firstFulfilled(pending);
+		items = await firstFulfilled(pending);
 	} catch {
-		return [];
+		items = [];
 	}
+	writeCache(getSession, now(), items);
+	return items;
 }
 
 /** Resolves with the first fulfilled promise; rejects when every one rejects. */

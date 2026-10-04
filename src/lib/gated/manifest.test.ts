@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+	CACHE_KEY,
+	CACHE_YES_TTL_MS,
 	FETCH_TIMEOUT_MS,
 	MANIFEST_URL,
 	OVERRIDE_KEY,
@@ -374,5 +376,106 @@ describe('resolveSurface', () => {
 		const fetchImpl = vi.fn(async () => jsonResponse(manifest(item())));
 		await resolveSurface({ ...base, tailnetUrl: '', fetchSeams: seams(fetchImpl as unknown as typeof fetch) });
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('the per-tab outcome cache', () => {
+	const base = { search: '', getStorage: () => null, pageOrigin: PAGE, tailnetUrl: '' };
+	const ok = () => vi.fn(async () => jsonResponse(manifest(item())));
+	const bad = () => vi.fn(async () => jsonResponse(manifest(), { status: 403 }));
+	const run = (fetchImpl: unknown, session: OverrideStorage | null, now: number, search = '') =>
+		resolveSurface({
+			...base,
+			search,
+			getSession: () => session,
+			now: () => now,
+			fetchSeams: { fetchImpl: fetchImpl as typeof fetch },
+		});
+
+	it('misses, fetches once, then hits without a request', async () => {
+		const session = memoryStorage();
+		const fetchImpl = ok();
+		expect(await run(fetchImpl, session, 1000)).toEqual([item()]);
+		expect(session.data.has(CACHE_KEY)).toBe(true);
+		expect(await run(fetchImpl, session, 2000)).toEqual([item()]);
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it('caches "no" for the whole tab lifetime', async () => {
+		const session = memoryStorage();
+		const fetchImpl = bad();
+		expect(await run(fetchImpl, session, 0)).toEqual([]);
+		expect(await run(fetchImpl, session, CACHE_YES_TTL_MS * 100)).toEqual([]);
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it('expires a cached "yes" after the TTL and asks again', async () => {
+		const session = memoryStorage();
+		const fetchImpl = ok();
+		await run(fetchImpl, session, 0);
+		await run(fetchImpl, session, CACHE_YES_TTL_MS - 1);
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+		await run(fetchImpl, session, CACHE_YES_TTL_MS);
+		expect(fetchImpl).toHaveBeenCalledTimes(2);
+	});
+
+	it('lets a sign-out show: an expired "yes" that now fails becomes a cached "no"', async () => {
+		const session = memoryStorage();
+		await run(ok(), session, 0);
+		const after = bad();
+		expect(await run(after, session, CACHE_YES_TTL_MS + 1)).toEqual([]);
+		expect(await run(after, session, CACHE_YES_TTL_MS * 2)).toEqual([]);
+		expect(after).toHaveBeenCalledTimes(1);
+	});
+
+	it.each(['?flags=none', '?flags=membership'])('%s clears the cache', async (search) => {
+		const session = memoryStorage();
+		await run(ok(), session, 0);
+		const fetchImpl = ok();
+		await run(fetchImpl, session, 1, search);
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it('ignores a corrupt or off-origin cache entry', async () => {
+		for (const raw of [
+			'{not json',
+			'[]',
+			JSON.stringify({ at: 'x', items: [] }),
+			JSON.stringify({ at: 0, items: [item({ href: 'https://evil.example/join' })] }),
+			JSON.stringify({ at: 5000, items: [item()] }),
+		]) {
+			const session = memoryStorage({ [CACHE_KEY]: raw });
+			const fetchImpl = ok();
+			expect(await run(fetchImpl, session, 100), raw).toEqual([item()]);
+			expect(fetchImpl).toHaveBeenCalledTimes(1);
+		}
+	});
+
+	it('works when storage throws or is absent', async () => {
+		const throwing: OverrideStorage = {
+			getItem: () => {
+				throw new Error('blocked');
+			},
+			setItem: () => {
+				throw new Error('blocked');
+			},
+			removeItem: () => {
+				throw new Error('blocked');
+			},
+		};
+		for (const session of [throwing, null]) {
+			const fetchImpl = ok();
+			expect(await run(fetchImpl, session, 0)).toEqual([item()]);
+			expect(await run(fetchImpl, session, 1)).toEqual([item()]);
+			expect(fetchImpl).toHaveBeenCalledTimes(2);
+		}
+		const items = await resolveSurface({
+			...base,
+			getSession: () => {
+				throw new Error('no session storage');
+			},
+			fetchSeams: { fetchImpl: (async () => jsonResponse(manifest(item()))) as typeof fetch },
+		});
+		expect(items).toEqual([item()]);
 	});
 });
