@@ -18,7 +18,9 @@ class GatedSurface {
 		// A fetch cut off by navigation fails; that is not a real "no", so the
 		// outcome is not cached once the page is on its way out.
 		let leaving = false;
-		const leave = () => (leaving = true);
+		const leave = () => {
+			leaving = true;
+		};
 		window.addEventListener('beforeunload', leave);
 		window.addEventListener('pagehide', leave);
 		void resolveSurface({

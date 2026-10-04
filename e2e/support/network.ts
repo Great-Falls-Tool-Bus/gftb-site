@@ -45,6 +45,24 @@ function manifestCors(route: Route): Record<string, string> {
 	};
 }
 
+/** The anonymous answer: Access's login page, HTML, refused by the resolver on content type. */
+async function fulfillAnonymousManifest(route: Route): Promise<void> {
+	await route.fulfill({
+		status: 200,
+		contentType: 'text/html',
+		headers: manifestCors(route),
+		body: '<!doctype html><title>Sign in</title>',
+	});
+}
+
+/**
+ * For specs that install no external guard: answers the gated manifest at once
+ * as an anonymous visitor gets it, so no request waits on the real network.
+ */
+export async function stubAnonymousManifest(page: Page): Promise<void> {
+	await page.route(MANIFEST_URL, fulfillAnonymousManifest);
+}
+
 /** The member's manifest: every slot, as the member app serves it while intake is closed. */
 export const MEMBER_MANIFEST = { items: FIXTURE_ITEMS };
 
@@ -84,12 +102,7 @@ export async function installExternalGuard(page: Page, baseURL: string): Promise
 		// that needs a member routes the manifest itself (routes registered
 		// later win): see routeMemberManifest.
 		if (url === MANIFEST_URL) {
-			await route.fulfill({
-				status: 200,
-				contentType: 'text/html',
-				headers: manifestCors(route),
-				body: '<!doctype html><title>Sign in</title>',
-			});
+			await fulfillAnonymousManifest(route);
 			return;
 		}
 		await route.abort('blockedbyclient');

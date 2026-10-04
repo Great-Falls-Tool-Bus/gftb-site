@@ -25,10 +25,12 @@ import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-g
 import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 import { awaitTier, forceTierMax } from './support/wiper-tier';
+import { stubAnonymousManifest } from './support/network';
 
 // The home intro's scroll would break this spec's scroll-position premises.
 test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
+	await stubAnonymousManifest(page);
 });
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
