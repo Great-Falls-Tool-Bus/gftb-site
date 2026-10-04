@@ -436,6 +436,19 @@ describe('the per-tab outcome cache', () => {
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
 	});
 
+	it('does not cache an outcome reached while the page is unloading', async () => {
+		const session = memoryStorage();
+		const fetchImpl = vi.fn(async () => Promise.reject(new TypeError('Failed to fetch')));
+		const items = await resolveSurface({
+			...base,
+			getSession: () => session,
+			canCache: () => false,
+			fetchSeams: { fetchImpl: fetchImpl as unknown as typeof fetch },
+		});
+		expect(items).toEqual([]);
+		expect(session.data.has(CACHE_KEY)).toBe(false);
+	});
+
 	it('ignores a corrupt or off-origin cache entry', async () => {
 		for (const raw of [
 			'{not json',

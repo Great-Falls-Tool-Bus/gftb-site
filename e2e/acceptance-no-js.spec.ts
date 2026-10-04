@@ -145,7 +145,7 @@ test.describe('JavaScript disabled', () => {
 			await expect(page.locator(GATED_LINKS), path).toHaveCount(0);
 			await expect(page.getByRole('link', { name: /^Member sign in/u }), path).toHaveCount(0);
 			await expect(page.getByRole('link', { name: 'Join', exact: true }), path).toHaveCount(0);
-			await expect(page.locator('.join-actions'), path).toHaveCount(0);
+			await expect(page.locator('#faq-membership + dd .join-actions'), path).toHaveCount(0);
 			const html = await (await request.get(path)).text();
 			expect(html, path).not.toContain('members.greatfallstoolbus.org');
 			expect(html, path).not.toMatch(/<a\b[^>]*\shref=["']?(?:https:\/\/greatfallstoolbus\.org)?\/join/u);

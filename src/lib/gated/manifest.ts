@@ -236,6 +236,8 @@ export interface ResolveInputs {
 	/** Per-tab cache storage (sessionStorage). Default: none. */
 	getSession?: () => OverrideStorage | null;
 	now?: () => number;
+	/** False while the page is unloading: a fetch cut off by navigation must not cache "no". */
+	canCache?: () => boolean;
 	/** This page's origin; manifest links to it are allowed. */
 	pageOrigin: string;
 	manifestUrl?: string;
@@ -273,6 +275,7 @@ export async function resolveSurface({
 	fetchSeams,
 	getSession = () => null,
 	now = Date.now,
+	canCache = () => true,
 }: ResolveInputs): Promise<SurfaceItem[]> {
 	// An explicit ?flags= request starts from a clean slate.
 	try {
@@ -307,7 +310,7 @@ export async function resolveSurface({
 	} catch {
 		items = [];
 	}
-	writeCache(getSession, now(), items);
+	if (canCache()) writeCache(getSession, now(), items);
 	return items;
 }
 
