@@ -30,7 +30,15 @@
 	function onOpenChange(details: { open: boolean }) {
 		gatedSurface.promptOpen = details.open;
 	}
+
+	// Escape closes the modal wherever focus sits. The Dialog handles it when
+	// focus is inside; this covers the moment before focus has moved in.
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && gatedSurface.promptOpen) gatedSurface.promptOpen = false;
+	}
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 {#if gatedSurface.promptOpen}
 	<Dialog
