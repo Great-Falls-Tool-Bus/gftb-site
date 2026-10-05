@@ -489,6 +489,12 @@ describe('checkTailnet', () => {
 		expect(fetchImpl.mock.calls.map((call) => String((call as unknown[])[0]))).toEqual([PROBE, SURFACE]);
 	});
 
+	it('a tailnet manifest may link to the member app origin (sign in)', async () => {
+		const signIn = item({ slot: 'footer-sign-in', kind: 'sign-in', label: 'Member sign in', href: `${MEMBERS}/login` });
+		const out = await run(route({ probe: true, surface: manifest(tailItem, signIn) }));
+		expect(out.items).toEqual([tailItem, signIn]);
+	});
+
 	it('a yes falls back to the Access manifest when /v1/surface is not served', async () => {
 		const fetchImpl = vi.fn(route({ probe: true, members: manifest(tailItem) }));
 		expect(await run(fetchImpl)).toEqual({ answer: 'yes', items: [tailItem] });

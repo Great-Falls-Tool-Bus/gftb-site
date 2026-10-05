@@ -435,7 +435,7 @@ export async function checkTailnet({
 				pageOrigin,
 				SITE_ORIGIN,
 				...(origin ? [origin] : []),
-				...(originOf(manifestUrl) ?? []),
+				...[originOf(manifestUrl) ?? ''].filter(Boolean),
 			]);
 			if (items) return { answer: 'yes', items };
 		}
@@ -449,7 +449,13 @@ export async function checkTailnet({
 	let items = surfaceUrl
 		? await fetchManifest(
 				surfaceUrl,
-				[pageOrigin, SITE_ORIGIN, ...(surfaceOrigin ? [surfaceOrigin] : [])],
+				// The tailnet manifest links to the member app's sign-in too.
+				[
+					pageOrigin,
+					SITE_ORIGIN,
+					...[originOf(manifestUrl) ?? ''].filter(Boolean),
+					...(surfaceOrigin ? [surfaceOrigin] : []),
+				],
 				'omit',
 				fetchSeams,
 			)

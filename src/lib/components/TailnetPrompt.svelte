@@ -25,6 +25,7 @@
 	} = Dialog;
 
 	const state = $derived(gatedSurface.tailnet);
+	let checkEl = $state<HTMLButtonElement>();
 
 	function onOpenChange(details: { open: boolean }) {
 		gatedSurface.promptOpen = details.open;
@@ -78,6 +79,7 @@
 							type="button"
 							class="button"
 							data-testid="tailnet-check"
+							bind:this={checkEl}
 							disabled={state === 'checking'}
 							onclick={() => void gatedSurface.askTailnet(state === 'no')}
 						>

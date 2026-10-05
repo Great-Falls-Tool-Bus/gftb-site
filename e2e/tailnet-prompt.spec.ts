@@ -119,16 +119,27 @@ test('yes: the member links mount, the button goes, and the answer holds for the
 test('yes with no surface served falls back to the Access manifest', async ({ page, baseUrl }) => {
 	const run = await open(page, baseUrl);
 	await probeAnswers(page, true);
+	// Anonymous at page load (Access's login page); a session by the time of the check.
+	let signedIn = false;
 	await page.route(MANIFEST_URL, (route) =>
-		route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: { ...cors(route), 'access-control-allow-credentials': 'true' },
-			body: JSON.stringify(MEMBER_MANIFEST),
-		}),
+		signedIn
+			? route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					headers: { ...cors(route), 'access-control-allow-credentials': 'true' },
+					body: JSON.stringify(MEMBER_MANIFEST),
+				})
+			: route.fulfill({
+					status: 200,
+					contentType: 'text/html',
+					headers: cors(route),
+					body: '<!doctype html><title>Sign in</title>',
+				}),
 	);
 	await run.goto();
+	await expect(member(page)).toHaveCount(0);
 	await button(page).click();
+	signedIn = true;
 	await dialog(page).getByTestId('tailnet-check').click();
 	await expect(dialog(page).getByTestId('tailnet-result')).toContainText('The member links are now shown.');
 	await dialog(page).getByRole('button', { name: 'Close' }).click();
