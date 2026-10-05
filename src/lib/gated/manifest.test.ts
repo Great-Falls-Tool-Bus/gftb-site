@@ -381,6 +381,14 @@ describe('probeTailnet', () => {
 		expect(await ask(async () => jsonResponse(body))).toBe(false);
 	});
 
+	it('is yes for the live probe answer, byte for byte', async () => {
+		const live = new Response('{"tailnet": true}', {
+			status: 200,
+			headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+		});
+		expect(await ask(async () => live)).toBe(true);
+	});
+
 	it('is no for a non-200, a redirect, a non-JSON type, malformed JSON and a thrown error', async () => {
 		expect(await ask(async () => jsonResponse(true, { status: 403 }))).toBe(false);
 		expect(await ask(async () => jsonResponse(true, { status: 302 }))).toBe(false);
