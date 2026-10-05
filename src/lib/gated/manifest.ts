@@ -16,9 +16,10 @@
 //
 // Sources, concurrently, first valid manifest wins:
 // (a) the members manifest, credentialed;
-// (b) the tailnet origin's /v1/surface, only when the build sets
-//     PUBLIC_TAILNET_PROBE_URL (empty by default, so a public build carries no
-//     tailnet hostname or address);
+// (b) the tailnet, but never on page load (operator ruling 2026-10-05): only
+//     when the visitor presses the footer button and confirms in the modal,
+//     see checkTailnet below. The probe URL is the build's
+//     PUBLIC_TAILNET_PROBE_URL (stamped, leak-scanned); empty means no button;
 // (c) a fixture manifest, only in a build that sets PUBLIC_MEMBERSHIP_FIXTURE=1
 //     and only for a visitor who asked with ?flags=membership (stored in
 //     localStorage; ?flags=none clears it). A normal build dead-code-eliminates
@@ -280,7 +281,14 @@ export async function resolveSurface({
 	// An explicit ?flags= request starts from a clean slate.
 	try {
 		const requested = new URLSearchParams(search).get('flags');
-		if (requested === 'membership' || requested === 'none') clearCache(getSession);
+		if (requested === 'membership' || requested === 'none') {
+			clearCache(getSession);
+			try {
+				getSession()?.removeItem(TAILNET_CACHE_KEY);
+			} catch {
+				/* no cache */
+			}
+		}
 	} catch {
 		/* no request */
 	}
@@ -289,41 +297,173 @@ export async function resolveSurface({
 	} catch {
 		return [];
 	}
-	const sources: Array<{ url: string; credentials: RequestCredentials }> = [
-		{ url: manifestUrl, credentials: 'include' },
+	// The one request this resolver makes on its own: the members manifest. The
+	// tailnet is never asked here. A cached tailnet answer's items may be in the
+	// cache, so that origin is allowed when reading it back.
+	const tailnetOrigin = originOf(tailnetManifestUrl(tailnetUrl));
+	const memberOrigin = originOf(manifestUrl);
+	const cacheOrigins = [
+		pageOrigin,
+		SITE_ORIGIN,
+		...(memberOrigin ? [memberOrigin] : []),
+		...(tailnetOrigin ? [tailnetOrigin] : []),
 	];
-	const tailnet = tailnetManifestUrl(tailnetUrl);
-	if (tailnet) sources.push({ url: tailnet, credentials: 'omit' });
-	const cacheOrigins = [pageOrigin, SITE_ORIGIN, ...sources.flatMap(({ url }) => originOf(url) ?? [])];
 	const cached = readCache(getSession, now(), cacheOrigins);
 	if (cached) return cached;
-	const pending = sources.map(({ url, credentials }) => {
-		const sourceOrigin = originOf(url);
-		const allowed = [pageOrigin, SITE_ORIGIN, ...(sourceOrigin ? [sourceOrigin] : [])];
-		return fetchManifest(url, allowed, credentials, fetchSeams).then((items) =>
-			items.length > 0 ? items : Promise.reject(new Error('empty')),
-		);
-	});
-	let items: SurfaceItem[];
-	try {
-		items = await firstFulfilled(pending);
-	} catch {
-		items = [];
-	}
+	const items = await fetchManifest(
+		manifestUrl,
+		[pageOrigin, SITE_ORIGIN, ...(memberOrigin ? [memberOrigin] : [])],
+		'include',
+		fetchSeams,
+	);
 	if (canCache()) writeCache(getSession, now(), items);
 	return items;
 }
 
-/** Resolves with the first fulfilled promise; rejects when every one rejects. */
-function firstFulfilled<T>(promises: Promise<T>[]): Promise<T> {
-	return new Promise((resolve, reject) => {
-		let remaining = promises.length;
-		if (remaining === 0) reject(new Error('no sources'));
-		for (const promise of promises) {
-			promise.then(resolve, () => {
-				remaining -= 1;
-				if (remaining === 0) reject(new Error('all failed'));
+/** sessionStorage key for the per-tab tailnet answer. */
+export const TAILNET_CACHE_KEY = 'gftb:tailnet-probe';
+
+/** The tailnet probe may wait on the browser's local-network permission prompt. */
+export const TAILNET_PROBE_TIMEOUT_MS = 10_000;
+
+export type TailnetOutcome = {
+	/** "no" covers a blocked request, a denied permission, a timeout and any non-true answer. */
+	answer: 'yes' | 'no';
+	/** The member links the tailnet (or, failing that, the Access manifest) served; empty when none. */
+	items: SurfaceItem[];
+};
+
+/**
+ * True only for an answer of exactly `true`, bare or as `{ tailnet: true }`,
+ * from a 200 JSON response. Fails closed; never rejects.
+ */
+export async function probeTailnet(probeUrl: string, seams: FetchSeams = {}): Promise<boolean> {
+	const {
+		fetchImpl = (input, init) => fetch(input, init),
+		timeoutMs = TAILNET_PROBE_TIMEOUT_MS,
+		setTimer = (callback, ms) => setTimeout(callback, ms),
+		clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+	} = seams;
+	if (!probeUrl) return false;
+	const controller = new AbortController();
+	let timer: unknown;
+	try {
+		timer = setTimer(() => controller.abort(), timeoutMs);
+		const timedOut = new Promise<never>((_, reject) => {
+			controller.signal.addEventListener('abort', () => reject(new Error('timeout')));
+		});
+		const work = (async () => {
+			const response = await fetchImpl(probeUrl, {
+				method: 'GET',
+				credentials: 'omit',
+				redirect: 'manual',
+				cache: 'no-store',
+				referrerPolicy: 'no-referrer',
+				signal: controller.signal,
 			});
+			if (response.status !== 200) return false;
+			if (!/^application\/json\s*(?:;|$)/iu.test(response.headers.get('content-type') ?? '')) return false;
+			const body: unknown = await response.json();
+			return (
+				body === true || (typeof body === 'object' && body !== null && (body as { tailnet?: unknown }).tailnet === true)
+			);
+		})();
+		return await Promise.race([work, timedOut]);
+	} catch {
+		return false;
+	} finally {
+		clearTimer(timer);
+	}
+}
+
+export interface TailnetInputs {
+	probeUrl: string;
+	pageOrigin: string;
+	manifestUrl?: string;
+	getSession?: () => OverrideStorage | null;
+	now?: () => number;
+	fetchSeams?: FetchSeams;
+	/** Ignore the cached answer (the "check again" button). */
+	force?: boolean;
+}
+
+/** The per-tab tailnet answer: a "no" lasts the tab, a "yes" the short TTL. */
+export function readTailnetCache(getSession: () => OverrideStorage | null, now: number): 'yes' | 'no' | null {
+	try {
+		const raw = getSession()?.getItem(TAILNET_CACHE_KEY);
+		if (!raw) return null;
+		const entry = JSON.parse(raw) as { at?: unknown; answer?: unknown };
+		if (typeof entry.at !== 'number') return null;
+		if (entry.answer === 'no') return 'no';
+		if (entry.answer === 'yes' && now - entry.at >= 0 && now - entry.at < CACHE_YES_TTL_MS) return 'yes';
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+function writeTailnetCache(getSession: () => OverrideStorage | null, now: number, answer: 'yes' | 'no'): void {
+	try {
+		getSession()?.setItem(TAILNET_CACHE_KEY, JSON.stringify({ at: now, answer }));
+	} catch {
+		/* no cache */
+	}
+}
+
+/**
+ * The footer button's action, run only after the visitor confirms in the modal.
+ * Probes the tailnet; a yes then asks the tailnet origin's /v1/surface for the
+ * member links and, if it does not serve one, the Access manifest. Any failure
+ * is "no". Never rejects. A yes stores its links in the shared outcome cache,
+ * so the rest of this tab shows them without another request.
+ */
+export async function checkTailnet({
+	probeUrl,
+	pageOrigin,
+	manifestUrl = MANIFEST_URL,
+	getSession = () => null,
+	now = Date.now,
+	fetchSeams,
+	force = false,
+}: TailnetInputs): Promise<TailnetOutcome> {
+	if (!force) {
+		const cached = readTailnetCache(getSession, now());
+		if (cached === 'no') return { answer: 'no', items: [] };
+		if (cached === 'yes') {
+			const origin = originOf(tailnetManifestUrl(probeUrl));
+			const items = readCache(getSession, now(), [
+				pageOrigin,
+				SITE_ORIGIN,
+				...(origin ? [origin] : []),
+				...(originOf(manifestUrl) ?? []),
+			]);
+			if (items) return { answer: 'yes', items };
 		}
-	});
+	}
+	if (!(await probeTailnet(probeUrl, fetchSeams))) {
+		writeTailnetCache(getSession, now(), 'no');
+		return { answer: 'no', items: [] };
+	}
+	const surfaceUrl = tailnetManifestUrl(probeUrl);
+	const surfaceOrigin = originOf(surfaceUrl);
+	let items = surfaceUrl
+		? await fetchManifest(
+				surfaceUrl,
+				[pageOrigin, SITE_ORIGIN, ...(surfaceOrigin ? [surfaceOrigin] : [])],
+				'omit',
+				fetchSeams,
+			)
+		: [];
+	if (items.length === 0) {
+		const memberOrigin = originOf(manifestUrl);
+		items = await fetchManifest(
+			manifestUrl,
+			[pageOrigin, SITE_ORIGIN, ...(memberOrigin ? [memberOrigin] : [])],
+			'include',
+			fetchSeams,
+		);
+	}
+	writeTailnetCache(getSession, now(), 'yes');
+	writeCache(getSession, now(), items);
+	return { answer: 'yes', items };
 }

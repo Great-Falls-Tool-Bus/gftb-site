@@ -10,6 +10,8 @@
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
 	import GatedSlot from '$lib/components/GatedSlot.svelte';
+	import TailnetPrompt from '$lib/components/TailnetPrompt.svelte';
+	import { gatedSurface } from '$lib/gated/surface.svelte';
 	import { isUnlistedPath } from '$lib/membership';
 	import BusMark from '$lib/components/BusMark.svelte';
 	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
@@ -341,6 +343,18 @@
 					     outbound meta links ride ExternalLink. -->
 					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
 					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
+					<!-- The tailnet button mounts in the browser only, with a stamped probe
+					     URL, and leaves no empty item behind for anyone else. -->
+					{#if gatedSurface.showTailnetButton}
+						<li>
+							<button
+								type="button"
+								class="site-footer__network"
+								data-testid="tailnet-open"
+								onclick={() => (gatedSurface.promptOpen = true)}>On the tool bus network?</button
+							>
+						</li>
+					{/if}
 				</ul>
 			</nav>
 		</div>
@@ -350,6 +364,8 @@
 	     finding C). Its absolute position is anchored to .app-shell's reserved
 	     footer rail, after the footer in both DOM and visual custody. -->
 	<ContributeMenu />
+
+	<TailnetPrompt />
 
 	<!-- Rehearsal-only list-signup capture: absent from an off build, mounted
 	     on idle after the footer and the Contribute rail on an on build. -->

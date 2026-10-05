@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	CACHE_KEY,
+	TAILNET_CACHE_KEY,
+	TAILNET_PROBE_TIMEOUT_MS,
+	checkTailnet,
+	probeTailnet,
 	CACHE_YES_TTL_MS,
 	FETCH_TIMEOUT_MS,
 	MANIFEST_URL,
@@ -340,42 +344,229 @@ describe('resolveSurface', () => {
 		expect(items).toEqual([]);
 	});
 
-	it('asks the tailnet manifest too when the build set one, and takes whichever answers', async () => {
-		const tailnetItem = item({ label: 'Join', href: 'https://tailnet.example.test/join' });
-		const calls: Array<[string, RequestInit | undefined]> = [];
-		const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
-			const url = String(input);
-			calls.push([url, init]);
-			return url === MANIFEST_URL ? jsonResponse(manifest(), { status: 403 }) : jsonResponse(manifest(tailnetItem));
-		}) as typeof fetch;
-		const items = await resolveSurface({
-			...base,
-			tailnetUrl: 'https://tailnet.example.test/favicon.svg',
-			fetchSeams: seams(fetchImpl),
-		});
-		expect(items).toEqual([tailnetItem]);
-		expect(calls.map(([url]) => url).sort()).toEqual([MANIFEST_URL, 'https://tailnet.example.test/v1/surface'].sort());
-		expect(calls.find(([url]) => url === MANIFEST_URL)?.[1]?.credentials).toBe('include');
-		expect(calls.find(([url]) => url !== MANIFEST_URL)?.[1]?.credentials).toBe('omit');
-	});
-
-	it('does not let one source vouch for another source origin', async () => {
-		const fetchImpl = (async (input: RequestInfo | URL) =>
-			String(input) === MANIFEST_URL
-				? jsonResponse(manifest(item({ href: 'https://tailnet.example.test/join' })))
-				: jsonResponse(manifest())) as typeof fetch;
-		const items = await resolveSurface({
-			...base,
-			tailnetUrl: 'https://tailnet.example.test/favicon.svg',
-			fetchSeams: seams(fetchImpl),
-		});
-		expect(items).toEqual([]);
-	});
-
-	it('never asks the tailnet when the build set none', async () => {
+	it('never asks the tailnet on its own, even when the build set a probe URL', async () => {
 		const fetchImpl = vi.fn(async () => jsonResponse(manifest(item())));
-		await resolveSurface({ ...base, tailnetUrl: '', fetchSeams: seams(fetchImpl as unknown as typeof fetch) });
+		await resolveSurface({
+			...base,
+			tailnetUrl: PROBE,
+			fetchSeams: seams(fetchImpl as unknown as typeof fetch),
+		});
+		const urls = fetchImpl.mock.calls.map((call) => String((call as unknown[])[0]));
+		expect(urls).toEqual([MANIFEST_URL]);
+	});
+});
+
+const PROBE = 'https://probe.example.ts.net/v1/tailnet';
+const SURFACE = 'https://probe.example.ts.net/v1/surface';
+
+describe('probeTailnet', () => {
+	const ask = (fetchImpl: unknown, extra: FetchSeams = {}) =>
+		probeTailnet(PROBE, { fetchImpl: fetchImpl as typeof fetch, ...extra });
+
+	it.each([
+		['a bare true', true],
+		['{ tailnet: true }', { tailnet: true }],
+	])('is yes for %s', async (_label, body) => {
+		expect(await ask(async () => jsonResponse(body))).toBe(true);
+	});
+
+	it.each([
+		['false', false],
+		['{ tailnet: false }', { tailnet: false }],
+		['the string "true"', '"true"'],
+		['{ tailnet: "true" }', { tailnet: 'true' }],
+		['an empty object', {}],
+		['null', null],
+	])('is no for %s', async (_label, body) => {
+		expect(await ask(async () => jsonResponse(body))).toBe(false);
+	});
+
+	it('is no for a non-200, a redirect, a non-JSON type, malformed JSON and a thrown error', async () => {
+		expect(await ask(async () => jsonResponse(true, { status: 403 }))).toBe(false);
+		expect(await ask(async () => jsonResponse(true, { status: 302 }))).toBe(false);
+		expect(await ask(async () => jsonResponse(true, { type: 'text/html' }))).toBe(false);
+		expect(await ask(async () => jsonResponse('{nope'))).toBe(false);
+		expect(
+			await ask(async () => {
+				throw new TypeError('blocked');
+			}),
+		).toBe(false);
+	});
+
+	it('is no without a URL and does not ask', async () => {
+		const fetchImpl = vi.fn();
+		expect(await probeTailnet('', { fetchImpl: fetchImpl as unknown as typeof fetch })).toBe(false);
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('is no on timeout and aborts the request; the default allows time for the permission prompt', async () => {
+		let fire: (() => void) | undefined;
+		let aborted = false;
+		const pending = ask(
+			(_input: unknown, init?: RequestInit) =>
+				new Promise<Response>(() => init?.signal?.addEventListener('abort', () => (aborted = true))),
+			{
+				setTimer: (callback, ms) => {
+					expect(ms).toBe(TAILNET_PROBE_TIMEOUT_MS);
+					fire = callback;
+					return 1;
+				},
+			},
+		);
+		await Promise.resolve();
+		fire?.();
+		expect(await pending).toBe(false);
+		expect(aborted).toBe(true);
+		expect(TAILNET_PROBE_TIMEOUT_MS).toBeGreaterThanOrEqual(5000);
+		expect(TAILNET_PROBE_TIMEOUT_MS).toBeLessThanOrEqual(15000);
+	});
+
+	it('asks without credentials, no cache and no referrer', async () => {
+		const fetchImpl = vi.fn(async () => jsonResponse(true));
+		await ask(fetchImpl);
+		const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe(PROBE);
+		expect(init).toMatchObject({
+			credentials: 'omit',
+			cache: 'no-store',
+			referrerPolicy: 'no-referrer',
+			redirect: 'manual',
+		});
+	});
+});
+
+describe('checkTailnet', () => {
+	const tailItem = item({ href: `${PAGE}/join` });
+	const route =
+		(answers: { probe?: unknown; surface?: unknown; members?: unknown }) => async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url === PROBE) return jsonResponse(answers.probe ?? false);
+			if (url === SURFACE) return answers.surface ? jsonResponse(answers.surface) : jsonResponse({}, { status: 404 });
+			if (url === MANIFEST_URL)
+				return answers.members ? jsonResponse(answers.members) : jsonResponse({}, { status: 403 });
+			throw new Error('unexpected ' + url);
+		};
+	const run = (
+		fetchImpl: unknown,
+		session: OverrideStorage | null = null,
+		extra: { force?: boolean; now?: number } = {},
+	) =>
+		checkTailnet({
+			probeUrl: PROBE,
+			pageOrigin: PAGE,
+			getSession: () => session,
+			now: () => extra.now ?? 0,
+			force: extra.force,
+			fetchSeams: { fetchImpl: fetchImpl as typeof fetch },
+		});
+
+	it('a no answer is no, with no links, and asks nothing else', async () => {
+		const fetchImpl = vi.fn(route({ probe: false }));
+		expect(await run(fetchImpl)).toEqual({ answer: 'no', items: [] });
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it('a blocked probe (fetch throws) is no', async () => {
+		const blocked = async () => {
+			throw new TypeError('blocked');
+		};
+		expect(await run(blocked)).toEqual({ answer: 'no', items: [] });
+	});
+
+	it('a yes takes the links from the tailnet /v1/surface when it serves one', async () => {
+		const fetchImpl = vi.fn(
+			route({ probe: { tailnet: true }, surface: manifest(tailItem), members: manifest(item({ label: 'Other' })) }),
+		);
+		expect(await run(fetchImpl)).toEqual({ answer: 'yes', items: [tailItem] });
+		expect(fetchImpl.mock.calls.map((call) => String((call as unknown[])[0]))).toEqual([PROBE, SURFACE]);
+	});
+
+	it('a yes falls back to the Access manifest when /v1/surface is not served', async () => {
+		const fetchImpl = vi.fn(route({ probe: true, members: manifest(tailItem) }));
+		expect(await run(fetchImpl)).toEqual({ answer: 'yes', items: [tailItem] });
+		expect(fetchImpl.mock.calls.map((call) => String((call as unknown[])[0]))).toEqual([PROBE, SURFACE, MANIFEST_URL]);
+	});
+
+	it('a yes with no links anywhere is yes with nothing to mount', async () => {
+		expect(await run(route({ probe: true }))).toEqual({ answer: 'yes', items: [] });
+	});
+
+	it('remembers a no for the tab and a yes for the TTL, and force asks again', async () => {
+		const session = memoryStorage();
+		const no = vi.fn(route({ probe: false }));
+		await run(no, session, { now: 0 });
+		await run(no, session, { now: CACHE_YES_TTL_MS * 50 });
+		expect(no).toHaveBeenCalledTimes(1);
+		const yes = vi.fn(route({ probe: true, surface: manifest(tailItem) }));
+		await run(yes, session, { now: 1, force: true });
+		expect(yes).toHaveBeenCalledTimes(2);
+		expect(await run(yes, session, { now: 2 })).toEqual({ answer: 'yes', items: [tailItem] });
+		expect(yes).toHaveBeenCalledTimes(2);
+		await run(yes, session, { now: 1 + CACHE_YES_TTL_MS });
+		expect(yes.mock.calls.length).toBeGreaterThan(2);
+	});
+
+	it('a yes stores its links where the page-load resolver reads them, so a later load needs no request', async () => {
+		const session = memoryStorage();
+		await run(route({ probe: true, surface: manifest(tailItem) }), session, { now: 0 });
+		const fetchImpl = vi.fn();
+		const items = await resolveSurface({
+			search: '',
+			getStorage: () => null,
+			pageOrigin: PAGE,
+			tailnetUrl: PROBE,
+			getSession: () => session,
+			now: () => 1,
+			fetchSeams: { fetchImpl: fetchImpl as unknown as typeof fetch },
+		});
+		expect(items).toEqual([tailItem]);
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('a no leaves a cached Access yes alone', async () => {
+		const session = memoryStorage();
+		await resolveSurface({
+			search: '',
+			getStorage: () => null,
+			pageOrigin: PAGE,
+			getSession: () => session,
+			now: () => 0,
+			fetchSeams: { fetchImpl: (async () => jsonResponse(manifest(item()))) as typeof fetch },
+		});
+		await run(route({ probe: false }), session, { now: 1 });
+		expect(session.data.get(CACHE_KEY)).toContain('"items":[{');
+	});
+
+	it('?flags= clears the tailnet answer too', async () => {
+		const session = memoryStorage();
+		await run(route({ probe: false }), session);
+		expect(session.data.has(TAILNET_CACHE_KEY)).toBe(true);
+		await resolveSurface({
+			search: '?flags=none',
+			getStorage: () => null,
+			pageOrigin: PAGE,
+			getSession: () => session,
+			fetchSeams: { fetchImpl: (async () => jsonResponse(manifest())) as typeof fetch },
+		});
+		expect(session.data.has(TAILNET_CACHE_KEY)).toBe(false);
+	});
+
+	it('works when storage throws', async () => {
+		const throwing: OverrideStorage = {
+			getItem: () => {
+				throw new Error('x');
+			},
+			setItem: () => {
+				throw new Error('x');
+			},
+			removeItem: () => {
+				throw new Error('x');
+			},
+		};
+		expect(await run(route({ probe: true, surface: manifest(tailItem) }), throwing)).toEqual({
+			answer: 'yes',
+			items: [tailItem],
+		});
 	});
 });
 

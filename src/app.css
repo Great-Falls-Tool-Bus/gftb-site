@@ -898,6 +898,7 @@ li {
 .page-shell > .contact-card,
 .hours-band,
 .rsvp-dialog,
+.tailnet-dialog,
 .site-footer {
 	--fg: var(--glass-fg);
 	--fg-muted: var(--glass-muted);
@@ -923,6 +924,7 @@ li {
 	.page-shell > .contact-card,
 	.hours-band,
 	.rsvp-dialog,
+	.tailnet-dialog,
 	.site-footer {
 		backdrop-filter: blur(12px) saturate(118%);
 	}
@@ -935,6 +937,7 @@ li {
 	.page-shell > .contact-card,
 	.hours-band,
 	.rsvp-dialog,
+	.tailnet-dialog,
 	.site-footer {
 		backdrop-filter: none;
 	}
@@ -2602,6 +2605,17 @@ figcaption {
 	list-style: none;
 	display: grid;
 	gap: 0.35rem;
+}
+
+.site-footer__network {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--link);
+	font: inherit;
+	text-align: left;
+	text-decoration: underline;
+	cursor: pointer;
 }
 
 .site-footer__inner p {
