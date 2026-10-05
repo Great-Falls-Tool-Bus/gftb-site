@@ -32,6 +32,7 @@ export default defineConfig({
 		'home-join-path.spec.ts',
 		'home-rsvp.spec.ts',
 		'mobile-nav.spec.ts',
+		'tailnet-prompt.spec.ts',
 	].map((name) => resolve(testDir, name)),
 	fullyParallel: false,
 	forbidOnly: true,

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
-import { installExternalGuard, stubChallenge } from './support/network';
+import { installExternalGuard, stubAnonymousManifest, stubChallenge } from './support/network';
 
 import { HOURS_FIXTURE_GLOBAL, MARQUEE_RESUME_MS } from '../src/lib/hours-band';
 import { publicHoursSlots } from '../src/lib/public-hours';
@@ -80,6 +80,7 @@ async function withSessions(page: Page, now: Date = NOW, slots: readonly object[
 
 test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
+	await stubAnonymousManifest(page);
 });
 
 // Between the FAQ and the log, not under the hero, and the document never widens.

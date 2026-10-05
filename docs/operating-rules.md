@@ -105,8 +105,15 @@ whose archive is not public.
   directory, or a file whose extension is in neither `TEXT_EXTENSIONS` nor
   `SKIP_EXTENSIONS`, is a failure. Set `GFTB_LEAK_SCAN_DENY` to add
   operator-held literals; never commit them.
-- `PUBLIC_TAILNET_PROBE_URL` (the membership surface tailnet probe) is never
-  committed. A caller that exports it is the only source:
+- `PUBLIC_TAILNET_PROBE_URL` (the footer button's tailnet probe) ships in the
+  public bundle; it is a name, not a secret. Operator ruling 2026-10-05
+  ("Set, gated by a footer button that opens a modal to ask for permission
+  using the skeleton v5 pattern") sets it to
+  `https://gftb-probe.taila4c78d.ts.net/v1/tailnet`: that is the Justfile's
+  default for the variable and the publish workflow's fallback when the
+  repository variable is unset. The site never probes on page load; only the
+  modal's own button does. The stamping below is unchanged, and a caller that
+  exports a different value (or an empty one) overrides the default:
   `scripts/bazel/workspace-status.sh` validates it (under `LC_ALL=C`, so
   `[a-z]` is ASCII only) as exactly `https://<node>.<tailnet>.ts.net/<path>`
   and stamps it as `STABLE_BUILD_TAILNET_PROBE_URL`; the Vite build reads it
@@ -120,9 +127,8 @@ whose archive is not public.
   `//:build` and `//:scanned_build` fail until the value is fixed or unset. A
   direct `just leak-scan` reads the caller's variable instead of a stamp and,
   when it finds a tailnet name, says the tree may have been built with a
-  different value. Do not set the variable anywhere until the lab runbook's
-  live Chrome Local Network Access check passes (operator ruling 2026-10-03,
-  "Verify live first").
+  different value. The 2026-10-03 "Verify live first" hold on setting the
+  variable is superseded by the 2026-10-05 ruling above.
 - `scripts/lib/*` is acceptance-test-only and deliberately outside `src/lib`:
   the leak ruleset carries credential-detection regexes and must never be
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from

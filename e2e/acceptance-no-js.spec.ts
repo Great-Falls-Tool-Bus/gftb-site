@@ -1,11 +1,20 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 
-import { publicPrimaryNavItems } from '../src/lib/nav-items';
-import { ACCESS_PROBE_URL } from '../src/lib/flags/membership-surface';
+import { primaryNavItems } from '../src/lib/nav-items';
+import { MANIFEST_URL } from '../src/lib/gated/manifest';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
 import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 import { forceTierMax } from './support/wiper-tier';
+
+/** Every link into the member app or the /join explainer, however spelled. */
+const GATED_LINKS = [
+	'a[href*="members.greatfallstoolbus.org"]',
+	'a[href="/join"]',
+	'a[href^="/join/"]',
+	'a[href^="/join#"]',
+	'a[href^="https://greatfallstoolbus.org/join"]',
+].join(', ');
 
 async function unresolvedHomeHashes(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
@@ -110,11 +119,12 @@ test.describe('JavaScript disabled', () => {
 		// The nav SSOT's primary items (Log, Contact, FAQ since the operator
 		// ruling of 2026-09-19, GitHub since 2026-08-31, Discussion archive since
 		// 2026-09-01); the count derives from the SSOT so it cannot drift. Join
-		// (operator rulings 2026-10-03) is a membership item: without scripts the
-		// flag never turns on, so it stays hidden and out of the accessibility tree.
+		// is not in the SSOT: it comes from the gated manifest (operator
+		// interview 2026-10-04), which never loads without scripts, so there is
+		// no Join element at all.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
-		await expect(headerLinks).toHaveCount(publicPrimaryNavItems.length);
-		await expect(page.locator('.site-nav a[href="/join"]')).toBeHidden();
+		await expect(headerLinks).toHaveCount(primaryNavItems.length);
+		await expect(page.locator('.site-nav a[href="/join"]')).toHaveCount(0);
 		await expect(headerLinks).toHaveText(['Log', 'Contact', 'FAQ', /^GitHub/u, /^Discussion archive/u]);
 
 		expect(await unresolvedHomeHashes(page), 'scriptless home hash targets without matching elements').toEqual([]);
@@ -123,6 +133,31 @@ test.describe('JavaScript disabled', () => {
 		await page.goto('/contact');
 		await expect(page.locator('img.qr')).toHaveAttribute('src', '/qr/greatfallstoolbus-apex.svg');
 		await expect(page.getByText('greatfallstoolbus.org')).toBeVisible();
+	});
+
+	// Operator interview 2026-10-04 (TIN-5371, TIN-5351): the gated membership
+	// links are not in the served HTML at all, so without scripts there is
+	// nothing to hide and nothing to show. Absence, not visibility: the raw
+	// markup carries no member-app address and no link into /join.
+	test('no gated membership link or member-app address is in the HTML without scripts', async ({ page, request }) => {
+		for (const path of ['/', '/join/', '/contact']) {
+			await page.goto(path);
+			await expect(page.locator(GATED_LINKS), path).toHaveCount(0);
+			await expect(page.getByRole('link', { name: /^Member sign in/u }), path).toHaveCount(0);
+			await expect(page.getByRole('link', { name: 'Join', exact: true }), path).toHaveCount(0);
+			await expect(page.locator('#faq-membership + dd .join-actions'), path).toHaveCount(0);
+			const html = await (await request.get(path)).text();
+			expect(html, path).not.toContain('members.greatfallstoolbus.org');
+			expect(html, path).not.toMatch(/<a\b[^>]*\shref=["']?(?:https:\/\/greatfallstoolbus\.org)?\/join/u);
+			expect(html, path).not.toContain('Member sign in');
+		}
+		// The explainer page stays reachable by its own address, with its prose.
+		await page.goto('/join/');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Join the Tool Bus');
+		await expect(page.locator('#steps ol li')).toHaveCount(6);
+		await expect(
+			page.locator('#applications').getByRole('link', { name: "Tell us you're interested" }),
+		).toHaveAttribute('href', '/contact');
 	});
 
 	test('the contact form degrades to a plain POST plus an email fallback', async ({ page }) => {
@@ -211,10 +246,10 @@ test.describe('JavaScript enabled', () => {
 		expect(pageErrors, 'uncaught page errors').toEqual([]);
 		expect(consoleErrors, 'console errors and warnings').toEqual([]);
 		// The only third parties the page may talk to are the contact API origin
-		// and the membership surface's one Access probe (operator rulings
-		// 2026-10-03, src/lib/flags/membership-surface.ts).
+		// and the gated membership manifest, one credentialed fetch (operator
+		// interview 2026-10-04, src/lib/gated/manifest.ts).
 		for (const url of guard.attempted) {
-			expect(url.startsWith(FORM_ORIGIN) || url.startsWith(`${ACCESS_PROBE_URL}?`), url).toBe(true);
+			expect(url.startsWith(FORM_ORIGIN) || url === MANIFEST_URL, url).toBe(true);
 		}
 	};
 
@@ -236,11 +271,9 @@ test.describe('JavaScript enabled', () => {
 		// fetch) moved to /contact (B1.4).
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		// The membership surface's one Access probe is the sole exception
-		// (src/lib/flags/membership-surface.ts).
-		const rootOrigins = new Set(
-			requested.filter((url) => !url.startsWith(`${ACCESS_PROBE_URL}?`)).map((url) => new URL(url).origin),
-		);
+		// The gated membership manifest is the sole exception
+		// (src/lib/gated/manifest.ts).
+		const rootOrigins = new Set(requested.filter((url) => url !== MANIFEST_URL).map((url) => new URL(url).origin));
 		rootOrigins.delete(new URL(baseUrl).origin);
 		expect([...rootOrigins]).toEqual([]);
 
@@ -250,9 +283,7 @@ test.describe('JavaScript enabled', () => {
 		const challenge = page.waitForRequest((request) => request.url() === CHALLENGE_URL && request.method() === 'GET');
 		await Promise.all([challenge, page.goto('/contact')]);
 		await page.waitForLoadState('networkidle');
-		const contactOrigins = new Set(
-			requested.filter((url) => !url.startsWith(`${ACCESS_PROBE_URL}?`)).map((url) => new URL(url).origin),
-		);
+		const contactOrigins = new Set(requested.filter((url) => url !== MANIFEST_URL).map((url) => new URL(url).origin));
 		contactOrigins.delete(new URL(baseUrl).origin);
 		expect([...contactOrigins]).toEqual([FORM_ORIGIN]);
 	});

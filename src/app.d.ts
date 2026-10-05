@@ -22,9 +22,15 @@ declare global {
 	const __SUBSCRIBE_CAPTURE__: boolean | undefined;
 
 	// Build-time tailnet probe URL from PUBLIC_TAILNET_PROBE_URL, empty by
-	// default. Absent outside a Vite build; src/lib/flags/membership-surface.ts
-	// guards it and resolves to empty.
+	// default; its origin's /v1/surface is an extra manifest source. Absent
+	// outside a Vite build; src/lib/gated/manifest.ts guards it and resolves to
+	// empty.
 	const __TAILNET_PROBE_URL__: string | undefined;
+
+	// Build-time flag injected by vite.config.ts from PUBLIC_MEMBERSHIP_FIXTURE.
+	// True only in a dev or reviewer build, which may then serve the fixture
+	// manifest for ?flags=membership. Absent outside a Vite build.
+	const __MEMBERSHIP_FIXTURE__: boolean | undefined;
 }
 
 export {};

@@ -4,6 +4,12 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 root := justfile_directory()
 
+# The tailnet probe the footer button asks (operator ruling 2026-10-05). The
+# URL is not a secret: it ships in the public bundle and the leak scan allows
+# exactly this host (scripts/bazel/workspace-status.sh stamps it). A caller may
+# override it, or set it empty for a build that carries no tailnet name.
+export PUBLIC_TAILNET_PROBE_URL := env_var_or_default("PUBLIC_TAILNET_PROBE_URL", "https://gftb-probe.taila4c78d.ts.net/v1/tailnet")
+
 _default:
     @just --list --unsorted
 

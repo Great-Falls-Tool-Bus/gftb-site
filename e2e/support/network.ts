@@ -1,5 +1,6 @@
 import type { Page, Route } from '@playwright/test';
-import { ACCESS_PROBE_URL } from '../../src/lib/flags/membership-surface';
+import { MANIFEST_URL } from '../../src/lib/gated/manifest';
+import { FIXTURE_ITEMS } from '../../src/lib/gated/fixture';
 
 /**
  * Shared network harness for the acceptance specs.
@@ -37,6 +38,49 @@ function isSameOrigin(url: string, baseURL: string): boolean {
 	}
 }
 
+function manifestCors(route: Route): Record<string, string> {
+	return {
+		'access-control-allow-origin': route.request().headers().origin ?? 'http://localhost',
+		'access-control-allow-credentials': 'true',
+	};
+}
+
+/** The anonymous answer: Access's login page, HTML, refused by the resolver on content type. */
+async function fulfillAnonymousManifest(route: Route): Promise<void> {
+	await route.fulfill({
+		status: 200,
+		contentType: 'text/html',
+		headers: manifestCors(route),
+		body: '<!doctype html><title>Sign in</title>',
+	});
+}
+
+/**
+ * For specs that install no external guard: answers the gated manifest at once
+ * as an anonymous visitor gets it, so no request waits on the real network.
+ */
+export async function stubAnonymousManifest(page: Page): Promise<void> {
+	await page.route(MANIFEST_URL, fulfillAnonymousManifest);
+}
+
+/** The member's manifest: every slot, as the member app serves it while intake is closed. */
+export const MEMBER_MANIFEST = { items: FIXTURE_ITEMS };
+
+/**
+ * Answers the gated manifest as the member app does for a visitor with an
+ * Access session. Register after the external guard.
+ */
+export async function routeMemberManifest(page: Page, body: unknown = MEMBER_MANIFEST): Promise<void> {
+	await page.route(MANIFEST_URL, (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: manifestCors(route),
+			body: JSON.stringify(body),
+		}),
+	);
+}
+
 /**
  * Aborts every off-origin request that no other route has already claimed.
  * Install it first; more specific routes registered later take precedence
@@ -51,13 +95,14 @@ export async function installExternalGuard(page: Page, baseURL: string): Promise
 			return;
 		}
 		attempted.push(url);
-		// The membership surface's Access probe (src/lib/flags/membership-surface.ts)
-		// gets what an anonymous visitor gets: the Access login page, HTML, which
-		// an image cannot decode. Aborting it instead would print a network error
-		// no real visitor sees. A spec that needs a signed-in visitor routes the
-		// probe itself (routes registered later win).
-		if (url.startsWith(ACCESS_PROBE_URL)) {
-			await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Sign in</title>' });
+		// The gated membership manifest (src/lib/gated/manifest.ts) gets what an
+		// anonymous visitor gets: Access's login page, HTML, which the resolver
+		// refuses by content type. CORS headers are added so the browser does not
+		// log a network error no real visitor's test run should carry. A spec
+		// that needs a member routes the manifest itself (routes registered
+		// later win): see routeMemberManifest.
+		if (url === MANIFEST_URL) {
+			await fulfillAnonymousManifest(route);
 			return;
 		}
 		await route.abort('blockedbyclient');

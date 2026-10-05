@@ -88,10 +88,14 @@ export default defineConfig({
 		// PUBLIC_SUBSCRIBE_CAPTURE=1 (or true); off means the component is
 		// neither imported nor mounted (src/lib/subscribe-capture-flag.ts).
 		__SUBSCRIBE_CAPTURE__: JSON.stringify(subscribeCaptureEnabled),
-		// Membership surface tailnet probe (src/lib/flags/membership-surface.ts).
-		// Empty unless the build sets PUBLIC_TAILNET_PROBE_URL; empty skips the
-		// probe, so a public build carries no tailnet hostname or address.
+		// Gated membership surface tailnet source (src/lib/gated/manifest.ts).
+		// Empty unless the build sets PUBLIC_TAILNET_PROBE_URL; empty skips it,
+		// so a public build carries no tailnet hostname or address.
 		__TAILNET_PROBE_URL__: JSON.stringify(process.env.PUBLIC_TAILNET_PROBE_URL ?? ''),
+		// Reviewer and dev builds only: PUBLIC_MEMBERSHIP_FIXTURE=1 (or true)
+		// lets ?flags=membership serve a fixture manifest. Any other build
+		// dead-code-eliminates the fixture module and its links.
+		__MEMBERSHIP_FIXTURE__: JSON.stringify(['1', 'true'].includes(process.env.PUBLIC_MEMBERSHIP_FIXTURE ?? '')),
 	},
 
 	build: {

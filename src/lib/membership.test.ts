@@ -1,20 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-	INTEREST_PATH,
-	JOIN_PATH,
-	JOIN_STEPS,
-	MEMBER_APPLY_URL,
-	MEMBER_APP_ORIGIN,
-	MEMBER_INTAKE,
-	MEMBER_SIGN_IN_URL,
-	applyLink,
-	isUnlistedPath,
-	signInLink,
-} from './membership';
+import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE, isUnlistedPath } from './membership';
 import { membershipCopyViolations, visibleSourceText } from './membership-copy';
-import { navItems, publicPrimaryNavItems } from './nav-items';
+import { navItems } from './nav-items';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (relative: string) => readFileSync(path.join(ROOT, relative), 'utf8');
@@ -75,46 +64,35 @@ describe('membership copy invariant', () => {
 describe('join path', () => {
 	it('keeps intake closed until the member app opens it', () => {
 		expect(MEMBER_INTAKE).toBe('closed');
-	});
-
-	it('sends Apply to the on-site explanation while intake is closed', () => {
-		expect(applyLink('closed')).toEqual({ href: JOIN_PATH, label: 'Apply', external: false });
-		expect(applyLink()).toEqual(applyLink(MEMBER_INTAKE));
-	});
-
-	it('sends Apply to the member app application once intake is open', () => {
-		expect(applyLink('open')).toEqual({ href: MEMBER_APPLY_URL, label: 'Apply', external: true });
-	});
-
-	it('points Sign in at the member app login in either state', () => {
-		expect(signInLink()).toEqual({ href: MEMBER_SIGN_IN_URL, label: 'Member sign in', external: true });
-	});
-
-	it('targets the member app origin over https', () => {
-		expect(MEMBER_APPLY_URL).toBe('https://members.greatfallstoolbus.org/apply');
-		expect(MEMBER_SIGN_IN_URL).toBe('https://members.greatfallstoolbus.org/login');
 		expect(INTEREST_PATH).toBe('/contact');
 	});
 
-	it('puts Join in the header and Join and Member sign in under Get involved, all behind the flag', () => {
-		const header = navItems.filter((item) => item.primary && item.label === 'Join');
-		expect(header).toEqual([expect.objectContaining({ href: JOIN_PATH, membership: true })]);
-		expect(publicPrimaryNavItems.some((item) => item.label === 'Join')).toBe(false);
-		const involved = navItems.filter((item) => item.footerGroup === 'Get involved');
-		expect(involved.find((item) => item.label === 'Join')).toMatchObject({ href: JOIN_PATH, membership: true });
-		expect(involved.find((item) => item.label === 'Member sign in')).toMatchObject({
-			href: MEMBER_SIGN_IN_URL,
-			external: true,
-			membership: true,
-		});
+	it('holds no member-app address and no link into /join in the nav registry', () => {
+		for (const item of navItems) {
+			expect(item.href, item.label).not.toMatch(/members\.greatfallstoolbus\.org/u);
+			expect(item.href, item.label).not.toMatch(/^\/join(?:[/?#]|$)/u);
+		}
+		expect(navItems.some((item) => item.label === 'Join' || item.label === 'Member sign in')).toBe(false);
 	});
 
-	it('every nav link into /join or the member app is a membership item', () => {
-		for (const item of navItems) {
-			if (item.href.startsWith(JOIN_PATH) || item.href.startsWith(MEMBER_APP_ORIGIN)) {
-				expect(item.membership, item.label).toBe(true);
-			}
+	it('keeps member-app addresses and /join links out of every public source file', () => {
+		const sources = [
+			'src/routes/+layout.svelte',
+			'src/routes/+page.svelte',
+			'src/routes/join/+page.svelte',
+			'src/lib/nav-items.ts',
+			'src/lib/membership.ts',
+			'src/lib/components/GatedSlot.svelte',
+			'src/lib/gated/surface.svelte.ts',
+		];
+		for (const source of sources) {
+			const text = read(source);
+			expect(text, source).not.toMatch(/members\.greatfallstoolbus\.org/u);
+			expect(text, source).not.toMatch(/href=\{?["'`]?\/join/u);
+			expect(text, source).not.toContain('membership-surface');
 		}
+		// The manifest URL is the one place the member host appears in public code.
+		expect(read('src/lib/gated/manifest.ts').match(/members\.greatfallstoolbus\.org/gu)).toHaveLength(1);
 	});
 
 	it('keeps /join unlisted: out of the sitemap and the source map, noindex by path', () => {

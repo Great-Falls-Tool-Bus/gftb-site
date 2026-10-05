@@ -126,7 +126,7 @@ try {
 	browser = undefined;
 
 	await runAcceptance(baseURL);
-	console.log(`declared-build Chromium smoke and eight acceptance specs passed via ${chromiumPath}`);
+	console.log(`declared-build Chromium smoke and nine acceptance specs passed via ${chromiumPath}`);
 } finally {
 	try {
 		await browser?.close();
@@ -193,7 +193,7 @@ async function runAcceptance(baseURL) {
 				stop();
 			}, 1_140_000);
 		});
-		if (timedOut || code !== 0) throw new Error('the eight-spec browser acceptance suite failed');
+		if (timedOut || code !== 0) throw new Error('the nine-spec browser acceptance suite failed');
 	} finally {
 		clearTimeout(killTimer);
 		process.removeListener('SIGINT', onSignal);

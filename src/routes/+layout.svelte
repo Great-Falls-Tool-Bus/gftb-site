@@ -9,7 +9,9 @@
 	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '$lib/build-info';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
-	import { applyMembershipSurface } from '$lib/flags/membership-surface';
+	import GatedSlot from '$lib/components/GatedSlot.svelte';
+	import TailnetPrompt from '$lib/components/TailnetPrompt.svelte';
+	import { gatedSurface } from '$lib/gated/surface.svelte';
 	import { isUnlistedPath } from '$lib/membership';
 	import BusMark from '$lib/components/BusMark.svelte';
 	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
@@ -50,17 +52,6 @@
 		const handshake = motionHandshake;
 		const target = tinyVectorsRef;
 		untrack(() => handshake?.setTarget(target));
-	});
-
-	// Membership surface flag (operator rulings 2026-10-03): every membership
-	// link ships hidden; this turns them on for an Access session, a tailnet
-	// probe, or the ?flags=membership preview override. See
-	// src/lib/flags/membership-surface.ts.
-	onMount(() => {
-		void applyMembershipSurface(document.documentElement, {
-			search: window.location.search,
-			getStorage: () => window.localStorage,
-		});
 	});
 
 	onMount(() => {
@@ -268,17 +259,16 @@
 			<nav class="site-nav" aria-label="Main navigation">
 				{#each primaryNavItems as item (item.href)}
 					{#if item.external}
-						<ExternalLink href={item.href} class={item.membership ? 'membership-surface' : ''}
-							>{item.label}</ExternalLink
-						>
+						<ExternalLink href={item.href}>{item.label}</ExternalLink>
 					{:else}
-						<a
-							href={item.href}
-							class={item.membership ? 'membership-surface' : undefined}
-							aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}>{item.label}</a
+						<a href={item.href} aria-current={isActivePath(currentPath, item.match) ? 'page' : undefined}
+							>{item.label}</a
 						>
 					{/if}
 				{/each}
+				<!-- Join comes from the gated manifest and mounts only for a member;
+				     for everyone else there is no element and no gap. -->
+				<GatedSlot slot="header-join" />
 				<!-- D01 placement: the mode switch rides the third header column
 				     beside the anchors — the demo's AppBar.Trail position. -->
 				<ThemeSwitcher />
@@ -328,7 +318,7 @@
 					<h2>{group.heading}</h2>
 					<ul>
 						{#each group.items as item (item.label)}
-							<li class={item.membership ? 'membership-surface' : undefined}>
+							<li>
 								{#if item.external}
 									<ExternalLink href={item.href}>{item.label}</ExternalLink>
 								{:else}
@@ -336,6 +326,10 @@
 								{/if}
 							</li>
 						{/each}
+						{#if group.heading === 'Get involved'}
+							<GatedSlot slot="footer-join" tag="li" />
+							<GatedSlot slot="footer-sign-in" tag="li" />
+						{/if}
 					</ul>
 				</nav>
 			{/each}
@@ -349,6 +343,18 @@
 					     outbound meta links ride ExternalLink. -->
 					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
 					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
+					<!-- The tailnet button mounts in the browser only, with a stamped probe
+					     URL, and leaves no empty item behind for anyone else. -->
+					{#if gatedSurface.showTailnetButton}
+						<li>
+							<button
+								type="button"
+								class="site-footer__network"
+								data-testid="tailnet-open"
+								onclick={() => (gatedSurface.promptOpen = true)}>On the tool bus network?</button
+							>
+						</li>
+					{/if}
 				</ul>
 			</nav>
 		</div>
@@ -358,6 +364,8 @@
 	     finding C). Its absolute position is anchored to .app-shell's reserved
 	     footer rail, after the footer in both DOM and visual custody. -->
 	<ContributeMenu />
+
+	<TailnetPrompt />
 
 	<!-- Rehearsal-only list-signup capture: absent from an off build, mounted
 	     on idle after the footer and the Contribute rail on an on build. -->

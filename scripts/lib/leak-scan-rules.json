@@ -102,6 +102,24 @@
 			"description": "archive link for the private keyholders role list",
 			"pattern": "hyperkitty/list/keyholders@|/archives?/keyholders@|keyholders@[a-z0-9.-]+/(?:thread|message)",
 			"flags": "iu"
+		},
+		{
+			"id": "gated-member-app-url",
+			"description": "member-app address other than the gated manifest URL (membership links come only from the gated origin, 2026-10-04)",
+			"pattern": "https?://members\\.greatfallstoolbus\\.org(?!/api/public-surface(?![\\w./-]))",
+			"flags": "iu"
+		},
+		{
+			"id": "gated-join-link",
+			"description": "an anchor to /join in public markup or script (the join links come only from the gated manifest, 2026-10-04); a canonical link on the page itself is not an anchor",
+			"pattern": "(?:<a\\b[^<>]*?\\bhref=[\"']?|\\bhref[\"']?\\s*[:,]\\s*[\"'`])(?:https?://greatfallstoolbus\\.org)?/join/?(?=[\\s\"'`>?#}),;]|$)",
+			"flags": "iu"
+		},
+		{
+			"id": "gated-member-label",
+			"description": "the gated Member sign in label (it lives in the gated manifest only, 2026-10-04)",
+			"pattern": "Member sign in",
+			"flags": "u"
 		}
 	],
 	"allowedHosts": [
