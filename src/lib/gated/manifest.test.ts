@@ -495,6 +495,37 @@ describe('checkTailnet', () => {
 		expect(out.items).toEqual([tailItem, signIn]);
 	});
 
+	it('keeps every item of the lab probe manifest: site /join and members /login hrefs', async () => {
+		// The exact manifest the lab probe lane serves from /v1/surface.
+		const served = {
+			items: [
+				{ slot: 'header-join', kind: 'join', label: 'Join', href: 'https://greatfallstoolbus.org/join' },
+				{ slot: 'footer-join', kind: 'join', label: 'Join', href: 'https://greatfallstoolbus.org/join' },
+				{
+					slot: 'footer-sign-in',
+					kind: 'sign-in',
+					label: 'Member sign in',
+					href: 'https://members.greatfallstoolbus.org/login',
+				},
+				{
+					slot: 'join-sign-in',
+					kind: 'sign-in',
+					label: 'Member sign in',
+					href: 'https://members.greatfallstoolbus.org/login',
+				},
+			],
+		};
+		const out = await run(route({ probe: { tailnet: true }, surface: served }));
+		expect(out).toEqual({ answer: 'yes', items: served.items });
+		// The same check at a page origin that is not the site (a preview host).
+		const preview = await checkTailnet({
+			probeUrl: PROBE,
+			pageOrigin: 'http://127.0.0.1:4173',
+			fetchSeams: { fetchImpl: route({ probe: { tailnet: true }, surface: served }) as typeof fetch },
+		});
+		expect(preview.items).toEqual(served.items);
+	});
+
 	it('a yes falls back to the Access manifest when /v1/surface is not served', async () => {
 		const fetchImpl = vi.fn(route({ probe: true, members: manifest(tailItem) }));
 		expect(await run(fetchImpl)).toEqual({ answer: 'yes', items: [tailItem] });
