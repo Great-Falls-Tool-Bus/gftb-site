@@ -24,7 +24,7 @@
 		CloseTrigger: DialogCloseTrigger,
 	} = Dialog;
 
-	const state = $derived(gatedSurface.tailnet);
+	const phase = $derived(gatedSurface.tailnet);
 	let checkEl = $state<HTMLButtonElement>();
 
 	function onOpenChange(details: { open: boolean }) {
@@ -59,31 +59,31 @@
 					{/snippet}
 				</DialogDescription>
 
-				{#if state === 'yes'}
+				{#if phase === 'yes'}
 					<p class="tailnet-dialog__result" role="status" data-testid="tailnet-result">
 						You are on the tool bus network. The member links are now shown.
 					</p>
-				{:else if state === 'yes-empty'}
+				{:else if phase === 'yes-empty'}
 					<p class="tailnet-dialog__result" role="status" data-testid="tailnet-result">
 						You are on the tool bus network, but there are no member links to show yet.
 					</p>
-				{:else if state === 'no'}
+				{:else if phase === 'no'}
 					<p class="tailnet-dialog__result" role="status" data-testid="tailnet-result">
 						We could not confirm that you are on the tool bus network. Nothing has changed.
 					</p>
 				{/if}
 
 				<div class="tailnet-dialog__actions">
-					{#if state !== 'yes' && state !== 'yes-empty'}
+					{#if phase !== 'yes' && phase !== 'yes-empty'}
 						<button
 							type="button"
 							class="button"
 							data-testid="tailnet-check"
 							bind:this={checkEl}
-							disabled={state === 'checking'}
-							onclick={() => void gatedSurface.askTailnet(state === 'no')}
+							disabled={phase === 'checking'}
+							onclick={() => void gatedSurface.askTailnet(phase === 'no')}
 						>
-							{state === 'checking' ? 'Checking…' : state === 'no' ? 'Check again' : 'Check the network'}
+							{phase === 'checking' ? 'Checking…' : phase === 'no' ? 'Check again' : 'Check the network'}
 						</button>
 					{/if}
 					<DialogCloseTrigger class="button button--secondary">Close</DialogCloseTrigger>
