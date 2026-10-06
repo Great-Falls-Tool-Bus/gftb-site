@@ -37,7 +37,7 @@ test.describe('mode model', () => {
 		await page.emulateMedia({ colorScheme: 'light' });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		const lightBackground = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+		const lightBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
 		await page.locator('.mode-switch').click();
 
@@ -47,8 +47,9 @@ test.describe('mode model', () => {
 		expect(await page.evaluate(() => document.documentElement.style.colorScheme)).toBe('dark');
 		await expect(page.locator('.mode-switch')).toHaveAttribute('title', 'Dark mode');
 		// The re-keyed dark block actually paints: the page ground flips with
-		// the attribute, no OS involvement.
-		const darkBackground = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+		// the attribute, no OS involvement. The ground is body's: html clears
+		// its own fill so body's background propagates to the canvas (app.css).
+		const darkBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 		expect(darkBackground).not.toBe(lightBackground);
 	});
 
