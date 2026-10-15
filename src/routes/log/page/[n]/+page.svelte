@@ -1,8 +1,8 @@
 <script lang="ts">
-	import HoursBand from '$lib/components/HoursBand.svelte';
-	import LogList from '$lib/components/LogList.svelte';
-	import RsvpDialog from '$lib/components/RsvpDialog.svelte';
-	import { publicLogs } from '$lib/public-logs';
+	import HoursBand from '#lib/components/HoursBand.svelte';
+	import LogList from '#lib/components/LogList.svelte';
+	import RsvpDialog from '#lib/components/RsvpDialog.svelte';
+	import { publicLogs } from '#lib/public-logs.js';
 
 	let { data } = $props();
 

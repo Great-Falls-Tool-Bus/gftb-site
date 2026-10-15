@@ -447,7 +447,7 @@ describe('the leak-scan gate has exactly one implementation', () => {
 
 describe('the credential ruleset stays unreachable from shipped code', () => {
 	// Belt and braces over the file location: scripts/lib is outside the SvelteKit
-	// library root, so $lib cannot resolve it, and eslint.config.ts adds a
+	// library root, so #lib cannot resolve it, and eslint.config.ts adds a
 	// no-restricted-imports guard. This proves the guard's premise still holds.
 	const routeFiles: string[] = [];
 	const walk = (directory: string) => {

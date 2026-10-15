@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { readBuildMetadata } from './build-metadata.mjs';
+import { copyTreeDereferenced, linkDeclaredNodeModules } from './prepare-sveltekit-types.mjs';
 
 const require = createRequire(import.meta.url);
 const viteCli = resolve(dirname(require.resolve('vite/package.json')), 'bin/vite.js');
@@ -59,9 +60,10 @@ function prepareBuildWorkspace(workspacePath) {
 	for (const requiredPath of [
 		'src',
 		'tsconfig.json',
-		'svelte.config.js',
+		'kit.config.js',
 		'vite.config.ts',
-		'.svelte-kit/tsconfig.json',
+		// SvelteKit 3 writes the tsconfig that tsconfig.json extends here.
+		'node_modules/$app/tsconfig.json',
 	]) {
 		if (!existsSync(join(declaredWorkspace, requiredPath))) {
 			throw new Error(`declared build workspace is missing ${requiredPath}`);
@@ -80,32 +82,19 @@ function prepareBuildWorkspace(workspacePath) {
 	process.once('exit', cleanup);
 
 	try {
-		cpSync(declaredWorkspace, workspace, { recursive: true, dereference: true });
-		chmodTree(workspace);
+		copyTreeDereferenced(declaredWorkspace, workspace);
 
 		const declaredNodeModules = join(dirname(declaredWorkspace), 'node_modules');
 		if (!existsSync(declaredNodeModules)) {
 			throw new Error('declared build runfiles are missing node_modules');
 		}
-		symlinkSync(declaredNodeModules, join(workspace, 'node_modules'), 'dir');
+		linkDeclaredNodeModules(declaredNodeModules, join(workspace, 'node_modules'));
 	} catch (error) {
 		cleanup();
 		throw error;
 	}
 
 	return { cleanup, workspace };
-}
-
-function chmodTree(path) {
-	const stat = statSync(path);
-	if (stat.isDirectory()) {
-		chmodSync(path, 0o755);
-		for (const entry of readdirSync(path)) {
-			chmodTree(join(path, entry));
-		}
-	} else {
-		chmodSync(path, 0o644);
-	}
 }
 
 function parseOptions(args) {

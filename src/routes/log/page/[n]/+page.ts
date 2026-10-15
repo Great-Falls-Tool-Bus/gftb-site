@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { logPage, logPageCount } from '$lib/public-logs';
+import { logPage, logPageCount } from '#lib/public-logs.js';
 import type { EntryGenerator, PageLoad } from './$types';
 
 // Prerendered archive pages 2..N (spec :90-91): the no-JavaScript pagination

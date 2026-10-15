@@ -10,8 +10,8 @@
 		validateContactForm,
 		type ContactFieldErrors,
 		type ContactFormValues,
-	} from '$lib/contact-form';
-	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '$lib/altcha-loader';
+	} from '#lib/contact-form.js';
+	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '#lib/altcha-loader.js';
 
 	const formEndpoint = 'https://forms.latoolb.us';
 	const keyholders = 'keyholders@latoolb.us';

@@ -1,7 +1,7 @@
 // Prerendered sitemap. Static pages plus the published log permalinks and
 // archive pages — all derived from the same loader every rendered surface
 // uses, so drafts (published: false) can never appear here (spec §3).
-import { logPageCount, publicLogs } from '$lib/public-logs';
+import { logPageCount, publicLogs } from '#lib/public-logs.js';
 import type { RequestHandler } from './$types';
 
 const SITE = 'https://greatfallstoolbus.org';

@@ -2,24 +2,24 @@
 	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { TinyVectors } from '@tummycrypt/tinyvectors';
-	import { setDeviceTilt } from '$lib/motion/device-tilt.svelte';
-	import SEOHead from '$lib/components/SEOHead.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
-	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
-	import ContributeMenu from '$lib/components/ContributeMenu.svelte';
-	import { buildShaShort } from '$lib/build-info';
-	import { footerNavGroups, isActivePath, primaryNavItems } from '$lib/nav-items';
-	import GatedSlot from '$lib/components/GatedSlot.svelte';
-	import TailnetPrompt from '$lib/components/TailnetPrompt.svelte';
-	import { gatedSurface } from '$lib/gated/surface.svelte';
-	import { isUnlistedPath } from '$lib/membership';
-	import BusMark from '$lib/components/BusMark.svelte';
-	import ToolBusMark from '$lib/components/ToolBusMark.svelte';
-	import { theme } from '$lib/theme.svelte';
-	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '$lib/device-motion-permission';
-	import sourceMap from '$lib/generated/source-map.json';
-	import { SUBSCRIBE_CAPTURE_ENABLED } from '$lib/subscribe-capture-flag';
-	import { loadSubscribeCapture } from '$lib/subscribe-capture-load';
+	import { setDeviceTilt } from '#lib/motion/device-tilt.svelte.js';
+	import SEOHead from '#lib/components/SEOHead.svelte';
+	import ExternalLink from '#lib/components/ExternalLink.svelte';
+	import ThemeSwitcher from '#lib/components/ThemeSwitcher.svelte';
+	import ContributeMenu from '#lib/components/ContributeMenu.svelte';
+	import { buildShaShort } from '#lib/build-info.js';
+	import { footerNavGroups, isActivePath, primaryNavItems } from '#lib/nav-items.js';
+	import GatedSlot from '#lib/components/GatedSlot.svelte';
+	import TailnetPrompt from '#lib/components/TailnetPrompt.svelte';
+	import { gatedSurface } from '#lib/gated/surface.svelte.js';
+	import { isUnlistedPath } from '#lib/membership.js';
+	import BusMark from '#lib/components/BusMark.svelte';
+	import ToolBusMark from '#lib/components/ToolBusMark.svelte';
+	import { theme } from '#lib/theme.svelte.js';
+	import { createDeviceMotionHandshake, type DeviceMotionTarget } from '#lib/device-motion-permission.js';
+	import sourceMap from '#lib/generated/source-map.json';
+	import { SUBSCRIBE_CAPTURE_ENABLED } from '#lib/subscribe-capture-flag.js';
+	import { loadSubscribeCapture } from '#lib/subscribe-capture-load.js';
 	import '../app.css';
 
 	let { children } = $props();
@@ -42,7 +42,9 @@
 	// it on browser idle, after the brand layer, so the first-load intro and
 	// every progressive enhancement keep their timeline. The component itself
 	// never arms while the intro is live; see SubscribeCapture.svelte.
-	let SubscribeCapture = $state<typeof import('$lib/components/SubscribeCapture.svelte').default>();
+	// Typed from the loader: under svelte-check --tsgo a `#lib/*.svelte` type
+	// import resolves to the ambient `*.svelte` declaration (patches/README.md).
+	let SubscribeCapture = $state<Awaited<ReturnType<typeof loadSubscribeCapture>>>();
 	const SUBSCRIBE_CAPTURE_IDLE_TIMEOUT_MS = 4000;
 	let motionHandshake = $state<ReturnType<typeof createDeviceMotionHandshake>>();
 
@@ -138,7 +140,7 @@
 
 	// Header + footer structure is the demo site's +layout.svelte shape
 	// (greatfallstoolbus.org@origin/main): nav renders from the
-	// $lib/nav-items SSOT, and the footer is the intro-weighted five-group
+	// #lib/nav-items SSOT, and the footer is the intro-weighted five-group
 	// grid (intro / About / Get involved / Site / Meta), extended by the
 	// operator's 2026-09-19 fuller footer sitemap ruling. The old apex #103
 	// cell-nesting lesson holds: every line of the intro column — location,

@@ -121,10 +121,10 @@ def site_draft_compiler_targets():
     _runtime_dependencies(
         name = "site_draft_compiler_runtime_dependencies",
         srcs = [
-            ":.aspect_rules_js/node_modules/mdsvex@0.12.8_1444401686",
+            ":.aspect_rules_js/node_modules/mdsvex@0.12.8_2027803013",
             ":.aspect_rules_js/node_modules/prettier@3.9.6",
-            ":.aspect_rules_js/node_modules/prettier-plugin-svelte@4.1.1_724068210",
-            ":.aspect_rules_js/node_modules/svelte@5.57.0_2144752473",
+            ":.aspect_rules_js/node_modules/prettier-plugin-svelte@4.1.1_98694387",
+            ":.aspect_rules_js/node_modules/svelte@5.57.2_2145437728",
         ],
     )
     npm_package(
@@ -139,7 +139,7 @@ def site_draft_compiler_targets():
         # npm_link_package consumers receive this complete dependency closure.
         data = [":site_draft_compiler_runtime_dependencies"],
         package = "@gftb/site-draft-compiler",
-        version = "0.3.0",
+        version = "1.0.0",
         root_paths = ["."],
         replace_prefixes = {
             "site-draft-compiler-runtime/": "",

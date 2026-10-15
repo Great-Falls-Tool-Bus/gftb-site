@@ -1,7 +1,7 @@
 <script lang="ts">
-	import ContactForm from '$lib/components/ContactForm.svelte';
-	import SourceLink from '$lib/components/SourceLink.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import ContactForm from '#lib/components/ContactForm.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
+	import ExternalLink from '#lib/components/ExternalLink.svelte';
 
 	// The contact form on its OWN page — the demo site's architecture
 	// (greatfallstoolbus.org@origin/main src/routes/contact/+page.svelte),

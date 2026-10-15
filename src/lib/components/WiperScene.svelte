@@ -13,13 +13,13 @@
 	// context kind cannot take another). The notes are glass panes whose inks
 	// read over any backdrop (no clamp under text).
 	import { onMount } from 'svelte';
-	import { deviceTilt } from '$lib/motion/device-tilt.svelte';
-	import { createBlobField, type BlobFieldHandle } from '$lib/wiper/blob-field';
-	import { DropletField } from '$lib/wiper/droplet-field';
-	import { FrostClock, rasterizeFrostField } from '$lib/wiper/frost-field';
-	import { MAX_STEP_MS } from '$lib/wiper/machine';
-	import type { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { selectRenderer } from '$lib/wiper/renderer/select';
+	import { deviceTilt } from '#lib/motion/device-tilt.svelte.js';
+	import { createBlobField, type BlobFieldHandle } from '#lib/wiper/blob-field.js';
+	import { DropletField } from '#lib/wiper/droplet-field.js';
+	import { FrostClock, rasterizeFrostField } from '#lib/wiper/frost-field.js';
+	import { MAX_STEP_MS } from '#lib/wiper/machine.js';
+	import type { WiperEngine } from '#lib/wiper/engine.svelte.js';
+	import { selectRenderer } from '#lib/wiper/renderer/select.js';
 	import {
 		BLOB_RENDER_SCALE,
 		BLOB_WINDOW_EXTENT,
@@ -28,8 +28,8 @@
 		FROST_FIELD_WIDTH,
 		FROST_SCALES_PX,
 		MAX_BLOBS,
-	} from '$lib/wiper/renderer/shaders/constants';
-	import type { RendererHandle, RendererTier, SceneArm, SceneBlob } from '$lib/wiper/renderer/types';
+	} from '#lib/wiper/renderer/shaders/constants.js';
+	import type { RendererHandle, RendererTier, SceneArm, SceneBlob } from '#lib/wiper/renderer/types.js';
 
 	interface Props {
 		engine: WiperEngine;

@@ -5,8 +5,8 @@
 	// with a rule under it, radius 0 on every part, no track, no slider, no
 	// fill, and no timed rule at all; the source contract pins each of those.
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
-	import type { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { WIPER_DETENTS, isWiperDetent } from '$lib/wiper/schedule';
+	import type { WiperEngine } from '#lib/wiper/engine.svelte.js';
+	import { WIPER_DETENTS, isWiperDetent } from '#lib/wiper/schedule.js';
 
 	const { engine }: { engine: WiperEngine } = $props();
 

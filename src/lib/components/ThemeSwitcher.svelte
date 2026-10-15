@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Switch } from '@skeletonlabs/skeleton-svelte';
-	import { theme } from '$lib/theme.svelte';
+	import { theme } from '#lib/theme.svelte.js';
 
 	// Light/dark switcher (D01+D02) — the demo ThemeSwitcher's behaviour on
 	// the v5 Switch anatomy (Control/Thumb/HiddenInput, with a

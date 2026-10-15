@@ -1,9 +1,9 @@
 <script lang="ts">
-	import HoursBand from '$lib/components/HoursBand.svelte';
-	import LogList from '$lib/components/LogList.svelte';
-	import RsvpDialog from '$lib/components/RsvpDialog.svelte';
-	import SourceLink from '$lib/components/SourceLink.svelte';
-	import { logPage, logPageCount } from '$lib/public-logs';
+	import HoursBand from '#lib/components/HoursBand.svelte';
+	import LogList from '#lib/components/LogList.svelte';
+	import RsvpDialog from '#lib/components/RsvpDialog.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
+	import { logPage, logPageCount } from '#lib/public-logs.js';
 
 	// The public log archive, page 1 (spec §3 rows 5-6, :89-91): a plain
 	// list — never cards — with plain-text badges, per the

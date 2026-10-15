@@ -6,14 +6,15 @@
 # this file contains no cache, executor, provider, or fallback policy.
 
 common --enable_bzlmod
-# Supply-chain hardening (mirrors MassageIthaca): pin tinyland-inc/bazel-registry
+# Supply-chain hardening (mirrors MassageIthaca): pin xoxd-ai/bazel-registry
+# (the canonical home of the former tinyland-inc/bazel-registry)
 # to an immutable commit SHA instead of the mutable `main` ref so module metadata
 # (MODULE.bazel + source.json) cannot silently change under us. Bump the SHA
 # deliberately and refresh MODULE.bazel.lock when the registry advances:
-#   sed -i '' "s|bazel-registry/[0-9a-f]\{40\}|bazel-registry/$(gh api repos/tinyland-inc/bazel-registry/commits/main --jq .sha)|" .bazelrc
+#   sed -i '' "s|bazel-registry/[0-9a-f]\{40\}|bazel-registry/$(gh api repos/xoxd-ai/bazel-registry/commits/main --jq .sha)|" .bazelrc
 # bcr stays as a secondary registry; the Tinyland registry stays first so
 # in-house Bazel modules resolve before falling through to bcr.bazel.build.
-common --registry=https://raw.githubusercontent.com/tinyland-inc/bazel-registry/ef734c4a26045a7b396913e6cf410e50fbe16635
+common --registry=https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a
 common --registry=https://bcr.bazel.build
 
 # BASE_PATH and commit identity are stable Bazel inputs to stamped terminal

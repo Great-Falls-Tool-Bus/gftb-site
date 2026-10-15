@@ -64,7 +64,7 @@ clean:
 typecheck:
     cd {{ root }} && bazelisk test //:svelte_check_test
 
-typecheck-watch:
+typecheck-watch: sync
     cd {{ root }} && bazelisk run //:svelte_check_bin -- --watch
 
 lint:
@@ -382,9 +382,13 @@ container-image-publish: build container-image-context
     nix run --impure .#image.copyToRegistry -- --dest-creds "${GHCR_USER}:${GHCR_TOKEN}"
     echo "published ${IMAGE_REF}:sha-${BUILD_COMMIT_SHA} (resolve and consume by digest)"
 
+# Generate the SvelteKit types for editors and watch mode. SvelteKit 3 writes
+# the parent tsconfig (tsconfig.json extends "$app/tsconfig") and `$app/types`
+# under node_modules/$app, which belongs to the checkout's own install, so this
+# runs the installed (patched) Kit after `just setup`. The Bazel gates build
+# the same trees as //:sveltekit_types.
 sync:
-    cd {{ root }} && bazelisk build //:sveltekit_types
-    cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/.svelte-kit --destination .svelte-kit --required-path tsconfig.json
+    cd {{ root }} && pnpm exec svelte-kit sync
 
 analyze:
     cd {{ root }} && bazelisk build //:analyze

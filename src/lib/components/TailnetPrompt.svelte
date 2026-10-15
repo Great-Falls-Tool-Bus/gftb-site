@@ -13,7 +13,7 @@
 	// when the build stamped a probe URL, and only while no member links are
 	// showing. The Dialog anatomy is the one RsvpDialog.svelte follows.
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { gatedSurface } from '$lib/gated/surface.svelte';
+	import { gatedSurface } from '#lib/gated/surface.svelte.js';
 
 	const {
 		Backdrop: DialogBackdrop,

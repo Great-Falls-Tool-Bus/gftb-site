@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import NotFound from '$lib/components/NotFound.svelte';
+	import NotFound from '#lib/components/NotFound.svelte';
 
 	// Client-router errors only. A missing path requested from the server is
 	// answered with the prerendered /404 body instead (src/routes/404), so this

@@ -134,6 +134,14 @@ whose archive is not public.
   reachable from a client bundle. `eslint.config.ts` forbids `src/**` from
   importing it and `src/lib/leak-scan.test.ts` asserts the same from the other
   side.
+- The frontend stack is exact-pinned (RU1/RU5): SvelteKit 3.0.1, Svelte
+  5.57.2, Vite 8.3.3, TypeScript 7.0.2, Vitest 5.0.3, Playwright 1.64.0.
+  SvelteKit 3 reads its options from `kit.config.js` through the `sveltekit()`
+  Vite plugin; never add a `svelte.config.js`. Library imports use `#lib/...`
+  with an explicit extension (`$lib` no longer exists). Type checking is
+  `svelte-check --tsgo` on TypeScript 7; `patches/README.md` explains the
+  TypeScript 6 parser companion and the shared patch set, which is copied from
+  `xoxd-ai/site.scaffold` and never edited here alone.
 - Skeleton and Skeleton Svelte are exact-pinned at `5.0.1`. Do not restore the
   Skeleton 4 compatibility shim.
 - `.github/lanes.json` is the source-only ActionPlan/v4 schema-3 plan: finite

@@ -2335,7 +2335,7 @@ pre.shiki {
 	font-size: 0.8125rem;
 }
 
-/* Shiki dual-theme cascade (D07): the svelte.config.js highlighter runs
+/* Shiki dual-theme cascade (D07): the kit.config.js highlighter runs
  * shiki with `themes: { light, dark }` + `defaultColor: false`, which emits
  * inline `--shiki-light:#xxx; --shiki-dark:#yyy` per token but applies
  * NEITHER — the walk below turns the variables into painted colour, keyed on

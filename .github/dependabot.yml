@@ -7,10 +7,23 @@ updates:
     target-branch: 'main'
     open-pull-requests-limit: 10
     ignore:
-      # Launch toolchain pins are deliberate; major upgrades need a ticketed proof.
+      # RU5 exact stack pins (the xoxd-ai/site.scaffold estate manifest,
+      # estate/versions.json): they move only with an estate bump, never
+      # through a Dependabot PR. Includes the RU13b TypeScript 6 companion.
+      - dependency-name: '@sveltejs/kit'
+      - dependency-name: 'svelte'
+      - dependency-name: 'svelte-check'
+      - dependency-name: 'vite'
+      - dependency-name: '@sveltejs/vite-plugin-svelte'
+      - dependency-name: '@sveltejs/adapter-static'
       - dependency-name: 'typescript'
-        update-types:
-          - 'version-update:semver-major'
+      - dependency-name: '@typescript/typescript6'
+      - dependency-name: 'vitest'
+      - dependency-name: '@vitest/*'
+      - dependency-name: '@playwright/test'
+      - dependency-name: '@skeletonlabs/skeleton'
+      - dependency-name: '@skeletonlabs/skeleton-svelte'
+      # Launch toolchain pins are deliberate; major upgrades need a ticketed proof.
       - dependency-name: 'eslint'
         update-types:
           - 'version-update:semver-major'

@@ -27,8 +27,8 @@
 	// dialog) goes to the contact section instead.
 	import { onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { publicHoursSlots } from '$lib/public-hours';
-	import type { PublicHoursSlot } from '$lib/public-hours-schema';
+	import { publicHoursSlots } from '#lib/public-hours.js';
+	import type { PublicHoursSlot } from '#lib/public-hours-schema.js';
 	import {
 		chooseHoursMode,
 		HOURS_FIXTURE_GLOBAL,
@@ -46,9 +46,9 @@
 		type HoursBandRow,
 		type HoursMode,
 		type HoursVariant,
-	} from '$lib/hours-band';
-	import { buildRsvpMailtoHref, RSVP_OPEN_ATTR, RSVP_OPEN_EVENT, type RsvpOpenDetail } from '$lib/rsvp-form';
-	import { reveal } from '$lib/motion.svelte';
+	} from '#lib/hours-band.js';
+	import { buildRsvpMailtoHref, RSVP_OPEN_ATTR, RSVP_OPEN_EVENT, type RsvpOpenDetail } from '#lib/rsvp-form.js';
+	import { reveal } from '#lib/motion.svelte.js';
 
 	interface Props {
 		variant?: HoursVariant;

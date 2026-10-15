@@ -904,7 +904,7 @@ class RepositoryContractTests(unittest.TestCase):
         deps = self.package["devDependencies"]
         self.assertIn("@sveltejs/adapter-static", deps)
         self.assertNotIn("@sveltejs/adapter-node", deps)
-        self.assertIn("adapter-static", (ROOT / "svelte.config.js").read_text())
+        self.assertIn("adapter-static", (ROOT / "kit.config.js").read_text())
 
     def test_publisher_is_immutable_and_non_deploying(self) -> None:
         identity = "ghcr.io/great-falls-tool-bus/gftb-site"

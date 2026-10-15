@@ -167,7 +167,7 @@ describe('the wiper source contract', () => {
 		expect(controls).not.toMatch(/Switch|<button|Indicator/u);
 		expect(WIPER_DETENTS.map((entry) => entry.id)).toEqual(['off', 'intermittent', 'low', 'high']);
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
-		expect(goals).toContain("import { WiperEngine } from '$lib/wiper/engine.svelte';");
+		expect(goals).toContain("import { WiperEngine } from '#lib/wiper/engine.svelte.js';");
 		expect(goals).toContain('{#if view.rotatable}');
 		expect(goals).toContain('<WiperControls {engine} />');
 		expect(goals).toContain('class:goal-list--paged={view.paged}');

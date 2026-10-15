@@ -10,7 +10,7 @@ const [workspaceFlag, workspacePath, ...rawArgs] = process.argv.slice(2);
 if (workspaceFlag !== '--workspace' || !workspacePath) {
 	throw new Error('--workspace <declared-tree> is required');
 }
-const { cleanup, workspace } = prepareSvelteKitTypes(workspacePath);
+const { cleanup, workspace } = prepareSvelteKitTypes(workspacePath, { requiredPaths: ['vitest.config.ts'] });
 const vitestArgs = [...rawArgs];
 if (vitestArgs[0] === '--coverage-output') {
 	const output = vitestArgs[1];

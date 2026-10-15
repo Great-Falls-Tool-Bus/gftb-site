@@ -10,7 +10,7 @@
 	// which `just source-map-build` derives from tinyland.repo.json /
 	// package.json plus the routes tree and the log content tree; `just
 	// source-map-check` drift-gates it. Icons are not ported (no icon dep).
-	import sourceMap from '$lib/generated/source-map.json';
+	import sourceMap from '#lib/generated/source-map.json';
 
 	interface Props {
 		/** SvelteKit route id or permalink, base-stripped ("/" for root). */

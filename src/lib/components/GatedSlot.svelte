@@ -8,10 +8,10 @@
 	// margin and padding never linger either.
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
-	import { gatedSurface } from '$lib/gated/surface.svelte';
-	import { SITE_ORIGIN, type SurfaceItem, type SurfaceSlot } from '$lib/gated/manifest';
-	import { isActivePath } from '$lib/nav-items';
+	import ExternalLink from '#lib/components/ExternalLink.svelte';
+	import { gatedSurface } from '#lib/gated/surface.svelte.js';
+	import { SITE_ORIGIN, type SurfaceItem, type SurfaceSlot } from '#lib/gated/manifest.js';
+	import { isActivePath } from '#lib/nav-items.js';
 
 	interface Props {
 		slot: SurfaceSlot;

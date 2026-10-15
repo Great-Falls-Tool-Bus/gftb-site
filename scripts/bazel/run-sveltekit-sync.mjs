@@ -20,8 +20,13 @@ child.on('exit', (code) => {
 		process.exit(code ?? 1);
 	}
 
-	if (!existsSync('.svelte-kit/tsconfig.json')) {
-		console.error('svelte-kit sync did not generate .svelte-kit/tsconfig.json');
-		process.exit(1);
+	// SvelteKit 3 writes the parent tsconfig that tsconfig.json extends
+	// ("$app/tsconfig") and the `$app/types` declarations under node_modules/$app,
+	// and the generated route types under .svelte-kit.
+	for (const generated of ['node_modules/$app/tsconfig.json', 'node_modules/$app/types', '.svelte-kit/types']) {
+		if (!existsSync(generated)) {
+			console.error(`svelte-kit sync did not generate ${generated}`);
+			process.exit(1);
+		}
 	}
 });
