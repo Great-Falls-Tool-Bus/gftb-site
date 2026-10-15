@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { publicLogs } from '$lib/public-logs';
+import { publicLogs } from '#lib/public-logs.js';
 import type { EntryGenerator, PageLoad } from './$types';
 
 // Permalink pages for published entries only (spec §3 log schema; B1.2).

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import SourceLink from '$lib/components/SourceLink.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
+	import ExternalLink from '#lib/components/ExternalLink.svelte';
 
 	// Minimal and accurate by operator ruling (2026-09-19): this page states
 	// only what the served site and its forms actually do today. Operator

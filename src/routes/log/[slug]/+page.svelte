@@ -1,7 +1,7 @@
 <script lang="ts">
-	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
-	import SourceLink from '$lib/components/SourceLink.svelte';
-	import { publicLogs, formatLogDate } from '$lib/public-logs';
+	import FeaturedImage from '#lib/components/FeaturedImage.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
+	import { publicLogs, formatLogDate } from '#lib/public-logs.js';
 
 	let { data } = $props();
 

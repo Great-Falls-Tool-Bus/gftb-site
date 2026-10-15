@@ -24,8 +24,8 @@
 	import { onMount, tick } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { contactApiUrl, contactChallengeUrl, hasErrors, isHoneypotTripped } from '$lib/contact-form';
-	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '$lib/altcha-loader';
+	import { contactApiUrl, contactChallengeUrl, hasErrors, isHoneypotTripped } from '#lib/contact-form.js';
+	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '#lib/altcha-loader.js';
 	import {
 		buildRsvpMailtoHref,
 		emptyRsvpValues,
@@ -43,7 +43,7 @@
 		type RsvpFormValues,
 		type RsvpOpenDetail,
 		type RsvpSlot,
-	} from '$lib/rsvp-form';
+	} from '#lib/rsvp-form.js';
 	// The parts are bound to flat local names once, so the minified bundle
 	// carries no `X.Title`-style member access for the leak scan to read
 	// as a personal name (operator ruling 2026-10-02).

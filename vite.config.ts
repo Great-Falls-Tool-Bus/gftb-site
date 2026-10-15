@@ -2,6 +2,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { accessibilityPlugin } from '@tummycrypt/vite-plugin-a11y';
 import { defineConfig, type Plugin, type PluginOption } from 'vite';
+import kitConfig from './kit.config.js';
 import pkg from './package.json';
 
 // Stamped Bazel build actions set BUILD_COMMIT_SHA from their stable-status
@@ -74,7 +75,9 @@ export default defineConfig({
 			wcagLevel: 'AA',
 			failOnError: false,
 		}),
-		sveltekit(),
+		// SvelteKit 3: the former svelte.config.js options live in kit.config.js
+		// and are passed to the plugin here.
+		sveltekit(kitConfig),
 		...analyzePlugins,
 	],
 

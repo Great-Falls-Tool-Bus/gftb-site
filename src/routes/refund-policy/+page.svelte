@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SourceLink from '$lib/components/SourceLink.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
 
 	// RATIFIED INTERIM (operator Option A, 2026-08-29): refund/cancellation copy for spec §12
 	// P1 (2026-08-30 deliverable list includes "privacy and retention

@@ -42,6 +42,9 @@ APP_NPM_PACKAGES = [
     ":node_modules/@sveltejs/vite-plugin-svelte",
     ":node_modules/@tailwindcss/vite",
     ":node_modules/@types/node",
+    # Peer of the @tummycrypt/vite-plugin-a11y 1.0.0 module, supplied by this
+    # app's own lock (RU9: the module links no third-party packages itself).
+    ":node_modules/magic-string",
     ":node_modules/mdsvex",
     ":node_modules/rollup-plugin-visualizer",
     ":node_modules/shiki",
@@ -97,6 +100,8 @@ filegroup(
         exclude = ["static/agreements/**"],
     ) + [
         ".npmrc",
+        # src/lib/house-stack-contract.test.ts reads the RU13b hook.
+        ".pnpmfile.cjs",
         "package.json",
         "playwright.config.ts",
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
@@ -111,7 +116,7 @@ filegroup(
         "scripts/bazel/workspace-status.sh",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
-        "svelte.config.js",
+        "kit.config.js",
         "tsconfig.json",
         "vite.config.ts",
         "vitest.config.ts",
@@ -150,7 +155,7 @@ filegroup(
         "package.json",
         "playwright.config.ts",
         "pnpm-workspace.yaml",
-        "svelte.config.js",
+        "kit.config.js",
         "tinyland.repo.json",
         "tsconfig.json",
         "vite.config.ts",
@@ -181,9 +186,11 @@ filegroup(
         ".gitleaksignore",
         ".npmrc",
         ".nvmrc",
+        ".pnpmfile.cjs",
         ".prettierignore",
         ".prettierrc",
         "BUILD.bazel",
+        "CHANGELOG.md",
         "CONTRIBUTING.md",
         "Justfile",
         "LICENSE",
@@ -202,7 +209,7 @@ filegroup(
         "playwright.config.ts",
         "pnpm-lock.yaml",
         "pnpm-workspace.yaml",
-        "svelte.config.js",
+        "kit.config.js",
         "tinyland.repo.json",
         "tsconfig.json",
         "vite.config.ts",
@@ -213,6 +220,7 @@ filegroup(
             ".github/**",
             "docs/**",
             "e2e/**",
+            "patches/**",
             "scripts/**",
             "src/**",
             "static/**",
@@ -267,10 +275,17 @@ js_binary(
     entry_point = "scripts/bazel/run-sveltekit-sync.mjs",
 )
 
+# SvelteKit 3 sync writes the route types under .svelte-kit and the parent
+# tsconfig plus `$app/types` under node_modules/$app (tsconfig.json extends
+# "$app/tsconfig"). Both trees are declared outputs so every consumer sees the
+# same generated types.
 js_run_binary(
     name = "sveltekit_types",
     srcs = [":app_srcs"],
-    out_dirs = [".svelte-kit"],
+    out_dirs = [
+        ".svelte-kit",
+        "node_modules/$app",
+    ],
     tool = ":sveltekit_sync_bin",
 )
 
@@ -312,14 +327,44 @@ copy_to_directory(
 
 js_binary(
     name = "svelte_check_bin",
-    data = TYPECHECK_NPM_PACKAGES,
+    data = TYPECHECK_NPM_PACKAGES + ["scripts/bazel/prepare-sveltekit-types.mjs"],
     entry_point = "scripts/bazel/run-svelte-check.mjs",
     tags = ["manual", "no-remote-exec"],
 )
 
+# RU13: svelte-check runs in its TypeScript 7 native mode (`--tsgo`), so
+# TypeScript 7.0.2 checks every .svelte and .ts file the tsconfig includes.
+# --tsgo writes transpiled components into .svelte-kit, which is read-only in
+# runfiles, so the runner checks a writable scratch copy of :app_workspace.
 js_test(
     name = "svelte_check_test",
-    data = [":app_srcs", ":sveltekit_types"] + TYPECHECK_NPM_PACKAGES,
+    args = [
+        "--workspace",
+        "$(rootpath :app_workspace)",
+    ],
+    data = [
+        ":app_workspace",
+        "scripts/bazel/prepare-sveltekit-types.mjs",
+    ] + TYPECHECK_NPM_PACKAGES,
+    entry_point = "scripts/bazel/run-svelte-check.mjs",
+    timeout = "long",
+)
+
+# Seeded-error canary for the gate above: a .ts and a .svelte type error are
+# written into the scratch copy and the test fails unless svelte-check --tsgo
+# reports both. Under --tsgo a tsconfig that checks nothing reports 0 errors
+# (sveltejs/language-tools#3136); this keeps a false green visible.
+js_test(
+    name = "svelte_check_canary_test",
+    args = [
+        "--workspace",
+        "$(rootpath :app_workspace)",
+        "--canary",
+    ],
+    data = [
+        ":app_workspace",
+        "scripts/bazel/prepare-sveltekit-types.mjs",
+    ] + TYPECHECK_NPM_PACKAGES,
     entry_point = "scripts/bazel/run-svelte-check.mjs",
     timeout = "long",
 )
@@ -341,7 +386,11 @@ prettier_bin.prettier_test(
 js_binary(
     name = "vite_build_bin",
     # build-metadata.mjs: the stable-status reader shared with the leak scan.
-    data = APP_NPM_PACKAGES + ["scripts/bazel/build-metadata.mjs"],
+    # prepare-sveltekit-types.mjs: the shared scratch-workspace helpers.
+    data = APP_NPM_PACKAGES + [
+        "scripts/bazel/build-metadata.mjs",
+        "scripts/bazel/prepare-sveltekit-types.mjs",
+    ],
     entry_point = "scripts/bazel/run-vite-build.mjs",
 )
 
@@ -597,6 +646,7 @@ test_suite(
         ":served_tinyvectors_test",
         ":site_draft_compiler_test",
         ":source_map_drift_test",
+        ":svelte_check_canary_test",
         ":svelte_check_test",
         ":unit_tests",
         ":workflow_validation_test",
@@ -622,7 +672,7 @@ pkg_tar(
 # mutation stay local to the trusted GitHub runner and never use remote exec.
 pkg_tar(
     name = "container_image_context",
-    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "svelte.config.js"],
+    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "kit.config.js"],
     extension = "tar",
     tags = ["container-image-and-push", "no-remote-exec"],
     visibility = ["//visibility:public"],
@@ -642,7 +692,7 @@ exports_files(
         "scripts/bazel/run-vite-build.mjs",
         "scripts/bazel/run-vite-dev.mjs",
         "scripts/bazel/workspace-status.sh",
-        "svelte.config.js",
+        "kit.config.js",
         "tsconfig.json",
         "vite.config.ts",
         "vitest.config.ts",

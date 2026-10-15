@@ -174,7 +174,7 @@ describe('public log authoring templates', () => {
 
 describe('static build wiring for the logs', () => {
 	it('keeps .svx a build-time content extension', () => {
-		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
+		const svelteConfig = readFileSync(path.join(repoRoot, 'kit.config.js'), 'utf8');
 		expect(svelteConfig).toContain("extensions: ['.svelte', '.svx']");
 		expect(svelteConfig).toContain("mdsvex({ extensions: ['.svx'], highlight: { highlighter } })");
 		// mdsvex 0.12.7 emits the legacy module-script spelling; without this
@@ -189,7 +189,7 @@ describe('static build wiring for the logs', () => {
 		// defaultColor: false, so the emitted markup carries only the
 		// --shiki-light/--shiki-dark variables that src/app.css walks, keyed
 		// on the same data-mode attribute as the role layer.
-		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
+		const svelteConfig = readFileSync(path.join(repoRoot, 'kit.config.js'), 'utf8');
 		expect(svelteConfig).toContain("import { codeToHtml } from 'shiki'");
 		expect(svelteConfig).toMatch(/themes:\s*SHIKI_THEMES/u);
 		expect(svelteConfig).toMatch(/\{ light: 'github-light', dark: 'github-dark' \}/u);
@@ -203,7 +203,7 @@ describe('static build wiring for the logs', () => {
 		expect(readFileSync(path.join(repoRoot, 'src/routes/+layout.ts'), 'utf8')).toContain(
 			'export const prerender = true',
 		);
-		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
+		const svelteConfig = readFileSync(path.join(repoRoot, 'kit.config.js'), 'utf8');
 		expect(svelteConfig).toContain('@sveltejs/adapter-static');
 	});
 
@@ -214,7 +214,7 @@ describe('static build wiring for the logs', () => {
 	// asserted because adapter-static writes the fallback AFTER the prerendered
 	// pages, so re-adding one silently takes 404.html back.
 	it('builds the 404 body from a prerendered route, not an SPA fallback', () => {
-		const svelteConfig = readFileSync(path.join(repoRoot, 'svelte.config.js'), 'utf8');
+		const svelteConfig = readFileSync(path.join(repoRoot, 'kit.config.js'), 'utf8');
 		expect(svelteConfig).not.toMatch(/^\s*fallback:/mu);
 		expect(existsSync(path.join(repoRoot, 'src/routes/404/+page.svelte'))).toBe(true);
 		const notFoundRoute = readFileSync(path.join(repoRoot, 'src/routes/404/+page.ts'), 'utf8');

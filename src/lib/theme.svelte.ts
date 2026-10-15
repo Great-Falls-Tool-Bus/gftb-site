@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 /**
  * Theme store — the demo store shape, ported verbatim (D01/D02; demo #81

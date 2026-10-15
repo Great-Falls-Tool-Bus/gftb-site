@@ -1,6 +1,6 @@
 <script lang="ts">
-	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
-	import { formatLogDate, summaryDiffersFromTitle, type PublicLog } from '$lib/public-logs';
+	import FeaturedImage from '#lib/components/FeaturedImage.svelte';
+	import { formatLogDate, summaryDiffersFromTitle, type PublicLog } from '#lib/public-logs.js';
 
 	// The archive list row: a plain list, NO cards, plain-text badges
 	// (jesssullivan.github.io blog-list structure; addendum B1.2). Operator

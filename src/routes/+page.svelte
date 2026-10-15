@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { publicLogs, formatLogDate, summaryDiffersFromTitle, HOME_LOG_COUNT } from '$lib/public-logs';
-	import { publicGoals, publicHelpAsks, memberBenefits } from '$lib/public-goals';
-	import FeaturedImage from '$lib/components/FeaturedImage.svelte';
-	import NotesAndGoals from '$lib/components/NotesAndGoals.svelte';
-	import SourceLink from '$lib/components/SourceLink.svelte';
-	import HomeIntro from '$lib/components/HomeIntro.svelte';
-	import HoursBand from '$lib/components/HoursBand.svelte';
-	import RsvpDialog from '$lib/components/RsvpDialog.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
-	import { reveal } from '$lib/motion.svelte';
-	import GatedSlot from '$lib/components/GatedSlot.svelte';
-	import { INTEREST_PATH, MEMBER_INTAKE } from '$lib/membership';
+	import { publicLogs, formatLogDate, summaryDiffersFromTitle, HOME_LOG_COUNT } from '#lib/public-logs.js';
+	import { publicGoals, publicHelpAsks, memberBenefits, type PublicGoal } from '#lib/public-goals.js';
+	import FeaturedImage from '#lib/components/FeaturedImage.svelte';
+	import NotesAndGoals from '#lib/components/NotesAndGoals.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
+	import HomeIntro from '#lib/components/HomeIntro.svelte';
+	import HoursBand from '#lib/components/HoursBand.svelte';
+	import RsvpDialog from '#lib/components/RsvpDialog.svelte';
+	import ExternalLink from '#lib/components/ExternalLink.svelte';
+	import { reveal } from '#lib/motion.svelte.js';
+	import GatedSlot from '#lib/components/GatedSlot.svelte';
+	import { INTEREST_PATH, MEMBER_INTAKE } from '#lib/membership.js';
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
 	// 70ms stagger. The hidden start state only exists under
@@ -172,7 +172,7 @@
 			     before any bytes arrive, so lazy-loading cannot shift layout; a goal's
 			     own image_aspect overrides the default crop inline. -->
 			<NotesAndGoals goals={publicGoals} labelledby="goals-title">
-				{#snippet media(goal)}
+				{#snippet media(goal: PublicGoal)}
 					{#if goal.metadata.image}
 						<figure class="goal-media">
 							<img

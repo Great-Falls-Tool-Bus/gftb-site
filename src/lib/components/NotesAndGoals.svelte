@@ -16,11 +16,11 @@
 	// does not expand eight repository URLs onto paper.
 	import { onMount, type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import sourceMap from '$lib/generated/source-map.json';
-	import type { PublicGoal } from '$lib/public-goals';
-	import { BRAND_BLOB_COLORS } from '$lib/brand-blob-colors';
-	import { WiperEngine } from '$lib/wiper/engine.svelte';
-	import { pageOf } from '$lib/wiper/schedule';
+	import sourceMap from '#lib/generated/source-map.json';
+	import type { PublicGoal } from '#lib/public-goals.js';
+	import { BRAND_BLOB_COLORS } from '#lib/brand-blob-colors.js';
+	import { WiperEngine } from '#lib/wiper/engine.svelte.js';
+	import { pageOf } from '#lib/wiper/schedule.js';
 	import WiperControls from './WiperControls.svelte';
 	import WiperScene from './WiperScene.svelte';
 

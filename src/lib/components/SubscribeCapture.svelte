@@ -28,10 +28,10 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { page } from '$app/state';
-	import { INTRO_ARMED_CLASS, INTRO_LIFTING_CLASS, INTRO_LIVE_CLASS } from '$lib/intro/controller';
-	import { contactChallengeUrl, hasErrors, isHoneypotTripped } from '$lib/contact-form';
-	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '$lib/altcha-loader';
-	import { RSVP_OPEN_ATTR } from '$lib/rsvp-form';
+	import { INTRO_ARMED_CLASS, INTRO_LIFTING_CLASS, INTRO_LIVE_CLASS } from '#lib/intro/controller.js';
+	import { contactChallengeUrl, hasErrors, isHoneypotTripped } from '#lib/contact-form.js';
+	import { loadAltchaWidget, resolveAltcha, watchAltcha } from '#lib/altcha-loader.js';
+	import { RSVP_OPEN_ATTR } from '#lib/rsvp-form.js';
 	import {
 		CAPTURE_DWELL_MS,
 		armCapture,
@@ -43,7 +43,7 @@
 		type CaptureReason,
 		type SubscribeFieldErrors,
 		type SubscribeFormValues,
-	} from '$lib/subscribe-form';
+	} from '#lib/subscribe-form.js';
 	// The parts are bound to flat local names once, so the minified bundle
 	// carries no `X.Title`-style member access for the leak scan to read
 	// as a personal name (operator ruling 2026-10-02).

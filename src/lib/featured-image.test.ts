@@ -130,7 +130,7 @@ describe('featured-image render surfaces', () => {
 		const home = readFileSync(path.join(repoRoot, 'src/routes/+page.svelte'), 'utf8');
 		expect(home).toContain('<FeaturedImage');
 		expect(home).toContain('variant="thumb"');
-		expect(home).toContain('{#snippet media(goal)}');
+		expect(home).toContain('{#snippet media(goal: PublicGoal)}');
 		expect(home).toContain('class="goal-media"');
 		expect(home).toContain('{#if goal.metadata.image}');
 	});

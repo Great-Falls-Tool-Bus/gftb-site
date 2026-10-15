@@ -25,6 +25,12 @@ export const TINYVECTORS_TELLS = {
 		// The pre-cruise value shipped by 0.3.6 and earlier.
 		absent: ['driftSpeed:.01+Math.random()*.015'],
 	},
+	'1.0.0': {
+		// 1.0.0 is the RU1 re-cut of 0.3.7 (same physics), so the cruise speed
+		// literal is the same; the pre-cruise value must still be absent.
+		present: ['driftSpeed:.05+Math.random()*.05'],
+		absent: ['driftSpeed:.01+Math.random()*.015'],
+	},
 };
 
 export function pinnedVersion(moduleBazel) {

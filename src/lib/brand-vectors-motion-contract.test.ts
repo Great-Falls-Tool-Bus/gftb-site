@@ -52,9 +52,9 @@ describe('tinyvectors default-motion contract', () => {
 		const { raw } = parsePinnedTinyvectorsVersion();
 		const bazelrc = readFileSync(path.join(repoRoot, '.bazelrc'), 'utf8');
 		const registry = bazelrc.match(
-			/--registry=(https:\/\/raw\.githubusercontent\.com\/tinyland-inc\/bazel-registry\/[0-9a-f]{40})/,
+			/--registry=(https:\/\/raw\.githubusercontent\.com\/xoxd-ai\/bazel-registry\/[0-9a-f]{40})/,
 		)?.[1];
-		expect(registry, 'an immutable-SHA tinyland bazel-registry pin in .bazelrc').toBeTruthy();
+		expect(registry, 'an immutable-SHA xoxd-ai bazel-registry pin in .bazelrc').toBeTruthy();
 		const lock = readFileSync(path.join(repoRoot, 'MODULE.bazel.lock'), 'utf8');
 		// The lock must hash the pinned version's source.json — the registry
 		// file that carries the source archive's sha256 integrity — under the

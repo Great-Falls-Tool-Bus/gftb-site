@@ -9,7 +9,7 @@
 	// with cleanup that Svelte 5 provides for exactly this.
 	import type { Attachment } from 'svelte/attachments';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { mountHomeIntro, type IntroHandle, type IntroState } from '$lib/intro/controller';
+	import { mountHomeIntro, type IntroHandle, type IntroState } from '#lib/intro/controller.js';
 	import ToolBusMark from './ToolBusMark.svelte';
 
 	const prefersReduced = new MediaQuery('(prefers-reduced-motion: reduce)');

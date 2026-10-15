@@ -1,6 +1,6 @@
 <script lang="ts">
-	import GatedSlot from '$lib/components/GatedSlot.svelte';
-	import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE } from '$lib/membership';
+	import GatedSlot from '#lib/components/GatedSlot.svelte';
+	import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE } from '#lib/membership.js';
 
 	// How membership works, and the one place every Apply call to action
 	// lands while applications are closed (src/lib/membership.ts). The member

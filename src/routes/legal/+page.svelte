@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SourceLink from '$lib/components/SourceLink.svelte';
+	import SourceLink from '#lib/components/SourceLink.svelte';
 
 	// The club's agreements as the compiled documents themselves (operator
 	// ruling 2026-09-19): each PDF is built from its LaTeX source in the
