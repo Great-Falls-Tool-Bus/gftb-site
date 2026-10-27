@@ -5,6 +5,10 @@
 # finite Bazel targets. CI resolves those targets through the v4 action fabric;
 # this file contains no cache, executor, provider, or fallback policy.
 
+# A resident Bazel server exits after 120 s idle (R470). A host rc or a
+# --max_idle_secs startup flag on the command line overrides this.
+startup --max_idle_secs=120
+
 common --enable_bzlmod
 # Supply-chain hardening (mirrors MassageIthaca): pin xoxd-ai/bazel-registry
 # (the canonical home of the former tinyland-inc/bazel-registry)
