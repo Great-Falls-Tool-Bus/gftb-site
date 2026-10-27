@@ -30,7 +30,8 @@ flake-lock:
     cd {{ root }} && nix flake lock
 
 # Interactive dev server: a local Bazel server by design, not a check.
-# The server exits 120 s after it goes idle (.bazelrc); `bazelisk shutdown` ends it now.
+# The server exits after the idle limit (120 s from .bazelrc unless a home rc
+# or the command line sets another); `bazelisk shutdown` ends it now.
 dev:
     cd {{ root }} && bazelisk run //:dev
 
