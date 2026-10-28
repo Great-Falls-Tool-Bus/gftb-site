@@ -374,6 +374,8 @@ eslint_bin.eslint_test(
     args = ["."],
     data = [":app_srcs", ":e2e_srcs", ":sveltekit_types", "//tools/site-draft-compiler:format_inputs", "eslint.config.ts"] + LINT_NPM_PACKAGES,
     timeout = "moderate",
+    # Lint and formatting: `just check` runs it, `just gate-deploy` does not (TIN-7477).
+    tags = ["lint"],
 )
 
 prettier_bin.prettier_test(
@@ -381,6 +383,8 @@ prettier_bin.prettier_test(
     args = ["--check", "."],
     data = [":format_srcs", ":node_modules/prettier", ":node_modules/prettier-plugin-svelte", ":node_modules/svelte"],
     timeout = "short",
+    # Lint and formatting: `just check` runs it, `just gate-deploy` does not (TIN-7477).
+    tags = ["lint"],
 )
 
 js_binary(
