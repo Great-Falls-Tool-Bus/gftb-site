@@ -2,7 +2,7 @@
 kind: goal
 order: 62
 title: 'Engineering drafting and printing skillshare / class on the regular?'
-cta_label: 'Sign me up'
+cta_label: 'Tell us you are interested'
 cta_href: '/contact'
 image: '/photos/great-falls-lewiston-1930s-1280.webp'
 image_alt: 'Historic postcard view of Great Falls between Auburn and Lewiston'

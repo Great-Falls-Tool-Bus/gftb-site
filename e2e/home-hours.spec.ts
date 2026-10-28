@@ -199,19 +199,17 @@ function focusedInside(box: Locator) {
 	});
 }
 
-// Decision 0032 (operator interview 2026-10-02): both slots are published.
-// The served HTML carries one clock-free rule row per slot, Monday first.
-const RULES = [
-	['monday-october', 'Mondays 5 and 12 October, 5 to 6 PM ET'],
-	['thursday-weekly', 'Thursdays, 3 to 4 PM ET, from 8 October'],
-] as const;
+// Decision 0032 (operator interview 2026-10-02) published both slots. The
+// two-Monday series ended on 12 October and is retired from the content, so
+// the served HTML carries one clock-free rule row, for the Thursday slot.
+const RULES = [['thursday-weekly', 'Thursdays, 3 to 4 PM ET, from 8 October']] as const;
+// Thursdays from 8 October inside the four-week horizon of NOW.
+const THURSDAY_SESSIONS = SESSIONS.filter(([id]) => id.startsWith('thursday-weekly'));
+const THURSDAY_ROWS = THURSDAY_SESSIONS.length;
 
 test.describe('the published content', () => {
-	test('both slots are published, Monday first', () => {
-		expect(publicHoursSlots.map((slot) => [slot.id, slot.published])).toEqual([
-			['monday-october', true],
-			['thursday-weekly', true],
-		]);
+	test('only the Thursday slot is published, the Monday series having ended', () => {
+		expect(publicHoursSlots.map((slot) => [slot.id, slot.published])).toEqual([['thursday-weekly', true]]);
 	});
 
 	test.describe('without JavaScript', () => {
@@ -231,36 +229,32 @@ test.describe('the published content', () => {
 					buildRsvpMailtoHref('keyholders@latoolb.us', { slotId, label: rule }),
 				);
 			}
-			await expect(rows.nth(0)).toContainText('2 Mondays');
-			await expect(rows.nth(1)).toContainText('Weekly');
-			for (const index of [0, 1]) {
-				await expect(rows.nth(index)).toContainText('With Jess');
-				await expect(rows.nth(index)).toContainText('On the bus');
-			}
+			await expect(rows.nth(0)).toContainText('Weekly');
+			await expect(rows.nth(0)).toContainText('With Jess');
+			await expect(rows.nth(0)).toContainText('On the bus');
 			await expect(band(page)).not.toContainText(EMPTY_TEXT);
 			await expectPlacement(page);
 		});
 	});
 
-	test('at 2026-10-02T16:00Z the rows are Monday 5, Thursday 8 and Monday 12 October onward', async ({ page }) => {
+	test('at 2026-10-02T16:00Z the rows are the Thursdays from 8 October', async ({ page }) => {
 		await page.clock.setFixedTime(NOW);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
 		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		const rows = band(page).locator('.hours-list > li');
-		await expect(rows).toHaveCount(SESSIONS.length);
-		await expect(rows.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
-		for (const [index, [, label, datetime]] of SESSIONS.entries()) {
-			await expect(rows.nth(index).locator('time')).toHaveAttribute('datetime', datetime);
-			await expect(rows.nth(index).getByRole('button', { name: `RSVP for ${label}` })).toBeVisible();
-			await expect(rows.nth(index)).toContainText('With Jess');
-		}
-		await expect(rows.nth(0)).toContainText('2 Mondays');
-		await expect(rows.nth(1)).toContainText('Weekly');
+		await expect(rows).toHaveCount(THURSDAY_ROWS);
+		await expect(rows.locator('time')).toHaveText([
+			'Thursday 8 October, 3 to 4 PM ET',
+			'Thursday 15 October, 3 to 4 PM ET',
+			'Thursday 22 October, 3 to 4 PM ET',
+			'Thursday 29 October, 3 to 4 PM ET',
+		]);
+		await expect(band(page)).not.toContainText('Monday');
 		await expectPlacement(page);
 	});
 
-	test('at 2026-10-13 the Monday series is exhausted and only Thursdays remain', async ({ page }) => {
+	test('at 2026-10-13 only Thursdays remain', async ({ page }) => {
 		await page.clock.setFixedTime(new Date('2026-10-13T16:00:00Z'));
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
@@ -308,25 +302,25 @@ test.describe('the published content', () => {
 			await page.unroute(bundle);
 			await page.goto('/');
 			await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
-			await expect(band(page).locator('.hours-list > li')).toHaveCount(SESSIONS.length);
+			await expect(band(page).locator('.hours-list > li')).toHaveCount(THURSDAY_ROWS);
 			const shift = (await nextTop()) - before;
 			expect(shift).toBeGreaterThan(-40);
 			expect(shift).toBeLessThan(40);
 		});
 	}
 
-	test('on a phone the marquee carries both entries', async ({ page }) => {
+	test('on a phone the marquee carries every published session', async ({ page }) => {
 		await page.clock.setFixedTime(NOW);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		const cards = band(page).locator('.hours-marquee__list:not(.hours-marquee__dup) > li');
-		await expect(cards).toHaveCount(SESSIONS.length);
-		await expect(band(page).locator('.hours-marquee__dup > li')).toHaveCount(SESSIONS.length);
-		await expect(cards.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
-		await expect(cards.filter({ hasText: '2 Mondays' })).toHaveCount(2);
-		await expect(cards.filter({ hasText: 'Weekly' })).toHaveCount(4);
+		await expect(cards).toHaveCount(THURSDAY_SESSIONS.length);
+		await expect(band(page).locator('.hours-marquee__dup > li')).toHaveCount(THURSDAY_SESSIONS.length);
+		await expect(cards.locator('time')).toHaveText(THURSDAY_SESSIONS.map(([, label]) => label));
+		await expect(cards.filter({ hasText: 'Weekly' })).toHaveCount(THURSDAY_SESSIONS.length);
+		await expect(cards.filter({ hasText: 'Monday' })).toHaveCount(0);
 		await expectPlacement(page);
 	});
 });
