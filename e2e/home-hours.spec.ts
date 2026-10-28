@@ -79,6 +79,22 @@ async function withSessions(page: Page, now: Date = NOW, slots: readonly object[
 	);
 }
 
+/**
+ * The same published sessions on a paused clock that only `fastForward` moves.
+ * A row that reads how far the marquee travelled then counts frames it drives,
+ * not the frames a starved host happens to deliver.
+ */
+async function withSteppedSessions(page: Page, now: Date = NOW, slots: readonly object[] = FIXTURE) {
+	await page.clock.install({ time: now });
+	await page.clock.pauseAt(new Date(now.getTime() + 1));
+	await page.addInitScript(
+		({ name, fixture }) => {
+			(window as unknown as Record<string, unknown>)[name] = fixture;
+		},
+		{ name: HOURS_FIXTURE_GLOBAL, fixture: slots },
+	);
+}
+
 // These rows read the hours band, not the wiper scene: the ladder is capped at
 // none so no software-rendered WebGL canvas takes frames from the band's clock.
 test.beforeEach(async ({ page }) => {
@@ -105,12 +121,31 @@ const firstCopy = (root: Locator) => marquee(root).locator('.hours-marquee__list
 // Right to left: the scroller's offset grows, so the cards move left. Read
 // modulo one copy, since the offset wraps back by exactly one copy (the
 // seamless loop). The marquee runs only while it is on screen.
-async function expectMovingRightToLeft(root: Locator) {
+async function expectMovingRightToLeft(root: Locator, stepped = false) {
+	const page = root.page();
+	await marquee(root).scrollIntoViewIfNeeded();
+	if (stepped) {
+		// On the paused clock the band's timers (the hand-scroll rest) and its
+		// frames move only when this row steps them: 100 ms a step, the most a
+		// frame counts. Step until it runs, then until it has moved.
+		const step = async (reached: () => Promise<boolean>, what: string) => {
+			for (let spent = 0; !(await reached()); spent += 100) {
+				if (spent > 20_000) throw new Error(`${what} did not come within 20 s of page time`);
+				await page.clock.fastForward(100);
+			}
+		};
+		await step(async () => (await marqueeState(root)) === 'running', 'the marquee running');
+		const copy = await firstCopy(root).evaluate((list) => (list as HTMLElement).offsetWidth);
+		const before = await scrollOffset(root);
+		const travelled = async () => ((await scrollOffset(root)) - before + copy) % copy;
+		await step(async () => (await travelled()) > 8, 'the marquee moving');
+		expect(await travelled()).toBeLessThan(copy / 2);
+		return;
+	}
 	// The offset advances one frame at a time, so the distance travelled
 	// follows the frames a starved host delivers. Wait on the offset itself,
 	// and give the row the budget that wait can use.
 	test.setTimeout(120_000);
-	await marquee(root).scrollIntoViewIfNeeded();
 	await expect.poll(() => marqueeState(root), { timeout: 20_000 }).toBe('running');
 	const copy = await firstCopy(root).evaluate((list) => (list as HTMLElement).offsetWidth);
 	const before = await scrollOffset(root);
@@ -477,7 +512,7 @@ test.describe('with sessions on a fixed clock', () => {
 	});
 
 	test('on desktop the keyboard reaches each card once, in view, and focus holds the cards', async ({ page }) => {
-		await withSessions(page);
+		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
@@ -513,7 +548,7 @@ test.describe('with sessions on a fixed clock', () => {
 		);
 		expect(stops[SESSIONS.length].inBand).toBe(false);
 		// Focus left: the cards move on.
-		await expectMovingRightToLeft(band(page));
+		await expectMovingRightToLeft(band(page), true);
 
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
 	});

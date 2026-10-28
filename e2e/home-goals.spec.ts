@@ -722,18 +722,54 @@ async function seedRandom(page: Page, seed = 0x2f6e2b1) {
 	}, seed);
 }
 
+/**
+ * Pause the page's clock before it loads, with `seedRandom` already set. From
+ * then on only `stepFrames` moves time, one frame per step, so a row reads the
+ * scene at a known frame whatever the host's load.
+ */
+async function steppedPage(page: Page) {
+	await seedRandom(page);
+	await page.clock.install({ time: CLOCK_START });
+	await page.clock.pauseAt(CLOCK_START + 1);
+}
+
+/** Move the paused clock `ms` in steps of `STEP_MS`, one animation frame per step. */
+async function stepFrames(page: Page, ms: number) {
+	for (let spent = 0; spent < ms; spent += STEP_MS) await page.clock.fastForward(Math.min(STEP_MS, ms - spent));
+}
+
+/** Step the paused clock until `reached` holds, or fail after `limitMs` of page time. */
+async function stepUntil(page: Page, reached: () => Promise<boolean>, what: string, limitMs = 30_000) {
+	for (let spent = 0; !(await reached()); spent += STEP_MS) {
+		if (spent > limitMs) throw new Error(`${what} did not come within ${limitMs} ms of page time`);
+		await page.clock.fastForward(STEP_MS);
+	}
+}
+
+const stateIs = (page: Page, pattern: RegExp) => async () =>
+	pattern.test((await pane(page).getAttribute('data-state')) ?? '');
+
+/** The held stroke is in the mask, then two more frames draw it on both canvases. */
+async function settleHold(page: Page, unit: string) {
+	await stepUntil(
+		page,
+		() =>
+			page.evaluate(
+				(value) =>
+					(document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') ===
+					Number(value).toFixed(4),
+				unit,
+			),
+		`the hold at ${unit}`,
+	);
+	await stepFrames(page, 2 * STEP_MS);
+}
+
 async function holdStroke(page: Page, unit: string) {
 	await page.evaluate((value) => {
 		document.documentElement.dataset.wiperFreeze = value;
 	}, unit);
-	await page.waitForFunction(
-		(value) =>
-			(document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') ===
-			Number(value).toFixed(4),
-		unit,
-		{ timeout: 30_000 },
-	);
-	await page.waitForTimeout(250);
+	await settleHold(page, unit);
 }
 
 async function releaseHold(page: Page) {
@@ -746,6 +782,7 @@ async function releaseHold(page: Page) {
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the glass panes keep the notes' ink on its floor over the scene (${scheme})`, async ({ page }) => {
 		test.setTimeout(90_000);
+		await steppedPage(page);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -755,21 +792,34 @@ for (const scheme of ['light', 'dark'] as const) {
 		await awaitTier(page);
 		// A rest held open: no note moves while the pixels are read.
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+		await stepUntil(page, stateIs(page, /dwell|paused/u), 'the rest');
+		await stepFrames(page, 1500);
 		await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
-		await page.waitForTimeout(1500);
 		// Mid-sweep a pane is masked along with its text, so a text box can lie
 		// over bare scene where no glyph is painted: those pixels owe nothing.
 		// A second capture paints the pane's fill magenta wherever the pane is
 		// present and the measure keeps only those pixels.
+		//
+		// Only pixels where the pane is all but fully present count (TIN-5303).
+		// In the wipe mask's feather the pane is partly transparent and the ink
+		// fades under the same mask, so a full-strength ink against that
+		// composite is not what a reader sees. A pane filled at 100% still read
+		// 4.4:1 there, so no fill choice can meet the floor on those pixels. The
+		// floor is held at rest, where every pane pixel is present, and mid-sweep
+		// on the pixels the mask has fully revealed. MIN_INK_RECTS and MIN_PANE_PIXELS keep a
+		// probe this strict from passing by sampling nothing.
+		// Over 30 seeds the fewest text boxes were 21 and the fewest fully present
+		// pane pixels 162173 (412303 mid-sweep); the floors leave headroom.
+		const MIN_INK_RECTS = 15;
+		const MIN_PANE_PIXELS = 100_000;
 		const panePresent = {
 			style: '#goals .goal-list > li::before { background: #ff00ff !important; backdrop-filter: none !important; }',
 			isPresent: (rgb: { red: number; green: number; blue: number }) =>
-				rgb.red > 180 && rgb.green < 100 && rgb.blue > 180,
+				rgb.red >= 250 && rgb.green <= 5 && rgb.blue >= 250,
 		};
 		const check = async (label: string) => {
 			const rects = await paneTextRects(page);
-			expect(rects.length, `${label}: text rects`).toBeGreaterThan(3);
+			expect(rects.length, `${label}: text rects`).toBeGreaterThanOrEqual(MIN_INK_RECTS);
 			const extremes = await measureExtremesInRects(
 				page,
 				'#goals .goal-list',
@@ -777,7 +827,9 @@ for (const scheme of ['light', 'dark'] as const) {
 				'#goals .goal-list > li > *, #goals canvas.wiper__blades',
 				panePresent,
 			);
-			expect(extremes.sampled, `${label}: pixels where a pane is present`).toBeGreaterThan(2000);
+			expect(extremes.sampled, `${label}: pixels where a pane is fully present`).toBeGreaterThanOrEqual(
+				MIN_PANE_PIXELS,
+			);
 			const worst = async (role: string) => {
 				const ink = await resolveRoleRgb(page, role, '#goals .goal-list > li');
 				return Math.min(
@@ -818,6 +870,7 @@ function rayPointAtX(arm: ReturnType<typeof deriveGeometry>['arms'][number], phi
 for (const scheme of ['light', 'dark'] as const) {
 	test(`the blades are drawn on the mask edge and move with it (${scheme})`, async ({ page }) => {
 		test.setTimeout(90_000);
+		await steppedPage(page);
 		// Source-test timing only, not SLO evidence. Retire these markers once the
 		// blocked await is fixed and this existing browser case is qualified.
 		const timed = async (label: string, work: () => Promise<void>) => {
@@ -883,22 +936,15 @@ for (const scheme of ['light', 'dark'] as const) {
 			await page.evaluate((value) => {
 				document.documentElement.dataset.wiperFreeze = value;
 			}, unit);
-			// The engine applies the hold on its next frame; wait for the mask to carry it.
-			await page.waitForFunction(
-				(value) =>
-					(document.querySelector('#goals .wiper') as HTMLElement).style.getPropertyValue('--wipe-u') ===
-					Number(value).toFixed(4),
-				unit,
-				{ timeout: 20_000 },
-			);
-			await page.waitForTimeout(150);
+			// The engine applies the hold on its next frame; step until the mask carries it.
+			await settleHold(page, unit);
 		};
 		await timed('initial hold', async () => {
 			await hold(targets[0].unit);
 		});
 		await timed('High and wiping', async () => {
 			await selectDetent(page, 'High');
-			await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
+			await stepUntil(page, stateIs(page, /^wiping$/u), 'the wiping state', 15_000);
 		});
 		await timed('left hold and capture', async () => {
 			await hold(targets[0].unit);
@@ -955,9 +1001,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		// before the page loads and moves only when this row steps it, one frame
 		// per step. The samples then sit at fixed ages of the rest whatever the
 		// host load, and the same blobs sit under the gutters on every run.
-		await seedRandom(page);
-		await page.clock.install({ time: CLOCK_START });
-		await page.clock.pauseAt(CLOCK_START + 1);
+		await steppedPage(page);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -966,14 +1010,8 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pointerAway(page);
 		await awaitTier(page);
 		const state = () => pane(page).getAttribute('data-state');
-		const stepUntil = async (reached: (value: string) => boolean, what: string) => {
-			for (let spent = 0; !reached((await state()) ?? ''); spent += STEP_MS) {
-				if (spent > 30_000) throw new Error(`${what} did not come within thirty seconds of page time`);
-				await page.clock.fastForward(STEP_MS);
-			}
-		};
 		// A fresh rest after a stroke, held open once it arrives.
-		await stepUntil((value) => value === 'wiping', 'the first stroke');
+		await stepUntil(page, stateIs(page, /^wiping$/u), 'the first stroke');
 		await holdRest(page);
 		const glass = await scene(page).elementHandle();
 		if (!glass) throw new Error('the scene canvas disappeared before the rest sample');
@@ -1012,7 +1050,7 @@ for (const scheme of ['light', 'dark'] as const) {
 				return Number.isFinite(time) ? time : null;
 			}, identity);
 		// Step until the stroke ends and the rest begins: the first sample is a fresh rest.
-		await stepUntil((value) => /dwell|paused/u.test(value), 'the rest');
+		await stepUntil(page, stateIs(page, /dwell|paused/u), 'the rest');
 		const startTime = await glassTime();
 		if (startTime === null) throw new Error('the rendered droplet clock is missing at the start of the rest');
 		const early = await measureTextureInRects(
@@ -1060,6 +1098,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 	test(`the blade squeegees the glass behind it and leaves it wet ahead (${scheme})`, async ({ page }, testInfo) => {
 		test.setTimeout(90_000);
+		await steppedPage(page);
 		const attachBlade = async (name: string, body: Buffer | string, contentType: string, extension: string) => {
 			const file = testInfo.outputPath(`${name}.${extension}`);
 			await writeFile(file, body);
@@ -1105,8 +1144,8 @@ for (const scheme of ['light', 'dark'] as const) {
 		// so the left gutter lies behind the left blade and the right gutter
 		// ahead of the right blade.
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
-		await page.waitForTimeout(4000);
+		await stepUntil(page, stateIs(page, /dwell|paused/u), 'the rest');
+		await stepFrames(page, 4000);
 		await selectDetent(page, 'High');
 		await holdStroke(page, '0.5');
 		const rests = await gutterRects(page);
@@ -1153,6 +1192,7 @@ for (const scheme of ['light', 'dark'] as const) {
 test('a pointer over the pane pauses the wipers, leaving resumes them, and focus inside reveals the focused note', async ({
 	page,
 }) => {
+	await steppedPage(page);
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
@@ -1163,28 +1203,28 @@ test('a pointer over the pane pauses the wipers, leaving resumes them, and focus
 	// and would turn the page under the focus check below.
 	await selectDetent(page, 'Intermittent');
 	await pointerAway(page);
-	await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
+	await stepUntil(page, stateIs(page, /dwell|paused/u), 'the rest');
 	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
-	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	await stepUntil(page, stateIs(page, /^dwell$/u), 'the dwell');
 	await pane(page).hover();
-	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
+	await stepUntil(page, stateIs(page, /^paused$/u), 'the pause under the pointer', 5_000);
 	await pointerAway(page);
-	await expect(pane(page)).toHaveAttribute('data-state', 'dwell');
+	await stepUntil(page, stateIs(page, /^dwell$/u), 'the dwell after the pointer left', 5_000);
 	// Focus a note on the last page: the page turns at once, no wipe, and holds.
 	const lastIndex = publicGoals.length - 1;
 	await page.locator('#goals .goal-list > li').nth(lastIndex).locator('.goal-edit a').focus();
-	await expect(pane(page)).toHaveAttribute('data-state', 'paused');
+	await stepUntil(page, stateIs(page, /^paused$/u), 'the pause under focus', 5_000);
 	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
 	await expect(page.locator('#goals .goal-list > li').nth(lastIndex)).toBeVisible();
-	await page.waitForTimeout(wiperDetent('intermittent').dwellMs + 500);
+	await stepFrames(page, wiperDetent('intermittent').dwellMs + 500);
 	expect(await currentTitles(page)).toContain(publicGoals[lastIndex].metadata.title);
 	// On High a resting pointer changes nothing: the wipers keep time.
 	await page.locator('body').click({ position: { x: 5, y: 5 } });
 	await selectDetent(page, 'High');
 	await pane(page).hover();
-	await expect(pane(page)).toHaveAttribute('data-state', /dwell|wiping/u);
-	await page.waitForTimeout(400);
-	await expect(pane(page)).toHaveAttribute('data-state', /dwell|wiping/u);
+	await stepUntil(page, stateIs(page, /dwell|wiping/u), 'a running state on High', 5_000);
+	await stepFrames(page, 400);
+	expect(await stateIs(page, /dwell|wiping/u)(), 'the wipers keep time under a resting pointer').toBe(true);
 });
 
 test('reduced motion shows the same grid, every note visible, nothing moving', async ({ page }) => {
