@@ -118,56 +118,53 @@ const marqueeState = (root: Locator) => marquee(root).getAttribute('data-marquee
 const scrollOffset = (root: Locator) => marquee(root).evaluate((element) => element.scrollLeft);
 const firstCopy = (root: Locator) => marquee(root).locator('.hours-marquee__list:not(.hours-marquee__dup)');
 
+// Every marquee row runs on the paused clock of withSteppedSessions: the band
+// moves by frames and its hand-scroll rest is a timer, so both advance only
+// when the row steps them (100 ms a step, the most a frame counts).
+const STEP_MS = 100;
+
+async function stepUntil(root: Locator, reached: () => Promise<boolean>, what: string, limitMs = 20_000) {
+	const page = root.page();
+	for (let spent = 0; !(await reached()); spent += STEP_MS) {
+		if (spent > limitMs) throw new Error(`${what} did not come within ${limitMs} ms of page time`);
+		await page.clock.fastForward(STEP_MS);
+	}
+}
+
+async function stepFor(root: Locator, ms: number) {
+	for (let spent = 0; spent < ms; spent += STEP_MS) await root.page().clock.fastForward(STEP_MS);
+}
+
 // Right to left: the scroller's offset grows, so the cards move left. Read
 // modulo one copy, since the offset wraps back by exactly one copy (the
 // seamless loop). The marquee runs only while it is on screen.
-async function expectMovingRightToLeft(root: Locator, stepped = false) {
-	const page = root.page();
+async function expectMovingRightToLeft(root: Locator) {
 	await marquee(root).scrollIntoViewIfNeeded();
-	if (stepped) {
-		// On the paused clock the band's timers (the hand-scroll rest) and its
-		// frames move only when this row steps them: 100 ms a step, the most a
-		// frame counts. Step until it runs, then until it has moved.
-		const step = async (reached: () => Promise<boolean>, what: string) => {
-			for (let spent = 0; !(await reached()); spent += 100) {
-				if (spent > 20_000) throw new Error(`${what} did not come within 20 s of page time`);
-				await page.clock.fastForward(100);
-			}
-		};
-		await step(async () => (await marqueeState(root)) === 'running', 'the marquee running');
-		const copy = await firstCopy(root).evaluate((list) => (list as HTMLElement).offsetWidth);
-		const before = await scrollOffset(root);
-		const travelled = async () => ((await scrollOffset(root)) - before + copy) % copy;
-		await step(async () => (await travelled()) > 8, 'the marquee moving');
-		expect(await travelled()).toBeLessThan(copy / 2);
-		return;
-	}
-	// The offset advances one frame at a time, so the distance travelled
-	// follows the frames a starved host delivers. Wait on the offset itself,
-	// and give the row the budget that wait can use.
-	test.setTimeout(120_000);
-	await expect.poll(() => marqueeState(root), { timeout: 20_000 }).toBe('running');
+	await stepUntil(root, async () => (await marqueeState(root)) === 'running', 'the marquee running');
 	const copy = await firstCopy(root).evaluate((list) => (list as HTMLElement).offsetWidth);
 	const before = await scrollOffset(root);
 	const travelled = async () => ((await scrollOffset(root)) - before + copy) % copy;
-	await expect.poll(travelled, { timeout: 30_000 }).toBeGreaterThan(8);
+	await stepUntil(root, async () => (await travelled()) > 8, 'the marquee moving');
 	expect(await travelled()).toBeLessThan(copy / 2);
 }
 
 // Held: the state says so and, once any hand scroll has come to rest, the
-// offset stays put.
+// offset stays put through half a second of page time.
 async function expectHeld(root: Locator) {
-	await expect.poll(() => marqueeState(root)).toBe('paused');
-	const page = root.page();
-	await expect
-		.poll(async () => {
-			const first = await scrollOffset(root);
-			await page.waitForTimeout(150);
-			return (await scrollOffset(root)) - first;
-		})
-		.toBe(0);
+	await stepUntil(root, async () => (await marqueeState(root)) === 'paused', 'the marquee held');
+	let first = await scrollOffset(root);
+	await stepUntil(
+		root,
+		async () => {
+			const now = await scrollOffset(root);
+			const still = now === first;
+			first = now;
+			return still;
+		},
+		'the offset at rest',
+	);
 	const offset = await scrollOffset(root);
-	await page.waitForTimeout(400);
+	await stepFor(root, 500);
 	expect(await scrollOffset(root)).toBe(offset);
 	expect(await marqueeState(root)).toBe('paused');
 }
@@ -483,7 +480,7 @@ test.describe('with sessions on a fixed clock', () => {
 	// Split from the row above so each stays inside the per-test budget on a
 	// loaded lab host.
 	test('on desktop the cards move right to left by script and hold under the mouse', async ({ page }) => {
-		await withSessions(page);
+		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
@@ -548,20 +545,20 @@ test.describe('with sessions on a fixed clock', () => {
 		);
 		expect(stops[SESSIONS.length].inBand).toBe(false);
 		// Focus left: the cards move on.
-		await expectMovingRightToLeft(band(page), true);
+		await expectMovingRightToLeft(band(page));
 
 		expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
 	});
 
 	test('a hand scroll moves the cards, holds them, and they move on after a short rest', async ({ page }) => {
-		await withSessions(page);
+		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
 		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
 		await band(page).scrollIntoViewIfNeeded();
 		await page.mouse.move(0, 0);
-		await expect.poll(() => marqueeState(band(page))).toBe('running');
+		await stepUntil(band(page), async () => (await marqueeState(band(page))) === 'running', 'the marquee running');
 		const before = await scrollOffset(band(page));
 		// A sideways trackpad or wheel scroll over the cards, then the pointer leaves.
 		const frame = (await marquee(band(page)).boundingBox())!;
@@ -571,9 +568,14 @@ test.describe('with sessions on a fixed clock', () => {
 		await expect.poll(() => scrollOffset(band(page))).toBeGreaterThan(before + 150);
 		// Held by the hand scroll alone, through the rest that follows it.
 		expect(await marqueeState(band(page))).toBe('paused');
-		await page.waitForTimeout(1000);
+		await stepFor(band(page), 1000);
 		expect(await marqueeState(band(page))).toBe('paused');
-		await expect.poll(() => marqueeState(band(page)), { timeout: MARQUEE_RESUME_MS + 4000 }).toBe('running');
+		await stepUntil(
+			band(page),
+			async () => (await marqueeState(band(page))) === 'running',
+			'the marquee running again',
+			MARQUEE_RESUME_MS + 4000,
+		);
 		await expectMovingRightToLeft(band(page));
 	});
 
@@ -583,7 +585,7 @@ test.describe('with sessions on a fixed clock', () => {
 	}) => {
 		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');
 		await stubChallenge(page);
-		await withSessions(page);
+		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
@@ -630,6 +632,12 @@ test.describe('with sessions on a fixed clock', () => {
 		// Closing hands focus back to the trigger; it was clicked, not reached
 		// by keyboard, so the cards move on once the dialog is gone.
 		await dialog.getByRole('button', { name: 'Cancel' }).click();
+		// The dialog hands focus back on a timer of its own: step the clock to it.
+		await stepUntil(
+			band(page),
+			async () => (await dialog.count()) === 0 && (await trigger.evaluate((node) => node === document.activeElement)),
+			'the dialog closed and focus back on the trigger',
+		);
 		await expect(dialog).toHaveCount(0);
 		await expect(trigger).toBeFocused();
 		await page.mouse.move(4, 450);
@@ -708,7 +716,7 @@ test.describe('on a touch phone', () => {
 	test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
 	async function openOnPhone(page: Page) {
-		await withSessions(page);
+		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.goto('/');
 		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
@@ -821,7 +829,7 @@ test.describe('on the log pages', () => {
 	});
 
 	test('phone: the home page marquee sits above the list, under the intro, and the aside is gone', async ({ page }) => {
-		await withSessions(page);
+		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 390, height: 844 });
 		await page.goto('/log/');

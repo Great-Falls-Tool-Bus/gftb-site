@@ -154,9 +154,6 @@ test('every note carries an Edit link to its own source and the section links th
 });
 
 const pane = (page: Page) => page.locator('#goals .wiper');
-// The pane is mounted by the client after hydration, which a starved host can
-// delay well past the 10 s action limit. The wait is for the element, not a sleep.
-const HYDRATED = { timeout: 45_000 };
 const stalk = (page: Page) => page.locator('#goals .wiper-stalk');
 const currentTitles = (page: Page) => page.locator('#goals .goal-list > li.is-current h3').allTextContents();
 
@@ -170,7 +167,7 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await pointerAway(page);
 	// One control: a radio group named for the speed, Off first, High on load.
 	const group = page.getByRole('radiogroup', { name: 'Wiper speed' });
@@ -231,7 +228,7 @@ test('a wipe masks the outgoing page out along the arc and the incoming page in,
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	// High is the detent on load, so a wipe may already have turned the page
 	// by now: hold the rest open, read whichever page is in view under the
 	// hold (no stroke can start), and expect the one after it.
@@ -343,7 +340,7 @@ for (const width of [320, 390, 768, 1280, 1440]) {
 		await page.setViewportSize({ width, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+		await pane(page).scrollIntoViewIfNeeded();
 		await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 		const measured = await page.evaluate(() => {
 			const list = document.querySelector('#goals .goal-list') as HTMLElement;
@@ -385,7 +382,7 @@ test('the scene canvas exists only while the notes page, fills the list box, and
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await pointerAway(page);
 	await expect(scene(page)).toHaveCount(1);
 	const tier = await awaitTier(page);
@@ -463,7 +460,7 @@ test('the ladder honours a ceiling set before mount, silently', async ({ browser
 	await forceTierMax(page, 'webgl2');
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
 	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
 	await page.waitForTimeout(1500);
@@ -475,7 +472,7 @@ test('the ladder honours a ceiling set before mount, silently', async ({ browser
 	await forceTierMax(grid, 'none');
 	await grid.goto('/');
 	await grid.waitForLoadState('networkidle');
-	await pane(grid).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(grid).scrollIntoViewIfNeeded();
 	await expect(grid.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u, { timeout: 15_000 });
 	await expect(grid.locator('#goals canvas')).toHaveCount(0);
 	await expect(grid.locator('#goals .wiper-stalk')).toBeVisible();
@@ -536,7 +533,7 @@ test('a device lost after selection lands the scene on the rung below, on fresh 
 	});
 	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
 	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
 	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
 	expect(await page.evaluate(() => (window as unknown as { __tiers: string[] }).__tiers)).toEqual(['webgpu', 'webgl2']);
@@ -580,7 +577,7 @@ test('a rung refused on the blades canvas relaunches both canvases on the rung b
 	});
 	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
 	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
 	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
 	await expect(page.locator('#goals canvas')).toHaveCount(2);
@@ -602,7 +599,7 @@ test('a lost WebGL2 context relaunches the scene on fresh canvases at the same r
 	});
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
 	const before = await scene(page).elementHandle();
 	expect(before).not.toBeNull();
@@ -631,12 +628,12 @@ test('a reload starts the ladder on WebGL2 while a first load takes the top rung
 	});
 	testInfo.annotations.push({ type: 'webgpu-adapter', description: String(hasAdapter) });
 	test.skip(!hasAdapter, 'no WebGPU adapter in this browser');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgpu', { timeout: 15_000 });
 	// Chrome drops the new document's WebGPU device while it tears the old one
 	// down, so a reload takes the rung that holds; the picture is the same.
 	await page.reload();
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveAttribute('data-tier', 'webgl2', { timeout: 15_000 });
 	await expect(page.locator('#goals canvas.wiper__blades')).toHaveAttribute('data-tier', 'webgl2');
 	expect(
@@ -653,7 +650,7 @@ test('the scene is absent under reduced motion and hidden on paper and under for
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await page.reload();
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveCount(1);
 	await page.emulateMedia({ media: 'print' });
 	expect(await scene(page).evaluate((el) => getComputedStyle(el).display)).toBe('none');
@@ -787,7 +784,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		await setScheme(page, scheme);
-		await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await awaitTier(page);
 		// A rest held open: no note moves while the pixels are read.
@@ -888,7 +885,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			await setScheme(page, scheme);
 		});
 		await timed('tier', async () => {
-			await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+			await pane(page).scrollIntoViewIfNeeded();
 			await pointerAway(page);
 			await awaitTier(page);
 		});
@@ -1006,7 +1003,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		await setScheme(page, scheme);
-		await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await awaitTier(page);
 		const state = () => pane(page).getAttribute('data-state');
@@ -1136,7 +1133,7 @@ for (const scheme of ['light', 'dark'] as const) {
 		console.log(
 			`[squeegee-reload:${scheme}] status=${reloadResponse?.status() ?? 'none'} response=${reloadResponseUrl.origin}${reloadResponseUrl.pathname} final=${reloadFinalUrl.origin}${reloadFinalUrl.pathname} goals=${await page.locator('#goals').count()}`,
 		);
-		await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await awaitTier(page);
 		// Fill the glass under a held rest, then hold the next out-stroke at its
@@ -1196,7 +1193,7 @@ test('a pointer over the pane pauses the wipers, leaving resumes them, and focus
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	// The courtesy pause belongs to the intermittent detent alone (operator
 	// ruling at the M4 ratification). Settle on Intermittent with no stroke in
 	// flight before reading states: a stroke in flight completes under a pause
@@ -1251,7 +1248,7 @@ test('paper gets every note, no stalk and no edit links, even mid-wipe', async (
 	await page.setViewportSize(WIDE);
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');
-	await pane(page).scrollIntoViewIfNeeded(HYDRATED);
+	await pane(page).scrollIntoViewIfNeeded();
 	await selectDetent(page, 'High');
 	await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 15_000 });
 	await page.evaluate(() => {
