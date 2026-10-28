@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { decodePng } from './support/png-luminance';
+import { forceTierMax } from './support/wiper-tier';
 
 // Registered in the finite browser target within the validate action.
 //
@@ -15,6 +16,8 @@ import { decodePng } from './support/png-luminance';
 type PermissionApi = 'granted' | 'denied' | 'absent';
 
 async function holdVectorMount(page: Page, permission: PermissionApi = 'granted') {
+	// The rows test the vector layer's handshake, not the wiper scene.
+	await forceTierMax(page, 'none');
 	await page.addInitScript((result) => {
 		if (result === 'absent') {
 			for (const name of ['DeviceOrientationEvent', 'DeviceMotionEvent']) {
