@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
 
 import { contrastRatio, roundRatio } from '../scripts/lib/color-contrast.mjs';
@@ -25,13 +25,27 @@ import { memberBenefits, publicGoals, publicHelpAsks } from '../src/lib/public-g
 import { bladePoseAt, coversPane, deriveGeometry, parkAngle, sweepSpanDeg } from '../src/lib/wiper/geometry';
 import { WIPER_DETENTS, wiperDetent } from '../src/lib/wiper/schedule';
 import { awaitTier, forceTierMax } from './support/wiper-tier';
-import { stubAnonymousManifest } from './support/network';
+import { installExternalGuard, stubAnonymousManifest, stubChallenge } from './support/network';
 
 // The home intro's scroll would break this spec's scroll-position premises.
-test.beforeEach(async ({ page }) => {
+// Every off-origin request is answered locally (support/network), so no row
+// reaches a live host: the members manifest, the contact API and the challenge.
+test.beforeEach(async ({ page, baseURL }) => {
 	await skipHomeIntro(page);
+	await installExternalGuard(page, baseURL!);
+	await stubChallenge(page);
 	await stubAnonymousManifest(page);
 });
+
+/** A page in its own context, hermetic like the default `page` fixture. */
+async function hermeticPage(context: BrowserContext, baseURL: string) {
+	const page = await context.newPage();
+	await skipHomeIntro(page);
+	await installExternalGuard(page, baseURL);
+	await stubChallenge(page);
+	await stubAnonymousManifest(page);
+	return page;
+}
 
 // Operator ruling 2026-08-31: the home page's goals, help asks, and member
 // benefits render from src/content/goals via the generated manifest; GitHub
@@ -177,13 +191,17 @@ test('the notes page under one stalk with four detents, and Off is the plain gri
 	for (const row of await page.locator('#goals .goal-list > li').all()) await expect(row).toBeVisible();
 	await expect(page.locator('#goals [data-wipe]')).toHaveCount(0);
 	// The indicator's slide is the only timed rule; once it has settled nothing animates.
-	await page.waitForTimeout(400);
-	expect(
-		await page.evaluate(
+	await expect
+		.poll(
 			() =>
-				document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals')).length,
-		),
-	).toBe(0);
+				page.evaluate(
+					() =>
+						document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest('#goals'))
+							.length,
+				),
+			{ timeout: 10_000 },
+		)
+		.toBe(0);
 	await selectDetent(page, 'Intermittent');
 	await expect(page.locator('#goals .goal-list')).toHaveClass(/goal-list--paged/u);
 });
@@ -430,9 +448,9 @@ test('the scene canvas exists only while the notes page, fills the list box, and
 // WebGL2 on a WebGPU-capable browser both canvases run WebGL2 with nothing
 // in the console; capped at none there is no canvas and the notes still page
 // under the DOM wipe with the stalk in place.
-test('the ladder honours a ceiling set before mount, silently', async ({ browser }) => {
+test('the ladder honours a ceiling set before mount, silently', async ({ browser, baseURL }) => {
 	const capped = await browser.newContext({ viewport: WIDE });
-	const page = await capped.newPage();
+	const page = await hermeticPage(capped, baseURL!);
 	const console: string[] = [];
 	page.on('console', (message) => {
 		if (message.type() !== 'error' && message.type() !== 'warning') return;
@@ -450,7 +468,7 @@ test('the ladder honours a ceiling set before mount, silently', async ({ browser
 	await capped.close();
 
 	const bare = await browser.newContext({ viewport: WIDE });
-	const grid = await bare.newPage();
+	const grid = await hermeticPage(bare, baseURL!);
 	await forceTierMax(grid, 'none');
 	await grid.goto('/');
 	await grid.waitForLoadState('networkidle');
@@ -683,6 +701,24 @@ async function holdRest(page: Page) {
 	});
 }
 
+/** The page clock's fixed start, and the step a row advances it by (one animation frame per step). */
+const CLOCK_START = Date.UTC(2026, 9, 1, 16, 0, 0);
+const STEP_MS = 500;
+
+/** Replace Math.random with a seeded generator (mulberry32) before the page's scripts run. */
+async function seedRandom(page: Page, seed = 0x2f6e2b1) {
+	await page.addInitScript((initial: number) => {
+		let state = initial >>> 0;
+		Math.random = () => {
+			state = (state + 0x6d2b79f5) >>> 0;
+			let t = state;
+			t = Math.imul(t ^ (t >>> 15), t | 1);
+			t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	}, seed);
+}
+
 async function holdStroke(page: Page, unit: string) {
 	await page.evaluate((value) => {
 		document.documentElement.dataset.wiperFreeze = value;
@@ -911,6 +947,14 @@ for (const scheme of ['light', 'dark'] as const) {
 			await writeFile(file, png);
 			await testInfo.attach(name, { path: file, contentType: 'image/png' });
 		};
+		// The bead and blob fields draw from Math.random and step on the page's
+		// clock, so both are ours: a fixed seed, and a clock that is paused from
+		// before the page loads and moves only when this row steps it, one frame
+		// per step. The samples then sit at fixed ages of the rest whatever the
+		// host load, and the same blobs sit under the gutters on every run.
+		await seedRandom(page);
+		await page.clock.install({ time: CLOCK_START });
+		await page.clock.pauseAt(CLOCK_START + 1);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
@@ -918,11 +962,16 @@ for (const scheme of ['light', 'dark'] as const) {
 		await pane(page).scrollIntoViewIfNeeded();
 		await pointerAway(page);
 		await awaitTier(page);
-		// A fresh rest after a stroke, then held open. A starved rig counts the
-		// rest slowly (a frame advances it a second at most), so allow a while.
-		await expect(pane(page)).toHaveAttribute('data-state', 'wiping', { timeout: 60_000 });
+		const state = () => pane(page).getAttribute('data-state');
+		const stepUntil = async (reached: (value: string) => boolean, what: string) => {
+			for (let spent = 0; !reached((await state()) ?? ''); spent += STEP_MS) {
+				if (spent > 30_000) throw new Error(`${what} did not come within thirty seconds of page time`);
+				await page.clock.fastForward(STEP_MS);
+			}
+		};
+		// A fresh rest after a stroke, held open once it arrives.
+		await stepUntil((value) => value === 'wiping', 'the first stroke');
 		await holdRest(page);
-		await expect(pane(page)).toHaveAttribute('data-state', /dwell|paused/u, { timeout: 30_000 });
 		const glass = await scene(page).elementHandle();
 		if (!glass) throw new Error('the scene canvas disappeared before the rest sample');
 		const rests = await gutterRects(page);
@@ -940,7 +989,29 @@ for (const scheme of ['light', 'dark'] as const) {
 			};
 		});
 		if (identity.tier !== 'webgpu' && identity.tier !== 'webgl2') throw new Error('the scene renderer was lost');
-		await page.waitForTimeout(150);
+		const glassTime = () =>
+			glass.evaluate((node, expected) => {
+				const canvas = node as HTMLCanvasElement;
+				const box = canvas.getBoundingClientRect();
+				if (
+					!canvas.isConnected ||
+					document.querySelector('#goals canvas.wiper__scene') !== canvas ||
+					canvas.dataset.tier !== expected.tier ||
+					canvas.width !== expected.width ||
+					canvas.height !== expected.height ||
+					box.width !== expected.cssWidth ||
+					box.height !== expected.cssHeight
+				)
+					throw new Error('the scene canvas or renderer changed during the rest');
+				if (document.documentElement.dataset.wiperFreeze !== 'rest')
+					throw new Error('the rest hold ended before the sample');
+				const time = Number(canvas.dataset.glassTime);
+				return Number.isFinite(time) ? time : null;
+			}, identity);
+		// Step until the stroke ends and the rest begins: the first sample is a fresh rest.
+		await stepUntil((value) => /dwell|paused/u.test(value), 'the rest');
+		const startTime = await glassTime();
+		if (startTime === null) throw new Error('the rendered droplet clock is missing at the start of the rest');
 		const early = await measureTextureInRects(
 			page,
 			'#goals canvas.wiper__scene',
@@ -948,75 +1019,18 @@ for (const scheme of ['light', 'dark'] as const) {
 			GLASS_HIDE,
 			(png) => attachCapture('glass-early', png),
 		);
-		const first = await page.waitForFunction(
-			({ node, expected }) => {
-				const canvas = node as HTMLCanvasElement;
-				if (!canvas.isConnected || document.querySelector('#goals canvas.wiper__scene') !== canvas)
-					throw new Error('the scene canvas was replaced during the early sample');
-				const box = canvas.getBoundingClientRect();
-				if (
-					canvas.dataset.tier !== expected.tier ||
-					canvas.width !== expected.width ||
-					canvas.height !== expected.height ||
-					box.width !== expected.cssWidth ||
-					box.height !== expected.cssHeight
-				)
-					throw new Error('the scene renderer or dimensions changed during the early sample');
-				const raw = canvas.dataset.glassTime;
-				if (raw === undefined) return false;
-				const time = Number(raw);
-				if (!Number.isFinite(time)) throw new Error('the rendered droplet clock is invalid');
-				return time;
-			},
-			{ node: glass, expected: identity },
-			{ timeout: 5000 },
-		);
-		const start = { ...identity, time: (await first.jsonValue()) as number };
-		const readyTime = await page.evaluate(
-			({ node, baseline }) =>
-				new Promise<number>((resolve, reject) => {
-					const canvas = node as HTMLCanvasElement;
-					let previous = baseline.time;
-					let frame = 0;
-					const timeout = window.setTimeout(() => {
-						cancelAnimationFrame(frame);
-						reject(new Error('the rendered droplet clock did not advance four seconds during the held rest'));
-					}, 30_000);
-					const check = () => {
-						try {
-							const box = canvas.getBoundingClientRect();
-							if (
-								!canvas.isConnected ||
-								document.querySelector('#goals canvas.wiper__scene') !== canvas ||
-								canvas.dataset.tier !== baseline.tier ||
-								canvas.width !== baseline.width ||
-								canvas.height !== baseline.height ||
-								box.width !== baseline.cssWidth ||
-								box.height !== baseline.cssHeight
-							)
-								throw new Error('the scene canvas or renderer changed during the held rest');
-							if (document.documentElement.dataset.wiperFreeze !== 'rest')
-								throw new Error('the rest hold ended before the late sample');
-							const state = document.querySelector('#goals .wiper')?.getAttribute('data-state');
-							if (state !== 'dwell' && state !== 'paused') throw new Error('the held rest changed state');
-							const time = Number(canvas.dataset.glassTime);
-							if (!Number.isFinite(time) || time < previous)
-								throw new Error('the rendered droplet clock is missing or moved backward');
-							previous = time;
-							if (time - baseline.time >= 4) {
-								window.clearTimeout(timeout);
-								resolve(time);
-							} else frame = requestAnimationFrame(check);
-						} catch (error) {
-							window.clearTimeout(timeout);
-							reject(error);
-						}
-					};
-					frame = requestAnimationFrame(check);
-				}),
-			{ node: glass, baseline: start },
-		);
-		expect(await pane(page).getAttribute('data-state'), 'the held rest').toMatch(/dwell|paused/u);
+		expect(await glassTime(), 'the page clock moved during the early capture').toBe(startTime);
+		// Four seconds of page time into the held rest, in half-second steps, one frame each.
+		let readyTime = startTime;
+		for (let spent = 0; readyTime - startTime < 4; spent += 500) {
+			if (spent > 8_000)
+				throw new Error('the rendered droplet clock did not advance four seconds during the held rest');
+			await page.clock.fastForward(500);
+			const time = await glassTime();
+			if (time === null || time < readyTime) throw new Error('the rendered droplet clock is missing or moved backward');
+			readyTime = time;
+		}
+		expect(await state(), 'the held rest').toMatch(/dwell|paused/u);
 		const late = await measureTextureInRects(
 			page,
 			'#goals canvas.wiper__scene',
@@ -1024,33 +1038,10 @@ for (const scheme of ['light', 'dark'] as const) {
 			GLASS_HIDE,
 			(png) => attachCapture('glass-late', png),
 		);
-		const finalTime = await glass.evaluate(
-			(node, { baseline, ready }) => {
-				const canvas = node as HTMLCanvasElement;
-				const box = canvas.getBoundingClientRect();
-				const time = Number(canvas.dataset.glassTime);
-				if (
-					!canvas.isConnected ||
-					document.querySelector('#goals canvas.wiper__scene') !== canvas ||
-					canvas.dataset.tier !== baseline.tier ||
-					canvas.width !== baseline.width ||
-					canvas.height !== baseline.height ||
-					box.width !== baseline.cssWidth ||
-					box.height !== baseline.cssHeight ||
-					document.documentElement.dataset.wiperFreeze !== 'rest' ||
-					!Number.isFinite(time) ||
-					time < ready
-				)
-					throw new Error('the scene changed during the late sample');
-				return time;
-			},
-			{ baseline: start, ready: readyTime },
-		);
+		const finalTime = await glassTime();
+		expect(finalTime, 'the page clock moved during the late capture').toBe(readyTime);
 		const metricsFile = testInfo.outputPath('glass-metrics.json');
-		await writeFile(
-			metricsFile,
-			JSON.stringify({ scheme, identity, startTime: start.time, readyTime, finalTime, early, late }),
-		);
+		await writeFile(metricsFile, JSON.stringify({ scheme, identity, startTime, readyTime, finalTime, early, late }));
 		await testInfo.attach('glass-metrics', { path: metricsFile, contentType: 'application/json' });
 		await releaseHold(page);
 		// The strong-edge share is the measure: beads are small and sharp,

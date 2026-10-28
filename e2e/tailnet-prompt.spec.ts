@@ -3,6 +3,7 @@ import { expect, test } from './support/fixtures';
 import { MANIFEST_URL } from '../src/lib/gated/manifest';
 import { MEMBER_MANIFEST, installExternalGuard, stubChallenge } from './support/network';
 import { skipHomeIntro } from './support/intro';
+import { forceTierMax } from './support/wiper-tier';
 
 // The footer button that asks whether you are on the tool bus network
 // (operator ruling 2026-10-05, src/lib/components/TailnetPrompt.svelte). The
@@ -56,8 +57,12 @@ const button = (page: Page) => page.getByTestId('tailnet-open');
 const dialog = (page: Page) => page.getByTestId('tailnet-dialog');
 const member = (page: Page) => page.locator('footer').getByRole('link', { name: /^Member sign in/u });
 
+// These rows exercise the footer prompt, not the home page's wiper scene. The
+// ladder is capped at none, so the page mounts no WebGL canvas and the click
+// and the dialog do not wait on frames from a software renderer.
 test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
+	await forceTierMax(page, 'none');
 });
 
 test('page load never touches the probe, on any page, and the button is public', async ({ page, baseUrl }) => {
