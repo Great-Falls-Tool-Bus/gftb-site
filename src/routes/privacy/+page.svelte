@@ -59,14 +59,23 @@
 				want a message to stay private.
 			</p>
 
-			<h2>Not live yet</h2>
+			<!-- DRAFT: ships in the same release that opens applications, never earlier.
+			     TODO(TIN-5351): replace every bracketed item below with the facts lane O reports
+			     for the shipped join path: fields collected, where they are stored, who reads
+			     them, retention, the sign-in provider, and how to ask for deletion. -->
+			<h2>Applications and member accounts</h2>
 			<p>
-				Member accounts, membership applications, payments and tool checkout are not running. When they open, this page
-				will say what each one collects and for how long, next to the membership agreement and the code of conduct.
-				Contributions today follow the <a href="/refund-policy">refund policy</a>.
+				Applications are by invitation. When you apply, we collect [TODO(TIN-5351): fields]. They are stored in
+				[TODO(TIN-5351): system] and read by [TODO(TIN-5351): roles]. We keep them for [TODO(TIN-5351): retention]. Ask
+				us to delete them at any time by writing to <code>keyholders@latoolb.us</code>.
+			</p>
+			<p>
+				Signing in uses [TODO(TIN-5351): provider and what it receives]. Payments and tool checkout are not running.
+				Contributions today are cash or check, recorded by a keyholder. See the
+				<a href="/refund-policy">refund policy</a>.
 			</p>
 
-			<p class="muted">Last reviewed: 2 October 2026.</p>
+			<p class="muted">Last reviewed: [TODO(TIN-5351): date of release].</p>
 		</div>
 	</article>
 

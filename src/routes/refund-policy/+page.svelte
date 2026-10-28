@@ -34,7 +34,7 @@
 		<header class="log-entry__header">
 			<h1>Contribution refunds and cancellation</h1>
 			<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
-			<p>How to stop a recurring contribution, and how to ask about a refund.</p>
+			<p>How to ask about a refund, and what happens when card contributions open.</p>
 		</header>
 
 		<div class="log-entry__body">
@@ -45,12 +45,11 @@
 				made for any contribution, and none should be assumed from this page or any other public copy.
 			</p>
 
-			<h2>Cancelling a recurring card contribution</h2>
+			<h2>Card contributions</h2>
 			<p>
-				Recurring card contributions run through Stripe's hosted checkout and customer portal. You can cancel at any
-				time through that portal, or by asking a keyholder to cancel it for you at
-				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>. Cancelling stops future charges. It does not,
-				by itself, refund amounts already processed.
+				Card contributions are not open yet, and nobody is being charged by card. Today a keyholder can record a cash or
+				check contribution, or a contribution of $0. When card contributions open, this page will say how to cancel a
+				recurring one.
 			</p>
 
 			<h2>Cash or check contributions</h2>
@@ -63,7 +62,7 @@
 
 			<h2>Requesting a refund</h2>
 			<p>
-				To ask about a refund of a card, cash, or check contribution, email
+				To ask about a refund of a cash or check contribution, email
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> with the date and amount. Refund requests are reviewed
 				by a keyholder on a case-by-case basis.
 			</p>
@@ -74,16 +73,14 @@
 			</p>
 			<p>
 				Approving a refund does not imply an admission that a contribution was processed in error, and declining one
-				does not waive any right you otherwise have under law or under Stripe's own terms for card payments.
+				does not waive any right you otherwise have under law.
 			</p>
 
 			<h2>What this page does not promise</h2>
 			<ul>
 				<li>No tax deductibility of any contribution.</li>
 				<li>No specific legal entity, sponsor, or fiscal sponsor is named here.</li>
-				<li>
-					No insurance, license, or payment-processor approval beyond what Stripe itself provides for card payments.
-				</li>
+				<li>No insurance, license, or payment-processor approval.</li>
 				<li>No guaranteed refund turnaround time — this section will be updated with one once it is set.</li>
 			</ul>
 
@@ -93,7 +90,7 @@
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> or use the <a href="/contact">contact form</a>.
 			</p>
 
-			<p><em>Last reviewed: 29 August 2026.</em></p>
+			<p><em>Last reviewed: 28 October 2026.</em></p>
 		</div>
 	</article>
 

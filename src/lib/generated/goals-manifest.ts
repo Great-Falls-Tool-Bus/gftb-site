@@ -16,23 +16,6 @@ export interface GeneratedGoalEntry {
 
 export const publishedGoalEntries: GeneratedGoalEntry[] = [
 	{
-		slug: '40-block-party',
-		metadata: {
-			kind: 'goal',
-			order: 40,
-			title: 'Soft opening at the block party',
-			window: 'Sunday, September 20, 2026',
-			cta_label: 'Tell us you are coming',
-			cta_href: '/contact',
-			image: '/photos/goals/bus-side-bikes-1280.webp',
-			image_alt: 'The purple bus in full side profile on the lawn in evening light, four bicycles leaning against it',
-			image_aspect: '4/3',
-			published: true,
-		},
-		text: 'See you on the 20th :-)',
-		sourcePath: 'src/content/goals/40-block-party.md',
-	},
-	{
 		slug: '50-shelves',
 		metadata: {
 			kind: 'goal',
@@ -73,7 +56,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			kind: 'goal',
 			order: 62,
 			title: 'Engineering drafting and printing skillshare / class on the regular?',
-			cta_label: 'Sign me up',
+			cta_label: 'Tell us you are interested',
 			cta_href: '/contact',
 			image: '/photos/great-falls-lewiston-1930s-1280.webp',
 			image_alt: 'Historic postcard view of Great Falls between Auburn and Lewiston',
@@ -89,7 +72,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			kind: 'goal',
 			order: 63,
 			title: 'Want to become a hyperdimensional wizard?',
-			cta_label: 'Sign me up first',
+			cta_label: 'Tell us you are interested',
 			cta_href: '/contact',
 			image: '/photos/log/2026-09-19-port-side-shelves-1280.webp',
 			image_alt:
@@ -97,7 +80,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			image_aspect: '8/5',
 			published: true,
 		},
-		text: "Learn to model beautiful CAD, draft real cut lists and BOMs, and build the thing you drew. Be first to sign up for Jess's acclaimed Fusion 360 workshop series, now with 50% more LaTeX markup.",
+		text: "Learn to model beautiful CAD, draft real cut lists and BOMs, and build the thing you drew. Tell us if you want in on Jess's acclaimed Fusion 360 workshop series, now with 50% more LaTeX markup.",
 		sourcePath: 'src/content/goals/63-fusion-workshop.md',
 	},
 	{
@@ -106,7 +89,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 			kind: 'goal',
 			order: 64,
 			title: 'Legacy hardware hangout',
-			cta_label: 'Count me in',
+			cta_label: 'Tell us you are interested',
 			cta_href: '/contact',
 			image: '/photos/goals/legacy-hardware-in-hand-1280.webp',
 			image_alt:
@@ -172,7 +155,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		metadata: {
 			kind: 'benefit',
 			order: 20,
-			title: 'A truly local email address at latoolb.us.',
+			title: 'A latoolb.us email address, once mailboxes are set up.',
 			published: true,
 		},
 		text: '',
@@ -183,7 +166,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		metadata: {
 			kind: 'benefit',
 			order: 30,
-			title: 'A seat on the discuss list, the club brain trust.',
+			title: 'A seat on the discuss list, the club brain trust, added by a keyholder.',
 			published: true,
 		},
 		text: '',

@@ -15,21 +15,6 @@ export interface GeneratedHoursEntry {
 
 export const publishedHoursEntries: GeneratedHoursEntry[] = [
 	{
-		id: 'monday-october',
-		slot: {
-			id: 'monday-october',
-			published: true,
-			weekday: 'monday',
-			start: '17:00',
-			end: '18:00',
-			timezone: 'America/New_York',
-			staff: ['Jess'],
-			repeat: { kind: 'weekly', startsOn: '2026-10-05', count: 2 },
-			location: 'the bus',
-		},
-		sourcePath: 'src/content/hours/monday-october.json',
-	},
-	{
 		id: 'thursday-weekly',
 		slot: {
 			id: 'thursday-weekly',
