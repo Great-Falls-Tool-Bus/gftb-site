@@ -204,7 +204,8 @@ function focusedInside(box: Locator) {
 // the served HTML carries one clock-free rule row, for the Thursday slot.
 const RULES = [['thursday-weekly', 'Thursdays, 3 to 4 PM ET, from 8 October']] as const;
 // Thursdays from 8 October inside the four-week horizon of NOW.
-const THURSDAY_ROWS = 4;
+const THURSDAY_SESSIONS = SESSIONS.filter(([id]) => id.startsWith('thursday-weekly'));
+const THURSDAY_ROWS = THURSDAY_SESSIONS.length;
 
 test.describe('the published content', () => {
 	test('only the Thursday slot is published, the Monday series having ended', () => {
@@ -308,18 +309,18 @@ test.describe('the published content', () => {
 		});
 	}
 
-	test('on a phone the marquee carries both entries', async ({ page }) => {
+	test('on a phone the marquee carries every published session', async ({ page }) => {
 		await page.clock.setFixedTime(NOW);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		const cards = band(page).locator('.hours-marquee__list:not(.hours-marquee__dup) > li');
-		await expect(cards).toHaveCount(SESSIONS.length);
-		await expect(band(page).locator('.hours-marquee__dup > li')).toHaveCount(SESSIONS.length);
-		await expect(cards.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
-		await expect(cards.filter({ hasText: '2 Mondays' })).toHaveCount(2);
-		await expect(cards.filter({ hasText: 'Weekly' })).toHaveCount(4);
+		await expect(cards).toHaveCount(THURSDAY_SESSIONS.length);
+		await expect(band(page).locator('.hours-marquee__dup > li')).toHaveCount(THURSDAY_SESSIONS.length);
+		await expect(cards.locator('time')).toHaveText(THURSDAY_SESSIONS.map(([, label]) => label));
+		await expect(cards.filter({ hasText: 'Weekly' })).toHaveCount(THURSDAY_SESSIONS.length);
+		await expect(cards.filter({ hasText: 'Monday' })).toHaveCount(0);
 		await expectPlacement(page);
 	});
 });
