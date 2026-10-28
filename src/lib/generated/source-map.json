@@ -5,6 +5,7 @@
 	"routes": {
 		"/": "src/routes/+page.svelte",
 		"/404": "src/routes/404/+page.svelte",
+		"/accessibility": "src/routes/accessibility/+page.svelte",
 		"/contact": "src/routes/contact/+page.svelte",
 		"/legal": "src/routes/legal/+page.svelte",
 		"/log": "src/routes/log/+page.svelte",
