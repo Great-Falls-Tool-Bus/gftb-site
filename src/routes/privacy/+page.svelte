@@ -63,7 +63,7 @@
 			<p>
 				Member accounts, membership applications, payments and tool checkout are not running. When they open, this page
 				will say what each one collects and for how long, next to the membership agreement and the code of conduct.
-				Contributions today follow the <a href="/refund-policy">refund policy</a>.
+				Today a keyholder can record cash or check contributions. See the <a href="/refund-policy">refund policy</a>.
 			</p>
 
 			<p class="muted">Last reviewed: 2 October 2026.</p>

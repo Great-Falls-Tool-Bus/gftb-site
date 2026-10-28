@@ -2,7 +2,7 @@
 kind: goal
 order: 64
 title: 'Legacy hardware hangout'
-cta_label: 'Count me in'
+cta_label: 'Tell us you are interested'
 cta_href: '/contact'
 image: '/photos/goals/legacy-hardware-in-hand-1280.webp'
 image_alt: 'A hand holding up a palm-sized electronic device in a clear acrylic case in front of a rack of audio gear with lit displays'
