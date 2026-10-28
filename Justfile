@@ -350,6 +350,17 @@ check: hooks-check
     cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk build //:scanned_build
     @echo "All checks passed."
 
+# The merge gate (TIN-7477, operator direction 2026-10-28: CI runs only what
+# proves a deploy is safe). The same stamped suite and scanned build as
+# `check`, without the Chromium acceptance specs (tag browser-acceptance),
+# ESLint and Prettier (tag lint) and the hooks mirror. `check` stays the full
+# local suite. A test added to //:ci_validation_suite runs here unless it
+# carries one of those tags.
+gate-deploy:
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite --test_tag_filters=-browser-acceptance,-lint
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk build //:scanned_build
+    @echo "Deploy gate passed."
+
 # Local convenience aggregate. The v4 dispatcher does not invoke it.
 ci: check test-e2e
 

@@ -94,6 +94,10 @@ whose archive is not public.
 - No GitHub Actions workflow runs on push or pull request (operator ruling
   2026-09-28). The pre-merge gate is a `just check` receipt from a Linux lab
   host, posted on the PR. `just ci` is a local convenience, not CI evidence.
+- Operator direction 2026-10-28 (TIN-7477): the lab-host merge gate is
+  `just gate-deploy`. It runs the same stamped suite and scanned build as
+  `just check` but leaves out the Chromium acceptance specs, ESLint, Prettier
+  and the hooks mirror. Those run in `just check`, the full local suite.
 - `just conformance` enters the registered `//:bazel_output_contract_test`.
 - `just qr-verify` cross-checks the pinned payload URL against
   `package.json`'s `homepage`, then regenerates the printed apex QR with the
