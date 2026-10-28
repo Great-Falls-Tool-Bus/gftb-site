@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
+import { forceTierMax } from './support/wiper-tier';
 import {
 	CONTACT_URL,
 	installExternalGuard,
@@ -54,6 +55,7 @@ async function openRsvp(
 	options: { challenge?: 'ok' | 'down'; relay?: ContactStubOptions } = {},
 ): Promise<Opened> {
 	await skipHomeIntro(page);
+	await forceTierMax(page, 'none');
 	await page.clock.setFixedTime(NOW);
 	await page.addInitScript(
 		({ name, fixture }) => {
@@ -284,6 +286,7 @@ test.describe('the RSVP dialog on the published content', () => {
 		// Decision 0032: both slots are published, so the real band rows carry
 		// the RSVP on the fixed clock, without the test hook.
 		await skipHomeIntro(page);
+		await forceTierMax(page, 'none');
 		await page.clock.setFixedTime(NOW);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await installExternalGuard(page, baseURL ?? 'http://localhost:3000');

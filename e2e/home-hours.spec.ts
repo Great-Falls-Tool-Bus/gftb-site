@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
+import { forceTierMax } from './support/wiper-tier';
 import { installExternalGuard, stubAnonymousManifest, stubChallenge } from './support/network';
 
 import { HOURS_FIXTURE_GLOBAL, MARQUEE_RESUME_MS } from '../src/lib/hours-band';
@@ -78,8 +79,11 @@ async function withSessions(page: Page, now: Date = NOW, slots: readonly object[
 	);
 }
 
+// These rows read the hours band, not the wiper scene: the ladder is capped at
+// none so no software-rendered WebGL canvas takes frames from the band's clock.
 test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
+	await forceTierMax(page, 'none');
 	await stubAnonymousManifest(page);
 });
 
@@ -102,12 +106,16 @@ const firstCopy = (root: Locator) => marquee(root).locator('.hours-marquee__list
 // modulo one copy, since the offset wraps back by exactly one copy (the
 // seamless loop). The marquee runs only while it is on screen.
 async function expectMovingRightToLeft(root: Locator) {
+	// The offset advances one frame at a time, so the distance travelled
+	// follows the frames a starved host delivers. Wait on the offset itself,
+	// and give the row the budget that wait can use.
+	test.setTimeout(120_000);
 	await marquee(root).scrollIntoViewIfNeeded();
-	await expect.poll(() => marqueeState(root)).toBe('running');
+	await expect.poll(() => marqueeState(root), { timeout: 20_000 }).toBe('running');
 	const copy = await firstCopy(root).evaluate((list) => (list as HTMLElement).offsetWidth);
 	const before = await scrollOffset(root);
 	const travelled = async () => ((await scrollOffset(root)) - before + copy) % copy;
-	await expect.poll(travelled, { timeout: 5000 }).toBeGreaterThan(8);
+	await expect.poll(travelled, { timeout: 30_000 }).toBeGreaterThan(8);
 	expect(await travelled()).toBeLessThan(copy / 2);
 }
 
