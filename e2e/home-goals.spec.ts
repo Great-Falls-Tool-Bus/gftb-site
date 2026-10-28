@@ -650,6 +650,9 @@ test('the scene is absent under reduced motion and hidden on paper and under for
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await page.reload();
 	await page.waitForLoadState('networkidle');
+	// The pane is mounted by the client once it hydrates: wait for that, with a
+	// bound inside the 30 s test budget, before the 10 s scroll action.
+	await expect(pane(page)).toBeAttached({ timeout: 20_000 });
 	await pane(page).scrollIntoViewIfNeeded();
 	await expect(scene(page)).toHaveCount(1);
 	await page.emulateMedia({ media: 'print' });
