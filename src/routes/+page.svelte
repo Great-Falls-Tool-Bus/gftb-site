@@ -195,7 +195,7 @@
 				{#if memberBenefits.length > 0}
 					<div class="goal-aside" id="benefits">
 						<h3>What members get</h3>
-						<p class="muted">Member accounts are not live yet. Membership is being built to include:</p>
+						<p class="muted">Member accounts are not live yet. When membership opens, it is planned to include:</p>
 						<ul class="plain-list">
 							{#each memberBenefits as benefit (benefit.slug)}
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>
