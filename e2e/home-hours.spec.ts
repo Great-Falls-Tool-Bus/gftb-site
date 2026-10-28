@@ -63,6 +63,11 @@ const SESSIONS = [
 
 const EMPTY_TEXT = 'No work session is scheduled right now. Use the contact form to ask about a tour.';
 
+// The band swaps from its server-rendered rules to its real mode when the
+// client hydrates, which a loaded host can delay past the 5 s expect default.
+// The wait is on the mode itself, bounded inside the 30 s test budget.
+const HYDRATED = { timeout: 20_000 };
+
 const band = (page: Page) => page.locator('#hours');
 
 async function documentOverflow(page: Page) {
@@ -214,7 +219,7 @@ test.describe('the published content', () => {
 
 		test('shows the rule text with a mailto RSVP per slot, and no dates', async ({ page }) => {
 			await page.goto('/');
-			await expect(band(page)).toHaveAttribute('data-hours-mode', 'rules');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'rules', HYDRATED);
 			await expect(band(page).getByRole('heading', { level: 2 })).toHaveText('Work sessions on the bus');
 			const rows = band(page).locator('.hours-list > li');
 			await expect(rows).toHaveCount(RULES.length);
@@ -241,7 +246,7 @@ test.describe('the published content', () => {
 		await page.clock.setFixedTime(NOW);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		const rows = band(page).locator('.hours-list > li');
 		await expect(rows).toHaveCount(SESSIONS.length);
 		await expect(rows.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
@@ -259,7 +264,7 @@ test.describe('the published content', () => {
 		await page.clock.setFixedTime(new Date('2026-10-13T16:00:00Z'));
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		const times = band(page).locator('.hours-list > li time');
 		await expect(times).toHaveText([
 			'Thursday 15 October, 3 to 4 PM ET',
@@ -296,13 +301,13 @@ test.describe('the published content', () => {
 			const bundle = '**/_app/immutable/**/*.js';
 			await page.route(bundle, (route) => route.abort());
 			await page.goto('/');
-			await expect(band(page)).toHaveAttribute('data-hours-mode', 'rules');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'rules', HYDRATED);
 			expect(await page.evaluate(() => document.documentElement.classList.contains('js'))).toBe(true);
 			const before = await nextTop();
 
 			await page.unroute(bundle);
 			await page.goto('/');
-			await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 			await expect(band(page).locator('.hours-list > li')).toHaveCount(SESSIONS.length);
 			const shift = (await nextTop()) - before;
 			expect(shift).toBeGreaterThan(-40);
@@ -315,7 +320,7 @@ test.describe('the published content', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		const cards = band(page).locator('.hours-marquee__list:not(.hours-marquee__dup) > li');
 		await expect(cards).toHaveCount(SESSIONS.length);
 		await expect(band(page).locator('.hours-marquee__dup > li')).toHaveCount(SESSIONS.length);
@@ -332,7 +337,7 @@ test.describe('the empty state', () => {
 		// stands in for a schedule with no upcoming session.
 		await withSessions(page, NOW, []);
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'empty');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'empty', HYDRATED);
 		await expect(band(page).getByRole('heading', { level: 2 })).toHaveText('Work sessions on the bus');
 		await expect(band(page)).toContainText(EMPTY_TEXT);
 		await expect(band(page).getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute(
@@ -351,7 +356,7 @@ test.describe('with sessions on a fixed clock', () => {
 		for (const width of [375, 1280]) {
 			await page.setViewportSize({ width, height: 900 });
 			await page.goto('/');
-			await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+			await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 			const rows = band(page).locator('.hours-list > li');
 			await expect(rows).toHaveCount(SESSIONS.length);
 			await expect(rows.locator('time')).toHaveText(SESSIONS.map(([, label]) => label));
@@ -383,7 +388,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await withSessions(page);
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		await page.evaluate((name) => {
 			const seen: unknown[] = [];
 			(window as unknown as Record<string, unknown>).__rsvpSeen = seen;
@@ -406,7 +411,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await withSessions(page, new Date('2026-10-08T13:00:00Z'));
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		const first = band(page).locator('.hours-list > li').first();
 		await expect(first.locator('time')).toHaveText('Thursday 8 October, 3 to 4 PM ET');
 		await expect(first.locator('.hours-row__today')).toHaveText('Today');
@@ -418,7 +423,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		await band(page).scrollIntoViewIfNeeded();
 		const lists = marquee(band(page)).locator('.hours-marquee__track > ol');
 		await expect(lists).toHaveCount(2);
@@ -484,7 +489,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		await band(page).scrollIntoViewIfNeeded();
 		// Motion is the script's, on the scroller's own offset: no CSS animation runs
 		// (the reveal's one-off transition is not an animation of the cards).
@@ -513,7 +518,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		await page.mouse.move(0, 0);
 
 		// From the FAQ's pointer to the band, Tab reaches each card's RSVP once,
@@ -555,7 +560,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		await band(page).scrollIntoViewIfNeeded();
 		await page.mouse.move(0, 0);
 		await stepUntil(band(page), async () => (await marqueeState(band(page))) === 'running', 'the marquee running');
@@ -589,7 +594,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 
 		// Hold the cards under the mouse so a moving button can be clicked.
 		await marquee(band(page)).hover();
@@ -651,7 +656,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		const view = marquee(band(page));
 		const lists = view.locator('.hours-marquee__track > ol');
 
@@ -683,7 +688,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		await expect(band(page).locator('.hours-list > li time')).toHaveText([SESSIONS[0][1], SESSIONS[2][1]]);
 		await expect(band(page).locator('.hours-marquee, [inert], [aria-hidden="true"]')).toHaveCount(0);
 		await expect(band(page).getByRole('button', { name: /pause/iu })).toHaveCount(0);
@@ -695,7 +700,7 @@ test.describe('with sessions on a fixed clock', () => {
 		await withSessions(page, new Date('2026-10-20T16:00:00Z'));
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		const times = band(page).locator('.hours-list > li time');
 		await expect(times).toHaveText([
 			'Thursday 22 October, 3 to 4 PM ET',
@@ -719,7 +724,7 @@ test.describe('on a touch phone', () => {
 		await withSteppedSessions(page);
 		await page.emulateMedia({ reducedMotion: 'no-preference' });
 		await page.goto('/');
-		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(band(page)).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		await band(page).scrollIntoViewIfNeeded();
 		// A point on a card's date line: a tap there opens nothing.
 		const when = await firstCopy(band(page)).evaluate((list) => {
@@ -777,7 +782,7 @@ test.describe('on the log pages', () => {
 		await page.goto('/log/');
 		const aside = page.locator('aside#hours');
 		await expect(aside).toBeVisible();
-		await expect(aside).toHaveAttribute('data-hours-mode', 'static');
+		await expect(aside).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		await expect(aside.getByRole('heading', { level: 2 })).toHaveText('Work sessions on the bus');
 		await expect(aside.locator('.hours-list > li time')).toHaveText(SESSIONS.map(([, label]) => label));
 		await expect(aside.locator('.hours-marquee, [aria-hidden="true"]')).toHaveCount(0);
@@ -835,7 +840,7 @@ test.describe('on the log pages', () => {
 		await page.goto('/log/');
 		const inline = page.locator('#hours-inline');
 		await expect(inline).toBeVisible();
-		await expect(inline).toHaveAttribute('data-hours-mode', 'marquee');
+		await expect(inline).toHaveAttribute('data-hours-mode', 'marquee', HYDRATED);
 		await expect(page.locator('aside#hours')).toBeHidden();
 		await expect(firstCopy(inline).locator('> li time')).toHaveText(SESSIONS.map(([, label]) => label));
 		const order = await page.evaluate(() => {
@@ -861,7 +866,7 @@ test.describe('on the log pages', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		await page.goto('/log/');
 		const inline = page.locator('#hours-inline');
-		await expect(inline).toHaveAttribute('data-hours-mode', 'static');
+		await expect(inline).toHaveAttribute('data-hours-mode', 'static', HYDRATED);
 		await expect(inline.locator('.hours-list > li')).toHaveCount(SESSIONS.length);
 		await expect(inline.locator('.hours-marquee')).toHaveCount(0);
 	});
