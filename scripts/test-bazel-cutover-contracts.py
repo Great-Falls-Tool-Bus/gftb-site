@@ -641,7 +641,7 @@ class RepositoryContractTests(unittest.TestCase):
             },
         }
         self.assertEqual(self.plan, expected_plan)
-        # The fabric action is the remote-eligible lint suite (TIN-7477). A
+        # The fabric action is the lint suite (TIN-7477). A
         # repeat on an input-identical commit must be a cache hit, so the plan
         # carries no stamped build action.
         self.assertIn(

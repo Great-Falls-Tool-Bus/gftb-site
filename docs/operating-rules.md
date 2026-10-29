@@ -151,14 +151,15 @@ whose archive is not public.
 - `.github/lanes.json` is the source-only ActionPlan/v4 schema-3 plan: finite
   Bazel targets, one abstract REAPI capability demand, and one closed result
   disposition per action. Its one action, `validate`, requests
-  `test //:lint_suite` (ESLint and Prettier), which runs remotely as is
-  (operator ruling 2026-10-29, TIN-7477). It is unstamped, so a later commit
-  that leaves the lint inputs unchanged repeats the same action digests and
-  is served from the action cache. `//:ci_validation_suite` (Chromium
-  acceptance specs, `svelte-check`) and the stamped `//:deployment_bundle`
-  stay on the lab-host `just check` and `just gate-deploy` lane until they
-  are ported; `//:deployment_bundle` depends on `//:scanned_build`, never
-  directly on `//:build`.
+  `test //:lint_suite` (ESLint and Prettier), per operator ruling 2026-10-29
+  (TIN-7477). `//:eslint_test` reads sources only, so no spawn in the suite
+  has an input tree above the remote worker's 2,097,152,000 byte limit. It is
+  unstamped, so a later commit that leaves the lint inputs unchanged repeats
+  the same action digests and is served from the action cache.
+  `//:ci_validation_suite` (Chromium acceptance specs, `svelte-check`) and
+  the stamped `//:deployment_bundle` stay on the lab-host `just check` and
+  `just gate-deploy` lane until they are ported; `//:deployment_bundle`
+  depends on `//:scanned_build`, never directly on `//:build`.
 - `tinyland.repo.json` is the schema-v2 consumer instance. The house schema in
   `docs/schemas/tinyland-repo-manifest.v2.schema.json` is vendored
   byte-for-byte from the signed `site.scaffold` schema at commit

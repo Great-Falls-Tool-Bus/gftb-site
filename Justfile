@@ -311,8 +311,8 @@ qr-verify:
 # runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
 # exercises, so the gate and its tests are one implementation, not two.
 #
-# Local artifact validation. The v4 build action requests //:deployment_bundle,
-# which can package only //:scanned_build, through the compiled client.
+# Local artifact validation. //:deployment_bundle, which can package only
+# //:scanned_build, stays on the lab-host gate (TIN-7477).
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
