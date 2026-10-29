@@ -579,6 +579,16 @@ class RepositoryContractTests(unittest.TestCase):
             scan_runner.index("scanBuildDirectory(scanDirectory"),
         )
 
+    def test_lint_tests_carry_no_generated_build_trees(self) -> None:
+        # TIN-7477: the remote worker refuses an action whose input tree is
+        # above 2,097,152,000 bytes. //:sveltekit_types and the TinyVectors
+        # build it pulls in are above that, and the lint tests never read them.
+        for name in ("eslint_test", "prettier_check_test"):
+            target = bazel_target(self.build, name)
+            for generated in (":sveltekit_types", ":app_workspace", ":build"):
+                with self.subTest(name=name, generated=generated):
+                    self.assertNotIn(f'"{generated}"', target)
+
     def test_ci_validation_suite_registers_every_publication_critical_gate(self) -> None:
         validation = bazel_target(self.build, "ci_validation_suite")
         for gate in (
@@ -631,7 +641,7 @@ class RepositoryContractTests(unittest.TestCase):
             },
         }
         self.assertEqual(self.plan, expected_plan)
-        # The fabric action is the remote-eligible lint suite (TIN-7477). A
+        # The fabric action is the lint suite (TIN-7477). A
         # repeat on an input-identical commit must be a cache hit, so the plan
         # carries no stamped build action.
         self.assertIn(
