@@ -335,9 +335,10 @@ leak-scan-stamped:
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
-# Local entrypoint for the exact cacheable suite selected by the protected v4
-# `validate` action. //:deployment_bundle independently enforces the scanned
-# artifact boundary selected by `site-build`.
+# Local entrypoint for the full cacheable suite. The v4 `validate` action
+# selects only //:lint_suite (TIN-7477); this suite stays a lab-host gate until
+# it is ported. //:deployment_bundle independently enforces the scanned
+# artifact boundary.
 #
 # The suite is the merge gate, so it stamps the checked-out commit:
 # //:browser_smoke_test asserts the footer provenance that only a stamped
