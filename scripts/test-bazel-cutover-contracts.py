@@ -50,6 +50,24 @@ def bazel_target(build_file: str, name: str) -> str:
     return build_file[start:end]
 
 
+def normalize_bin(path: str) -> str:
+    while path.startswith("./"):
+        path = path[2:]
+    return path
+
+
+def payload_file(test: unittest.TestCase, variable: str) -> Path | None:
+    # The P0 and P1 payload-module files reach //:bazel_output_contract_test
+    # through env and data. A direct run without Bazel skips these checks.
+    value = os.environ.get(variable)
+    if not value:
+        if os.environ.get("TEST_SRCDIR"):
+            test.fail(f"{variable} is unset inside Bazel")
+        test.skipTest(f"{variable} is set only by //:bazel_output_contract_test")
+        return None
+    return (Path.cwd() / value).resolve()
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -529,13 +547,21 @@ class RepositoryContractTests(unittest.TestCase):
             for path in sorted((ROOT / ".github/workflows").glob("*.y*ml"))
         }
         cls.flake = (ROOT / "flake.nix").read_text()
-        cls.playwright = (ROOT / "playwright.config.ts").read_text()
+        cls.e2e_config = (ROOT / "e2e/bazel/e2e.config.ts").read_text()
+        cls.payload_include = (ROOT / "npm_payload.MODULE.bazel").read_text()
+        cls.chromium_build = (ROOT / "tools/chromium/BUILD.bazel").read_text()
+        cls.ts_build = (ROOT / "tools/ts/BUILD.bazel").read_text()
         cls.operating_rules = (ROOT / "docs/operating-rules.md").read_text()
 
-    def test_package_scripts_delegate_only_to_just(self) -> None:
-        for name, command in self.package["scripts"].items():
-            with self.subTest(name=name):
-                self.assertRegex(command, r"^just [a-z0-9-]+$")
+    def test_package_json_carries_no_package_manager_or_scripts(self) -> None:
+        # R577 (TIN-7477): every lane is a Bazel target. package.json stays as
+        # metadata (vite-plugin-svelte and vitefu read it); the lock and its
+        # inputs live in the P0 payload module.
+        self.assertNotIn("scripts", self.package)
+        self.assertNotIn("packageManager", self.package)
+        for path in (".npmrc", ".pnpmfile.cjs", "pnpm-lock.yaml", "pnpm-workspace.yaml", "patches", "playwright.config.ts"):
+            with self.subTest(path=path):
+                self.assertFalse((ROOT / path).exists(), path)
 
     def test_build_and_checks_enter_bazel(self) -> None:
         self.assertIn("bazelisk build //:scanned_build", recipe(self.justfile, "build"))
@@ -598,7 +624,12 @@ class RepositoryContractTests(unittest.TestCase):
         bazelrc = (ROOT / ".bazelrc").read_text(encoding="utf-8")
         self.assertNotIn("--registry", bazelrc)
         pins = set()
-        for name in ("tummycrypt_tinyvectors", "tummycrypt_vite_plugin_a11y"):
+        for name in (
+            "tummycrypt_tinyvectors",
+            "tummycrypt_vite_plugin_a11y",
+            "xoxd_npm_gftb_site_lock",
+            "xoxd_npm_gftb_site_lint",
+        ):
             with self.subTest(module=name):
                 self.assertIn(f'bazel_dep(name = "{name}", version = ', self.module)
                 match = re.search(
@@ -608,7 +639,8 @@ class RepositoryContractTests(unittest.TestCase):
                 )
                 self.assertIsNotNone(match)
                 pins.add(match.group(1))
-        self.assertEqual(len(pins), 1, "both first-party modules share one registry commit")
+        self.assertEqual(len(pins), 1, "all four xoxd modules share one registry commit")
+        self.assertNotIn("local_path_override(", self.module)
         # No pnpm toolchain repository, and no bot that opens npm lockfile
         # pull requests.
         self.assertNotIn("pnpm.pnpm(", self.module)
@@ -862,11 +894,8 @@ class RepositoryContractTests(unittest.TestCase):
         live_recipes = (
             "build",
             "preview",
-            "preview-e2e",
             "preview-only",
             "test-e2e",
-            "_playwright-run",
-            "_playwright-test",
             "qr-verify",
             "leak-scan-stamped",
             "leak-scan",
@@ -895,46 +924,208 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('rm -f -- "$tmp/apex.svg"', qr)
         self.assertIn('rmdir -- "$tmp"', qr)
 
-    def test_playwright_releases_bazel_before_chromium(self) -> None:
-        preview = recipe(self.justfile, "preview-e2e")
-        self.assertIn('preview-e2e port="4173": build', preview)
-        self.assertIn("bazelisk shutdown", preview)
-        self.assertLess(preview.index("bazelisk shutdown"), preview.index("scripts/bazel_output.py preview"))
-        self.assertIn("just preview-e2e ${port}", self.playwright)
-        self.assertEqual(recipe(self.justfile, "ci").splitlines()[0], "ci: check test-e2e")
-
-    def test_playwright_uses_its_locked_browser(self) -> None:
-        ensure = recipe(self.justfile, "playwright-ensure")
-        self.assertIn("pnpm exec playwright install chromium", ensure)
-        self.assertNotIn("Using Nix Chromium", ensure)
-        self.assertNotIn("executablePath", self.playwright)
-        self.assertNotIn("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", self.flake)
-        self.assertNotIn("pkgs.chromium", self.flake)
-        self.assertIn("playwrightFontConfig = pkgs.makeFontsConf", self.flake)
-        self.assertIn("pkgs.dejavu_fonts.minimal", self.flake)
-        self.assertIn('export FONTCONFIG_FILE="${playwrightFontConfig}"', self.flake)
-        self.assertIn("auto-patchelf", self.flake)
-        self.assertIn("patchelfUnstable", self.flake)
-        self.assertIn("PLAYWRIGHT_NIX_LIBRARY_PATH", self.flake)
-        self.assertIn("PLAYWRIGHT_NIX_DYNAMIC_LINKER", self.flake)
-        self.assertIn("PLAYWRIGHT_NIX_PATCHELF", self.flake)
-        self.assertNotIn("export LD_LIBRARY_PATH", self.flake)
+    def test_e2e_runs_every_spec_in_bazel_with_the_nix_chromium(self) -> None:
+        # R583 (TIN-7477): the host `pnpm exec playwright test` lane, its CDN
+        # browser and its patchelf path are gone. //:e2e_test runs every spec
+        # over the declared //:build with the toolchain-resolved Chromium.
         e2e = recipe(self.justfile, "test-e2e")
-        self.assertIn("nix develop .#playwright --command just _playwright-run", e2e)
-        self.assertNotIn("${CI:-}", e2e)
-        run = recipe(self.justfile, "_playwright-run")
-        self.assertIn("_playwright-run: playwright-ensure", run)
-        self.assertIn("just _playwright-test", run)
-        self.assertIn("auto-patchelf --preserve-origin", ensure)
-        self.assertIn('--paths "$headless_dir" --libs "${playwright_libraries[@]}"', ensure)
-        self.assertIn('PATH="$(dirname "$PLAYWRIGHT_NIX_PATCHELF"):$PATH"', ensure)
-        self.assertIn("chromium_headless_shell-${revision}", ensure)
-        self.assertIn('"$PLAYWRIGHT_NIX_PATCHELF" --print-interpreter', ensure)
-        self.assertIn("env -u LD_LIBRARY_PATH", ensure)
-        font_contract = recipe(self.justfile, "_playwright-test")
-        self.assertIn("fc-match", font_contract)
-        self.assertIn("DejaVu", font_contract)
-        self.assertIn("env -u LD_LIBRARY_PATH pnpm exec playwright test", font_contract)
+        self.assertIn("bazelisk test //:e2e_test", e2e)
+        self.assertEqual(recipe(self.justfile, "ci").splitlines()[0], "ci: check test-e2e")
+        for gone in ("playwright-ensure", "_playwright-run", "_playwright-test", "preview-e2e", "deps-lock"):
+            with self.subTest(recipe=gone):
+                self.assertNotRegex(self.justfile, rf"(?m)^{re.escape(gone)}[ :]")
+        target = bazel_target(self.build, "e2e_test")
+        self.assertIn('entry_point = "e2e/bazel/run-browser-acceptance.mjs"', target)
+        self.assertIn('"e2e.config.ts",', target)
+        self.assertIn('toolchains = ["//tools/chromium:resolved"]', target)
+        self.assertIn('"GF_E2E_CHROMIUM_EXECUTABLE": "$(GF_E2E_CHROMIUM_EXECUTABLE)"', target)
+        self.assertIn('"--revision-env",', target)
+        self.assertIn("local = True,", target)
+        self.assertIn('"exclusive-if-local"', target)
+        self.assertIn('":build",', target)
+        self.assertNotIn("webServer:", self.e2e_config)
+        self.assertIn("forbidOnly: true", self.e2e_config)
+        self.assertIn("retries: 0", self.e2e_config)
+        self.assertIn("workers: 1", self.e2e_config)
+        # //:browser_smoke_test keeps its nine specs and GF's /bin/chromium.
+        smoke = bazel_target(self.build, "browser_smoke_test")
+        self.assertIn('"browser-acceptance.config.ts",', smoke)
+        self.assertIn('"GF_RBE_CHROMIUM_EXECUTABLE": "/bin/chromium"', smoke)
+        # The flake pins the browser; no host Playwright library or patch path.
+        self.assertIn("packages.e2e-chromium = e2eChromium;", self.flake)
+        self.assertIn("pkgs.dejavu_fonts.minimal", self.flake)
+        for gone in ("devShells.playwright", "auto-patchelf", "PLAYWRIGHT_NIX_LIBRARY_PATH", "corepack"):
+            with self.subTest(flake=gone):
+                self.assertNotIn(gone, self.flake)
+
+    def test_e2e_spec_census_covers_every_spec(self) -> None:
+        # Design contract test 5 (R583): the //:e2e_test spec list is exactly
+        # e2e/*.spec.ts, so a new spec cannot skip the Bazel lane.
+        listed = re.findall(r"^\t'([a-z0-9-]+\.spec\.ts)',$", self.e2e_config.split("export const E2E_SPECS = [", 1)[1].split("];", 1)[0], re.MULTILINE)
+        on_disk = sorted(path.name for path in (ROOT / "e2e").glob("*.spec.ts"))
+        self.assertEqual(listed, on_disk)
+        self.assertEqual(len(on_disk), 27, "the 27-spec census of R583; update this count with the list")
+        self.assertIn("testMatch: E2E_SPECS.map(", self.e2e_config)
+
+    def test_chromium_toolchain_never_reaches_lint(self) -> None:
+        # Critique N1: toolchain() targets live in this repository and
+        # MODULE.bazel registers //tools/chromium:all, so resolving any other
+        # toolchain never fetches @chromium_nix. The two implementations are
+        # mutually exclusive, and only //tools/chromium names @chromium_nix.
+        self.assertIn('register_toolchains("//tools/chromium:all")', self.module)
+        self.assertNotIn('register_toolchains("@chromium_nix', self.module)
+        nix = bazel_target(self.chromium_build, "nix_host")
+        rbe = bazel_target(self.chromium_build, "rbe_linux_x86_64")
+        self.assertIn('toolchain = "@chromium_nix//:impl"', nix)
+        self.assertIn('target_settings = [":source_nix"]', nix)
+        self.assertIn('target_settings = [":source_gf_rbe"]', rbe)
+        self.assertIn('toolchain = ":gf_rbe_impl"', rbe)
+        for path in ROOT.rglob("*"):
+            if path.suffix in (".bazel", ".bzl") and path.name != "MODULE.bazel":
+                relative = path.relative_to(ROOT).as_posix()
+                if relative.startswith("tools/chromium/"):
+                    continue
+                with self.subTest(path=relative):
+                    self.assertNotIn("@chromium_nix", path.read_text(encoding="utf-8"))
+        closure = (ROOT / "scripts/bazel/lint_closure.py").read_text(encoding="utf-8")
+        self.assertIn('"chromium_nix" in n', closure)
+
+    def test_no_hub_package_json_bzl_is_loaded(self) -> None:
+        # Design contract test 1 (C1, critique N3c): a bin macro loads the npm
+        # sources repository of its package, and that repository always
+        # downloads the npm tarball. No package_json.bzl of any hub is loaded.
+        load = re.compile(r'load\(\s*"@[^"]*package_json\.bzl"')
+        scanned = []
+        for path in ROOT.rglob("*"):
+            if path.is_file() and (path.suffix in (".bazel", ".bzl") or path.name in ("BUILD", "BUILD.bazel")):
+                relative = path.relative_to(ROOT).as_posix()
+                scanned.append(relative)
+                with self.subTest(path=relative):
+                    self.assertIsNone(load.search(path.read_text(encoding="utf-8")))
+        for required in ("BUILD.bazel", "tools/ts/BUILD.bazel", "tools/site-draft-compiler/defs.bzl"):
+            self.assertIn(required, scanned)
+
+    def test_lint_and_tsc_entry_points_are_the_p1_manifest_bins(self) -> None:
+        # Design 6.1 and section 5: each directory_path is the package.json
+        # `bin` entry P1's MANIFEST.json records, so a P1 bump that moves a bin
+        # fails here and not in the cell (critique N3b: a string bin is one
+        # command named after the package).
+        manifest = payload_file(self, "GFTB_P1_MANIFEST")
+        if manifest is None:
+            return
+        bins = {}
+        for package in json.loads(manifest.read_text(encoding="utf-8"))["packages"]:
+            bins[(package["package"], package["version"])] = {
+                name: normalize_bin(path) for name, path in package["bin"].items()
+            }
+        expected = (
+            (self.build, "eslint_entry", ("eslint", "10.10.0"), "eslint"),
+            (self.build, "prettier_entry", ("prettier", "3.9.6"), "prettier"),
+            (self.ts_build, "tsc_entry", ("typescript", "7.0.2"), "tsc"),
+        )
+        for build_file, name, key, command in expected:
+            with self.subTest(target=name):
+                target = bazel_target(build_file, name)
+                path = re.search(r'path = "([^"]+)"', target).group(1)
+                self.assertEqual(normalize_bin(path), bins[key][command])
+        prettier_write = bazel_target(self.build, "prettier_write")
+        self.assertIn(f'"prettier/{bins[("prettier", "3.9.6")]["prettier"]}",', prettier_write)
+        for name in ("eslint_test", "prettier_check_test"):
+            self.assertIn(f'entry_point = ":{name.split("_")[0]}_entry"', bazel_target(self.build, name))
+        self.assertIn('entry_point = ":tsc_entry"', bazel_target(self.ts_build, "tsc"))
+        compiler = (ROOT / "tools/site-draft-compiler/defs.bzl").read_text(encoding="utf-8")
+        self.assertIn('tsc = "//tools/ts:tsc"', compiler)
+        self.assertNotIn("//tools/ts:", "".join(re.findall(r"^load\(.*$", compiler, re.MULTILINE)))
+        self.assertNotIn("typescript.deps(", self.module)
+        self.assertNotIn("npm_typescript", self.module)
+
+    def test_payload_include_is_the_p1_file_verbatim(self) -> None:
+        # Design 6.1 and critique N3a: the include carries its own
+        # use_extension line and is byte-equal to P1's generated file.
+        self.assertIn('include("//:npm_payload.MODULE.bazel")', self.module)
+        self.assertIn('npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")', self.payload_include)
+        published = payload_file(self, "GFTB_P1_PAYLOAD_INCLUDE")
+        if published is None:
+            return
+        self.assertEqual(self.payload_include, published.read_text(encoding="utf-8"))
+
+    def test_p1_manifest_is_cut_from_the_p0_lock(self) -> None:
+        # Design contract test 3 (C3.5): P1 records the sha256 of the P0
+        # pnpm-lock.yaml it was cut from, every MANIFEST entry carries that
+        # lock's sha512, and every entry has exactly one replacement tag.
+        manifest_path = payload_file(self, "GFTB_P1_MANIFEST")
+        lock_path = payload_file(self, "GFTB_P0_LOCK")
+        if manifest_path is None or lock_path is None:
+            return
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        lock = lock_path.read_text(encoding="utf-8")
+        self.assertEqual(manifest["p0_lock_sha256"], sha256(lock_path))
+        integrity = dict(re.findall(r"^  '?(.+?@[^@:(']+)'?:\n    resolution: \{integrity: (sha512-[^,}]+)", lock, re.MULTILINE))
+        tags = dict(re.findall(r'^npm\.npm_replace_package\(package = "([^"]+)", replacement = "@xoxd_npm_gftb_site_lint//:([^"]+)"\)$', self.payload_include, re.MULTILINE))
+        keys = set()
+        for package in manifest["packages"]:
+            key = f'{package["package"]}@{package["version"]}'
+            keys.add(key)
+            with self.subTest(package=key):
+                self.assertEqual(integrity.get(key), package["lock_integrity"])
+                self.assertEqual(tags.get(key), package["target"])
+        self.assertEqual(set(tags), keys)
+
+    def test_one_payload_commit_for_node_and_the_payload_modules(self) -> None:
+        # Design contract test 4: the Node mirror names the same
+        # xoxd-ai/bazel-payloads commit as the P0 and P1 source.json URLs
+        # that MODULE.bazel.lock records. Before PR-P2 merges, node_urls
+        # carries a placeholder and this test fails by design.
+        node = re.search(
+            r'node_urls = \["https://raw\.githubusercontent\.com/xoxd-ai/bazel-payloads/([0-9a-f]{40})/node/v\{version\}/\{filename\}"\]',
+            self.module,
+        )
+        self.assertIsNotNone(node, "node_urls must name exactly the commit-pinned mirror")
+        self.assertNotIn("https://nodejs.org", self.module)
+        lock = (ROOT / "MODULE.bazel.lock").read_text(encoding="utf-8")
+        for name in ("xoxd_npm_gftb_site_lock", "xoxd_npm_gftb_site_lint"):
+            with self.subTest(module=name):
+                self.assertRegex(lock, rf"/modules/{name}/1\.0\.0/source\.json")
+        payload_commits = set(re.findall(r"raw\.githubusercontent\.com/xoxd-ai/bazel-payloads/([0-9a-f]{40})/payloads/", lock))
+        self.assertEqual(payload_commits, {node.group(1)})
+
+    def test_lint_closure_recipe_asserts_the_four_closure_conditions(self) -> None:
+        # Design contract test 2 and critique N1 (d): the recipe and its four
+        # assertions, which gftb-site CI and gate S-P run.
+        self.assertIn("python3 scripts/bazel/lint_closure.py", recipe(self.justfile, "lint-closure"))
+        closure = (ROOT / "scripts/bazel/lint_closure.py").read_text(encoding="utf-8")
+        for needle in (
+            'NPM_PREFIX = "aspect_rules_js++npm+npm__"',
+            'FORBIDDEN_HOSTS = ("registry.npmjs.org", "nodejs.org")',
+            '"--build_event_json_file={bep}"',
+            '"(c) ',
+            '"(d) the lint vendor fetched',
+        ):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, closure)
+
+    def test_host_lanes_run_no_node_or_pnpm(self) -> None:
+        # R577 (TIN-7477): no host pnpm, npm or node call remains in a lane;
+        # the write lanes and the IDE shim are Bazel targets. C8: no lane
+        # runs the aspect telemetry curl.
+        self.assertNotRegex(self.justfile, r"(?m)^\s+cd \{\{ root \}\} && (pnpm|npm|npx|node) ")
+        for name, target in (
+            ("setup", "//:ide_setup"),
+            ("sync", "//:ide_setup"),
+            ("format", "//:prettier_write"),
+            ("source-map-build", "//:source_map_write"),
+            ("log-manifest-build", "//:log_manifest_write"),
+            ("goals-manifest-build", "//:goals_manifest_write"),
+            ("hours-manifest-build", "//:hours_manifest_write"),
+            ("leak-scan", "//:leak_scan_build_bin"),
+        ):
+            with self.subTest(recipe=name):
+                self.assertIn(f"bazelisk run {target}", recipe(self.justfile, name))
+        self.assertIn('export ASPECT_TOOLS_TELEMETRY := "off"', self.justfile)
+        self.assertIn("export ASPECT_TOOLS_TELEMETRY=off", self.flake)
+        for package in ("nodejs_22", "pnpm"):
+            with self.subTest(flake=package):
+                self.assertNotRegex(self.flake, rf"(?m)^\s+{package}$")
 
     def test_static_adapter_is_exclusive(self) -> None:
         deps = self.package["devDependencies"]

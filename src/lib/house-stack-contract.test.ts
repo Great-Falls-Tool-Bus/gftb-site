@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const packageJson = JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
 	packageManager?: string;
+	scripts?: Record<string, string>;
 	engines?: Record<string, string>;
 	dependencies?: Record<string, string>;
 	devDependencies?: Record<string, string>;
@@ -59,6 +60,9 @@ describe('house frontend-stack exact-pin contract', () => {
 		// svelte2tsx and typescript-eslint until TypeScript 7 ships a JS API.
 		// It is never `typescript` itself and never a `tsc` on the path.
 		expect(packageJson.devDependencies?.['@typescript/typescript6']).toBe('6.0.2');
+		// R577 (TIN-7477): the lock and its inputs live in the P0 payload module
+		// (xoxd_npm_gftb_site_lock); //:app_workspace copies these three to the
+		// workspace root, where they were before.
 		const pnpmfile = readFileSync(path.join(repoRoot, '.pnpmfile.cjs'), 'utf8');
 		expect(pnpmfile).toContain("const COMPANION = 'npm:@typescript/typescript6@6.0.2';");
 		const workspace = readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
@@ -77,8 +81,33 @@ describe('house frontend-stack exact-pin contract', () => {
 		expect(lock).toMatch(/^ {2}typescript@7\.0\.2:/mu);
 	});
 
-	it('keeps pnpm 10.13.1 EXACT via packageManager (never pnpm 9)', () => {
-		expect(packageJson.packageManager).toBe('pnpm@10.13.1');
+	it('carries no package manager and no npm scripts (R577)', () => {
+		// R577 (TIN-7477): every lane is a Bazel target; pnpm runs only in the
+		// xoxd-ai/bazel-payloads lock-update workflow.
+		expect(packageJson.packageManager).toBeUndefined();
+		expect(packageJson.scripts).toBeUndefined();
+	});
+
+	it('pins every listed dependency to the P0 lock importer (R577)', () => {
+		// package.json stays as metadata vite-plugin-svelte and vitefu read. Its
+		// lists must still be exactly the lock's root importer, specifier for
+		// specifier, so the metadata can never drift from what Bazel links.
+		const lock = readFileSync(path.join(repoRoot, 'pnpm-lock.yaml'), 'utf8');
+		const importer = lock.slice(lock.indexOf('\n  .:\n'), lock.indexOf('\npackages:\n'));
+		const locked: Record<string, Record<string, string>> = {};
+		let section = '';
+		let name = '';
+		for (const line of importer.split('\n')) {
+			const sectionMatch = line.match(/^ {4}(dependencies|devDependencies|optionalDependencies):$/u);
+			const nameMatch = line.match(/^ {6}'?([^':]+)'?:$/u);
+			const specifierMatch = line.match(/^ {8}specifier: '?([^']+?)'?$/u);
+			if (sectionMatch) section = sectionMatch[1];
+			else if (nameMatch) name = nameMatch[1];
+			else if (specifierMatch) (locked[section] ??= {})[name] = specifierMatch[1];
+		}
+		for (const key of ['dependencies', 'devDependencies', 'optionalDependencies'] as const) {
+			expect(locked[key] ?? {}, key).toEqual(packageJson[key] ?? {});
+		}
 	});
 
 	it('does not carry an icon package for a text-first one-page site', () => {
@@ -96,10 +125,16 @@ describe('house frontend-stack exact-pin contract', () => {
 		expect(packageJson.engines?.node).toBe('^22.17.0 || >=24 <25');
 	});
 
-	it('keeps the MODULE.bazel rules_ts TypeScript identical to the package.json typescript pin', () => {
+	it('takes the rules_ts TypeScript from the P1 payload, at the package.json typescript pin', () => {
+		// R575 (TIN-7477): //tools/ts:tsc runs the linked typescript package,
+		// which the P1 payload module replaces; rules_ts's own registry.npmjs.org
+		// repository (typescript.deps) is gone.
 		const moduleBazel = readFileSync(path.join(repoRoot, 'MODULE.bazel'), 'utf8');
-		const tsVersion = moduleBazel.match(/typescript\.deps\(\s*version\s*=\s*"([^"]+)"/)?.[1];
-		expect(tsVersion).toBe(packageJson.devDependencies?.typescript);
+		expect(moduleBazel).not.toMatch(/typescript\.deps\(/u);
+		const payload = readFileSync(path.join(repoRoot, 'npm_payload.MODULE.bazel'), 'utf8');
+		expect(payload).toContain(
+			`package = "typescript@${packageJson.devDependencies?.typescript}", replacement = "@xoxd_npm_gftb_site_lint//:typescript__${packageJson.devDependencies?.typescript}"`,
+		);
 	});
 
 	it('keeps @tummycrypt/tinyvectors Bazel-only at EXACT 1.0.0 (bazel_dep pin, no npm specifier)', () => {

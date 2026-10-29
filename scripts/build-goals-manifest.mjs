@@ -18,7 +18,9 @@ import {
 import { generatedFileCheckMode, writeOrCheckGeneratedFile } from './lib/generated-file.mjs';
 import { readGoalEntries } from './lib/goals-content.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
+// `bazel run //:*_write` (tools/bazel/in_workspace.mjs) names the checkout;
+// the read-only drift test and a direct run use this file's own tree.
+const ROOT = process.env.GFTB_WORKSPACE_ROOT ?? fileURLToPath(new URL('..', import.meta.url));
 const GOALS_DIR = path.join(ROOT, 'src', 'content', 'goals');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'goals-manifest.ts');
 const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));

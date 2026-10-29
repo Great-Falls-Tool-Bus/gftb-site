@@ -29,13 +29,19 @@ Push branches to `origin` and open pull requests from there; see
 [CONTRIBUTING.md](CONTRIBUTING.md) and
 [docs/operating-rules.md](docs/operating-rules.md).
 
-`just setup` installs the shared git hooks and the locked dependencies.
+`just setup` installs the shared git hooks and runs `bazelisk run //:ide_setup`,
+which links `node_modules/` into the Bazel-built package store and copies the
+SvelteKit types, so editors and the type server resolve the locked packages.
+No host package manager runs: the lock lives in the `xoxd_npm_gftb_site_lock`
+payload module (`xoxd-ai/bazel-payloads`), and Bazel is the only installer.
 `just dev` starts the development server. Run `just` to list all recipes. Do not run package or build tools
 directly. Nix supplies the tools; the Justfile supplies the commands.
 
 | Task | Command |
 | --- | --- |
 | Run unit tests | `just test-unit` |
+| Run every e2e spec in Chromium | `just test-e2e` |
+| Prove the lint closure reads no npm | `just lint-closure` |
 | Check repository contracts | `just conformance` |
 | Run the full validation suite | `just check` |
 | Build and scan the static site | `just build` |

@@ -10,15 +10,20 @@ root := justfile_directory()
 # override it, or set it empty for a build that carries no tailnet name.
 export PUBLIC_TAILNET_PROBE_URL := env_var_or_default("PUBLIC_TAILNET_PROBE_URL", "https://gftb-probe.taila4c78d.ts.net/v1/tailnet")
 
+# C8 (TIN-7477): aspect_tools_telemetry otherwise runs a host curl to
+# telemetry.aspect.build from every lane that evaluates the rules_js graph.
+export ASPECT_TOOLS_TELEMETRY := "off"
+
 _default:
     @just --list --unsorted
 
-# Install the git hooks, then the locked dependencies.
+# Install the git hooks, then give editors a node_modules/ and the SvelteKit
+# types (R577, R583, TIN-7477). No host package manager runs: //:ide_setup
+# links node_modules/ into the Bazel-built package store and copies $app and
+# .svelte-kit from //:sveltekit_types. The lock itself changes only in
+# xoxd-ai/bazel-payloads (its lock-update workflow), never here.
 setup: hooks-install
-    cd {{ root }} && pnpm install --frozen-lockfile
-
-deps-lock:
-    cd {{ root }} && pnpm install --lockfile-only
+    cd {{ root }} && bazelisk run //:ide_setup
 
 # Regenerate the Bazel module graph, including every declared extension.
 # Run from a clean checkout in the locked Nix shell; review MODULE.bazel.lock.
@@ -50,11 +55,6 @@ build:
 preview port="4173": build
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 
-# Release the build JVM before Chromium starts inside the bounded ARC runner.
-preview-e2e port="4173": build
-    cd {{ root }} && bazelisk shutdown
-    cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
-
 preview-only port="4173":
     cd {{ root }} && python3 scripts/bazel_output.py preview --port {{ port }}
 
@@ -64,7 +64,10 @@ clean:
 typecheck:
     cd {{ root }} && bazelisk test //:svelte_check_test
 
-typecheck-watch: sync
+# svelte_check_bin runs in BUILD_WORKSPACE_DIRECTORY under --watch, so it
+# watches the checkout, not the runfiles.
+typecheck-watch:
+    cd {{ root }} && bazelisk run //:ide_setup
     cd {{ root }} && bazelisk run //:svelte_check_bin -- --watch
 
 lint:
@@ -72,7 +75,7 @@ lint:
 
 [positional-arguments]
 format *paths=".": format-nix
-    cd {{ root }} && pnpm exec prettier --write -- "$@"
+    cd {{ root }} && bazelisk run //:prettier_write -- "$@"
 
 format-nix:
     cd {{ root }} && nixfmt flake.nix
@@ -90,46 +93,27 @@ test-coverage:
     cd {{ root }} && bazelisk build //:unit_test_coverage
     cd {{ root }} && python3 scripts/bazel_output.py materialize --source bazel-bin/coverage --destination coverage --required-path index.html
 
+# All 27 e2e specs (R583, TIN-7477) against the declared //:build, with the
+# Chromium that tools/chromium resolves from the Nix store
+# (tools/chromium/nix-paths.json, refreshed by `just chromium-pin`). No CDN
+# browser, no patchelf, no preview server.
 test-e2e:
-    cd {{ root }} && if command -v nix >/dev/null 2>&1; then \
-      nix develop .#playwright --command just _playwright-run; \
-    else \
-      just _playwright-run; \
-    fi
+    cd {{ root }} && bazelisk test //:e2e_test
 
-playwright-ensure:
-    cd {{ root }} && pnpm exec playwright install chromium
-    cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
-      command -v auto-patchelf >/dev/null; \
-      test -x "${PLAYWRIGHT_NIX_PATCHELF:?Playwright Nix patchelf contract is required}"; \
-      chromium_executable="$(node -e 'const { chromium } = require("@playwright/test"); process.stdout.write(chromium.executablePath())')"; \
-      chromium_dir="$(dirname "$(dirname "$chromium_executable")")"; \
-      cache_root="$(dirname "$chromium_dir")"; \
-      revision="${chromium_dir##*-}"; \
-      headless_dir="${cache_root}/chromium_headless_shell-${revision}"; \
-      test -d "$headless_dir"; \
-      IFS=: read -r -a playwright_libraries <<<"${PLAYWRIGHT_NIX_LIBRARY_PATH:?Playwright Nix library contract is required}"; \
-      PATH="$(dirname "$PLAYWRIGHT_NIX_PATCHELF"):$PATH" auto-patchelf --preserve-origin --paths "$headless_dir" --libs "${playwright_libraries[@]}"; \
-      mapfile -d '' -t headless_executables < <(find "$headless_dir" -type f \( -name chrome-headless-shell -o -name headless_shell \) -perm -0100 -print0); \
-      test "${#headless_executables[@]}" -eq 1; \
-      patched_interpreter="$("$PLAYWRIGHT_NIX_PATCHELF" --print-interpreter "${headless_executables[0]}")"; \
-      test "$patched_interpreter" = "${PLAYWRIGHT_NIX_DYNAMIC_LINKER:?Playwright Nix loader contract is required}"; \
-      browser_version="$(env -u LD_LIBRARY_PATH "${headless_executables[0]}" --version)"; \
-      test -n "$browser_version"; \
-      printf 'Playwright browser ABI contract: %s via %s\n' "$browser_version" "$patched_interpreter"; \
-    fi
+# Refresh tools/chromium/nix-paths.json from the flake's e2e-chromium output
+# and realise it for this host. The Chromium revision must equal the one the
+# locked @playwright/test drives; tools/chromium/pin.py refuses otherwise.
+chromium-pin:
+    cd {{ root }} && python3 tools/chromium/pin.py --write
 
-_playwright-run: playwright-ensure
-    cd {{ root }} && just _playwright-test
-
-_playwright-test:
-    cd {{ root }} && if [[ "$(uname -s)" == "Linux" ]]; then \
-      test -r "${FONTCONFIG_FILE:?Playwright Linux requires the Nix font contract}"; \
-      family="$(fc-match --format='%{family}' sans-serif)"; \
-      grep -qi 'DejaVu' <<<"$family"; \
-      printf 'Playwright font contract: %s via %s\n' "$family" "$FONTCONFIG_FILE"; \
-    fi
-    cd {{ root }} && env -u LD_LIBRARY_PATH pnpm exec playwright test
+# R575 closure test (TIN-7477, contract test 2): vendor //:lint_suite into a
+# fresh directory with a fresh repository cache and fail unless (a) no npm
+# sources repository exists beside the __links repositories, (b) no fetch
+# event names registry.npmjs.org or nodejs.org, (c) every lint-closure entry
+# of the P0 lock has a replacement tag, and (d) no chromium_nix repository was
+# fetched (critique N1).
+lint-closure:
+    cd {{ root }} && python3 scripts/bazel/lint_closure.py
 
 secrets-scan-dir:
     cd {{ root }} && gitleaks dir --config .gitleaks.toml --redact --verbose .
@@ -150,7 +134,7 @@ endpoint-check:
 # scripts/lib/leak-scan-rules.json (source-map-or-dev-artifact) and
 # test_public_agent_artifacts_are_absent in scripts/test-bazel-cutover-contracts.py.
 source-map-build:
-    cd {{ root }} && node scripts/build-source-map.mjs
+    cd {{ root }} && bazelisk run //:source_map_write
 
 source-map-check:
     cd {{ root }} && bazelisk test //:source_map_drift_test
@@ -162,7 +146,7 @@ source-map-check:
 # so an unpublished draft has no path into the client bundle. Mirrors
 # source-map-build/-check exactly.
 log-manifest-build:
-    cd {{ root }} && node scripts/build-log-manifest.mjs
+    cd {{ root }} && bazelisk run //:log_manifest_write
 
 log-manifest-check:
     cd {{ root }} && bazelisk test //:log_manifest_drift_test
@@ -171,7 +155,7 @@ log-manifest-check:
 # PUBLISHED entries only: the log-manifest pattern for the home page's
 # near-term goals, help asks, and member benefits (operator ruling 2026-08-31).
 goals-manifest-build:
-    cd {{ root }} && node scripts/build-goals-manifest.mjs
+    cd {{ root }} && bazelisk run //:goals_manifest_write
 
 goals-manifest-check:
     cd {{ root }} && bazelisk test //:goals_manifest_drift_test
@@ -180,7 +164,7 @@ goals-manifest-check:
 # PUBLISHED entries only and clock-free: the goals-manifest pattern for the
 # staffed work sessions on the bus (operator interview 2026-10-02).
 hours-manifest-build:
-    cd {{ root }} && node scripts/build-hours-manifest.mjs
+    cd {{ root }} && bazelisk run //:hours_manifest_write
 
 hours-manifest-check:
     cd {{ root }} && bazelisk test //:hours_manifest_drift_test
@@ -333,7 +317,7 @@ leak-scan-stamped:
     cd {{ root }} && grep -q "deadbee" bazel-bin/scanned-build/index.html
 
 leak-scan build_dir="build":
-    cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
+    cd {{ root }} && bazelisk run //:leak_scan_build_bin -- "$(realpath -- '{{ build_dir }}')"
 
 # Local entrypoint for the exact cacheable suite selected by the protected v4
 # `validate` action. //:deployment_bundle independently enforces the scanned
@@ -393,13 +377,11 @@ container-image-publish: build container-image-context
     nix run --impure .#image.copyToRegistry -- --dest-creds "${GHCR_USER}:${GHCR_TOKEN}"
     echo "published ${IMAGE_REF}:sha-${BUILD_COMMIT_SHA} (resolve and consume by digest)"
 
-# Generate the SvelteKit types for editors and watch mode. SvelteKit 3 writes
-# the parent tsconfig (tsconfig.json extends "$app/tsconfig") and `$app/types`
-# under node_modules/$app, which belongs to the checkout's own install, so this
-# runs the installed (patched) Kit after `just setup`. The Bazel gates build
-# the same trees as //:sveltekit_types.
+# Generate the SvelteKit types for editors and watch mode: //:ide_setup copies
+# node_modules/$app (the parent tsconfig that tsconfig.json extends, and
+# `$app/types`) and .svelte-kit from //:sveltekit_types.
 sync:
-    cd {{ root }} && pnpm exec svelte-kit sync
+    cd {{ root }} && bazelisk run //:ide_setup
 
 analyze:
     cd {{ root }} && bazelisk build //:analyze

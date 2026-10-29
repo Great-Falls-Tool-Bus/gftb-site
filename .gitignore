@@ -1,6 +1,8 @@
-# Dependencies
+# Dependencies: `bazel run //:ide_setup` makes node_modules/ (marked by
+# node_modules/.gf-ide-setup) and .svelte-kit/ (R583, TIN-7477).
 node_modules/
-.pnpm-store/
+# The GC root `just chromium-pin` makes for the e2e Chromium (R583).
+/.e2e-chromium
 
 # Build outputs
 .svelte-kit/

@@ -2,11 +2,10 @@
 
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@aspect_bazel_lib//lib:directory_path.bzl", "directory_path")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary", "js_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
-load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//:gitleaks_test.bzl", "actionlint_test", "gitleaks_test")
@@ -99,11 +98,7 @@ filegroup(
         # downloaded copies must not declare them as sources too.
         exclude = ["static/agreements/**"],
     ) + [
-        ".npmrc",
-        # src/lib/house-stack-contract.test.ts reads the RU13b hook.
-        ".pnpmfile.cjs",
         "package.json",
-        "playwright.config.ts",
         # src/lib/leak-scan.test.ts asserts this stays a THIN runner over
         # scripts/lib/leak-scan.mjs, so the workspace has to carry it.
         "scripts/check-build-output.mjs",
@@ -114,8 +109,6 @@ filegroup(
         # scripts/lib/tailnet-probe-stamp.test.mts executes the status command
         # to prove a malformed probe URL is neither echoed nor fatal.
         "scripts/bazel/workspace-status.sh",
-        "pnpm-lock.yaml",
-        "pnpm-workspace.yaml",
         "kit.config.js",
         "tsconfig.json",
         "vite.config.ts",
@@ -153,8 +146,6 @@ filegroup(
         "//tools/site-draft-compiler:format_inputs",
         "eslint.config.ts",
         "package.json",
-        "playwright.config.ts",
-        "pnpm-workspace.yaml",
         "kit.config.js",
         "tinyland.repo.json",
         "tsconfig.json",
@@ -184,9 +175,7 @@ filegroup(
         ".gitignore",
         ".gitleaks.toml",
         ".gitleaksignore",
-        ".npmrc",
         ".nvmrc",
-        ".pnpmfile.cjs",
         ".prettierignore",
         ".prettierrc",
         "BUILD.bazel",
@@ -205,10 +194,8 @@ filegroup(
         "flake.nix",
         "gitleaks_test.bzl",
         "multitool.lock.json",
+        "npm_payload.MODULE.bazel",
         "package.json",
-        "playwright.config.ts",
-        "pnpm-lock.yaml",
-        "pnpm-workspace.yaml",
         "kit.config.js",
         "tinyland.repo.json",
         "tsconfig.json",
@@ -220,10 +207,12 @@ filegroup(
             ".github/**",
             "docs/**",
             "e2e/**",
-            "patches/**",
             "scripts/**",
             "src/**",
             "static/**",
+            "tools/bazel/**",
+            "tools/chromium/**",
+            "tools/ts/**",
         ],
         allow_empty = True,
         exclude = [
@@ -321,8 +310,16 @@ copy_to_directory(
         ".bazelrc",
         "MODULE.bazel",
         "MODULE.bazel.lock",
+        # src/lib/house-stack-contract.test.ts reads the P1 replacement tags
+        # and three P0 lock-module files (R577), which land at the workspace
+        # root as before: an external file keeps its path inside its module.
+        "npm_payload.MODULE.bazel",
+        "@xoxd_npm_gftb_site_lock//:.pnpmfile.cjs",
+        "@xoxd_npm_gftb_site_lock//:pnpm-lock.yaml",
+        "@xoxd_npm_gftb_site_lock//:pnpm-workspace.yaml",
     ],
     hardlink = "off",
+    include_external_repositories = ["xoxd_npm_gftb_site_lock+"],
     root_paths = ["."],
 )
 
@@ -376,22 +373,70 @@ js_test(
 # Leaving them out keeps the multi-GB SvelteKit and TinyVectors build inputs
 # out of this test's closure (TIN-7477). Type checking stays in
 # //:svelte_check_test and //:svelte_check_canary_test.
-eslint_bin.eslint_test(
+# R575 (TIN-7477, C1): no hub package_json.bzl is loaded anywhere. A bin
+# macro loads the npm sources repository of its package, and that repository
+# always downloads the npm tarball, which the GFTB cell refuses. These are
+# plain rules_js targets whose entry point is a path inside the linked
+# package directory, so every lint input comes from the P1 payload module.
+# Each path is the package.json `bin` entry that P1's MANIFEST.json records;
+# //:bazel_output_contract_test compares them.
+directory_path(
+    name = "eslint_entry",
+    directory = ":node_modules/eslint/dir",
+    path = "./bin/eslint.js",
+)
+
+js_test(
     name = "eslint_test",
     args = ["."],
     data = [":app_srcs", ":e2e_srcs", "//tools/site-draft-compiler:format_inputs", "eslint.config.ts"] + LINT_NPM_PACKAGES,
+    entry_point = ":eslint_entry",
     timeout = "moderate",
     # Lint and formatting: `just check` runs it, `just gate-deploy` does not (TIN-7477).
     tags = ["lint"],
 )
 
-prettier_bin.prettier_test(
+directory_path(
+    name = "prettier_entry",
+    directory = ":node_modules/prettier/dir",
+    path = "./bin/prettier.cjs",
+)
+
+js_test(
     name = "prettier_check_test",
     args = ["--check", "."],
     data = [":format_srcs", ":node_modules/prettier", ":node_modules/prettier-plugin-svelte", ":node_modules/svelte"],
+    entry_point = ":prettier_entry",
     timeout = "short",
     # Lint and formatting: `just check` runs it, `just gate-deploy` does not (TIN-7477).
     tags = ["lint"],
+)
+
+# `just format` (R577): prettier --write over the checkout itself. js_binary's
+# chdir is a fixed output-tree path and expands no variables, so
+# tools/bazel/in_workspace.mjs names BUILD_WORKSPACE_DIRECTORY instead: the
+# ignore files and every path argument become absolute checkout paths, while
+# Prettier keeps resolving its .prettierrc plugin from the runfiles. The
+# prettier path is the same MANIFEST `bin` entry as :prettier_entry.
+js_binary(
+    name = "prettier_write",
+    args = [
+        "--paths-from-workspace",
+        "prettier/bin/prettier.cjs",
+        "--ignore-path",
+        "WORKSPACE:.gitignore",
+        "--ignore-path",
+        "WORKSPACE:.prettierignore",
+        "--write",
+    ],
+    data = [
+        ":node_modules/prettier",
+        ":node_modules/prettier-plugin-svelte",
+        ":node_modules/svelte",
+    ],
+    entry_point = "//tools/bazel:in_workspace",
+    patch_node_fs = False,
+    tags = ["manual"],
 )
 
 js_binary(
@@ -585,7 +630,17 @@ py_test(
         "scripts/check-inhouse-package-parity.py",
         "static/qr/greatfallstoolbus-apex.svg",
         "tinyland.repo.json",
+        # R575 contract tests 1 to 3 (TIN-7477): the P0 lock and the P1
+        # MANIFEST and replacement tags, compared with this repository.
+        "@xoxd_npm_gftb_site_lint//:MANIFEST.json",
+        "@xoxd_npm_gftb_site_lint//:npm_payload.MODULE.bazel",
+        "@xoxd_npm_gftb_site_lock//:pnpm-lock.yaml",
     ],
+    env = {
+        "GFTB_P0_LOCK": "$(rootpath @xoxd_npm_gftb_site_lock//:pnpm-lock.yaml)",
+        "GFTB_P1_MANIFEST": "$(rootpath @xoxd_npm_gftb_site_lint//:MANIFEST.json)",
+        "GFTB_P1_PAYLOAD_INCLUDE": "$(rootpath @xoxd_npm_gftb_site_lint//:npm_payload.MODULE.bazel)",
+    },
 )
 
 # Finite Chromium acceptance over the declared //:build output. GF's
@@ -603,7 +658,15 @@ js_test(
         ":e2e_srcs",
         ":node_modules/@playwright/test",
     ],
-    entry_point = "e2e/bazel/run-browser-smoke.mjs",
+    args = [
+        "--config",
+        "browser-acceptance.config.ts",
+        "--chromium-env",
+        "GF_RBE_CHROMIUM_EXECUTABLE",
+        "--label",
+        "nine acceptance specs",
+    ],
+    entry_point = "e2e/bazel/run-browser-acceptance.mjs",
     # The harness spawns the Playwright CLI, which imports the ESM specs.
     # Node's ESM resolver ignores the rules_js fs patches while CommonJS
     # honours them, so under linux-sandbox the runner and the specs loaded
@@ -622,6 +685,101 @@ js_test(
     ],
     timeout = "long",
 )
+
+# Every e2e spec (R583, TIN-7477): the 27 e2e/*.spec.ts files over the same
+# declared //:build and loopback harness as //:browser_smoke_test, with the
+# Chromium that //tools/chromium resolves (the Nix store Chromium of a lab
+# host; `just chromium-pin`). It replaces the host `pnpm exec playwright test`
+# lane. Local only: the Nix Chromium is a host path, never an action input.
+js_test(
+    name = "e2e_test",
+    args = [
+        "--config",
+        "e2e.config.ts",
+        "--chromium-env",
+        "GF_E2E_CHROMIUM_EXECUTABLE",
+        "--revision-env",
+        "GF_E2E_CHROMIUM_REVISION",
+        "--label",
+        "every e2e spec",
+        "--deadline-ms",
+        "3420000",
+    ],
+    data = [
+        ":app_srcs",
+        ":build",
+        ":e2e_srcs",
+        ":node_modules/@playwright/test",
+    ],
+    entry_point = "e2e/bazel/run-browser-acceptance.mjs",
+    # As for //:browser_smoke_test: the Playwright CLI imports the ESM specs,
+    # and only an unpatched fs gives the runner and the specs one copy.
+    patch_node_fs = False,
+    env = {
+        "FONTCONFIG_FILE": "$(GF_E2E_FONTCONFIG_FILE)",
+        "GF_BROWSER_SMOKE_BUILD_DIR": "$(rootpath :build)",
+        "GF_E2E_CHROMIUM_EXECUTABLE": "$(GF_E2E_CHROMIUM_EXECUTABLE)",
+        "GF_E2E_CHROMIUM_REVISION": "$(GF_E2E_CHROMIUM_REVISION)",
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
+    },
+    # Local only, through `local` and not a no-remote-exec tag: rules_js
+    # copies the tags onto every copy-to-bin action, which would then differ
+    # from //:browser_smoke_test's copies of the same specs and sources.
+    local = True,
+    tags = [
+        "browser-acceptance",
+        "exclusive-if-local",
+        "manual",
+    ],
+    timeout = "eternal",
+    toolchains = ["//tools/chromium:resolved"],
+)
+
+# Editors, the TypeScript server and `just typecheck-watch` (R583): a
+# node_modules/ linked into the Bazel package store, plus copies of the
+# SvelteKit $app and .svelte-kit trees. See tools/bazel/ide_setup.mjs.
+js_binary(
+    name = "ide_setup",
+    data = [
+        ":node_modules",
+        # The two first-party modules link outside npm_link_all_packages.
+        ":node_modules/@tummycrypt/tinyvectors",
+        ":node_modules/@tummycrypt/vite-plugin-a11y",
+        ":sveltekit_types",
+    ],
+    entry_point = "//tools/bazel:ide_setup",
+    patch_node_fs = False,
+    tags = ["manual"],
+)
+
+# The four manifest builders, writing into the checkout (R577). Each
+# *_drift_test above runs the same script read-only.
+[
+    js_binary(
+        name = name + "_write",
+        args = ["./scripts/build-%s.mjs" % script],
+        data = [
+            "scripts/build-%s.mjs" % script,
+            ":app_srcs",
+            ".prettierrc",
+            "tinyland.repo.json",
+            ":node_modules/prettier",
+            ":node_modules/prettier-plugin-svelte",
+            ":node_modules/svelte",
+        ],
+        entry_point = "//tools/bazel:in_workspace",
+        patch_node_fs = False,
+        # `bazel run` only. No no-remote-exec tag: rules_js would copy it onto
+        # the copy-to-bin actions the drift tests share.
+        tags = ["manual"],
+    )
+    for name, script in [
+        ("source_map", "source-map"),
+        ("log_manifest", "log-manifest"),
+        ("goals_manifest", "goals-manifest"),
+        ("hours_manifest", "hours-manifest"),
+    ]
+]
 
 # Served-artifact proof for the tinyvectors pin (TIN-4339). MODULE.bazel is
 # the only resolution of the brand-vectors package; a build made off-fabric can
@@ -683,7 +841,7 @@ pkg_tar(
 # mutation stay local to the trusted GitHub runner and never use remote exec.
 pkg_tar(
     name = "container_image_context",
-    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "pnpm-lock.yaml", "kit.config.js"],
+    srcs = [":deployment_bundle", "flake.lock", "flake.nix", "package.json", "MODULE.bazel.lock", "kit.config.js"],
     extension = "tar",
     tags = ["container-image-and-push", "no-remote-exec"],
     visibility = ["//visibility:public"],
@@ -693,9 +851,6 @@ exports_files(
     [
         "MODULE.bazel",
         "package.json",
-        "playwright.config.ts",
-        "pnpm-lock.yaml",
-        "pnpm-workspace.yaml",
         "scripts/bazel/prepare-sveltekit-types.mjs",
         "scripts/bazel/run-svelte-check.mjs",
         "scripts/bazel/run-sveltekit-sync.mjs",

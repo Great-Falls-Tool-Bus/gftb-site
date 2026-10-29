@@ -60,23 +60,66 @@ python.toolchain(
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 # Node 22.22.0: SvelteKit 3 requires Node >= 22.17 (engines in package.json);
 # 22.22.0 is the newest 22.x that rules_nodejs 6.7.3 knows.
-node.toolchain(node_version = "22.22.0")
+#
+# R576/R581 (TIN-7477): Node comes from one admitted origin only, the
+# xoxd-ai/bazel-payloads mirror served raw at a 40-hex commit. The sha256 of
+# each archive is rules_nodejs' own table entry, so the mirror changes the
+# URL and never the bytes. It must stay the only entry: the GFTB cell checks
+# every URL in the list before it tries any, so a nodejs.org fallback would
+# fail the whole download there.
+#
+# PLACEHOLDER COMMIT: 0000000000000000000000000000000000000000 stands in for
+# the PR-P2 merge commit of xoxd-ai/bazel-payloads, which does not exist yet.
+# It is replaced by that commit before this change leaves DRAFT, and the
+# one-payload-commit contract test then requires it to equal the commit in
+# the P0 and P1 source.json URLs.
+node.toolchain(
+    node_urls = ["https://raw.githubusercontent.com/xoxd-ai/bazel-payloads/0000000000000000000000000000000000000000/node/v{version}/{filename}"],
+    node_version = "22.22.0",
+)
+
+# R575/R577 (TIN-7477): the pnpm lock and its inputs live in the P0 payload
+# module, and the 160 packages of the //:lint_suite closure come from the P1
+# payload module. Both are sha256-pinned module archives in
+# xoxd-ai/bazel-payloads, resolved through xoxd-ai/bazel-registry like the two
+# tummycrypt modules, so npm is read once, at publish time, and never by a
+# build. Bump them only together with a new payload commit, then run
+# `just module-lock`.
+bazel_dep(name = "xoxd_npm_gftb_site_lock", version = "1.0.0")
+bazel_dep(name = "xoxd_npm_gftb_site_lint", version = "1.0.0")
+
+# PLACEHOLDER COMMIT: the registry commit below is the one the tummycrypt
+# overrides name today. PR-R2 adds xoxd_npm_gftb_site_{lock,lint} 1.0.0 to
+# xoxd-ai/bazel-registry; all four overrides then move to the PR-R2 merge
+# commit together, and `just module-lock` records it.
+single_version_override(
+    module_name = "xoxd_npm_gftb_site_lock",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+)
+
+single_version_override(
+    module_name = "xoxd_npm_gftb_site_lint",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+)
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
-    npmrc = "//:.npmrc",
-    pnpm_lock = "//:pnpm-lock.yaml",
+    pnpm_lock = "@xoxd_npm_gftb_site_lock//:pnpm-lock.yaml",
+    # The lock module is not the root package, so the importer "." of its
+    # lock is linked into this repository's root package.
+    root_package = "",
+    link_workspace = "@",
     # RU13: npm_translate_lock applies the pnpm `patchedDependencies` recorded
     # in pnpm-lock.yaml; the readPackage hook and every patch file must be
-    # declared inputs (patches/README.md).
+    # declared inputs (patches/README.md in the lock module).
     data = [
-        "//:.pnpmfile.cjs",
-        "//:package.json",
-        "//:patches/@sveltejs__kit@3.0.1.patch",
-        "//:patches/devalue@5.9.4.patch",
-        "//:patches/svelte-check@4.7.6.patch",
-        "//:pnpm-workspace.yaml",
+        "@xoxd_npm_gftb_site_lock//:.pnpmfile.cjs",
+        "@xoxd_npm_gftb_site_lock//:package.json",
+        "@xoxd_npm_gftb_site_lock//:patches/@sveltejs__kit@3.0.1.patch",
+        "@xoxd_npm_gftb_site_lock//:patches/devalue@5.9.4.patch",
+        "@xoxd_npm_gftb_site_lock//:patches/svelte-check@4.7.6.patch",
+        "@xoxd_npm_gftb_site_lock//:pnpm-workspace.yaml",
     ],
     # Browser packages must never fetch browser binaries at npm lifecycle time
     # (GloriousFlywheel browser-rbe-candidate-guide, lifecycle download
@@ -86,6 +129,12 @@ npm.npm_translate_lock(
         "playwright": {"PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1"},
     },
 )
+
+# The 160 npm_replace_package tags of the P1 module, a verbatim copy of
+# @xoxd_npm_gftb_site_lint//:npm_payload.MODULE.bazel (a contract test
+# compares the two). Every replaced package links from P1, so no npm
+# sources repository exists for the lint closure.
+include("//:npm_payload.MODULE.bazel")
 use_repo(npm, "npm")
 
 # Hermetic source validators for the v4 validate ActionPlan (TIN-4251), ported
@@ -98,14 +147,18 @@ use_repo(multitool, "multitool")
 
 register_toolchains("@multitool//toolchains:all")
 
-# TypeScript 7.0.2 (RU1, RU13): must match package.json `typescript` exactly
-# (src/lib/house-stack-contract.test.ts fails on any drift between the two
-# files). TypeScript 7 is the native compiler; rules_ts supports it from 3.9.0,
-# and 3.10 names the extension `typescript` with `version`/`integrity`. The
-# site-draft compiler's ts_project already names `transpiler = "tsc"`.
-typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
-typescript.deps(version = "7.0.2")
-use_repo(typescript, "npm_typescript")
+# Browser e2e (R583, TIN-7477): a Chromium from the Nix store, chosen through
+# toolchain resolution. The toolchain() targets live in //tools/chromium, so
+# resolving any other toolchain never fetches @chromium_nix; only a target
+# that resolves the Chromium toolchain (//:e2e_test) does.
+chromium_nix = use_repo_rule("//tools/chromium:repo.bzl", "chromium_nix")
+
+chromium_nix(
+    name = "chromium_nix",
+    paths = "//tools/chromium:nix-paths.json",
+)
+
+register_toolchains("//tools/chromium:all")
 
 # The club's agreements, compiled in the private meta repository by its
 # tectonic pipeline and published as releases in the public meta-public
