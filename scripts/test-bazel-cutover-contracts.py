@@ -589,6 +589,32 @@ class RepositoryContractTests(unittest.TestCase):
                 with self.subTest(name=name, generated=generated):
                     self.assertNotIn(f'"{generated}"', target)
 
+    def test_module_graph_alone_resolves_without_registry_flags(self) -> None:
+        # R574 (TIN-7477): dependencies enter only through the Bazel module
+        # graph. The fabric runs Bazel with --ignore_all_rc_files and no
+        # --registry flag, so MODULE.bazel itself binds the two first-party
+        # modules to an immutable xoxd-ai/bazel-registry commit, and no rc
+        # file may name a registry the fabric would not see.
+        bazelrc = (ROOT / ".bazelrc").read_text(encoding="utf-8")
+        self.assertNotIn("--registry", bazelrc)
+        pins = set()
+        for name in ("tummycrypt_tinyvectors", "tummycrypt_vite_plugin_a11y"):
+            with self.subTest(module=name):
+                self.assertIn(f'bazel_dep(name = "{name}", version = ', self.module)
+                match = re.search(
+                    rf'single_version_override\(\n    module_name = "{name}",\n'
+                    r'    registry = "(https://raw\.githubusercontent\.com/xoxd-ai/bazel-registry/[0-9a-f]{40})",\n\)',
+                    self.module,
+                )
+                self.assertIsNotNone(match)
+                pins.add(match.group(1))
+        self.assertEqual(len(pins), 1, "both first-party modules share one registry commit")
+        # No pnpm toolchain repository, and no bot that opens npm lockfile
+        # pull requests.
+        self.assertNotIn("pnpm.pnpm(", self.module)
+        dependabot = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+        self.assertNotIn("package-ecosystem: 'npm'", dependabot)
+
     def test_ci_validation_suite_registers_every_publication_critical_gate(self) -> None:
         validation = bazel_target(self.build, "ci_validation_suite")
         for gate in (

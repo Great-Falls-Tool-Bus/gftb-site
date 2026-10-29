@@ -31,6 +31,25 @@ bazel_dep(name = "tummycrypt_vite_plugin_a11y", version = "1.0.0")
 # re-cut of 0.3.7 (same API and physics, exact svelte 5.57.2 peer).
 bazel_dep(name = "tummycrypt_tinyvectors", version = "1.0.0")
 
+# Both first-party modules resolve inside this module graph (R574, TIN-7477).
+# Bazel's default registry, bcr.bazel.build, serves every other module, so any
+# invocation finds the whole graph from MODULE.bazel and MODULE.bazel.lock
+# alone: no --registry flag, and nothing read from an rc file. That includes
+# the GloriousFlywheel source preparation, which runs Bazel with
+# --ignore_all_rc_files. Each override names an immutable commit of
+# xoxd-ai/bazel-registry (the canonical home of the former
+# tinyland-inc/bazel-registry), so module metadata cannot change under the
+# lock. Bump both SHAs together, deliberately, then run `just module-lock`.
+single_version_override(
+    module_name = "tummycrypt_tinyvectors",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+)
+
+single_version_override(
+    module_name = "tummycrypt_vite_plugin_a11y",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+)
+
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     python_version = "3.11",
@@ -42,10 +61,6 @@ node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 # Node 22.22.0: SvelteKit 3 requires Node >= 22.17 (engines in package.json);
 # 22.22.0 is the newest 22.x that rules_nodejs 6.7.3 knows.
 node.toolchain(node_version = "22.22.0")
-
-pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
-pnpm.pnpm(name = "pnpm", pnpm_version = "10.13.1")
-use_repo(pnpm, "pnpm")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
