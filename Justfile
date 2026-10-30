@@ -22,12 +22,16 @@ deps-lock:
 
 # Regenerate the Bazel module graph, including every declared extension.
 # Run from a clean checkout in the locked Nix shell; review MODULE.bazel.lock.
+# One-shot tooling call: --batch leaves no resident server behind (R472).
 module-lock:
-    cd {{ root }} && USE_BAZEL_VERSION="$(cat .bazelversion)" BAZELISK_SKIP_WRAPPER=1 bazelisk --nosystem_rc --nohome_rc mod deps --lockfile_mode=update
+    cd {{ root }} && USE_BAZEL_VERSION="$(cat .bazelversion)" BAZELISK_SKIP_WRAPPER=1 bazelisk --nosystem_rc --nohome_rc --batch mod deps --lockfile_mode=update
 
 flake-lock:
     cd {{ root }} && nix flake lock
 
+# Interactive dev server: a local Bazel server by design, not a check.
+# The server exits after the idle limit (120 s from .bazelrc unless a home rc
+# or the command line sets another); `bazelisk shutdown` ends it now.
 dev:
     cd {{ root }} && bazelisk run //:dev
 
