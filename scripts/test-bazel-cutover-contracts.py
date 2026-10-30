@@ -634,22 +634,20 @@ class RepositoryContractTests(unittest.TestCase):
             "actions": {
                 "validate": {
                     "command": "test",
-                    "targets": ["//:ci_validation_suite"],
+                    "targets": ["//:lint_suite"],
                     "capability": "rbe-linux-x86_64",
                     "result": {"mode": "status-only"},
-                },
-                "site-build": {
-                    "command": "build",
-                    "targets": ["//:deployment_bundle"],
-                    "capability": "rbe-linux-x86_64",
-                    "result": {
-                        "mode": "export-regular-files",
-                        "output_groups": ["default"],
-                    },
                 },
             },
         }
         self.assertEqual(self.plan, expected_plan)
+        # The fabric action is the lint suite (TIN-7477). A
+        # repeat on an input-identical commit must be a cache hit, so the plan
+        # carries no stamped build action.
+        self.assertIn(
+            'tests = [":eslint_test", ":prettier_check_test"],',
+            bazel_target(self.build, "lint_suite"),
+        )
 
         # Operator ruling 2026-09-28: GitHub Actions leave this repository.
         # The v4 caller and the signed-commits check are gone; the pre-merge

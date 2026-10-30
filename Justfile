@@ -311,8 +311,8 @@ qr-verify:
 # runner over scripts/lib/leak-scan.mjs — the same module src/lib/leak-scan.test.ts
 # exercises, so the gate and its tests are one implementation, not two.
 #
-# Local artifact validation. The v4 build action requests //:deployment_bundle,
-# which can package only //:scanned_build, through the compiled client.
+# Local artifact validation. //:deployment_bundle, which can package only
+# //:scanned_build, stays on the lab-host gate (TIN-7477).
 #
 # Fails closed in three ways: a missing/empty directory is not a pass (exit 2), a
 # file whose extension the scanner has no verdict for is not a pass (exit 2), and
@@ -335,9 +335,10 @@ leak-scan-stamped:
 leak-scan build_dir="build":
     cd {{ root }} && node scripts/check-build-output.mjs {{ build_dir }}
 
-# Local entrypoint for the exact cacheable suite selected by the protected v4
-# `validate` action. //:deployment_bundle independently enforces the scanned
-# artifact boundary selected by `site-build`.
+# Local entrypoint for the full cacheable suite. The v4 `validate` action
+# selects only //:lint_suite (TIN-7477); this suite stays a lab-host gate until
+# it is ported. //:deployment_bundle independently enforces the scanned
+# artifact boundary.
 #
 # The suite is the merge gate, so it stamps the checked-out commit:
 # //:browser_smoke_test asserts the footer provenance that only a stamped
