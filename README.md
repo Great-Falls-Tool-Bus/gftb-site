@@ -71,10 +71,11 @@ for the full input list and checks. Do not copy those credentials here please.
 
 ## Source, publication, and deployment
 
-The current source declares two GF actions: `validate` runs the registered
-checks, and `site-build` requests the scanned deployment bundle. Both are
-declared, with their result disposition, in `.github/lanes.json`. See
-[the operating rules](docs/operating-rules.md) for their exact targets.
+The current source declares one GF action: `validate` runs the ESLint and
+Prettier suite on the fabric. It is declared, with its result disposition, in
+`.github/lanes.json`. The full suite and the scanned deployment bundle stay on
+the lab-host gate. See [the operating rules](docs/operating-rules.md) for the
+exact targets.
 
 The candidate workflow, now dispatch-only, calls `just container-image-publish`
 on Linux. No workflow runs on push or pull request; the pre-merge gate is a
