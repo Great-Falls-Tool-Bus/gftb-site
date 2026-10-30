@@ -1074,8 +1074,7 @@ class RepositoryContractTests(unittest.TestCase):
     def test_one_payload_commit_for_node_and_the_payload_modules(self) -> None:
         # Design contract test 4: the Node mirror names the same
         # xoxd-ai/bazel-payloads commit as the P0 and P1 source.json URLs
-        # that MODULE.bazel.lock records. Before PR-P2 merges, node_urls
-        # carries a placeholder and this test fails by design.
+        # that MODULE.bazel.lock records.
         node = re.search(
             r'node_urls = \["https://raw\.githubusercontent\.com/xoxd-ai/bazel-payloads/([0-9a-f]{40})/node/v\{version\}/\{filename\}"\]',
             self.module,

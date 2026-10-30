@@ -39,15 +39,16 @@ bazel_dep(name = "tummycrypt_tinyvectors", version = "1.0.0")
 # --ignore_all_rc_files. Each override names an immutable commit of
 # xoxd-ai/bazel-registry (the canonical home of the former
 # tinyland-inc/bazel-registry), so module metadata cannot change under the
-# lock. Bump both SHAs together, deliberately, then run `just module-lock`.
+# lock. Bump all four registry SHAs below together, deliberately, then run
+# `just module-lock`.
 single_version_override(
     module_name = "tummycrypt_tinyvectors",
-    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/2509c9079e0c17673e95af08c6e742e653bd4675",
 )
 
 single_version_override(
     module_name = "tummycrypt_vite_plugin_a11y",
-    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/2509c9079e0c17673e95af08c6e742e653bd4675",
 )
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -68,13 +69,11 @@ node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 # every URL in the list before it tries any, so a nodejs.org fallback would
 # fail the whole download there.
 #
-# PLACEHOLDER COMMIT: 0000000000000000000000000000000000000000 stands in for
-# the PR-P2 merge commit of xoxd-ai/bazel-payloads, which does not exist yet.
-# It is replaced by that commit before this change leaves DRAFT, and the
-# one-payload-commit contract test then requires it to equal the commit in
-# the P0 and P1 source.json URLs.
+# The commit is the xoxd-ai/bazel-payloads#6 merge commit, the publish that
+# carries P0, P1 and both Node archives. The one-payload-commit contract test
+# requires it to equal the commit in the P0 and P1 source.json URLs.
 node.toolchain(
-    node_urls = ["https://raw.githubusercontent.com/xoxd-ai/bazel-payloads/0000000000000000000000000000000000000000/node/v{version}/{filename}"],
+    node_urls = ["https://raw.githubusercontent.com/xoxd-ai/bazel-payloads/780632c4c7bf1cb1475c1dd7a59b079e1e7d44d3/node/v{version}/{filename}"],
     node_version = "22.22.0",
 )
 
@@ -88,18 +87,17 @@ node.toolchain(
 bazel_dep(name = "xoxd_npm_gftb_site_lock", version = "1.0.0")
 bazel_dep(name = "xoxd_npm_gftb_site_lint", version = "1.0.0")
 
-# PLACEHOLDER COMMIT: the registry commit below is the one the tummycrypt
-# overrides name today. PR-R2 adds xoxd_npm_gftb_site_{lock,lint} 1.0.0 to
-# xoxd-ai/bazel-registry; all four overrides then move to the PR-R2 merge
-# commit together, and `just module-lock` records it.
+# The registry commit is the xoxd-ai/bazel-registry#212 merge commit, which
+# adds xoxd_npm_gftb_site_{lock,lint} 1.0.0. All four overrides name it, and
+# `just module-lock` records it.
 single_version_override(
     module_name = "xoxd_npm_gftb_site_lock",
-    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/2509c9079e0c17673e95af08c6e742e653bd4675",
 )
 
 single_version_override(
     module_name = "xoxd_npm_gftb_site_lint",
-    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a",
+    registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/2509c9079e0c17673e95af08c6e742e653bd4675",
 )
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
