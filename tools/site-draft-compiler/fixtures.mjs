@@ -5,7 +5,7 @@ import path from 'node:path';
 // and packaging remain pinned package inputs, not canonical main inputs.
 export const semanticSources = [
 	'MODULE.bazel',
-	'pnpm-lock.yaml',
+	'MODULE.bazel.lock',
 	'package.json',
 	'.prettierrc',
 	'src/lib/public-log-schema.ts',

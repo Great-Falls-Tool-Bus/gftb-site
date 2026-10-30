@@ -1,25 +1,61 @@
-// Finite browser acceptance over Bazel's declared //:build, using GF's
-// provisioned Chromium authority (TIN-1131). No download, preview rebuild,
-// ambient server, or installed-browser search. This is not a deployed LOOK.
+// Finite browser acceptance over Bazel's declared //:build. No download,
+// preview rebuild, ambient server, or installed-browser search. This is not a
+// deployed LOOK.
+//
+//   run-browser-acceptance.mjs --config <file in e2e/bazel> --chromium-env <VAR>
+//       [--label <words>] [--deadline-ms <n>] [--revision-env <VAR>]
+//
+// //:browser_smoke_test runs browser-acceptance.config.ts (nine specs) with
+// GF's provisioned /bin/chromium (TIN-1131). //:e2e_test (R583, TIN-7477)
+// runs e2e.config.ts (every e2e/*.spec.ts) with the Chromium that
+// //tools/chromium resolves, and --revision-env makes the harness refuse a
+// Chromium whose Playwright revision differs from the linked playwright-core.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { accessSync, constants, createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import {
+	accessSync,
+	constants,
+	createReadStream,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	statSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const harnessDir = dirname(fileURLToPath(import.meta.url));
+const options = parseArguments(process.argv.slice(2));
 const buildInput = process.env.GF_BROWSER_SMOKE_BUILD_DIR;
 const scratchRoot = process.env.TEST_TMPDIR;
-const chromiumPath = process.env.GF_RBE_CHROMIUM_EXECUTABLE;
+const chromiumPath = process.env[options.chromiumEnv];
 if (!buildInput || !scratchRoot || !isAbsolute(scratchRoot)) {
 	throw new Error('the Bazel-declared build and absolute TEST_TMPDIR are required');
 }
-if (chromiumPath !== '/bin/chromium') {
+if (!chromiumPath || !isAbsolute(chromiumPath)) {
+	throw new Error(`${options.chromiumEnv} must name an absolute Chromium executable`);
+}
+if (options.chromiumEnv === 'GF_RBE_CHROMIUM_EXECUTABLE' && chromiumPath !== '/bin/chromium') {
 	throw new Error('GF_RBE_CHROMIUM_EXECUTABLE must name the provisioned /bin/chromium runtime');
 }
 accessSync(chromiumPath, constants.X_OK);
+if (options.revisionEnv) {
+	// The Chromium revision the linked playwright-core drives, read from the
+	// package itself (playwright-core is a dependency of @playwright/test's
+	// own dependency, playwright).
+	const playwright = createRequire(require.resolve('@playwright/test/package.json'));
+	const core = createRequire(playwright.resolve('playwright/package.json'));
+	const browsers = JSON.parse(readFileSync(core.resolve('playwright-core/browsers.json'), 'utf8'));
+	const locked = browsers.browsers.find((browser) => browser.name === 'chromium')?.revision;
+	const supplied = process.env[options.revisionEnv];
+	if (!locked || supplied !== locked) {
+		throw new Error(`the Chromium toolchain is revision ${supplied}, but playwright-core drives ${locked}`);
+	}
+}
 const buildDir = resolve(buildInput);
 if (!statSync(join(buildDir, 'index.html')).isFile() || !statSync(join(buildDir, '404.html')).isFile()) {
 	throw new Error('the declared static build must contain index.html and 404.html');
@@ -126,7 +162,7 @@ try {
 	browser = undefined;
 
 	await runAcceptance(baseURL);
-	console.log(`declared-build Chromium smoke and nine acceptance specs passed via ${chromiumPath}`);
+	console.log(`declared-build Chromium smoke and ${options.label} passed via ${chromiumPath}`);
 } finally {
 	try {
 		await browser?.close();
@@ -143,14 +179,7 @@ async function runAcceptance(baseURL) {
 	const cli = require.resolve('@playwright/test/cli');
 	const child = spawn(
 		process.execPath,
-		[
-			cli,
-			'test',
-			'--config',
-			join(harnessDir, 'browser-acceptance.config.ts'),
-			'--tsconfig',
-			join(harnessDir, 'tsconfig.json'),
-		],
+		[cli, 'test', '--config', join(harnessDir, options.config), '--tsconfig', join(harnessDir, 'tsconfig.json')],
 		{
 			cwd: resolve(harnessDir, '../..'),
 			stdio: ['ignore', 'inherit', 'inherit'],
@@ -185,20 +214,49 @@ async function runAcceptance(baseURL) {
 		const code = await new Promise((resolveExit, rejectExit) => {
 			child.once('error', rejectExit);
 			child.once('close', (exitCode) => resolveExit(exitCode));
-			// Playwright owns the ordinary 1080s suite deadline and browser
-			// teardown. This outer bound also terminates a wedged CLI/process
+			// Playwright owns the ordinary suite deadline (globalTimeout) and
+			// browser teardown. This outer bound also terminates a wedged CLI/process
 			// group, without touching another action's browser or server.
 			killTimer = setTimeout(() => {
 				timedOut = true;
 				stop();
-			}, 1_140_000);
+			}, options.deadlineMs);
 		});
-		if (timedOut || code !== 0) throw new Error('the nine-spec browser acceptance suite failed');
+		if (timedOut || code !== 0) throw new Error(`${options.label} failed`);
 	} finally {
 		clearTimeout(killTimer);
 		process.removeListener('SIGINT', onSignal);
 		process.removeListener('SIGTERM', onSignal);
 	}
+}
+
+function parseArguments(argv) {
+	const parsed = {
+		config: '',
+		chromiumEnv: '',
+		label: 'the browser acceptance specs',
+		deadlineMs: 1_140_000,
+		revisionEnv: '',
+	};
+	const names = {
+		'--config': 'config',
+		'--chromium-env': 'chromiumEnv',
+		'--label': 'label',
+		'--deadline-ms': 'deadlineMs',
+		'--revision-env': 'revisionEnv',
+	};
+	for (let index = 0; index < argv.length; index += 2) {
+		const key = names[argv[index]];
+		const value = argv[index + 1];
+		if (!key || value === undefined) throw new Error(`unknown or incomplete harness argument ${argv[index]}`);
+		parsed[key] = key === 'deadlineMs' ? Number.parseInt(value, 10) : value;
+	}
+	if (!/^[a-z0-9-]+\.config\.ts$/u.test(parsed.config)) throw new Error('--config must name a config in e2e/bazel');
+	if (!/^[A-Z][A-Z0-9_]*$/u.test(parsed.chromiumEnv))
+		throw new Error('--chromium-env must name an environment variable');
+	if (!Number.isSafeInteger(parsed.deadlineMs) || parsed.deadlineMs <= 0)
+		throw new Error('--deadline-ms must be positive');
+	return parsed;
 }
 
 function resolvePath(pathname) {

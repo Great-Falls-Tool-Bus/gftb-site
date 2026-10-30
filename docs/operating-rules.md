@@ -70,9 +70,26 @@ whose archive is not public.
 
 ## Entrypoints and stack
 
-- Use `just <recipe>` for every operation. Do not invoke pnpm, Vite, or Bazel
+- Use `just <recipe>` for every operation. Do not invoke Vite or Bazel
   directly outside the Justfile. Enter through `nix develop` or direnv.
-- `just setup` installs dependencies and the shared git hooks.
+- No host package manager runs (R577, TIN-7477). The pnpm lock, its readPackage
+  hook and the shared patches live in the `xoxd_npm_gftb_site_lock` payload
+  module in `xoxd-ai/bazel-payloads`, and a lock change is a pull request
+  there (its `lock-update` workflow), never here. The `//:lint_suite` packages
+  come from the `xoxd_npm_gftb_site_lint` payload module through
+  `npm_payload.MODULE.bazel`, a verbatim copy of that module's file; Node
+  comes from the same repository's commit-pinned mirror. `just lint-closure`
+  proves the lint closure fetches nothing from npm or nodejs.org. The other
+  packages stay npm-fetched until the P2 payloads land after push B (R582).
+- `just setup` installs the shared git hooks and runs `//:ide_setup`, which
+  gives editors a `node_modules/` linked into the Bazel package store and
+  copies of the SvelteKit `$app` and `.svelte-kit` trees.
+- `just test-e2e` runs `//:e2e_test`: every `e2e/*.spec.ts` over the declared
+  `//:build`, with the Nix store Chromium that `//tools/chromium` resolves
+  (`tools/chromium/nix-paths.json`, refreshed by `just chromium-pin`). Its
+  Chromium revision must equal the one the locked `@playwright/test` drives.
+  A new spec must be added to `e2e/bazel/e2e.config.ts`; the repository
+  contract test fails otherwise.
 - `just build` materializes `//:scanned_build`: the adapter-static `//:build`
   output copied and leak-scanned inside one Bazel action. A scan failure
   yields no declared output, and `//:deployment_bundle` can package only that
@@ -143,9 +160,12 @@ whose archive is not public.
   SvelteKit 3 reads its options from `kit.config.js` through the `sveltekit()`
   Vite plugin; never add a `svelte.config.js`. Library imports use `#lib/...`
   with an explicit extension (`$lib` no longer exists). Type checking is
-  `svelte-check --tsgo` on TypeScript 7; `patches/README.md` explains the
-  TypeScript 6 parser companion and the shared patch set, which is copied from
-  `xoxd-ai/site.scaffold` and never edited here alone.
+  `svelte-check --tsgo` on TypeScript 7; `patches/README.md` in the
+  `xoxd_npm_gftb_site_lock` payload module explains the TypeScript 6 parser
+  companion and the shared patch set, which is copied from
+  `xoxd-ai/site.scaffold` and never edited here alone. rules_ts compiles with
+  `//tools/ts:tsc`, the linked TypeScript 7.0.2 package, not a rules_ts
+  download.
 - Skeleton and Skeleton Svelte are exact-pinned at `5.0.1`. Do not restore the
   Skeleton 4 compatibility shim.
 - `.github/lanes.json` is the source-only ActionPlan/v4 schema-3 plan: finite
