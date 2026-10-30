@@ -369,10 +369,16 @@ js_test(
     timeout = "long",
 )
 
+# ESLint reads sources only. No configured rule is type-aware (there is no
+# parserOptions.project), and eslint.config.ts ignores .svelte-kit/ and
+# node_modules/, so the generated //:sveltekit_types trees were never linted.
+# Leaving them out keeps the multi-GB SvelteKit and TinyVectors build inputs
+# out of this test's closure (TIN-7477). Type checking stays in
+# //:svelte_check_test and //:svelte_check_canary_test.
 eslint_bin.eslint_test(
     name = "eslint_test",
     args = ["."],
-    data = [":app_srcs", ":e2e_srcs", ":sveltekit_types", "//tools/site-draft-compiler:format_inputs", "eslint.config.ts"] + LINT_NPM_PACKAGES,
+    data = [":app_srcs", ":e2e_srcs", "//tools/site-draft-compiler:format_inputs", "eslint.config.ts"] + LINT_NPM_PACKAGES,
     timeout = "moderate",
     # Lint and formatting: `just check` runs it, `just gate-deploy` does not (TIN-7477).
     tags = ["lint"],
