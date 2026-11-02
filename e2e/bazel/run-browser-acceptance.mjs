@@ -49,7 +49,9 @@ if (options.revisionEnv) {
 	// own dependency, playwright).
 	const playwright = createRequire(require.resolve('@playwright/test/package.json'));
 	const core = createRequire(playwright.resolve('playwright/package.json'));
-	const browsers = JSON.parse(readFileSync(core.resolve('playwright-core/browsers.json'), 'utf8'));
+	// playwright-core's exports map omits browsers.json, so go through package.json.
+	const coreDir = dirname(core.resolve('playwright-core/package.json'));
+	const browsers = JSON.parse(readFileSync(join(coreDir, 'browsers.json'), 'utf8'));
 	const locked = browsers.browsers.find((browser) => browser.name === 'chromium')?.revision;
 	const supplied = process.env[options.revisionEnv];
 	if (!locked || supplied !== locked) {
@@ -280,6 +282,7 @@ function contentType(path) {
 			'.jpeg': 'image/jpeg',
 			'.webp': 'image/webp',
 			'.txt': 'text/plain; charset=utf-8',
+			'.xml': 'application/xml; charset=utf-8',
 			'.webmanifest': 'application/manifest+json; charset=utf-8',
 			'.pdf': 'application/pdf',
 			'.woff2': 'font/woff2',

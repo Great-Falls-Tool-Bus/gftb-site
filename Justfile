@@ -98,7 +98,7 @@ test-coverage:
 # (tools/chromium/nix-paths.json, refreshed by `just chromium-pin`). No CDN
 # browser, no patchelf, no preview server.
 test-e2e:
-    cd {{ root }} && bazelisk test //:e2e_test
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:e2e_test
 
 # Refresh tools/chromium/nix-paths.json from the flake's e2e-chromium output
 # and realise it for this host. The Chromium revision must equal the one the

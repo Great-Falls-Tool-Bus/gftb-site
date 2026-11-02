@@ -664,7 +664,7 @@ js_test(
         "--chromium-env",
         "GF_RBE_CHROMIUM_EXECUTABLE",
         "--label",
-        "nine acceptance specs",
+        "nine-acceptance-specs",
     ],
     entry_point = "e2e/bazel/run-browser-acceptance.mjs",
     # The harness spawns the Playwright CLI, which imports the ESM specs.
@@ -701,7 +701,7 @@ js_test(
         "--revision-env",
         "GF_E2E_CHROMIUM_REVISION",
         "--label",
-        "every e2e spec",
+        "every-e2e-spec",
         "--deadline-ms",
         "3420000",
     ],
