@@ -632,8 +632,15 @@ class RepositoryContractTests(unittest.TestCase):
         ):
             with self.subTest(module=name):
                 self.assertIn(f'bazel_dep(name = "{name}", version = ', self.module)
+                # R619: only P1 carries a patch, until the next payload cut.
+                patch = (
+                    r'    patch_strip = 1,\n'
+                    r'    patches = \["//tools/bazel:xoxd_npm_gftb_site_lint-exports\.patch"\],\n'
+                    if name == "xoxd_npm_gftb_site_lint"
+                    else ""
+                )
                 match = re.search(
-                    rf'single_version_override\(\n    module_name = "{name}",\n'
+                    rf'single_version_override\(\n    module_name = "{name}",\n{patch}'
                     r'    registry = "(https://raw\.githubusercontent\.com/xoxd-ai/bazel-registry/[0-9a-f]{40})",\n\)',
                     self.module,
                 )
@@ -1073,20 +1080,34 @@ class RepositoryContractTests(unittest.TestCase):
 
     def test_one_payload_commit_for_node_and_the_payload_modules(self) -> None:
         # Design contract test 4: the Node mirror names the same
-        # xoxd-ai/bazel-payloads commit as the P0 and P1 source.json URLs
-        # that MODULE.bazel.lock records.
+        # xoxd-ai/bazel-payloads commit as the P0 and P1 archive URLs. The lock
+        # records only the sha256 of each registry source.json, never its URL,
+        # so a committed copy of each file is hashed against that lock row and
+        # the URL is read from the copy.
         node = re.search(
             r'node_urls = \["https://raw\.githubusercontent\.com/xoxd-ai/bazel-payloads/([0-9a-f]{40})/node/v\{version\}/\{filename\}"\]',
             self.module,
         )
         self.assertIsNotNone(node, "node_urls must name exactly the commit-pinned mirror")
         self.assertNotIn("https://nodejs.org", self.module)
-        lock = (ROOT / "MODULE.bazel.lock").read_text(encoding="utf-8")
+        recorded = json.loads((ROOT / "MODULE.bazel.lock").read_text(encoding="utf-8"))["registryFileHashes"]
         for name in ("xoxd_npm_gftb_site_lock", "xoxd_npm_gftb_site_lint"):
             with self.subTest(module=name):
-                self.assertRegex(lock, rf"/modules/{name}/1\.0\.0/source\.json")
-        payload_commits = set(re.findall(r"raw\.githubusercontent\.com/xoxd-ai/bazel-payloads/([0-9a-f]{40})/payloads/", lock))
-        self.assertEqual(payload_commits, {node.group(1)})
+                registry = re.search(
+                    rf'module_name = "{name}",\n(?:    patch.*\n)*'
+                    r'    registry = "(https://raw\.githubusercontent\.com/xoxd-ai/bazel-registry/[0-9a-f]{40})",',
+                    self.module,
+                )
+                self.assertIsNotNone(registry)
+                row = f"{registry.group(1)}/modules/{name}/1.0.0/source.json"
+                self.assertIn(row, recorded)
+                copy = (ROOT / f"tools/bazel/registry-source/{name}-1.0.0.source.json").read_bytes()
+                self.assertEqual(hashlib.sha256(copy).hexdigest(), recorded[row])
+                self.assertEqual(
+                    json.loads(copy)["url"],
+                    f"https://raw.githubusercontent.com/xoxd-ai/bazel-payloads/{node.group(1)}"
+                    f"/payloads/{name}/1.0.0/{name}-1.0.0.tar.gz",
+                )
 
     def test_lint_closure_recipe_asserts_the_four_closure_conditions(self) -> None:
         # Design contract test 2 and critique N1 (d): the recipe and its four

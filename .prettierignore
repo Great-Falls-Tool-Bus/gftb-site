@@ -7,4 +7,5 @@ static
 *.md
 flake.lock
 # Exact upstream carrier, hash-pinned by bazel_output_contract_test.
+tools/bazel/registry-source
 docs/schemas/tinyland-repo-manifest.v2.schema.json

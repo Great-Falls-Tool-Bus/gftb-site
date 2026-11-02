@@ -95,8 +95,14 @@ single_version_override(
     registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/2509c9079e0c17673e95af08c6e742e653bd4675",
 )
 
+# The patch adds one exports_files line to P1's generated BUILD.bazel, so the
+# contract test can name MANIFEST.json and npm_payload.MODULE.bazel (R619).
+# Payload bytes and registry pins stay as they are. The export moves into the
+# next payload cut: the packer emits the line there, and this patch goes away.
 single_version_override(
     module_name = "xoxd_npm_gftb_site_lint",
+    patch_strip = 1,
+    patches = ["//tools/bazel:xoxd_npm_gftb_site_lint-exports.patch"],
     registry = "https://raw.githubusercontent.com/xoxd-ai/bazel-registry/2509c9079e0c17673e95af08c6e742e653bd4675",
 )
 
