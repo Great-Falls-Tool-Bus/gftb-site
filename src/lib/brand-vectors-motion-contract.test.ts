@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 //
 // Through v0.3.6 the tinyvectors physics loop never read each blob's
 // driftAngle/driftSpeed cruise field: with no pointer, scroll, or
-// devicemotion input (i.e. every idle desktop), the only motion was a
+// devicemotion input (that is every idle desktop), the only motion was a
 // zero-mean jitter random walk the engine's damping erased in ~1.4s, so the
 // background read as frozen-with-a-shiver. v0.3.7 wires that cruise in —
 // idle drift/bounce is the package default on ALL environments, with no
@@ -22,10 +22,14 @@ import { describe, expect, it } from 'vitest';
 // specifier), so the same seams live in the Bazel supply chain instead:
 // - the MODULE.bazel bazel_dep pin must stay at or above 0.3.7 (the first
 //   release with the idle drift cruise);
-// - MODULE.bazel.lock must record the pinned version's source.json under the
-//   exact immutable bazel-registry commit .bazelrc names (the registry file
-//   that carries the archive's sha256 integrity — the lock hashing that file
-//   is the frozen-lockfile analog of the members' PINNED_INTEGRITY entry);
+// - MODULE.bazel must bind the module to an exact immutable bazel-registry
+//   commit with single_version_override, and .bazelrc must name no registry
+//   (R574: the module graph alone resolves it, under --ignore_all_rc_files
+//   too);
+// - MODULE.bazel.lock must record the pinned version's source.json under
+//   that commit. That registry file carries the archive's sha256 integrity,
+//   so the lock hashing it is the frozen-lockfile analog of the members'
+//   PINNED_INTEGRITY entry;
 // - the layout call site must not opt out of the animated default or the
 //   reduced-motion default.
 
@@ -50,16 +54,21 @@ describe('tinyvectors default-motion contract', () => {
 
 	it('keeps the pinned version resolvable ONLY through the immutable registry commit', () => {
 		const { raw } = parsePinnedTinyvectorsVersion();
-		const bazelrc = readFileSync(path.join(repoRoot, '.bazelrc'), 'utf8');
-		const registry = bazelrc.match(
-			/--registry=(https:\/\/raw\.githubusercontent\.com\/xoxd-ai\/bazel-registry\/[0-9a-f]{40})/,
+		const moduleBazel = readFileSync(path.join(repoRoot, 'MODULE.bazel'), 'utf8');
+		const registry = moduleBazel.match(
+			/single_version_override\(\s*module_name = "tummycrypt_tinyvectors",\s*registry = "(https:\/\/raw\.githubusercontent\.com\/xoxd-ai\/bazel-registry\/[0-9a-f]{40})",\s*\)/,
 		)?.[1];
-		expect(registry, 'an immutable-SHA xoxd-ai bazel-registry pin in .bazelrc').toBeTruthy();
+		expect(registry, 'an immutable-SHA xoxd-ai bazel-registry binding in MODULE.bazel').toBeTruthy();
+		// R574: no rc file names a registry, so the fabric's
+		// --ignore_all_rc_files invocation resolves the same graph.
+		const bazelrc = readFileSync(path.join(repoRoot, '.bazelrc'), 'utf8');
+		expect(bazelrc).not.toMatch(/--registry/);
 		const lock = readFileSync(path.join(repoRoot, 'MODULE.bazel.lock'), 'utf8');
-		// The lock must hash the pinned version's source.json — the registry
-		// file that carries the source archive's sha256 integrity — under the
-		// exact registry commit .bazelrc names. A version bump, registry-pin
-		// bump, or stale lock breaks this seam before any build does.
+		// The lock must hash the pinned version's source.json (the registry
+		// file that carries the source archive's sha256 integrity) under the
+		// exact registry commit MODULE.bazel binds. A version bump,
+		// registry-pin bump, or stale lock breaks this seam before any build
+		// does.
 		expect(lock).toContain(`${registry}/modules/tummycrypt_tinyvectors/${raw}/source.json`);
 	});
 

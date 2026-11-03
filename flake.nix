@@ -3,6 +3,11 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # The e2e Chromium only (R583, TIN-7477): a nixpkgs whose
+    # playwright-driver Chromium revision equals the one the locked
+    # @playwright/test drives (tools/chromium/pin.py checks it). The site image
+    # and the dev shells keep `nixpkgs`.
+    nixpkgs-playwright.url = "github:NixOS/nixpkgs/31ecbaca1bdefa45dffc409f0250bd8039ea0010";
     flake-utils.url = "github:numtide/flake-utils";
     nix2container.url = "github:nlewo/nix2container";
     nix2container.inputs.nixpkgs.follows = "nixpkgs";
@@ -11,6 +16,7 @@
   outputs =
     {
       nixpkgs,
+      nixpkgs-playwright,
       flake-utils,
       nix2container,
       ...
@@ -19,9 +25,9 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        # No host Node or pnpm (R577, TIN-7477): every Node lane is a Bazel
+        # target, and `bazelisk run //:ide_setup` serves editors.
         corePackages = with pkgs; [
-          nodejs_22
-          pnpm
           typescript
           typescript-language-server
           just
@@ -37,58 +43,58 @@
           actionlint
           nixfmt
         ];
-        playwrightRuntimeLibraries = pkgs.lib.optionals pkgs.stdenv.isLinux (
-          with pkgs;
-          [
-            alsa-lib
-            at-spi2-atk
-            at-spi2-core
-            atk
-            cairo
-            cups
-            dbus
-            expat
-            fontconfig
-            freetype
-            glib
-            gtk3
-            libdrm
-            libgbm
-            libgcc.lib
-            libxkbcommon
-            mesa
-            nspr
-            nss
-            pango
-            libx11
-            libxscrnsaver
-            libxcomposite
-            libxcursor
-            libxdamage
-            libxext
-            libxfixes
-            libxi
-            libxrandr
-            libxrender
-            libxtst
-          ]
-        );
-        playwrightPatchTools = pkgs.lib.optionals pkgs.stdenv.isLinux (
-          with pkgs;
-          [
-            auto-patchelf
-            patchelfUnstable
-          ]
-        );
-        playwrightFontConfig = pkgs.makeFontsConf {
+        e2eFontConfig = pkgs.makeFontsConf {
           fontDirectories = [ pkgs.dejavu_fonts.minimal ];
         };
+        # //:e2e_test's Chromium (R583): Playwright's own Chromium build from
+        # nixpkgs-playwright, behind one stable bin/chromium, plus the DejaVu
+        # fonts.conf on Linux. tools/chromium/nix-paths.json pins its store
+        # path per system; `just chromium-pin` refreshes it.
+        pwPkgs = nixpkgs-playwright.legacyPackages.${system};
+        e2eBrowsers = pwPkgs.playwright-driver.browsers.override {
+          withChromium = true;
+          withChromiumHeadlessShell = false;
+          withFirefox = false;
+          withWebkit = false;
+          withFfmpeg = false;
+        };
+        e2eChromiumRevision = pwPkgs.playwright-driver.passthru.browsersJSON.chromium.revision;
+        e2eChromium =
+          pkgs.runCommand "gftb-e2e-chromium"
+            {
+              passthru.revision = e2eChromiumRevision;
+            }
+            (
+              ''
+                set -euo pipefail
+                browser_dir="${e2eBrowsers}/chromium-${e2eChromiumRevision}"
+                test -d "$browser_dir"
+              ''
+              + (
+                if pkgs.stdenv.isDarwin then
+                  ''
+                    exe="$browser_dir/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+                  ''
+                else
+                  ''
+                    exe="$browser_dir/chrome-linux64/chrome"
+                  ''
+              )
+              + ''
+                test -x "$exe"
+                mkdir -p "$out/bin"
+                printf '#!%s\nexec %q "$@"\n' "${pkgs.runtimeShell}" "$exe" > "$out/bin/chromium"
+                chmod 0555 "$out/bin/chromium"
+              ''
+              + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+                mkdir -p "$out/etc/fonts"
+                cp ${e2eFontConfig} "$out/etc/fonts/fonts.conf"
+              ''
+            );
         shellHook = extra: ''
-          corepack enable >/dev/null 2>&1 || true
+          export ASPECT_TOOLS_TELEMETRY=off
           ${extra}
           echo "gftb-site dev shell"
-          echo "  node     $(node --version)"
-          echo "  pnpm     $(pnpm --version 2>/dev/null || echo unavailable)"
           echo "  just     $(just --version)"
           echo "  bazel    $(bazelisk --version 2>&1 | head -n1)"
           echo "  gitleaks $(gitleaks version 2>&1 | head -n1)"
@@ -96,14 +102,6 @@
             echo "warning: repository git hooks are not installed; run 'just hooks-install' (see CONTRIBUTING.md)" >&2
           fi
         '';
-        playwrightHook = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-          unset LD_LIBRARY_PATH
-          export PLAYWRIGHT_NIX_LIBRARY_PATH="${pkgs.lib.makeLibraryPath playwrightRuntimeLibraries}"
-          export PLAYWRIGHT_NIX_DYNAMIC_LINKER="${pkgs.stdenv.cc.bintools.dynamicLinker}"
-          export PLAYWRIGHT_NIX_PATCHELF="${pkgs.patchelfUnstable}/bin/patchelf"
-          export FONTCONFIG_FILE="${playwrightFontConfig}"
-        '';
-
         n2c = nix2container.packages.${system}.nix2container;
         appBuildEnv = builtins.getEnv "APP_BUILD";
         appBuild =
@@ -336,11 +334,8 @@
           buildInputs = corePackages;
           shellHook = shellHook "";
         };
-        devShells.playwright = pkgs.mkShell {
-          buildInputs = corePackages ++ playwrightRuntimeLibraries ++ playwrightPatchTools;
-          shellHook = shellHook playwrightHook;
-        };
         packages.image = image;
+        packages.e2e-chromium = e2eChromium;
         formatter = pkgs.nixfmt;
       }
     );

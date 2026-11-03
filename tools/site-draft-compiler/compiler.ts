@@ -37,7 +37,7 @@ const branded = new WeakSet<object>();
 
 const TOOL_FILES = [
 	'MODULE.bazel',
-	'pnpm-lock.yaml',
+	'MODULE.bazel.lock',
 	'package.json',
 	'.prettierrc',
 	'tools/site-draft-compiler/defs.bzl',
@@ -74,7 +74,7 @@ const RUNTIME_FILES = [
  */
 const SITE_SEMANTIC_FILES = [
 	'MODULE.bazel',
-	'pnpm-lock.yaml',
+	'MODULE.bazel.lock',
 	'package.json',
 	'.prettierrc',
 	'src/lib/public-log-schema.ts',

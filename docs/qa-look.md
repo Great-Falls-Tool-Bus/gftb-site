@@ -29,6 +29,5 @@ plus the operator LOOK against it. Estate contract: "the pr-N lane IS the QA
 evidence." Until that flow lands here, nothing in this repository may reuse
 the name.
 
-The browser acceptance suite (`just test-e2e`, `just preview-e2e`,
-`playwright.config.ts`, `e2e/`) was never part of the excised apparatus and is
-untouched.
+The browser acceptance suite (`just test-e2e`, now `//:e2e_test` over
+`e2e/bazel/e2e.config.ts` and `e2e/`) was never part of the excised apparatus.
