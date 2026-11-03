@@ -1,0 +1,28 @@
+"""TypeScript 7 `tsc` for rules_ts, from the P1 payload module (R575, TIN-7477).
+
+rules_ts's own `typescript.deps` repository downloads typescript-7.0.2.tgz and
+its 20 natives from registry.npmjs.org, sha512-only, which the GFTB cell
+refuses. This binary runs the linked typescript@7.0.2 package instead: P1
+carries it with its linux-x64 (the cell) and darwin-arm64 (lab Macs) natives.
+No hub package_json.bzl is loaded (C1). The site-draft compiler names this
+target by label string only and never loads from this package (C9), so
+nothing here reaches the root package or //:lint_suite.
+"""
+
+load("@aspect_bazel_lib//lib:directory_path.bzl", "directory_path")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+
+# The package.json `bin.tsc` of typescript@7.0.2, as P1's MANIFEST.json
+# records it; //:bazel_output_contract_test compares the two.
+directory_path(
+    name = "tsc_entry",
+    directory = "//:node_modules/typescript/dir",
+    path = "./bin/tsc",
+)
+
+js_binary(
+    name = "tsc",
+    data = ["//:node_modules/typescript"],
+    entry_point = ":tsc_entry",
+    visibility = ["//:__pkg__"],
+)

@@ -16,7 +16,6 @@ paths = [
 description = "Ignored/generated local artifacts are outside the tracked repo release surface."
 paths = [
   '''(^|/)node_modules/''',
-  '''(^|/)\.pnpm-store/''',
   '''(^|/)\.direnv/''',
   '''(^|/)\.svelte-kit/''',
   '''(^|/)build/''',

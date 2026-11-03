@@ -1,0 +1,15 @@
+"""Helpers for `bazel run` targets that act on the checkout (R577, TIN-7477)."""
+
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+
+js_library(
+    name = "in_workspace",
+    srcs = ["in_workspace.mjs"],
+    visibility = ["//:__pkg__"],
+)
+
+js_library(
+    name = "ide_setup",
+    srcs = ["ide_setup.mjs"],
+    visibility = ["//:__pkg__"],
+)
