@@ -654,6 +654,32 @@ class RepositoryContractTests(unittest.TestCase):
         dependabot = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
         self.assertNotIn("package-ecosystem: 'npm'", dependabot)
 
+    def test_p1_override_patch_adds_only_the_exports_line(self) -> None:
+        # R619 (TIN-7477): the P1 override patch adds one exports_files line
+        # to P1's generated BUILD.bazel and nothing else. The binding test
+        # above checks only the patch's name, so this pins its body: one file,
+        # one hunk, no removed line, and the exports line plus one blank line
+        # as the only added lines. The sha256 pins the bytes.
+        patch_path = ROOT / "tools/bazel/xoxd_npm_gftb_site_lint-exports.patch"
+        body = patch_path.read_bytes()
+        self.assertEqual(
+            hashlib.sha256(body).hexdigest(),
+            "8258cd01bada705c8302ed02a5231da0f0cc84d7f7e0ed89edce971b5be9ffc1",
+        )
+        lines = body.decode("utf-8").splitlines()
+        self.assertEqual([line for line in lines if line.startswith("--- ")], ["--- a/BUILD.bazel"])
+        self.assertEqual([line for line in lines if line.startswith("+++ ")], ["+++ b/BUILD.bazel"])
+        self.assertEqual(len([line for line in lines if line.startswith("@@ ")]), 1)
+        hunk = [line for line in lines if not line.startswith(("--- ", "+++ ", "@@ "))]
+        self.assertEqual([line for line in hunk if line.startswith("-")], [])
+        self.assertEqual(
+            [line for line in hunk if line.startswith("+")],
+            ['+exports_files(["MANIFEST.json", "npm_payload.MODULE.bazel"])', "+"],
+        )
+        for line in hunk:
+            with self.subTest(line=line):
+                self.assertIn(line[:1], (" ", "+"))
+
     def test_ci_validation_suite_registers_every_publication_critical_gate(self) -> None:
         validation = bazel_target(self.build, "ci_validation_suite")
         for gate in (
