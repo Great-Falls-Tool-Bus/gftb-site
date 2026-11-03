@@ -1,44 +1,8 @@
 version: 2
+# No npm ecosystem (R574, TIN-7477): dependencies enter only through the
+# Bazel module graph, so a package bump is a deliberate MODULE.bazel and
+# MODULE.bazel.lock change, never a lockfile pull request from this bot.
 updates:
-  - package-ecosystem: 'npm'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-    target-branch: 'main'
-    open-pull-requests-limit: 10
-    ignore:
-      # RU5 exact stack pins (the xoxd-ai/site.scaffold estate manifest,
-      # estate/versions.json): they move only with an estate bump, never
-      # through a Dependabot PR. Includes the RU13b TypeScript 6 companion.
-      - dependency-name: '@sveltejs/kit'
-      - dependency-name: 'svelte'
-      - dependency-name: 'svelte-check'
-      - dependency-name: 'vite'
-      - dependency-name: '@sveltejs/vite-plugin-svelte'
-      - dependency-name: '@sveltejs/adapter-static'
-      - dependency-name: 'typescript'
-      - dependency-name: '@typescript/typescript6'
-      - dependency-name: 'vitest'
-      - dependency-name: '@vitest/*'
-      - dependency-name: '@playwright/test'
-      - dependency-name: '@skeletonlabs/skeleton'
-      - dependency-name: '@skeletonlabs/skeleton-svelte'
-      # Launch toolchain pins are deliberate; major upgrades need a ticketed proof.
-      - dependency-name: 'eslint'
-        update-types:
-          - 'version-update:semver-major'
-      - dependency-name: '@eslint/js'
-        update-types:
-          - 'version-update:semver-major'
-      - dependency-name: '@types/node'
-        update-types:
-          - 'version-update:semver-major'
-    groups:
-      minor-and-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:

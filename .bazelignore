@@ -9,3 +9,5 @@ test-results
 playwright-report
 tmp
 static/agreements
+# The GC-root symlink of the e2e Chromium (tools/chromium/pin.py), a Nix store path.
+.e2e-chromium

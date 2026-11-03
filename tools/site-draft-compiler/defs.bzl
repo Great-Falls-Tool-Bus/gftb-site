@@ -78,6 +78,15 @@ def site_draft_compiler_targets():
         out_dir = "site-draft-compiler-js",
         root_dir = input_root,
         transpiler = "tsc",
+        # R575 (TIN-7477): TypeScript 7 from the P1 payload module, not rules_ts's
+        # registry.npmjs.org repository. Named by label string only (C9): this
+        # file never loads from //tools/ts. A custom tsc has no worker, and the
+        # inline tsconfig needs no validator run.
+        tsc = "//tools/ts:tsc",
+        tsc_worker = "//tools/ts:tsc",
+        supports_workers = 0,
+        validate = False,
+        validator = "//tools/ts:tsc",
         tsconfig = {
             "compilerOptions": {
                 "target": "ES2022",
@@ -104,7 +113,9 @@ def site_draft_compiler_targets():
             ".prettierrc",
             "MODULE.bazel",
             "package.json",
-            "pnpm-lock.yaml",
+            # R577: the lock lives in the P0 payload module; MODULE.bazel.lock
+            # pins that module (and P1) by the sha256 in their source.json.
+            "MODULE.bazel.lock",
             "scripts/lib/leak-scan-rules.json",
         ],
         root_paths = ["."],

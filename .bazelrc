@@ -1,21 +1,16 @@
 # greatfallstoolbus.org Bazel Configuration
 #
-# Bazel 9.2 + Bzlmod. Mirrors elders.tinyland.dev's two-registry chain:
-# tinyland-inc/bazel-registry first, then BCR. Canonical Just recipes execute
-# finite Bazel targets. CI resolves those targets through the v4 action fabric;
-# this file contains no cache, executor, provider, or fallback policy.
+# Bazel 9.2 + Bzlmod. Canonical Just recipes execute finite Bazel targets. CI
+# resolves those targets through the v4 action fabric; this file contains no
+# cache, executor, provider, or fallback policy.
+#
+# No registry is named here (R574, TIN-7477). MODULE.bazel binds the two
+# first-party modules to their immutable xoxd-ai/bazel-registry commit, and
+# every other module comes from Bazel's default registry, bcr.bazel.build.
+# A local run and the fabric's --ignore_all_rc_files run therefore resolve
+# the same graph against the same MODULE.bazel.lock.
 
 common --enable_bzlmod
-# Supply-chain hardening (mirrors MassageIthaca): pin xoxd-ai/bazel-registry
-# (the canonical home of the former tinyland-inc/bazel-registry)
-# to an immutable commit SHA instead of the mutable `main` ref so module metadata
-# (MODULE.bazel + source.json) cannot silently change under us. Bump the SHA
-# deliberately and refresh MODULE.bazel.lock when the registry advances:
-#   sed -i '' "s|bazel-registry/[0-9a-f]\{40\}|bazel-registry/$(gh api repos/xoxd-ai/bazel-registry/commits/main --jq .sha)|" .bazelrc
-# bcr stays as a secondary registry; the Tinyland registry stays first so
-# in-house Bazel modules resolve before falling through to bcr.bazel.build.
-common --registry=https://raw.githubusercontent.com/xoxd-ai/bazel-registry/e912ea7e26b19f412b2daf4c67d363bb2475ea8a
-common --registry=https://bcr.bazel.build
 
 # BASE_PATH and commit identity are stable Bazel inputs to stamped terminal
 # build actions, not undeclared ambient action environment.

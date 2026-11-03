@@ -5,6 +5,28 @@ All notable changes to the `gftb_site` Bazel module (this repository and its
 distributed through the Tinyland Bazel registry (`xoxd-ai/bazel-registry`)
 only; nothing is published to npm.
 
+## Unreleased
+
+### Changed
+
+- R574 (TIN-7477): `MODULE.bazel` binds the two first-party modules to one
+  immutable `xoxd-ai/bazel-registry` commit with `single_version_override`;
+  `.bazelrc` names no registry.
+- R575 to R577 (TIN-7477): the pnpm lock, `.pnpmfile.cjs`,
+  `pnpm-workspace.yaml`, `.npmrc` and `patches/` move to the
+  `xoxd_npm_gftb_site_lock` payload module, and the 160 `//:lint_suite`
+  packages come from `xoxd_npm_gftb_site_lint` (`npm_payload.MODULE.bazel`).
+  Node is fetched only from the `xoxd-ai/bazel-payloads` mirror. ESLint,
+  Prettier and `tsc` run from `directory_path` entry points; no hub
+  `package_json.bzl` is loaded. rules_ts's `typescript.deps` is gone.
+- R577 and R583: every host pnpm, npm and node lane is a Bazel target:
+  `//:ide_setup` (`just setup`, `just sync`), `//:prettier_write`
+  (`just format`), the four `//:*_write` manifest builders, and `//:e2e_test`,
+  which registers all 27 e2e specs and runs them with a Nix store Chromium
+  toolchain. The host `playwright.config.ts`, the CDN browser download and its
+  patchelf path, the `playwright` dev shell and `package.json` `scripts` and
+  `packageManager` are removed.
+
 ## 1.0.0 (2026-10-15)
 
 The site moves to the house frontend stack (SvelteKit 3, TypeScript 7). The
