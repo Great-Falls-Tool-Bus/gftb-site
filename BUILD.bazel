@@ -827,6 +827,27 @@ test_suite(
     tests = [":eslint_test", ":prettier_check_test"],
 )
 
+# The v4 `validate` action (.github/lanes.json, TIN-5447). Each test reads only
+# sources, the P1 lint payload packages or a checksummed multitool binary, so
+# vendoring it fetches nothing from npm or nodejs.org and no spawn has an input
+# tree near the worker's 2,097,152,000 byte limit. None is stamped, so a commit
+# that leaves their inputs unchanged is served from the action cache. Tests
+# that need //:build, the app npm closure or a browser stay in
+# //:ci_validation_suite on the lab-host `just check` lane.
+test_suite(
+    name = "validate_suite",
+    tests = [
+        ":current_source_secret_scan_test",
+        ":eslint_test",
+        ":goals_manifest_drift_test",
+        ":hours_manifest_drift_test",
+        ":log_manifest_drift_test",
+        ":prettier_check_test",
+        ":source_map_drift_test",
+        ":workflow_validation_test",
+    ],
+)
+
 pkg_tar(
     name = "deployment_bundle",
     extension = "tar.gz",
