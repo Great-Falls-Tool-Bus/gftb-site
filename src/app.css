@@ -214,6 +214,12 @@
 	--z-tooltip: 80;
 }
 
+/* Shared prose rhythm is scheme-invariant, outside the colour-role parity sweep. */
+:root {
+	/* The space between two blocks of running text, about half a line. */
+	--prose-gap: 0.85em;
+}
+
 /* ===== Typeface tokens (D08/D12) =====
  * The merged demo #29 / Wave-2.5 pairing on this carrier's faces. Declared
  * in their own :root block for the same reason as the z ladder: the role
@@ -542,8 +548,12 @@ h3 {
 	letter-spacing: -0.015em;
 }
 
+/* One leading for running text. A rule on a parent cannot set it: p and li
+ * match here, so they would ignore it, and a dd holding a bare sentence would
+ * read tighter than the dd beside it that wraps its sentences in a p. */
 p,
-li {
+li,
+dd {
 	line-height: 1.65;
 }
 
@@ -583,10 +593,10 @@ li {
 	position: sticky;
 	top: 0;
 	z-index: var(--z-sticky);
-	/* Saturn ring line (D09, apex app.css:386-446): ~50% primary mix, the
-	 * planet's ring line — the brand voice, not a focal element. The 18%
-	 * hairline this replaces was the un-ported stub. */
-	border-bottom: 2px solid color-mix(in oklab, var(--accent) 50%, transparent);
+	/* Borderless (operator ruling 2026-11-07): no line under the header or nav
+	 * and no outline around them, on every width and in both schemes. The
+	 * :focus-visible rings on the links inside are accessibility and stay.
+	 * e2e/mobile-nav.spec.ts reads the computed style. */
 	background: color-mix(in oklab, var(--bg) 92%, transparent);
 	backdrop-filter: blur(12px);
 }
@@ -1089,6 +1099,14 @@ li {
 	font-size: clamp(1.15rem, 3vw, 1.45rem);
 }
 
+.hero-glass :is(h1, h2) + p {
+	margin-top: 0.6rem;
+}
+
+.lede + .pitch {
+	margin-top: 0.6rem;
+}
+
 /* The pitch (2026-09-19): four invitation lines inside the hero glass, set as
  * a plain list between the lede and the buttons. Text only; no marks, no box. */
 .pitch {
@@ -1361,10 +1379,11 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 .faq dt {
-	margin-top: 1.25rem;
+	margin-top: 2rem;
 	font-family: var(--font-display);
 	font-size: 1.15rem;
 	font-weight: 700;
+	line-height: 1.3;
 }
 
 .faq dt:first-child {
@@ -1372,17 +1391,22 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 .faq dd {
-	margin: 0.4rem 0 0;
-	line-height: 1.55;
+	margin: 0.5rem 0 0;
 }
 
 .faq dd p {
-	margin: 0 0 0.6rem;
+	margin: 0;
+}
+
+.faq dd p + p {
+	margin-top: var(--prose-gap);
 }
 
 /* The join actions (src/lib/gated/manifest.ts): Apply as the house button,
  * Sign in as a plain link beside it with the same 3rem tap height. Wraps to
- * its own line on a phone rather than squeezing. They are mounted by
+ * its own line on a phone rather than squeezing. They start at the prose's
+ * left edge, the same 1.5rem under it as the hero's .button-row, on the home
+ * FAQ and on /join alike. They are mounted by
  * <GatedSlot> only with a member's manifest; there is no hiding rule and no
  * reserved space, so the page reflows when they arrive. */
 .join-actions {
@@ -1390,7 +1414,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 0.5rem 1.25rem;
-	margin-top: 0.9rem;
+	margin-top: 1.5rem;
 }
 
 .join-actions__sign-in {
@@ -1402,11 +1426,6 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 
 .join-steps {
 	padding-left: 1.5rem;
-	line-height: 1.55;
-}
-
-.join-steps li + li {
-	margin-top: 0.4rem;
 }
 
 .section-heading {
@@ -1448,7 +1467,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 }
 
 .faq + .credit {
-	margin-top: 1.25rem;
+	margin-top: 2rem;
 }
 
 /* Log rows remain borderless. The full entry now shares the glass treatment;
@@ -1515,8 +1534,41 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: 1.75rem;
 }
 
+.log-entry__header h1 + p {
+	margin-top: 0.75rem;
+}
+
 .log-entry__body {
 	margin-top: 2rem;
+}
+
+/* Entry body rhythm. Tailwind's preflight zeroes every block margin, so without
+ * this a heading, its paragraphs, a list and the next heading sit flush on the
+ * join page, the policy pages and the log. :where keeps the specificity at 0,
+ * so a component's own margin (.callout, .join-actions) still wins. A heading
+ * sits closer to the text it opens than to the text it closes. */
+:where(.log-entry__body, .log-entry__body > section) > :where(* + *) {
+	margin-top: var(--prose-gap);
+}
+
+:where(.log-entry__body, .log-entry__body > section) > :where(h2:not(:first-child)) {
+	margin-top: 2.5rem;
+}
+
+:where(.log-entry__body, .log-entry__body > section) > :where(h3:not(:first-child)) {
+	margin-top: 1.75rem;
+}
+
+:where(.log-entry__body, .log-entry__body > section) > :where(h2, h3) + * {
+	margin-top: 0.6rem;
+}
+
+:where(.log-entry__body) > :where(section + section) {
+	margin-top: 2.5rem;
+}
+
+:where(.log-entry__body li + li) {
+	margin-top: 0.4rem;
 }
 
 .log-entry__more {

@@ -71,6 +71,39 @@ test('header nav links are on-screen and receive the tap at 375px', async ({ pag
 	}
 });
 
+// The header and nav are borderless (operator ruling 2026-11-07): no line under
+// them and no outline around them, on a phone and on a desktop, in both schemes.
+// Keyboard focus rings on the links inside are separate and stay.
+for (const width of [375, 1280]) {
+	for (const mode of ['light', 'dark']) {
+		test(`the header and nav draw no line or outline at ${width}px in ${mode}`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 800 });
+			await page.addInitScript((colorMode) => localStorage.setItem('color-mode', colorMode), mode);
+			await page.goto('/join');
+			await expect(page.locator('html')).toHaveAttribute('data-mode', mode);
+			const edges = await page.evaluate(() =>
+				['.site-header', '.site-header__inner', '.site-nav'].map((selector) => {
+					const style = getComputedStyle(document.querySelector(selector)!);
+					return {
+						selector,
+						borders: [
+							style.borderTopWidth,
+							style.borderRightWidth,
+							style.borderBottomWidth,
+							style.borderLeftWidth,
+						].join(' '),
+						outline: style.outlineStyle,
+						shadow: style.boxShadow,
+					};
+				}),
+			);
+			for (const { selector, ...edge } of edges) {
+				expect(edge, selector).toEqual({ borders: '0px 0px 0px 0px', outline: 'none', shadow: 'none' });
+			}
+		});
+	}
+}
+
 // B1 at the 320px reflow floor against a hostile brand: the wordmark column
 // must shrink (grid minmax(0,auto) + min-width: 0) rather than push the nav
 // off the right edge or widen the document.
