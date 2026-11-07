@@ -62,8 +62,8 @@ describe('membership copy invariant', () => {
 });
 
 describe('join path', () => {
-	it('keeps intake closed until the member app opens it', () => {
-		expect(MEMBER_INTAKE).toBe('closed');
+	it('says applications are open, as the member app does', () => {
+		expect(MEMBER_INTAKE).toBe('open');
 		expect(INTEREST_PATH).toBe('/contact');
 	});
 

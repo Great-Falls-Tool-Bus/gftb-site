@@ -155,9 +155,7 @@ test.describe('JavaScript disabled', () => {
 		await page.goto('/join/');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Join the Tool Bus');
 		await expect(page.locator('#steps ol li')).toHaveCount(6);
-		await expect(
-			page.locator('#applications').getByRole('link', { name: "Tell us you're interested" }),
-		).toHaveAttribute('href', '/contact');
+		await expect(page.locator('#applications')).toContainText('Applications are open.');
 	});
 
 	test('the contact form degrades to a plain POST plus an email fallback', async ({ page }) => {
