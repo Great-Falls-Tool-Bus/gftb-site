@@ -98,6 +98,10 @@ export default defineConfig({
 		// Reviewer and dev builds only: PUBLIC_MEMBERSHIP_FIXTURE=1 (or true)
 		// lets ?flags=membership serve a fixture manifest. Any other build
 		// dead-code-eliminates the fixture module and its links.
+		// Public opening (O-M6, TIN-3847): PUBLIC_MEMBERSHIP_PUBLIC=1 fetches the
+		// manifest with no cookie, because every visitor may read it then. Off by
+		// default, exactly 1 turns it on.
+		__MEMBERSHIP_PUBLIC__: JSON.stringify(process.env.PUBLIC_MEMBERSHIP_PUBLIC === '1'),
 		__MEMBERSHIP_FIXTURE__: JSON.stringify(['1', 'true'].includes(process.env.PUBLIC_MEMBERSHIP_FIXTURE ?? '')),
 	},
 
