@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { INTEREST_PATH, MEMBER_INTAKE } from '../src/lib/membership';
+import { MEMBER_INTAKE } from '../src/lib/membership';
 import { membershipCopyViolations } from '../src/lib/membership-copy';
 import { MANIFEST_URL } from '../src/lib/gated/manifest';
 import { MEMBER_MANIFEST, installExternalGuard, routeMemberManifest, stubChallenge } from './support/network';
@@ -65,8 +65,8 @@ test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
 });
 
-test('intake is closed in this build, so the rows below test the closed path', () => {
-	expect(MEMBER_INTAKE).toBe('closed');
+test('intake is open in this build, so the rows below test the open path', () => {
+	expect(MEMBER_INTAKE).toBe('open');
 });
 
 for (const { label, width } of widths) {
@@ -79,7 +79,7 @@ for (const { label, width } of widths) {
 			guardedPage,
 		}) => {
 			const page = await guardedPage('/');
-			await expect(page.locator('#faq-membership + dd')).toContainText('Applications are not open yet.');
+			await expect(page.locator('#faq-membership + dd')).not.toContainText('Applications are not open yet.');
 			// Let the one manifest request come back as an anonymous visitor's does
 			// (Access's HTML, refused by content type) before reading the page.
 			await page.waitForLoadState('networkidle');
@@ -94,23 +94,16 @@ for (const { label, width } of widths) {
 			await expect(page.locator('#faq-membership + dd .join-actions')).toHaveCount(0);
 			await expect(page.locator('.site-footer li:empty')).toHaveCount(0);
 			expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
-			// The contact route stays public.
-			await expect(
-				page.locator('#faq-membership + dd').getByRole('link', { name: 'send us a message' }),
-			).toHaveAttribute('href', INTEREST_PATH);
 		});
 
-		test('an anonymous visitor to /join sees the explanation and the contact route, no sign in', async ({
+		test('an anonymous visitor to /join sees the explanation that applications are open, no sign in', async ({
 			guardedPage,
 		}) => {
 			const page = await guardedPage('/join/');
 			await page.waitForLoadState('networkidle');
 			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Join the Tool Bus');
-			await expect(page.locator('#applications')).toContainText('Applications are not open yet.');
+			await expect(page.locator('#applications')).toContainText('Applications are open.');
 			await expect(page.locator(GATED_LINKS)).toHaveCount(0);
-			await expect(
-				page.locator('#applications').getByRole('link', { name: "Tell us you're interested" }),
-			).toHaveAttribute('href', INTEREST_PATH);
 			await expect(page.locator('#steps ol li')).toHaveCount(6);
 			expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 		});
@@ -133,8 +126,7 @@ for (const { label, width } of widths) {
 			await expect(signIn).toHaveAttribute('target', '_blank');
 			await expect(signIn).toHaveAttribute('rel', /noopener/u);
 			await expect(answer.getByRole('link', { name: 'How membership works' })).toHaveAttribute('href', '/join');
-			await expect(answer).toContainText('Applications are not open yet.');
-			await expect(answer.getByRole('link', { name: 'send us a message' })).toHaveAttribute('href', INTEREST_PATH);
+			await expect(answer).not.toContainText('Applications are not open yet.');
 
 			await apply.scrollIntoViewIfNeeded();
 			await expectInsideViewport(page, '#faq-membership + dd .join-actions .button');
@@ -142,7 +134,7 @@ for (const { label, width } of widths) {
 			expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 		});
 
-		test('for a member, Apply leads to the explanation, where Sign in mounts beside the contact route', async ({
+		test('for a member, Apply leads to the explanation, where Sign in mounts', async ({
 			page,
 			baseUrl,
 		}) => {
@@ -151,14 +143,10 @@ for (const { label, width } of widths) {
 			await expect(page).toHaveURL(/\/join\/?$/u);
 			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Join the Tool Bus');
 			const applications = page.locator('#applications');
-			await expect(applications).toContainText('Applications are not open yet.');
-			await expect(applications.getByRole('link', { name: "Tell us you're interested" })).toHaveAttribute(
-				'href',
-				INTEREST_PATH,
-			);
+			await expect(applications).toContainText('Applications are open.');
 			await expect(applications.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
 			await expect(page.locator('#steps ol li')).toHaveCount(6);
-			await expectInsideViewport(page, '#applications .join-actions .button');
+			await expectInsideViewport(page, '#applications .join-actions a');
 			expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 		});
 	});
@@ -251,7 +239,7 @@ test('a manifest that fails, or lies, mounts nothing', async ({ page, baseUrl })
 	}
 });
 
-test('while intake is closed no page links the member app application form', async ({ page, baseUrl }) => {
+test('no page links the member app application form directly', async ({ page, baseUrl }) => {
 	await asMember(page, baseUrl);
 	for (const path of ['/', '/join/', '/contact']) {
 		await page.goto(path);

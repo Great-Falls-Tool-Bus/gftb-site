@@ -13,7 +13,7 @@
 /** Whether the member app accepts applications. */
 export type MemberIntake = 'open' | 'closed';
 
-export const MEMBER_INTAKE: MemberIntake = 'closed';
+export const MEMBER_INTAKE: MemberIntake = 'open';
 
 /** The on-site explainer's path: still reachable and unlisted, but never linked from public markup. */
 const JOIN_PATH = '/join';
