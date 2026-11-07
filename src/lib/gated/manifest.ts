@@ -38,6 +38,13 @@ export const TAILNET_PROBE_URL: string = typeof __TAILNET_PROBE_URL__ === 'strin
 /** Whether this build may serve the fixture manifest (dev and reviewer builds only). */
 export const FIXTURE_ENABLED: boolean = typeof __MEMBERSHIP_FIXTURE__ === 'boolean' ? __MEMBERSHIP_FIXTURE__ : false;
 
+/**
+ * Whether this build reads the manifest as a public document (O-M6, TIN-3847).
+ * Off, the fetch carries the visitor's Access cookie. On, it carries no cookie.
+ * Who may read the manifest is decided by the member host's edge, not by this flag.
+ */
+export const MEMBERSHIP_PUBLIC: boolean = typeof __MEMBERSHIP_PUBLIC__ === 'boolean' ? __MEMBERSHIP_PUBLIC__ : false;
+
 /** localStorage key for the preview override. */
 export const OVERRIDE_KEY = 'gftb:flags:membership';
 
@@ -244,6 +251,7 @@ export interface ResolveInputs {
 	manifestUrl?: string;
 	tailnetUrl?: string;
 	fixtureEnabled?: boolean;
+	membershipPublic?: boolean;
 	loadFixture?: () => Promise<SurfaceItem[]>;
 	fetchSeams?: FetchSeams;
 }
@@ -272,6 +280,7 @@ export async function resolveSurface({
 	manifestUrl = MANIFEST_URL,
 	tailnetUrl = TAILNET_PROBE_URL,
 	fixtureEnabled = FIXTURE_ENABLED,
+	membershipPublic = MEMBERSHIP_PUBLIC,
 	loadFixture,
 	fetchSeams,
 	getSession = () => null,
@@ -313,7 +322,7 @@ export async function resolveSurface({
 	const items = await fetchManifest(
 		manifestUrl,
 		[pageOrigin, SITE_ORIGIN, ...(memberOrigin ? [memberOrigin] : [])],
-		'include',
+		membershipPublic ? 'omit' : 'include',
 		fetchSeams,
 	);
 	if (canCache()) writeCache(getSession, now(), items);

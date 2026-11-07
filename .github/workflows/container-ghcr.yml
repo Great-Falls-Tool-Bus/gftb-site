@@ -52,5 +52,7 @@ jobs:
           # Repository variable, not a secret: the footer button's tailnet probe
           # URL ships in the public bundle. The repository variable overrides the
           # default of operator ruling 2026-10-05.
+          # Public opening (O-M6, TIN-3847). Unset is off.
+          PUBLIC_MEMBERSHIP_PUBLIC: ${{ vars.PUBLIC_MEMBERSHIP_PUBLIC }}
           PUBLIC_TAILNET_PROBE_URL: ${{ vars.PUBLIC_TAILNET_PROBE_URL || 'https://gftb-probe.taila4c78d.ts.net/v1/tailnet' }}
         run: cd overlay && nix develop . -c just container-image-publish

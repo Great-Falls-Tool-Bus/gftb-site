@@ -31,6 +31,10 @@ declare global {
 	// True only in a dev or reviewer build, which may then serve the fixture
 	// manifest for ?flags=membership. Absent outside a Vite build.
 	const __MEMBERSHIP_FIXTURE__: boolean | undefined;
+
+	// Build-time flag injected by vite.config.ts from PUBLIC_MEMBERSHIP_PUBLIC.
+	// True only in a build for the public opening. Absent outside a Vite build.
+	const __MEMBERSHIP_PUBLIC__: boolean | undefined;
 }
 
 export {};
