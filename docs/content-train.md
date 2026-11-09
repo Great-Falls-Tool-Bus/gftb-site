@@ -128,8 +128,7 @@ without ever being live.
 
 `just log-manifest-check` (wired into `just check`) runs the generator read-only
 inside its registered Bazel test and compares it to the committed copy. It is
-deliberately
-asymmetric: a new draft that never got a manifest entry is safe (there is
+deliberately asymmetric: a new draft that never got a manifest entry is safe (there is
 nothing for it to leak), but a manifest that still lists an entry after it
 flips back to `published: false` fails the check loudly, because that is
 the direction that would actually put a draft in front of a visitor.
@@ -161,15 +160,12 @@ follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/
   and ticket references in the PR description, never in the SVX file. Drafts
   are not private mail storage; do not copy private identities or correspondence
   into them. Never invent details.
-- `published: false` on every entry, no exceptions.
 - A short `<!-- TODO(jess): ... -->` comment at the top of the body,
   matching the templates above, so it's obvious at a
   glance that the body is a draft awaiting the operator's own words.
 - `just check` and `just build` both green, including the leak-scan pass
-  that runs over every draft in the tree, published or not (drafts are
-  still build input and are never a place to stash anything sensitive).
-- A normal PR the operator reviews and merges like any other change. No
-  auto-merge; only the operator or a developer with repository authority merges content PRs.
+  that runs over every draft in the tree, published or not.
+- A normal PR, reviewed like any other change. No auto-merge.
 
 ## Questions people ask
 
