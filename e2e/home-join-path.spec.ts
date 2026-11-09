@@ -163,7 +163,8 @@ test.describe('with the open manifest', () => {
 	test('the FAQ Apply on / goes to the application form', async ({ page, baseUrl }) => {
 		await asMember(page, baseUrl, '/', OPEN_MEMBER_MANIFEST);
 		const answer = page.locator('#faq-membership + dd');
-		await expect(answer.getByRole('link', { name: 'Apply', exact: true })).toHaveAttribute('href', APPLY_URL);
+		// An off-site link's name carries its new-tab notice, so match the start.
+		await expect(answer.getByRole('link', { name: /^Apply\b/u })).toHaveAttribute('href', APPLY_URL);
 		await expect(answer.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
 	});
 
@@ -171,7 +172,7 @@ test.describe('with the open manifest', () => {
 		await asMember(page, baseUrl, '/join/', OPEN_MEMBER_MANIFEST);
 		const applications = page.locator('#applications');
 		await expect(applications).toContainText('Applications are open.');
-		await expect(applications.getByRole('link', { name: 'Apply', exact: true })).toHaveAttribute('href', APPLY_URL);
+		await expect(applications.getByRole('link', { name: /^Apply\b/u })).toHaveAttribute('href', APPLY_URL);
 		await expect(applications.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
 		expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 	});

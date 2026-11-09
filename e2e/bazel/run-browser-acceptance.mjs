@@ -154,7 +154,9 @@ try {
 	// a login page, HTML, which the resolver refuses. Anything else off-origin is aborted.
 	await page.route('**/*', async (route) => {
 		const url = route.request().url();
-		if (new URL(url).origin === baseURL) return route.continue();
+		if (url.startsWith('data:') || url.startsWith('blob:') || new URL(url).origin === baseURL) return route.continue();
+		// MANIFEST_URL in src/lib/gated/manifest.ts:30, spelled out because this
+		// runner imports nothing from the site source.
 		if (url === 'https://members.greatfallstoolbus.org/api/public-surface') {
 			return route.fulfill({
 				status: 200,
@@ -167,7 +169,7 @@ try {
 	});
 	const errors = [];
 	page.on('console', (message) => {
-		if (message.type() === 'error') errors.push(message.text());
+		if (message.type() === 'error') errors.push(`${message.text()} (${message.location().url || 'no url'})`);
 	});
 	page.on('pageerror', (error) => errors.push(String(error)));
 	await page.goto(baseURL, { waitUntil: 'networkidle', timeout: 15_000 });
