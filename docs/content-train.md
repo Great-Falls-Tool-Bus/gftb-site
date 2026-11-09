@@ -160,12 +160,14 @@ follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/
   and ticket references in the PR description, never in the SVX file. Drafts
   are not private mail storage; do not copy private identities or correspondence
   into them. Never invent details.
+- `published: false` on every entry, no exceptions.
 - A short `<!-- TODO(jess): ... -->` comment at the top of the body,
   matching the templates above, so it's obvious at a
   glance that the body is a draft awaiting the operator's own words.
 - `just check` and `just build` both green, including the leak-scan pass
   that runs over every draft in the tree, published or not.
-- A normal PR, reviewed like any other change. No auto-merge.
+- A normal PR the operator reviews and merges like any other change. No
+  auto-merge; only the operator or a developer with repository authority merges content PRs.
 
 ## Questions people ask
 
