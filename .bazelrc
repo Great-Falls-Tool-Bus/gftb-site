@@ -3,7 +3,7 @@
 # Bazel 9.2 + Bzlmod. Canonical Just recipes execute finite Bazel targets. CI
 # resolves those targets through the v4 action fabric; this file contains no
 # cache, executor, provider, or fallback policy.
-# GF first real build proof push, TIN-5447 R700. Comment only.
+# GF first real build proof push, TIN-5447 R700 (gen-9). Comment only.
 #
 # No registry is named here (R574, TIN-7477). MODULE.bazel binds the two
 # first-party modules to their immutable xoxd-ai/bazel-registry commit, and
