@@ -341,12 +341,14 @@ check: hooks-check
 
 # The merge gate (TIN-7477, operator direction 2026-10-28: CI runs only what
 # proves a deploy is safe). The same stamped suite and scanned build as
-# `check`, without the Chromium acceptance specs (tag browser-acceptance),
-# ESLint and Prettier (tag lint) and the hooks mirror. `check` stays the full
-# local suite. A test added to //:ci_validation_suite runs here unless it
-# carries one of those tags.
+# `check`, without the Chromium acceptance specs (tag browser-acceptance) and
+# the hooks mirror. ESLint and Prettier (tag lint) run here too, by operator
+# ruling TIN-8092 (2026-11-09), because the GF validate lane runs //:lint_suite
+# and a format drift otherwise surfaced only at the GF proof. `check` stays the
+# full local suite. A test added to //:ci_validation_suite runs here unless it
+# carries the browser-acceptance tag.
 gate-deploy:
-    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite --test_tag_filters=-browser-acceptance,-lint
+    cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk test //:ci_validation_suite --test_tag_filters=-browser-acceptance
     cd {{ root }} && BUILD_COMMIT_SHA="${BUILD_COMMIT_SHA:-$(git rev-parse HEAD)}" bazelisk build //:scanned_build
     @echo "Deploy gate passed."
 
