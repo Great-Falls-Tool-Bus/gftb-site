@@ -12,7 +12,8 @@ repositories. The contact form sends requests to the `forms.latoolb.us` service.
     cd gftb-site && nix develop
     just setup   # installs the shared hooks and links the Bazel-built packages
     just dev     # development server; `just` lists every recipe
-    just check   # the full suite; its lab-host receipt is the pre-merge gate
+    just check         # the full local suite
+    just gate-deploy   # the merge gate, on a Linux lab host
 
 The contract is [CONTRIBUTING.md](CONTRIBUTING.md) and the standing rules are [docs/operating-rules.md](docs/operating-rules.md).
 Commands, variables, credentials, publication and deployment are in [docs/development.md](docs/development.md).
