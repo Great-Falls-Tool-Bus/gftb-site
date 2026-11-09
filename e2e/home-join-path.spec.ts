@@ -174,6 +174,8 @@ test.describe('with the open manifest', () => {
 		await expect(applications).toContainText('Applications are open.');
 		await expect(applications.getByRole('link', { name: /^Apply\b/u })).toHaveAttribute('href', APPLY_URL);
 		await expect(applications.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
+		// The closed path's contact call to action is gone while intake is open.
+		await expect(applications.getByRole('link', { name: "Tell us you're interested" })).toHaveCount(0);
 		expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 	});
 });
