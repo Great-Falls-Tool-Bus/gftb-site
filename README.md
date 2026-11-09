@@ -3,111 +3,22 @@
 This public repository builds the apex website for the Great Falls Tool Bus
 in Lewiston and Auburn, Maine. It holds page copy, goals, and build 
 logs. SvelteKit produces static files with `adapter-static`.
-
 Member accounts, payments, mail services, and deployment belong to other
 repositories. The contact form sends requests to the `forms.latoolb.us` service.
 
-Jess's internal tooling and the Linear system used to manage this work are
-presently private.  Infrastructure is provided by Tinyland,
-Inc.  GFTB is an alpha adopter of the GloriousFlywheel build system. 
+`just` is the only entrypoint. Work on your own fork, inside the pinned Nix shell:
 
-## Start work
+    gh repo fork Great-Falls-Tool-Bus/gftb-site --clone --remote
+    cd gftb-site && nix develop
+    just setup   # installs the shared hooks and links the Bazel-built packages
+    just dev     # development server; `just` lists every recipe
+    just check   # the full suite; its lab-host receipt is the pre-merge gate
 
-You need Git, Nix, and the GitHub CLI. Work happens on your own fork: fork and
-clone it, enter the pinned Nix shell, then use Just for repository operations:
-
-```bash
-gh repo fork Great-Falls-Tool-Bus/gftb-site --clone --remote
-cd gftb-site
-nix develop
-just setup
-just dev
-```
-
-The fork command names your fork `origin` and this repository `upstream`.
-Push branches to `origin` and open pull requests from there; see
-[CONTRIBUTING.md](CONTRIBUTING.md) and
-[docs/operating-rules.md](docs/operating-rules.md).
-
-`just setup` installs the shared git hooks and runs `bazelisk run //:ide_setup`,
-which links `node_modules/` into the Bazel-built package store and copies the
-SvelteKit types, so editors and the type server resolve the locked packages.
-No host package manager runs: the lock lives in the `xoxd_npm_gftb_site_lock`
-payload module (`xoxd-ai/bazel-payloads`), and Bazel is the only installer.
-`just dev` starts the development server. Run `just` to list all recipes. Do not run package or build tools
-directly. Nix supplies the tools; the Justfile supplies the commands.
-
-| Task | Command |
-| --- | --- |
-| Run unit tests | `just test-unit` |
-| Run every e2e spec in Chromium | `just test-e2e` |
-| Prove the lint closure reads no npm | `just lint-closure` |
-| Check repository contracts | `just conformance` |
-| Run the full validation suite | `just check` |
-| Build and scan the static site | `just build` |
-| Update the daily-log manifest | `just log-manifest-build` |
-| Update the goals manifest | `just goals-manifest-build` |
-| Update the work-session hours manifest | `just hours-manifest-build` |
-| Update page source links | `just source-map-build` |
-
-The full validation suite includes browser tests that require GF's supplied
-Chromium.  `just build` writes to `build/` and refuses an existing destination.
-
-## Variables and credentials
-
-Content editing does not require a site `.env` file. Keep GitHub write access
-in your account's credential configuration. Never commit credentials or put
-them in site content, build output, or PR text.
-
-| Name | When it is needed |
-| --- | --- |
-| `BASE_PATH` | Optional build prefix. Leave it unset for the apex site. |
-| `BUILD_COMMIT_SHA`, `BUILD_COMMIT_REF` | The candidate publisher supplies the exact source commit and ref. Ordinary development may use the default unknown stamp. |
-| `GFTB_LEAK_SCAN_DENY` | Optional comma-separated private literals for `just leak-scan`. Supply them privately; never commit the values. |
-| `GHCR_USER`, `GHCR_TOKEN` | Candidate publication only. The workflow uses the GitHub actor and its temporary `GITHUB_TOKEN`. These are not developer setup inputs. |
-
-Deployment credentials belong to `great-falls-tool-bus-infra`. Its attended
-release uses `WEB_APPLY_SHA` and `WEB_APPLY_IMAGE` for the source and image
-digest, and `WEB_APPLY_KUBECONFIG` for apply access. Separate proof access uses
-`WEB_RELEASE_KUBECONFIG`. These kubeconfigs must be private, operator-owned
-mode-0600 files outside every Git repository. A gated served check also needs
-`CF_ACCESS_COOKIE_JAR` with the same private file custody. See the
-[owner release runbook](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/blob/main/docs/runbooks/oncluster-web-cutover.md)
-for the full input list and checks. Do not copy those credentials here please.
-
-## Source, publication, and deployment
-
-The current source declares two GF actions: `validate` runs the registered
-checks, and `site-build` requests the scanned deployment bundle. Both are
-declared, with their result disposition, in `.github/lanes.json`. See
-[the operating rules](docs/operating-rules.md) for their exact targets.
-
-The candidate workflow, now dispatch-only, calls `just container-image-publish`
-on Linux. No workflow runs on push or pull request; the pre-merge gate is a
-lab-host `just check` receipt or the ruling's equivalent-validator source
-receipt posted on the PR. The source receipt does not qualify the full
-GF-image-bound Chromium suite or remote Execute.
-
-It packages the static build as
-`ghcr.io/great-falls-tool-bus/gftb-site:sha-<40-character-sha>`. It does not
-deploy. The release lane may make this web image package publicly
-readable after review and must prove a digest pull before GF v4 stack cutover. 
-
-The infra repository owns the existing attended release: select the reviewed
-source and digest, apply them, and read back the running and served site.
-Automatic GF deployment from `main` to production is still pending. A source
-merge or image push alone does not prove that production serves that version.
-
-## Content and licensing
-
-Static build logs live in `src/content/log/`. Use only the frontmatter fields allowed
-by [the content contract](docs/operating-rules.md#public-content-boundary), including its
-optional image group. Follow [the content guide](docs/content-train.md) for the
-review process. Only `published: true` entries enter the public manifest.
-Unpublished drafts are readable on GitHub. `published: false` controls rendered
-site inclusion only. Drafts must contain no private text, and the output scan
-checks that their content does not ship. Keep tracker IDs, PR numbers, commit
-IDs, and private operational notes out of public logs.
+The contract is [CONTRIBUTING.md](CONTRIBUTING.md) and the standing rules are [docs/operating-rules.md](docs/operating-rules.md).
+Commands, variables, credentials, publication and deployment are in [docs/development.md](docs/development.md).
+Public log entries follow [the content contract](docs/operating-rules.md#public-content-boundary) and [the content guide](docs/content-train.md). Never commit credentials.
+Owner release runbooks are in [great-falls-tool-bus-infra](https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra/tree/main/docs/runbooks). Decisions are in [meta](https://github.com/Great-Falls-Tool-Bus/meta).
+Infrastructure is provided by Tinyland, Inc. GFTB is an alpha adopter of the GloriousFlywheel build system.
 
 Software uses the zlib license. GFTB writing uses CC BY-SA 4.0. Third-party
 credits are in [NOTICE](NOTICE) and [the attribution record](docs/attribution.md).
