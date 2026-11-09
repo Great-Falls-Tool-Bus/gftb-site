@@ -2,19 +2,19 @@
 	import GatedSlot from '#lib/components/GatedSlot.svelte';
 	import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE } from '#lib/membership.js';
 
-	// How membership works, and the one place every Apply call to action
-	// lands while applications are closed (src/lib/membership.ts). The member
-	// app owns the application itself; this page only explains it and links
-	// out. The steps and the contribution answer follow the ratified
-	// membership rules: application, tour, keyholder approval, and a
-	// contribution that is optional, separate, and may be $0.
+	// How membership works. MEMBER_INTAKE (src/lib/membership.ts) picks the
+	// sentence under Applications; the member app owns the application itself,
+	// and this page only explains it and links out. The steps and the
+	// contribution answer follow the ratified membership rules: application,
+	// tour, keyholder approval, and a contribution that is optional, separate,
+	// and may be $0.
 	//
 	// This page stays prerendered and directly reachable but unlisted: the
 	// layout marks it noindex, and it is left out of the sitemap and the source
-	// map (so it carries no "Edit this page" link). Its own sign in (and the
-	// Apply button while intake is open) come from the gated manifest and mount
-	// only for a member (src/lib/gated/manifest.ts); the contact call to action
-	// stays public.
+	// map (so it carries no "Edit this page" link). Its Apply and sign in links
+	// come from the member app's manifest (src/lib/gated/manifest.ts), which
+	// every visitor can read once the member host is public; while intake is
+	// closed, the contact call to action takes Apply's place.
 </script>
 
 <div class="page-shell">

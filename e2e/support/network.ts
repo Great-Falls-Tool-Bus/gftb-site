@@ -66,6 +66,20 @@ export async function stubAnonymousManifest(page: Page): Promise<void> {
 /** The member's manifest: every slot, as the member app serves it while intake is closed. */
 export const MEMBER_MANIFEST = { items: FIXTURE_ITEMS };
 
+const MEMBERS_APPLY = 'https://members.greatfallstoolbus.org/apply';
+
+/**
+ * The manifest while intake is open, in the member app's own shape
+ * (greatfallstoolbus.org `src/lib/server/public-surface.ts`): the FAQ Apply
+ * points at the application form, and /join gains its own Apply beside sign in.
+ */
+export const OPEN_MEMBER_MANIFEST = {
+	items: [
+		...FIXTURE_ITEMS.map((item) => (item.kind === 'apply' ? { ...item, href: MEMBERS_APPLY } : item)),
+		{ slot: 'join-sign-in', kind: 'apply', label: 'Apply', href: MEMBERS_APPLY },
+	],
+};
+
 /**
  * Answers the gated manifest as the member app does for a visitor with an
  * Access session. Register after the external guard.
