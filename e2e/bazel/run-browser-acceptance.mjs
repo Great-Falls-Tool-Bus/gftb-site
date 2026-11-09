@@ -147,6 +147,24 @@ try {
 		args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
 	});
 	const page = await browser.newPage();
+	// The smoke reads the built page alone, so nothing off-origin may answer it.
+	// Since the member host opened (TIN-3847) its manifest answers JSON to the
+	// real site origin only, and a live fetch from this loopback origin fails CORS.
+	// The manifest gets what the specs' anonymous visitor gets (e2e/support/network.ts):
+	// a login page, HTML, which the resolver refuses. Anything else off-origin is aborted.
+	await page.route('**/*', async (route) => {
+		const url = route.request().url();
+		if (new URL(url).origin === baseURL) return route.continue();
+		if (url === 'https://members.greatfallstoolbus.org/api/public-surface') {
+			return route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				headers: { 'access-control-allow-origin': baseURL, 'access-control-allow-credentials': 'true' },
+				body: '<!doctype html><title>Sign in</title>',
+			});
+		}
+		return route.abort('blockedbyclient');
+	});
 	const errors = [];
 	page.on('console', (message) => {
 		if (message.type() === 'error') errors.push(message.text());
