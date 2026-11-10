@@ -5,14 +5,16 @@
 // The membership links (header Join, the FAQ Apply and Member sign in, the
 // "How membership works" links, the footer Join and Member sign in, and the
 // /join page's own sign in) are NOT in this site's HTML or JavaScript. The
-// member app serves them as a JSON manifest from its own host, which sits
-// wholly behind Cloudflare Access. This module fetches that manifest with the
-// visitor's Access cookie (`credentials: 'include'`; a cross-origin import()
-// sends no cookies, so the code-split is a data fetch), validates it, and
-// hands the items to <GatedSlot>. Anyone without a session gets the Access
-// login redirect or a CORS refusal, and every failure resolves to no items:
-// the slots render nothing and the layout closes up around them. The only
-// thing the public bundle holds is the manifest URL below.
+// member app serves them as a JSON manifest from its own host. That host was
+// wholly behind Cloudflare Access until it opened to the public on 2026-11-09
+// (TIN-3847); since then it answers every visitor from this site's origin. This
+// module fetches the manifest with credentials (`credentials: 'include'`, which
+// still carries an Access cookie if the host is gated again; a cross-origin
+// import() sends no cookies, so the code-split is a data fetch), validates it,
+// and hands the items to <GatedSlot>. A gated host answers a visitor without a
+// session with the Access login redirect or a CORS refusal, and every failure
+// resolves to no items: the slots render nothing and the layout closes up
+// around them. The only thing the public bundle holds is the manifest URL below.
 //
 // Sources, concurrently, first valid manifest wins:
 // (a) the members manifest, credentialed;

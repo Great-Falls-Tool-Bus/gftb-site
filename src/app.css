@@ -1551,16 +1551,19 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-top: var(--prose-gap);
 }
 
+/* Every rule here has zero specificity, so order decides. The tight gap after a
+ * heading comes first, so a heading that follows another heading keeps its own
+ * larger gap instead of 0.6rem. */
+:where(.log-entry__body, .log-entry__body > section) > :where(h2, h3) + * {
+	margin-top: 0.6rem;
+}
+
 :where(.log-entry__body, .log-entry__body > section) > :where(h2:not(:first-child)) {
 	margin-top: 2.5rem;
 }
 
 :where(.log-entry__body, .log-entry__body > section) > :where(h3:not(:first-child)) {
 	margin-top: 1.75rem;
-}
-
-:where(.log-entry__body, .log-entry__body > section) > :where(h2, h3) + * {
-	margin-top: 0.6rem;
 }
 
 :where(.log-entry__body) > :where(section + section) {

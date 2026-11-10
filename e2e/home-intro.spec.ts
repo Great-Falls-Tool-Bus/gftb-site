@@ -9,6 +9,7 @@
 // link.
 import { expect, test, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
+import { stubAnonymousManifest } from './support/network';
 import { forceTierMax } from './support/wiper-tier';
 
 const intro = (page: Page) => page.getByTestId('home-intro');
@@ -84,6 +85,8 @@ test.describe('motion allowed', () => {
 		page,
 	}) => {
 		const problems = cleanConsole(page);
+		// The live member host answers the manifest to the real site origin only (TIN-3847).
+		await stubAnonymousManifest(page);
 		const start = Date.now();
 		await page.goto('/');
 		// The veil holds while the canvases are pending and lifts once they report a rung.

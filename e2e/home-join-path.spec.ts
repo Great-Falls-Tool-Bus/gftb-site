@@ -3,7 +3,13 @@ import { expect, test } from './support/fixtures';
 import { MEMBER_INTAKE } from '../src/lib/membership';
 import { membershipCopyViolations } from '../src/lib/membership-copy';
 import { MANIFEST_URL } from '../src/lib/gated/manifest';
-import { MEMBER_MANIFEST, installExternalGuard, routeMemberManifest, stubChallenge } from './support/network';
+import {
+	MEMBER_MANIFEST,
+	OPEN_MEMBER_MANIFEST,
+	installExternalGuard,
+	routeMemberManifest,
+	stubChallenge,
+} from './support/network';
 import { skipHomeIntro } from './support/intro';
 
 // The public join path and the membership copy invariant, over the served
@@ -134,10 +140,7 @@ for (const { label, width } of widths) {
 			expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 		});
 
-		test('for a member, Apply leads to the explanation, where Sign in mounts', async ({
-			page,
-			baseUrl,
-		}) => {
+		test('for a member, Apply leads to the explanation, where Sign in mounts', async ({ page, baseUrl }) => {
 			await asMember(page, baseUrl);
 			await page.locator('#faq-membership + dd').getByRole('link', { name: 'Apply', exact: true }).click();
 			await expect(page).toHaveURL(/\/join\/?$/u);
@@ -151,6 +154,31 @@ for (const { label, width } of widths) {
 		});
 	});
 }
+
+// The open manifest, as production serves it since the opening (TIN-3847): the
+// rows above use the closed fixture, where Apply leads to /join.
+test.describe('with the open manifest', () => {
+	const APPLY_URL = `${MEMBERS_HOST}/apply`;
+
+	test('the FAQ Apply on / goes to the application form', async ({ page, baseUrl }) => {
+		await asMember(page, baseUrl, '/', OPEN_MEMBER_MANIFEST);
+		const answer = page.locator('#faq-membership + dd');
+		// An off-site link's name carries its new-tab notice, so match the start.
+		await expect(answer.getByRole('link', { name: /^Apply\b/u })).toHaveAttribute('href', APPLY_URL);
+		await expect(answer.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
+	});
+
+	test('/join shows that applications are open and links the application form', async ({ page, baseUrl }) => {
+		await asMember(page, baseUrl, '/join/', OPEN_MEMBER_MANIFEST);
+		const applications = page.locator('#applications');
+		await expect(applications).toContainText('Applications are open.');
+		await expect(applications.getByRole('link', { name: /^Apply\b/u })).toHaveAttribute('href', APPLY_URL);
+		await expect(applications.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
+		// The closed path's contact call to action is gone while intake is open.
+		await expect(applications.getByRole('link', { name: "Tell us you're interested" })).toHaveCount(0);
+		expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+	});
+});
 
 test('the layout shifts with the gated items: a member page is taller, an anonymous page leaves no gap', async ({
 	page,
