@@ -171,11 +171,14 @@ whose archive is not public.
 - `.github/lanes.json` is the source-only ActionPlan/v4 schema-3 plan: finite
   Bazel targets, one abstract REAPI capability demand, and one closed result
   disposition per action. Its one action, `validate`, requests
-  `test //:lint_suite` (ESLint and Prettier), per operator ruling 2026-10-29
-  (TIN-7477). `//:eslint_test` reads sources only, so no spawn in the suite
-  has an input tree above the remote worker's 2,097,152,000 byte limit. It is
-  unstamped, so a later commit that leaves the lint inputs unchanged repeats
-  the same action digests and is served from the action cache.
+  `test //:validate_suite`: the two `//:lint_suite` tests (ESLint and
+  Prettier, operator ruling 2026-10-29, TIN-7477), the four manifest drift
+  tests, the declared-source Gitleaks scan and the actionlint workflow check
+  (TIN-5447). Each reads sources, the P1 lint payload packages or a
+  checksummed multitool binary, so no spawn in the suite has an input tree
+  above the remote worker's 2,097,152,000 byte limit. The suite is
+  unstamped, so a later commit that leaves its inputs unchanged repeats the
+  same action digests and is served from the action cache.
   `//:ci_validation_suite` (Chromium acceptance specs, `svelte-check`) and
   the stamped `//:deployment_bundle` stay on the lab-host `just check` and
   `just gate-deploy` lane until they are ported; `//:deployment_bundle`

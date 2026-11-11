@@ -324,8 +324,8 @@ leak-scan build_dir="build":
     cd {{ root }} && bazelisk run //:leak_scan_build_bin -- "$(realpath -- '{{ build_dir }}')"
 
 # Local entrypoint for the full cacheable suite. The v4 `validate` action
-# selects only //:lint_suite (TIN-7477); this suite stays a lab-host gate until
-# it is ported. //:deployment_bundle independently enforces the scanned
+# selects only //:validate_suite (TIN-7477, TIN-5447); this suite stays a
+# lab-host gate until it is ported. //:deployment_bundle independently enforces the scanned
 # artifact boundary.
 #
 # The suite is the merge gate, so it stamps the checked-out commit:

@@ -3,7 +3,7 @@
 	"actions": {
 		"validate": {
 			"command": "test",
-			"targets": ["//:lint_suite"],
+			"targets": ["//:validate_suite"],
 			"capability": "rbe-linux-x86_64",
 			"result": { "mode": "status-only" }
 		}
