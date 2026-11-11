@@ -56,6 +56,12 @@ if [[ -n "${probe_url}" && ! "${probe_url}" =~ ${probe_url_re} ]]; then
   probe_url="__INVALID__"
 fi
 
+# Membership surface public switch (O-M6, TIN-3847). Exactly 1 turns it on, and
+# anything else stamps the empty marker.
+membership_public="${PUBLIC_MEMBERSHIP_PUBLIC:-}"
+[[ "${membership_public}" == "1" ]] || membership_public=""
+
 printf 'STABLE_BUILD_BASE_PATH %s\n' "${base_path:-__EMPTY__}"
 printf 'STABLE_BUILD_COMMIT_SHA %s\n' "${commit_sha}"
 printf 'STABLE_BUILD_TAILNET_PROBE_URL %s\n' "${probe_url:-__EMPTY__}"
+printf 'STABLE_BUILD_MEMBERSHIP_PUBLIC %s\n' "${membership_public:-__EMPTY__}"

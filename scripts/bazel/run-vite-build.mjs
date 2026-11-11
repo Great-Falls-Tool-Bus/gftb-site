@@ -21,6 +21,7 @@ const childEnvironment = {
 	BUILD_OUTPUT_DIR: resolve(actionRoot, options.outputDir),
 	// Always set, so the build sees the stamped value and never an ambient one.
 	PUBLIC_TAILNET_PROBE_URL: metadata.tailnetProbeUrl,
+	PUBLIC_MEMBERSHIP_PUBLIC: metadata.membershipPublic ? '1' : '',
 };
 if (options.analyze) {
 	childEnvironment.ANALYZE = '1';

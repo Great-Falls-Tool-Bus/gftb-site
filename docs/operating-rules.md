@@ -126,6 +126,11 @@ whose archive is not public.
   directory, or a file whose extension is in neither `TEXT_EXTENSIONS` nor
   `SKIP_EXTENSIONS`, is a failure. Set `GFTB_LEAK_SCAN_DENY` to add
   operator-held literals; never commit them.
+- `PUBLIC_MEMBERSHIP_PUBLIC`, exactly `1` (O-M6, TIN-3847, default off), builds
+  the site for the public opening: it fetches the membership manifest with no
+  cookie. It reveals nothing itself. The links show to every visitor as soon as
+  the member host's edge lets everyone read the manifest, with this flag on or
+  off. Set the repository variable only after the edge readback.
 - `PUBLIC_TAILNET_PROBE_URL` (the footer button's tailnet probe) ships in the
   public bundle; it is a name, not a secret. Operator ruling 2026-10-05
   ("Set, gated by a footer button that opens a modal to ask for permission
