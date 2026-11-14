@@ -12,7 +12,7 @@
 	import GatedSlot from '#lib/components/GatedSlot.svelte';
 	import TailnetPrompt from '#lib/components/TailnetPrompt.svelte';
 	import { gatedSurface } from '#lib/gated/surface.svelte.js';
-	import { isUnlistedPath } from '#lib/membership.js';
+	import { pageTitle } from '#lib/page-title.js';
 	import BusMark from '#lib/components/BusMark.svelte';
 	import ToolBusMark from '#lib/components/ToolBusMark.svelte';
 	import { theme } from '#lib/theme.svelte.js';
@@ -155,8 +155,8 @@
 	const siteUrl = 'https://greatfallstoolbus.org';
 	// TODO(jess): document title. The tagline "— tools, skills, and shared
 	// work" was stripped (salvaged from restoration PR-5: em-dash AI-tell +
-	// triad); the interim title is the bare project name.
-	const title = 'Great Falls Tool Bus';
+	// triad); the interim title is the bare project name. Every other page
+	// adds its own name in front (src/lib/page-title.ts).
 	// TODO(jess): site description. "mobile" was stripped (the bus is
 	// permanently parked; salvaged from restoration PR-5). Must stay
 	// byte-identical with the <meta name="description"> in src/app.html (the
@@ -185,7 +185,7 @@
 	const isErrorSurface = $derived(page.url.pathname === '/404' || page.status >= 400);
 	// The "·" separator replaces an em-dash (salvaged from restoration PR-5;
 	// "·" is the separator the site already uses in the footer).
-	const headTitle = $derived(isErrorSurface ? 'Page not found · Great Falls Tool Bus' : title);
+	const headTitle = $derived(isErrorSurface ? 'Page not found · Great Falls Tool Bus' : pageTitle(page.url.pathname));
 	const headDescription = $derived(
 		isErrorSurface ? 'This address is not part of the Great Falls Tool Bus site.' : description,
 	);
@@ -198,7 +198,7 @@
 	description={headDescription}
 	siteName="Great Falls Tool Bus"
 	origin={siteUrl}
-	noindex={isErrorSurface || isUnlistedPath(currentPath)}
+	noindex={isErrorSurface}
 	canonical={isErrorSurface ? null : undefined}
 	jsonLd={isErrorSurface ? null : jsonLd}
 	image={`${siteUrl}/og/toolbus-1200x630.png`}
@@ -268,9 +268,17 @@
 						>
 					{/if}
 				{/each}
-				<!-- Join comes from the gated manifest and mounts only for a member;
-				     for everyone else there is no element and no gap. -->
-				<GatedSlot slot="header-join" />
+				<!-- Join is a plain link in the served HTML (operator ruling
+				     2026-11-14, which narrows the 2026-10-04 gated-surface ruling for
+				     /join only). data-public-join marks it as one of the two sanctioned
+				     /join anchors, header and hero, that the gated-join-link leak-scan
+				     rule lets through. The manifest's header-join item is no longer
+				     rendered. -->
+				<a
+					data-public-join="header"
+					href="/join/"
+					aria-current={isActivePath(currentPath, ['/join']) ? 'page' : undefined}>Join</a
+				>
 				<!-- D01 placement: the mode switch rides the third header column
 				     beside the anchors — the demo's AppBar.Trail position. -->
 				<ThemeSwitcher />

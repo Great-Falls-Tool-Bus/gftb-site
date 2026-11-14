@@ -115,12 +115,17 @@
 				</li>
 				<li>Try out a new winter sport this season by joining the Great Falls Tool Bus</li>
 			</ul>
-			<!-- Row 3 (spec §3 :87): the one primary interest/help CTA, pointing
-			     at the contact page (B1.4: the form lives on its own page).
+			<!-- Row 3 (spec §3 :87): the join path leads, the contact page
+			     follows (operator approval 2026-11-14). Join is a plain link in the
+			     served HTML (operator ruling 2026-11-14, narrowing the 2026-10-04
+			     gated-surface ruling for /join only), so it is there without
+			     JavaScript and nothing shifts when the manifest arrives. The
+			     data-public-join mark is what the gated-join-link leak-scan rule
+			     lets through, in the header and here only.
 			     TODO(jess): CTA wording (interim label salvaged from PR-5). -->
 			<div class="button-row">
-				<a class="button" href="/contact">Help build the bus</a>
-				<a class="button button--secondary" href="/log">Read the log</a>
+				<a class="button" data-public-join="hero" href="/join/">Join</a>
+				<a class="button button--secondary" href="/contact">Help build the bus</a>
 			</div>
 		</div>
 
@@ -195,7 +200,14 @@
 				{#if memberBenefits.length > 0}
 					<div class="goal-aside" id="benefits">
 						<h3>What members get</h3>
-						<p class="muted">Member accounts are not live yet. When membership opens, it is planned to include:</p>
+						<!-- What is live today and what is still coming, in the benefit
+						     rows themselves (src/content/goals/8x-benefit-*.md). A row
+						     that is not live says so in its own words. -->
+						<p class="muted">
+							{MEMBER_INTAKE === 'open'
+								? 'Applications are open. Members get:'
+								: 'Applications are not open yet. Members get:'}
+						</p>
 						<ul class="plain-list">
 							{#each memberBenefits as benefit (benefit.slug)}
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>

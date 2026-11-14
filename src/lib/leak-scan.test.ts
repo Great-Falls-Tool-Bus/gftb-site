@@ -199,6 +199,9 @@ describe('leak-scan detections', () => {
 	// Operator interview 2026-10-04 (TIN-5371, TIN-5351): the gated membership
 	// links live in the member app's manifest, never in public HTML or JS. The
 	// manifest URL itself is the one member-app address the bundle may hold.
+	// Operator ruling 2026-11-14 narrows that for /join only: the header and hero
+	// Join links, marked data-public-join, may be plain links. Every other /join
+	// anchor and every member-app address stays forbidden.
 	it('forbids member-app addresses and /join links in public output, but allows the manifest URL', () => {
 		const manifest = 'https://members.greatfallstoolbus.org/api/public-surface';
 		expect(idsFiring(`const u="${manifest}";`)).not.toContain('gated-member-app-url');
@@ -222,8 +225,32 @@ describe('leak-scan detections', () => {
 			'<a href="https://greatfallstoolbus.org/join">Join</a>',
 			'{href:"/join",label:"Join"}',
 			'$.set_attribute(a,"href","/join")',
+			// Only the header and hero marks pass, and a mark covers its own anchor only.
+			'<a data-public-join="footer" href="/join/">Join</a>',
+			'<a data-public-join="heroic" href="/join/">Join</a>',
+			'<a data-public-join="" href="/join/">Join</a>',
+			'<a data-public-join="hero" href="/join/">Join</a><a href="/join/">Join</a>',
+			'<a class="button" href="/join/" title="data-public-join=hero">Join</a>',
 		]) {
 			expect(idsFiring(leaked), leaked).toContain('gated-join-link');
+		}
+		// The plain header and hero Join links (operator ruling 2026-11-14), as the
+		// prerendered HTML and the compiled client template carry them.
+		for (const sanctioned of [
+			'<a data-public-join="header" href="/join/">Join</a>',
+			'<a data-public-join="header" href="/join/" aria-current="page">Join</a>',
+			'<a class="button" data-public-join="hero" href="/join/">Join</a>',
+			'`<a data-public-join="header" href="/join/">Join</a>`',
+			'<a data-public-join=hero href=/join/>Join</a>',
+		]) {
+			expect(idsFiring(sanctioned), sanctioned).not.toContain('gated-join-link');
+		}
+		// The mark lifts nothing else: a marked anchor to the member host still fails.
+		for (const leaked of [
+			'<a data-public-join="header" href="https://members.greatfallstoolbus.org/apply">Apply</a>',
+			'<a data-public-join="hero" href="https://members.greatfallstoolbus.org/login">Sign in</a>',
+		]) {
+			expect(idsFiring(leaked), leaked).toContain('gated-member-app-url');
 		}
 		for (const fine of [
 			'<a href="/joinery">x</a>',

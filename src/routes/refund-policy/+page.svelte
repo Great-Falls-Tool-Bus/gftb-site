@@ -47,9 +47,8 @@
 
 			<h2>Card contributions</h2>
 			<p>
-				Card contributions are not open yet, and nobody is being charged by card. Today a keyholder can record a cash or
-				check contribution, or a contribution of $0. When card contributions open, this page will say how to cancel a
-				recurring one.
+				Today a keyholder can record a cash or check contribution, or a contribution of $0. When card contributions
+				open, this page will say how to cancel a recurring one.
 			</p>
 
 			<h2>Cash or check contributions</h2>

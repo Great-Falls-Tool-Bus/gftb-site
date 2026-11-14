@@ -126,11 +126,13 @@ test('a long brand string cannot push the nav off-edge at 320px', async ({ page 
 	expect(state.navLinks.length).toBeGreaterThan(0);
 	expect(state.navLinks.every(Boolean), 'nav links all fully on-screen with the fixture brand').toBe(true);
 	expect(state.scrollWidth, 'document overflow with the fixture brand').toBeLessThanOrEqual(state.innerWidth + 1);
-	// The wordmark clamps at three lines, so a hostile brand cannot grow the
-	// sticky header without bound (unclamped, this fixture reached ~192px —
+	// The wordmark clamps, so a hostile brand cannot grow the sticky header
+	// without bound (unclamped, this fixture reached ~192px —
 	// more than half of a 320x568 viewport gone to chrome). Ceiling re-tuned
 	// for the ported demo type scale (18px base, B1.3): three clamped lines
-	// measure ~87px; 92 keeps the bound tight.
+	// measured ~87px; 92 keeps the bound tight. Below 28rem the clamp is four
+	// lines at line-height 1 (72px), and the wrapped nav sets the header height:
+	// 83px measured at 320 and 375 with this fixture.
 	expect(state.headerHeight, 'sticky header height with the fixture brand').toBeLessThanOrEqual(92);
 });
 

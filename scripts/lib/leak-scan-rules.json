@@ -111,8 +111,8 @@
 		},
 		{
 			"id": "gated-join-link",
-			"description": "an anchor to /join in public markup or script (the join links come only from the gated manifest, 2026-10-04); a canonical link on the page itself is not an anchor",
-			"pattern": "(?:<a\\b[^<>]*?\\bhref=[\"']?|\\bhref[\"']?\\s*[:,]\\s*[\"'`])(?:https?://greatfallstoolbus\\.org)?/join/?(?=[\\s\"'`>?#}),;]|$)",
+			"description": "an anchor to /join in public markup or script (the join links come only from the gated manifest, 2026-10-04), except an anchor marked data-public-join=header or data-public-join=hero (the plain header and hero Join links, operator ruling 2026-11-14); a canonical link on the page itself is not an anchor",
+			"pattern": "(?:<a\\b(?![^<>]*\\sdata-public-join=[\"']?(?:header|hero)[\"'\\s>])[^<>]*?\\bhref=[\"']?|\\bhref[\"']?\\s*[:,]\\s*[\"'`])(?:https?://greatfallstoolbus\\.org)?/join/?(?=[\\s\"'`>?#}),;]|$)",
 			"flags": "iu"
 		},
 		{
