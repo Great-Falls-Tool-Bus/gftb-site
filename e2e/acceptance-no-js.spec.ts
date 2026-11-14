@@ -7,12 +7,16 @@ import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
 import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 import { forceTierMax } from './support/wiper-tier';
 
-/** Every link into the member app or the /join explainer, however spelled. */
+/**
+ * Every link into the member app or the /join explainer, however spelled,
+ * except the plain header and hero Join links (operator ruling 2026-11-14),
+ * which carry data-public-join.
+ */
 const GATED_LINKS = [
 	'a[href*="members.greatfallstoolbus.org"]',
-	'a[href="/join"]',
-	'a[href^="/join/"]',
-	'a[href^="/join#"]',
+	'a[href="/join"]:not([data-public-join])',
+	'a[href^="/join/"]:not([data-public-join])',
+	'a[href^="/join#"]:not([data-public-join])',
 	'a[href^="https://greatfallstoolbus.org/join"]',
 ].join(', ');
 
@@ -119,13 +123,12 @@ test.describe('JavaScript disabled', () => {
 		// The nav SSOT's primary items (Log, Contact, FAQ since the operator
 		// ruling of 2026-09-19, GitHub since 2026-08-31, Discussion archive since
 		// 2026-09-01); the count derives from the SSOT so it cannot drift. Join
-		// is not in the SSOT: it comes from the gated manifest (operator
-		// interview 2026-10-04), which never loads without scripts, so there is
-		// no Join element at all.
+		// is not in the SSOT: it is a plain link after the SSOT items in the
+		// served HTML (operator ruling 2026-11-14), so it is there without scripts.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
-		await expect(headerLinks).toHaveCount(primaryNavItems.length);
-		await expect(page.locator('.site-nav a[href="/join"]')).toHaveCount(0);
-		await expect(headerLinks).toHaveText(['Log', 'Contact', 'FAQ', /^GitHub/u, /^Discussion archive/u]);
+		await expect(headerLinks).toHaveCount(primaryNavItems.length + 1);
+		await expect(page.locator('.site-nav a[data-public-join="header"][href="/join/"]')).toHaveCount(1);
+		await expect(headerLinks).toHaveText(['Log', 'Contact', 'FAQ', /^GitHub/u, /^Discussion archive/u, 'Join']);
 
 		expect(await unresolvedHomeHashes(page), 'scriptless home hash targets without matching elements').toEqual([]);
 
@@ -136,21 +139,35 @@ test.describe('JavaScript disabled', () => {
 	});
 
 	// Operator interview 2026-10-04 (TIN-5371, TIN-5351): the gated membership
-	// links are not in the served HTML at all, so without scripts there is
-	// nothing to hide and nothing to show. Absence, not visibility: the raw
-	// markup carries no member-app address and no link into /join.
-	test('no gated membership link or member-app address is in the HTML without scripts', async ({ page, request }) => {
+	// links are not in the served HTML at all. Operator ruling 2026-11-14 lifts
+	// that for /join only: the header Join on every page and the hero Join on
+	// the home page are plain links. Everything else stays absent, and the raw
+	// markup carries no member-app address.
+	test('only the header and hero Join links, and no member-app address, are in the HTML without scripts', async ({
+		page,
+		request,
+	}) => {
 		for (const path of ['/', '/join/', '/contact']) {
 			await page.goto(path);
 			await expect(page.locator(GATED_LINKS), path).toHaveCount(0);
 			await expect(page.getByRole('link', { name: /^Member sign in/u }), path).toHaveCount(0);
-			await expect(page.getByRole('link', { name: 'Join', exact: true }), path).toHaveCount(0);
+			await expect(page.locator('.site-nav a[data-public-join="header"][href="/join/"]'), path).toHaveCount(1);
+			await expect(page.locator('a[data-public-join="hero"]'), path).toHaveCount(path === '/' ? 1 : 0);
 			await expect(page.locator('#faq-membership + dd .join-actions'), path).toHaveCount(0);
 			const html = await (await request.get(path)).text();
 			expect(html, path).not.toContain('members.greatfallstoolbus.org');
-			expect(html, path).not.toMatch(/<a\b[^>]*\shref=["']?(?:https:\/\/greatfallstoolbus\.org)?\/join/u);
+			const joinAnchors = html.match(/<a\b[^>]*\shref=["']?(?:https:\/\/greatfallstoolbus\.org)?\/join[^>]*>/gu) ?? [];
+			expect(joinAnchors.length, path).toBe(path === '/' ? 2 : 1);
+			for (const anchor of joinAnchors) expect(anchor, path).toMatch(/\sdata-public-join="(?:header|hero)"/u);
 			expect(html, path).not.toContain('Member sign in');
 		}
+		// The hero leads with Join and Contact follows, already in the served HTML,
+		// so nothing in the row moves when the manifest arrives.
+		await page.goto('/');
+		const actions = page.locator('.hero .button-row a');
+		await expect(actions).toHaveCount(2);
+		await expect(actions.nth(0)).toHaveText('Join');
+		await expect(actions.nth(1)).toHaveText('Help build the bus');
 		// The explainer page stays reachable by its own address, with its prose.
 		await page.goto('/join/');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Join the Tool Bus');

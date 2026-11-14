@@ -1,9 +1,9 @@
-// The public join path's static facts. The membership links themselves
-// (Join, Apply, Member sign in, How membership works) are not here: the member
-// app serves them as a manifest from its own host behind Cloudflare Access, and
-// <GatedSlot> renders them only for someone with a session
-// (src/lib/gated/manifest.ts). This site holds no member-app address except the
-// manifest URL.
+// The public join path's static facts. The header and hero Join links to /join
+// are plain links in the served HTML (operator ruling 2026-11-14). The other
+// membership links (Apply, Member sign in, How membership works, the footer
+// Join) are not here: the member app serves them as a manifest from its own
+// host, and <GatedSlot> renders them once it arrives (src/lib/gated/manifest.ts).
+// This site holds no member-app address except the manifest URL.
 //
 // MEMBER_INTAKE only picks which public sentence the FAQ and /join show. The
 // member app owns the real switch (the Apply link in its manifest points at the
@@ -14,17 +14,6 @@
 export type MemberIntake = 'open' | 'closed';
 
 export const MEMBER_INTAKE: MemberIntake = 'open';
-
-/** The on-site explainer's path: still reachable and unlisted, but never linked from public markup. */
-const JOIN_PATH = '/join';
-
-/**
- * True for pages that stay prerendered and reachable but unlisted: noindex,
- * and absent from the sitemap and the source map.
- */
-export function isUnlistedPath(pathname: string): boolean {
-	return pathname === JOIN_PATH || pathname.startsWith(`${JOIN_PATH}/`);
-}
 
 /** Where an applicant goes while applications are closed. */
 export const INTEREST_PATH = '/contact';

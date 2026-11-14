@@ -108,9 +108,9 @@ test('yes: the member links mount, the button goes, and the answer holds for the
 	expect(run.probed).toEqual([`GET ${PROBE_URL}`, `GET ${SURFACE_URL}`]);
 	await dialog(page).getByRole('button', { name: 'Close' }).click();
 	await expect(member(page)).toHaveCount(1);
-	await expect(
-		page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Join' }),
-	).toHaveCount(1);
+	// The header Join is a plain link for everyone (operator ruling 2026-11-14),
+	// so the footer Join is the gated item that shows the member links mounted.
+	await expect(page.locator('footer').getByRole('link', { name: 'Join', exact: true })).toHaveCount(1);
 	await expect(button(page)).toHaveCount(0);
 
 	// A reload in the same tab shows the links from the tab's cache and asks no probe.
@@ -179,9 +179,7 @@ for (const [label, answer] of [
 		);
 		await expect(dialog(page).getByTestId('tailnet-check')).toHaveText('Check again');
 		await expect(member(page)).toHaveCount(0);
-		await expect(
-			page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Join' }),
-		).toHaveCount(0);
+		await expect(page.locator('footer').getByRole('link', { name: 'Join', exact: true })).toHaveCount(0);
 		expect(run.probed.filter((entry) => entry.includes(SURFACE_URL))).toEqual([]);
 
 		// The "no" is remembered for the tab: a reload does not ask again.
@@ -213,7 +211,8 @@ for (const width of [320, 1280]) {
 			});
 		const before = await measure();
 		expect(before.overflow).toBeLessThanOrEqual(0);
-		expect(before.nav).not.toContain('Join');
+		// Only the plain header Join (operator ruling 2026-11-14), no gated one.
+		expect(before.nav.filter((label) => label === 'Join')).toHaveLength(1);
 		await button(page).click();
 		await dialog(page).getByTestId('tailnet-check').click();
 		await expect(dialog(page).getByTestId('tailnet-result')).toBeVisible();

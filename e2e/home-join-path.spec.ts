@@ -27,12 +27,16 @@ import { skipHomeIntro } from './support/intro';
 const MEMBERS_HOST = 'https://members.greatfallstoolbus.org';
 const SIGN_IN_URL = `${MEMBERS_HOST}/login`;
 
-/** Every link into the member app or the /join explainer, however spelled. */
+/**
+ * Every link into the member app or the /join explainer, however spelled,
+ * except the plain header and hero Join links (operator ruling 2026-11-14),
+ * which carry data-public-join.
+ */
 const GATED_LINKS = [
 	'a[href*="members.greatfallstoolbus.org"]',
-	'a[href="/join"]',
-	'a[href^="/join/"]',
-	'a[href^="/join#"]',
+	'a[href="/join"]:not([data-public-join])',
+	'a[href^="/join/"]:not([data-public-join])',
+	'a[href^="/join#"]:not([data-public-join])',
 	'a[href^="https://greatfallstoolbus.org/join"]',
 ].join(', ');
 
@@ -81,7 +85,7 @@ for (const { label, width } of widths) {
 			await page.setViewportSize({ width, height: 900 });
 		});
 
-		test('an anonymous visitor has no membership link or button anywhere, and no wrapper left behind', async ({
+		test('an anonymous visitor has only the plain header and hero Join, and no wrapper left behind', async ({
 			guardedPage,
 		}) => {
 			const page = await guardedPage('/');
@@ -93,9 +97,10 @@ for (const { label, width } of widths) {
 			await expect(page.getByRole('link', { name: /^Member sign in/u })).toHaveCount(0);
 			await expect(page.getByRole('link', { name: 'Apply', exact: true })).toHaveCount(0);
 			await expect(page.getByRole('link', { name: 'How membership works' })).toHaveCount(0);
-			await expect(
-				page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Join' }),
-			).toHaveCount(0);
+			const navJoin = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Join' });
+			await expect(navJoin).toHaveCount(1);
+			await expect(navJoin).toHaveAttribute('href', '/join/');
+			await expect(page.locator('a[data-public-join]')).toHaveCount(2);
 			// No reserved space: not even an empty actions row or footer item.
 			await expect(page.locator('#faq-membership + dd .join-actions')).toHaveCount(0);
 			await expect(page.locator('.site-footer li:empty')).toHaveCount(0);
@@ -120,9 +125,9 @@ for (const { label, width } of widths) {
 		}) => {
 			await asMember(page, baseUrl);
 			const join = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Join' });
-			await expect(join).toHaveAttribute('href', '/join');
+			await expect(join).toHaveAttribute('href', '/join/');
 			await expect(join).not.toHaveAttribute('target', '_blank');
-			await expectInsideViewport(page, '.site-nav a[href="/join"]', 24);
+			await expectInsideViewport(page, '.site-nav a[href="/join/"]', 24);
 			const answer = page.locator('#faq-membership + dd');
 			const apply = answer.getByRole('link', { name: 'Apply', exact: true });
 			await expect(apply).toHaveAttribute('href', '/join');
@@ -166,6 +171,18 @@ test.describe('with the open manifest', () => {
 		// An off-site link's name carries its new-tab notice, so match the start.
 		await expect(answer.getByRole('link', { name: /^Apply\b/u })).toHaveAttribute('href', APPLY_URL);
 		await expect(answer.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
+	});
+
+	test('the hero leads with Join, and Contact comes second', async ({ page, baseUrl }) => {
+		await asMember(page, baseUrl, '/', OPEN_MEMBER_MANIFEST);
+		const actions = page.locator('.hero .button-row a');
+		await expect(actions).toHaveCount(2);
+		await expect(actions.nth(0)).toHaveText('Join');
+		await expect(actions.nth(0)).toHaveAttribute('href', '/join/');
+		await expect(actions.nth(0)).toHaveAttribute('data-public-join', 'hero');
+		await expect(actions.nth(0)).toHaveClass('button');
+		await expect(actions.nth(1)).toHaveText('Help build the bus');
+		await expect(actions.nth(1)).toHaveAttribute('href', '/contact');
 	});
 
 	test('/join shows that applications are open and links the application form', async ({ page, baseUrl }) => {
@@ -243,7 +260,7 @@ test('a manifest that fails, or lies, mounts nothing', async ({ page, baseUrl })
 			status: 200,
 			type: 'application/json',
 			body: JSON.stringify({
-				items: [{ slot: 'header-join', kind: 'join', label: 'Join', href: 'https://evil.example/join' }],
+				items: [{ slot: 'footer-join', kind: 'join', label: 'Join', href: 'https://evil.example/join' }],
 			}),
 		},
 	];
@@ -294,13 +311,14 @@ test('rendered membership copy never conditions membership on money, gear or a p
 	await expect(home.locator('#contributions')).toContainText('Membership never depends on money, gear, or tools.');
 });
 
-test('/join is reachable but unlisted, and the footer rows and sharp edges hold for a member', async ({
+test('/join is indexed and in the sitemap, and the footer rows and sharp edges hold for a member', async ({
 	page,
 	baseUrl,
 	request,
 }) => {
 	await asMember(page, baseUrl, '/join/');
-	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/u);
+	// Operator ruling 2026-11-14: /join is indexed and listed. It still carries no edit link.
+	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /^index/u);
 	await expect(page.locator('a[href*="/edit/"][href*="join"]')).toHaveCount(0);
 	const footer = page.locator('footer');
 	await expect(footer.getByRole('link', { name: 'Join', exact: true })).toHaveAttribute('href', '/join');
@@ -312,7 +330,7 @@ test('/join is reachable but unlisted, and the footer rows and sharp edges hold 
 	);
 	expect(rounded).toEqual([]);
 	const sitemap = await request.get('/sitemap.xml');
-	expect(await sitemap.text()).not.toContain('/join/');
+	expect(await sitemap.text()).toContain('<loc>https://greatfallstoolbus.org/join/</loc>');
 
 	await page.goto('/');
 	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /^index/u);
