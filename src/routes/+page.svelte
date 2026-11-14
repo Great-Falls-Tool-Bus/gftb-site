@@ -195,7 +195,14 @@
 				{#if memberBenefits.length > 0}
 					<div class="goal-aside" id="benefits">
 						<h3>What members get</h3>
-						<p class="muted">Member accounts are not live yet. When membership opens, it is planned to include:</p>
+						<!-- What is live today and what is still coming, in the benefit
+						     rows themselves (src/content/goals/8x-benefit-*.md). A row
+						     that is not live says so in its own words. -->
+						<p class="muted">
+							{MEMBER_INTAKE === 'open'
+								? 'Applications are open. Members get:'
+								: 'Applications are not open yet. Members get:'}
+						</p>
 						<ul class="plain-list">
 							{#each memberBenefits as benefit (benefit.slug)}
 								<li>{benefit.text ? `${benefit.metadata.title} ${benefit.text}` : benefit.metadata.title}</li>

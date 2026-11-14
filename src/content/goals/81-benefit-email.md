@@ -1,7 +1,7 @@
 ---
 kind: benefit
-order: 20
-title: 'A latoolb.us email address, once mailboxes are set up.'
+order: 50
+title: 'A latoolb.us email address is coming. Members can choose its name now.'
 published: true
-source: 'operator 2026-08-31; decision 0024 (mailbox provisioned for every Active member; not live yet)'
+source: 'operator 2026-08-31; decision 0024 (mailbox provisioned for every Active member). 2026-11-14: name choice is live, the mailbox itself is not'
 ---

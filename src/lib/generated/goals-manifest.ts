@@ -154,8 +154,8 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		slug: '81-benefit-email',
 		metadata: {
 			kind: 'benefit',
-			order: 20,
-			title: 'A latoolb.us email address, once mailboxes are set up.',
+			order: 50,
+			title: 'A latoolb.us email address is coming. Members can choose its name now.',
 			published: true,
 		},
 		text: '',
@@ -165,11 +165,44 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		slug: '82-benefit-discuss',
 		metadata: {
 			kind: 'benefit',
-			order: 30,
-			title: 'A seat on the discuss list, the club brain trust, added by a keyholder.',
+			order: 60,
+			title: 'A seat on the discuss list, the club brain trust, is coming.',
 			published: true,
 		},
 		text: '',
 		sourcePath: 'src/content/goals/82-benefit-discuss.md',
+	},
+	{
+		slug: '83-benefit-lending',
+		metadata: {
+			kind: 'benefit',
+			order: 20,
+			title: 'Tool lending. Scan a tool on the bus to check it out and to return it.',
+			published: true,
+		},
+		text: '',
+		sourcePath: 'src/content/goals/83-benefit-lending.md',
+	},
+	{
+		slug: '84-benefit-members-area',
+		metadata: {
+			kind: 'benefit',
+			order: 30,
+			title: 'A members area, where you agree to the Member Agreement and see your loans.',
+			published: true,
+		},
+		text: '',
+		sourcePath: 'src/content/goals/84-benefit-members-area.md',
+	},
+	{
+		slug: '85-benefit-contribution',
+		metadata: {
+			kind: 'benefit',
+			order: 40,
+			title: 'The choice to contribute money. It is optional, and $0 is always an option.',
+			published: true,
+		},
+		text: '',
+		sourcePath: 'src/content/goals/85-benefit-contribution.md',
 	},
 ];
