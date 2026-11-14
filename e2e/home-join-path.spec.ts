@@ -168,6 +168,17 @@ test.describe('with the open manifest', () => {
 		await expect(answer.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
 	});
 
+	test('the hero leads with Join, and Contact comes second', async ({ page, baseUrl }) => {
+		await asMember(page, baseUrl, '/', OPEN_MEMBER_MANIFEST);
+		const actions = page.locator('.hero .button-row a');
+		await expect(actions).toHaveCount(2);
+		await expect(actions.nth(0)).toHaveText('Join');
+		await expect(actions.nth(0)).toHaveAttribute('href', '/join');
+		await expect(actions.nth(0)).toHaveClass('button');
+		await expect(actions.nth(1)).toHaveText('Help build the bus');
+		await expect(actions.nth(1)).toHaveAttribute('href', '/contact');
+	});
+
 	test('/join shows that applications are open and links the application form', async ({ page, baseUrl }) => {
 		await asMember(page, baseUrl, '/join/', OPEN_MEMBER_MANIFEST);
 		const applications = page.locator('#applications');
