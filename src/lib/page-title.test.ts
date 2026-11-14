@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SITE_NAME, pageTitle } from './page-title';
 import { logPageCount, publicLogs } from './public-logs';
@@ -35,11 +37,32 @@ describe('pageTitle', () => {
 		expect(pageTitle('/nowhere/')).toBe(SITE_NAME);
 	});
 
-	it('gives every sitemap page a distinct title', () => {
-		const paths = ['/', '/log/', '/contact/', '/privacy/', '/refund-policy/', '/legal/'];
-		for (let n = 2; n <= logPageCount(); n += 1) paths.push(`/log/page/${n}/`);
-		for (const entry of publicLogs) paths.push(`/log/${entry.slug}/`);
+	it('gives every page route its own name and a distinct title', () => {
+		// The paths come from src/routes itself, so a new page without an entry
+		// in page-title.ts fails here instead of quietly getting the bare name.
+		const routesDir = path.resolve(import.meta.dirname, '..', 'routes');
+		const routeDirs = readdirSync(routesDir, { recursive: true, withFileTypes: true })
+			.filter((entry) => entry.isFile() && entry.name === '+page.svelte')
+			.map((entry) => path.relative(routesDir, entry.parentPath))
+			.map((relative) => `/${relative.split(path.sep).join('/')}`.replace(/\/$/u, '') || '/');
+		const paths: string[] = [];
+		for (const route of routeDirs) {
+			if (route === '/' || route === '/404') continue;
+			if (route === '/log/[slug]') {
+				for (const entry of publicLogs) paths.push(`/log/${entry.slug}/`);
+			} else if (route === '/log/page/[n]') {
+				for (let n = 2; n <= Math.max(2, logPageCount()); n += 1) paths.push(`/log/page/${n}/`);
+			} else {
+				expect(route, 'an unexpected dynamic route needs a title rule').not.toMatch(/\[/u);
+				paths.push(`${route}/`);
+			}
+		}
+		expect(paths.length).toBeGreaterThan(6);
 		const titles = paths.map(pageTitle);
-		expect(new Set(titles).size).toBe(titles.length);
+		for (const [index, title] of titles.entries()) {
+			expect(title, paths[index]).not.toBe(SITE_NAME);
+			expect(title, paths[index]).toMatch(/ \| Great Falls Tool Bus$/u);
+		}
+		expect(new Set([SITE_NAME, ...titles]).size).toBe(titles.length + 1);
 	});
 });
