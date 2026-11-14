@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE, isUnlistedPath } from './membership';
+import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE } from './membership';
 import { membershipCopyViolations, visibleSourceText } from './membership-copy';
 import { navItems } from './nav-items';
 
@@ -75,7 +75,7 @@ describe('join path', () => {
 		expect(navItems.some((item) => item.label === 'Join' || item.label === 'Member sign in')).toBe(false);
 	});
 
-	it('keeps member-app addresses and /join links out of every public source file', () => {
+	it('keeps member-app addresses out of every public source file, and /join links to the header and hero', () => {
 		const sources = [
 			'src/routes/+layout.svelte',
 			'src/routes/+page.svelte',
@@ -85,22 +85,35 @@ describe('join path', () => {
 			'src/lib/components/GatedSlot.svelte',
 			'src/lib/gated/surface.svelte.ts',
 		];
+		// Operator ruling 2026-11-14: exactly one plain /join anchor in the header
+		// and one in the hero, each marked for the gated-join-link leak-scan rule.
+		const sanctioned: Record<string, string> = {
+			'src/routes/+layout.svelte': 'header',
+			'src/routes/+page.svelte': 'hero',
+		};
 		for (const source of sources) {
 			const text = read(source);
 			expect(text, source).not.toMatch(/members\.greatfallstoolbus\.org/u);
-			expect(text, source).not.toMatch(/href=\{?["'`]?\/join/u);
 			expect(text, source).not.toContain('membership-surface');
+			const joinAnchors = text.match(/href=\{?["'`]?\/join/gu) ?? [];
+			const marks = text.match(/data-public-join="(\w+)"/gu) ?? [];
+			if (sanctioned[source]) {
+				expect(joinAnchors, source).toHaveLength(1);
+				expect(marks, source).toEqual([`data-public-join="${sanctioned[source]}"`]);
+				expect(text, source).toMatch(new RegExp(`data-public-join="${sanctioned[source]}"\\s+href="/join/"`, 'u'));
+			} else {
+				expect(joinAnchors, source).toEqual([]);
+				expect(marks, source).toEqual([]);
+			}
 		}
 		// The manifest URL is the one place the member host appears in public code.
 		expect(read('src/lib/gated/manifest.ts').match(/members\.greatfallstoolbus\.org/gu)).toHaveLength(1);
 	});
 
-	it('keeps /join unlisted: out of the sitemap and the source map, noindex by path', () => {
-		expect(read('src/routes/sitemap.xml/+server.ts')).not.toContain("'/join/'");
+	it('lists /join: in the sitemap and indexed, but out of the source map', () => {
+		expect(read('src/routes/sitemap.xml/+server.ts')).toContain("'/join/'");
+		expect(read('src/routes/+layout.svelte')).not.toMatch(/isUnlistedPath/u);
+		expect(read('src/routes/+layout.svelte')).toMatch(/noindex=\{isErrorSurface\}/u);
 		expect(JSON.parse(read('src/lib/generated/source-map.json')).routes['/join']).toBeUndefined();
-		expect(isUnlistedPath('/join')).toBe(true);
-		expect(isUnlistedPath('/join/')).toBe(true);
-		expect(isUnlistedPath('/joinery')).toBe(false);
-		expect(isUnlistedPath('/')).toBe(false);
 	});
 });

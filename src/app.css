@@ -1159,14 +1159,6 @@ dd {
 	color: var(--heading);
 }
 
-/* A secondary button with no primary beside it takes the primary style. The
- * home hero's Join button comes from the gated manifest, so before it mounts,
- * or when it never does, the contact button is the row's only action. */
-.button-row > .button--secondary:only-child {
-	background: var(--accent);
-	color: var(--accent-contrast);
-}
-
 /* The sole button focus indicator (the decorative hover glow was stripped,
  * de-slop ruling 2026-08-19). The ring adjoins two colours — the button's
  * accent fill and the ground behind it — and SC 1.4.11 asks it to separate

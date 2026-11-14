@@ -21,11 +21,9 @@
 		class?: string;
 		/** Text kept inside the wrapper after the last item, such as a full stop. */
 		after?: string;
-		/** Class on every item link, in place of the house styling by slot. */
-		itemClass?: string;
 	}
 
-	let { slot, tag, class: wrapperClass = '', after = '', itemClass: itemClassOverride = '' }: Props = $props();
+	let { slot, tag, class: wrapperClass = '', after = '' }: Props = $props();
 
 	onMount(() => gatedSurface.load());
 
@@ -42,7 +40,6 @@
 
 	/** House styling by what the item is and where it sits. */
 	function itemClass(item: SurfaceItem): string {
-		if (itemClassOverride) return itemClassOverride;
 		if (slot !== 'faq-actions' && slot !== 'join-sign-in') return '';
 		return item.kind === 'apply' ? 'button' : 'join-actions__sign-in';
 	}

@@ -34,9 +34,9 @@ const ROUTES_DIR = path.join(ROOT, 'src', 'routes');
 const LOG_DIR = path.join(ROOT, 'src', 'content', 'log');
 const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'source-map.json');
 
-// Pages that stay reachable but unlisted: /join while the membership surface
-// is behind its flag (operator rulings 2026-10-03). Mirrors isUnlistedPath in
-// src/lib/membership.ts; scripts never import src.
+// Pages left out of the source map, so they carry no "Edit this page" link:
+// /join (operator rulings 2026-10-03). Since the operator ruling of 2026-11-14
+// /join is indexed and in the sitemap, but it still carries no edit link.
 const UNLISTED_PAGES = new Set(['src/routes/join/+page.svelte']);
 
 const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));

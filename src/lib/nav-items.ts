@@ -48,8 +48,8 @@ export const navItems: NavItem[] = [
 	// FAQ section. The footer's own "Questions" row is retired in the same
 	// ruling; the fuller footer sitemap (below) carries FAQ instead.
 	{ label: 'FAQ', href: '/#faq', match: [], primary: true },
-	// Join is not a nav item: the header Join comes from the gated manifest
-	// (<GatedSlot slot="header-join">, src/lib/gated/manifest.ts).
+	// Join is not a nav item: the header Join is a plain link in the layout,
+	// marked data-public-join (operator ruling 2026-11-14).
 	// Operator ruling 2026-08-31: GitHub in the header. The org page is the
 	// public target (gftb-site itself is private; a repo link would 404 for
 	// visitors, review E4).

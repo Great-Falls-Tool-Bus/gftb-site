@@ -116,15 +116,15 @@
 				<li>Try out a new winter sport this season by joining the Great Falls Tool Bus</li>
 			</ul>
 			<!-- Row 3 (spec §3 :87): the join path leads, the contact page
-			     follows (operator approval 2026-11-14). Join comes from
-			     the gated manifest like every membership link (operator interview
-			     2026-10-04, src/lib/gated/manifest.ts): it is absent from the
-			     prerendered HTML and mounts as the first button once the manifest
-			     arrives. Without it, the contact button stands alone and takes the
-			     primary style (.button-row > .button--secondary:only-child).
+			     follows (operator approval 2026-11-14). Join is a plain link in the
+			     served HTML (operator ruling 2026-11-14, narrowing the 2026-10-04
+			     gated-surface ruling for /join only), so it is there without
+			     JavaScript and nothing shifts when the manifest arrives. The
+			     data-public-join mark is what the gated-join-link leak-scan rule
+			     lets through, in the header and here only.
 			     TODO(jess): CTA wording (interim label salvaged from PR-5). -->
 			<div class="button-row">
-				<GatedSlot slot="header-join" itemClass="button" />
+				<a class="button" data-public-join="hero" href="/join/">Join</a>
 				<a class="button button--secondary" href="/contact">Help build the bus</a>
 			</div>
 		</div>

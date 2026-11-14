@@ -2,9 +2,12 @@
 // TIN-5371 and TIN-5351; rulings: "Code-split from a gated origin" and "the
 // layout SHOULD shift with missing elements").
 //
-// The membership links (header Join, the FAQ Apply and Member sign in, the
-// "How membership works" links, the footer Join and Member sign in, and the
-// /join page's own sign in) are NOT in this site's HTML or JavaScript. The
+// The membership links (the FAQ Apply and Member sign in, the "How membership
+// works" links, the footer Join and Member sign in, and the /join page's own
+// sign in) are NOT in this site's HTML or JavaScript. The header and hero Join
+// links to /join are the exception: operator ruling 2026-11-14 made them plain
+// links in the served HTML, so the manifest's header-join item is no longer
+// rendered. The
 // member app serves them as a JSON manifest from its own host. That host was
 // wholly behind Cloudflare Access until it opened to the public on 2026-11-09
 // (TIN-3847); since then it answers every visitor from this site's origin. This
