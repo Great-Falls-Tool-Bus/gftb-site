@@ -166,7 +166,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		metadata: {
 			kind: 'benefit',
 			order: 60,
-			title: 'A seat on the discuss list, the club brain trust, is coming.',
+			title: 'A seat on the discuss list, the club brain trust. A keyholder adds you.',
 			published: true,
 		},
 		text: '',
@@ -199,7 +199,7 @@ export const publishedGoalEntries: GeneratedGoalEntry[] = [
 		metadata: {
 			kind: 'benefit',
 			order: 40,
-			title: 'The choice to contribute money. It is optional, and $0 is always an option.',
+			title: 'The choice to contribute money. $0 is always an option.',
 			published: true,
 		},
 		text: '',
