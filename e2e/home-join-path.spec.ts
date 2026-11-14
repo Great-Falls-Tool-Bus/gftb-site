@@ -220,10 +220,13 @@ test('the layout shifts with the gated items: a member page is taller, an anonym
 	const measure = (target: Page) =>
 		target.evaluate(() => ({
 			faq: document.querySelector('#faq-membership + dd')?.getBoundingClientRect().height ?? Number.NaN,
-			footer: document.querySelector('.site-footer')?.getBoundingClientRect().height ?? Number.NaN,
+			footer: Array.from(document.querySelectorAll('.site-footer a')).map((link) => link.textContent?.trim() ?? ''),
 		}));
 	// The footer's Join and Sign in are static since the members footer ruling
-	// (2026-11-14), so only the FAQ answer grows when the manifest mounts.
+	// (2026-11-14), so the manifest adds no footer link: only the FAQ answer
+	// grows. The footer's height can still change, because the tool bus
+	// network button shows only while the manifest has no items, so the row
+	// compares the footer's links, not its height.
 	const before = await measure(anonymous);
 
 	const memberPage = await page.context().newPage();
@@ -234,7 +237,7 @@ test('the layout shifts with the gated items: a member page is taller, an anonym
 	await expect(memberPage.locator('.site-footer').getByRole('link', { name: 'Join', exact: true })).toHaveCount(1);
 	const after = await measure(memberPage);
 	expect(after.faq, 'the FAQ answer grows by the actions row').toBeGreaterThan(before.faq);
-	expect(after.footer, 'the footer does not change when the manifest mounts').toBe(before.footer);
+	expect(after.footer, 'the manifest adds or removes no footer link').toEqual(before.footer);
 });
 
 test('the 320px header fits when Join mounts', async ({ page, baseUrl }) => {
