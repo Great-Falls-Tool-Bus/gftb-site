@@ -105,14 +105,14 @@
 		},
 		{
 			"id": "gated-member-app-url",
-			"description": "member-app address other than the gated manifest URL (membership links come only from the gated origin, 2026-10-04)",
-			"pattern": "https?://members\\.greatfallstoolbus\\.org(?!/api/public-surface(?![\\w./-]))",
+			"description": "member-app address other than the gated manifest URL (membership links come only from the gated origin, 2026-10-04), except the exact sign-in and member-area URLs on an anchor marked data-public-member with its paired value: sign-in /login, membership /membership, tools /scan, contribution /contribution, mailbox /membership (operator ruling 2026-11-14, members footer and sign in on the main site)",
+			"pattern": "https?://members\\.greatfallstoolbus\\.org(?!/api/public-surface(?![\\w./-]))(?!(?<=<a\\b[^<>]*\\sdata-public-member=\"sign-in\"[^<>]*\\shref=\"https://members\\.greatfallstoolbus\\.org)/login\")(?!(?<=<a\\b[^<>]*\\sdata-public-member=\"membership\"[^<>]*\\shref=\"https://members\\.greatfallstoolbus\\.org)/membership\")(?!(?<=<a\\b[^<>]*\\sdata-public-member=\"tools\"[^<>]*\\shref=\"https://members\\.greatfallstoolbus\\.org)/scan\")(?!(?<=<a\\b[^<>]*\\sdata-public-member=\"contribution\"[^<>]*\\shref=\"https://members\\.greatfallstoolbus\\.org)/contribution\")(?!(?<=<a\\b[^<>]*\\sdata-public-member=\"mailbox\"[^<>]*\\shref=\"https://members\\.greatfallstoolbus\\.org)/membership\")",
 			"flags": "iu"
 		},
 		{
 			"id": "gated-join-link",
-			"description": "an anchor to /join in public markup or script (the join links come only from the gated manifest, 2026-10-04), except an anchor marked data-public-join=header or data-public-join=hero (the plain header and hero Join links, operator ruling 2026-11-14); a canonical link on the page itself is not an anchor",
-			"pattern": "(?:<a\\b(?![^<>]*\\sdata-public-join=[\"']?(?:header|hero)[\"'\\s>])[^<>]*?\\bhref=[\"']?|\\bhref[\"']?\\s*[:,]\\s*[\"'`])(?:https?://greatfallstoolbus\\.org)?/join/?(?=[\\s\"'`>?#}),;]|$)",
+			"description": "an anchor to /join in public markup or script (the join links come only from the gated manifest, 2026-10-04), except an anchor marked data-public-join=header, hero or footer (the plain header, hero and footer Join links, operator rulings 2026-11-14); a canonical link on the page itself is not an anchor",
+			"pattern": "(?:<a\\b(?![^<>]*\\sdata-public-join=[\"']?(?:header|hero|footer)[\"'\\s>])[^<>]*?\\bhref=[\"']?|\\bhref[\"']?\\s*[:,]\\s*[\"'`])(?:https?://greatfallstoolbus\\.org)?/join/?(?=[\\s\"'`>?#}),;]|$)",
 			"flags": "iu"
 		},
 		{

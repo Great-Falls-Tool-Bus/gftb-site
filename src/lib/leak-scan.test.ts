@@ -199,9 +199,11 @@ describe('leak-scan detections', () => {
 	// Operator interview 2026-10-04 (TIN-5371, TIN-5351): the gated membership
 	// links live in the member app's manifest, never in public HTML or JS. The
 	// manifest URL itself is the one member-app address the bundle may hold.
-	// Operator ruling 2026-11-14 narrows that for /join only: the header and hero
-	// Join links, marked data-public-join, may be plain links. Every other /join
-	// anchor and every member-app address stays forbidden.
+	// Operator rulings 2026-11-14 narrow that: the header, hero and footer Join
+	// links, marked data-public-join, may be plain links, and so may the exact
+	// sign-in and member-area links of the members footer, each marked
+	// data-public-member with its paired value. Every other /join anchor and
+	// every other member-app address stays forbidden.
 	it('forbids member-app addresses and /join links in public output, but allows the manifest URL', () => {
 		const manifest = 'https://members.greatfallstoolbus.org/api/public-surface';
 		expect(idsFiring(`const u="${manifest}";`)).not.toContain('gated-member-app-url');
@@ -225,8 +227,8 @@ describe('leak-scan detections', () => {
 			'<a href="https://greatfallstoolbus.org/join">Join</a>',
 			'{href:"/join",label:"Join"}',
 			'$.set_attribute(a,"href","/join")',
-			// Only the header and hero marks pass, and a mark covers its own anchor only.
-			'<a data-public-join="footer" href="/join/">Join</a>',
+			// Only the header, hero and footer marks pass, and a mark covers its own anchor only.
+			'<a data-public-join="sidebar" href="/join/">Join</a>',
 			'<a data-public-join="heroic" href="/join/">Join</a>',
 			'<a data-public-join="" href="/join/">Join</a>',
 			'<a data-public-join="hero" href="/join/">Join</a><a href="/join/">Join</a>',
@@ -242,8 +244,46 @@ describe('leak-scan detections', () => {
 			'<a class="button" data-public-join="hero" href="/join/">Join</a>',
 			'`<a data-public-join="header" href="/join/">Join</a>`',
 			'<a data-public-join=hero href=/join/>Join</a>',
+			'<a data-public-join="footer" href="/join/">Join</a>',
 		]) {
 			expect(idsFiring(sanctioned), sanctioned).not.toContain('gated-join-link');
+		}
+		// The members footer and header sign in (operator ruling 2026-11-14): each
+		// exact URL passes only on an anchor whose mark, before the href, is its pair.
+		const MEMBERS = 'https://members.greatfallstoolbus.org';
+		for (const sanctioned of [
+			`<a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a>`,
+			`<a data-public-member="membership" href="${MEMBERS}/membership">Membership</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a data-public-member="contribution" href="${MEMBERS}/contribution">Contribution</a>`,
+			`<a data-public-member="mailbox" href="${MEMBERS}/membership">Your mailbox</a>`,
+			`<a class="x" data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`\`<li><a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a></li>\``,
+		]) {
+			expect(idsFiring(sanctioned), sanctioned).not.toContain('gated-member-app-url');
+		}
+		for (const leaked of [
+			// a members URL with no mark, or the mark after the href
+			`<a href="${MEMBERS}/login">Sign in</a>`,
+			`<a href="${MEMBERS}/login" data-public-member="sign-in">Sign in</a>`,
+			// a mark on the wrong URL, or a mark value outside the fixed set
+			`<a data-public-member="tools" href="${MEMBERS}/login">x</a>`,
+			`<a data-public-member="sign-in" href="${MEMBERS}/membership">x</a>`,
+			`<a data-public-member="keyholder" href="${MEMBERS}/review">Review</a>`,
+			`<a data-public-member="sign-in" href="${MEMBERS}/apply">Apply</a>`,
+			// anything beyond the exact URL: a query, a deeper path, http
+			`<a data-public-member="sign-in" href="${MEMBERS}/login?returnTo=/home">x</a>`,
+			`<a data-public-member="membership" href="${MEMBERS}/membership/leave">x</a>`,
+			`<a data-public-member="sign-in" href="http://members.greatfallstoolbus.org/login">x</a>`,
+			// a bare URL or a script form, even of an allowed path
+			`${MEMBERS}/login`,
+			`{href:"${MEMBERS}/login"}`,
+			`<a data-public-member="sign-in" href="/x">x</a> "${MEMBERS}/login"`,
+			// role pages stay forbidden whatever the mark
+			`<a data-public-member="membership" href="${MEMBERS}/review">x</a>`,
+			`<a data-public-member="contribution" href="${MEMBERS}/contributions">x</a>`,
+		]) {
+			expect(idsFiring(leaked), leaked).toContain('gated-member-app-url');
 		}
 		// The mark lifts nothing else: a marked anchor to the member host still fails.
 		for (const leaked of [
