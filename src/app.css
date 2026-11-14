@@ -668,7 +668,8 @@ dd {
  * wordmark needs at the 320 floor — so hostile content cannot grow the
  * sticky header without bound (e2e pins the header ceiling under a long
  * fixture). The grid geometry above is what keeps the nav on-edge; the
- * anchor's aria-label carries the full name. */
+ * anchor's aria-label carries the full name. Below 28rem the clamp is four
+ * lines (see the narrow-header block below). */
 .brand span {
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
@@ -778,6 +779,18 @@ dd {
 		 * hostile brand, row targets 27px. */
 		gap: 0 0.4rem;
 		font-size: 0.76rem;
+	}
+
+	/* With Join in the nav (since the member host opened on 2026-11-09) the
+	 * brand column at 375px holds about 92px, one word per line, and three
+	 * clamped lines cut "Tool Bus" to "TOOL…". Four lines at line-height 1
+	 * show the whole wordmark in 72px, inside the header the wrapped nav
+	 * already sets (83px measured at 375 and 320, real and hostile brand,
+	 * under the 92px ceiling in e2e/mobile-nav.spec.ts). At 320px the column
+	 * is about 65px and the wordmark still clamps. */
+	.brand span {
+		-webkit-line-clamp: 4;
+		line-height: 1;
 	}
 
 	.site-nav a {
