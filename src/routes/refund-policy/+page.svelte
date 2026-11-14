@@ -89,7 +89,7 @@
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> or use the <a href="/contact">contact form</a>.
 			</p>
 
-			<p><em>Last reviewed: 28 October 2026.</em></p>
+			<p><em>Last reviewed: 14 November 2026.</em></p>
 		</div>
 	</article>
 
