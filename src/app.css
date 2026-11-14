@@ -2714,6 +2714,12 @@ figcaption {
 		font-size: 0.9rem;
 	}
 
+	/* Header links never break inside a label: a wrapped "Sign in" or
+	 * "Discussion archive" left the brand column to collapse instead. */
+	.site-nav a {
+		white-space: nowrap;
+	}
+
 	.hero__inner {
 		grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
 	}
@@ -2739,6 +2745,17 @@ figcaption {
 	.site-footer__inner {
 		grid-template-columns: minmax(0, 2fr) repeat(6, minmax(0, 1fr));
 		align-items: start;
+	}
+}
+
+/* Between 48rem and 64rem the header holds seven links beside the
+ * wordmark, and with Sign in added the brand column collapsed mid-word.
+ * The header's Discussion archive link steps out in that range only. The
+ * same archive is in the footer's Mail and lists column on every page.
+ * Below 48rem the nav wraps (the 28rem block) and from 64rem it fits. */
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+	.site-nav a[href='https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/'] {
+		display: none;
 	}
 }
 
