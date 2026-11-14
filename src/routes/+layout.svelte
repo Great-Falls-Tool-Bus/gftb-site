@@ -329,7 +329,7 @@
 			     pages. Each members URL is exact and carries its data-public-member
 			     mark before the href, which is what the gated-member-app-url
 			     leak-scan rule lets through. A signed-out visitor who follows
-			     Membership, Tools, Contribution or Your mailbox is sent to sign in
+			     Membership, Tools, Contribution or Mailbox name is sent to sign in
 			     by the members area. -->
 			<nav class="site-footer__group" aria-label="Members">
 				<h2>Members</h2>
@@ -359,7 +359,7 @@
 						>
 					</li>
 					<li>
-						<a data-public-member="mailbox" href="https://members.greatfallstoolbus.org/membership">Your mailbox</a>
+						<a data-public-member="mailbox" href="https://members.greatfallstoolbus.org/membership">Mailbox name</a>
 					</li>
 				</ul>
 			</nav>

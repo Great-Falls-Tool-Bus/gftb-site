@@ -256,7 +256,7 @@ describe('leak-scan detections', () => {
 			`<a data-public-member="membership" href="${MEMBERS}/membership">Membership</a>`,
 			`<a data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
 			`<a data-public-member="contribution" href="${MEMBERS}/contribution">Contribution</a>`,
-			`<a data-public-member="mailbox" href="${MEMBERS}/membership">Your mailbox</a>`,
+			`<a data-public-member="mailbox" href="${MEMBERS}/membership">Mailbox name</a>`,
 			`<a class="x" data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
 			`\`<li><a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a></li>\``,
 		]) {
