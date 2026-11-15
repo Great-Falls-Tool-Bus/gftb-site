@@ -5,9 +5,9 @@
 	// Minimal and accurate by operator ruling (2026-09-19): this page states
 	// only what the served site and its forms actually do today. Operator
 	// interview 2026-10-02: the work session RSVP rides the contact relay, so
-	// both forms carry the relay's IP line and the list's private archive. Member
-	// accounts, applications and payments are not live; their data terms will
-	// be added here when they are, alongside the club's agreements.
+	// both forms carry the relay's IP line and the list's private archive. The
+	// "Member data" section is the operator's approved text of 2026-11-15, word
+	// for word: change it only with her approval.
 	// TODO(jess): final wording review; the facts below are read from the code.
 </script>
 
@@ -59,14 +59,36 @@
 				want a message to stay private.
 			</p>
 
-			<h2>Not live yet</h2>
+			<h2>Member data</h2>
 			<p>
-				Member accounts, membership applications, payments and tool checkout are not running. When they open, this page
-				will say what each one collects and for how long, next to the membership agreement and the code of conduct.
-				Today a keyholder can record cash or check contributions. See the <a href="/refund-policy">refund policy</a>.
+				Applying. The form asks for your name, email, what you can help with, when you can tour, anything a keyholder
+				should know and whether you are eighteen or older. Keyholders read it after you confirm your email. An
+				unconfirmed application expires after seven days. A confirmed application with no tour expires after at least
+				sixty days idle and two warning emails. We delete expired, withdrawn and declined applications thirty days after
+				they close.
+			</p>
+			<p>
+				Accounts. We hold your name, emails, membership status, roles, when you agreed to the member agreement and an
+				audit log. Sign-in uses an identity server we run and a cookie lasting up to seven days. We use no analytics or
+				trackers.
+			</p>
+			<p>
+				Payments. Card payments use Stripe's pages, so card numbers never reach us. We keep your Stripe customer and
+				subscription numbers, amount, cadence and Stripe's event records. The finance role records cash and check
+				contributions with amount, date, note and the check number's last four digits. Only you and the finance role see
+				amounts. Keyholders see only whether you were offered the step.
+			</p>
+			<p>
+				Checkout. A loan records who borrowed which tool, when, due date, its condition, your photos and any helping
+				keyholder. Location sharing is optional and saved once. You see your loans. Keyholders see open loans and
+				borrowers.
+			</p>
+			<p>
+				Retention. We have not set retention periods for member records. Leaving ends your sign-in and does not delete
+				your records. Write to <code>keyholders@latoolb.us</code> to ask what we hold about you.
 			</p>
 
-			<p class="muted">Last reviewed: 2 October 2026.</p>
+			<p class="muted">Last reviewed: 15 November 2026.</p>
 		</div>
 	</article>
 
