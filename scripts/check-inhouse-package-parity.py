@@ -4,7 +4,7 @@
 TIN-2838 flipped the scaffold from an npm-shadow ingestion (org packages listed
 as npm specifiers in package.json, versions kept in exact parity with the
 bazel_dep pins) to Bazel-only ingestion: the org packages are graph-linked from
-tinyland-inc/bazel-registry via `npm_link_package` and carry NO npm specifier at
+xoxd-ai/bazel-registry via `npm_link_package` and carry NO npm specifier at
 all. The pnpm/npm path can no longer supply them.
 
 The invariant this check enforces (conformance item 13):
