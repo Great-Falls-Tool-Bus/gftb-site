@@ -254,10 +254,12 @@ describe('leak-scan detections', () => {
 		for (const sanctioned of [
 			`<a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a>`,
 			`<a data-public-member="membership" href="${MEMBERS}/membership">Membership</a>`,
-			`<a data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/tools">Tools</a>`,
 			`<a data-public-member="contribution" href="${MEMBERS}/contribution">Contribution</a>`,
 			`<a data-public-member="mailbox" href="${MEMBERS}/membership">Mailbox name</a>`,
-			`<a class="x" data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a class="x" data-public-member="tools" href="${MEMBERS}/tools">Tools</a>`,
+			// The home Tools button (TIN-3814): a class before the mark still passes.
+			`<a class="button" data-public-member="tools" href="${MEMBERS}/tools">Browse the tools</a>`,
 			`\`<li><a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a></li>\``,
 		]) {
 			expect(idsFiring(sanctioned), sanctioned).not.toContain('gated-member-app-url');
@@ -268,6 +270,10 @@ describe('leak-scan detections', () => {
 			`<a href="${MEMBERS}/login" data-public-member="sign-in">Sign in</a>`,
 			// a mark on the wrong URL, or a mark value outside the fixed set
 			`<a data-public-member="tools" href="${MEMBERS}/login">x</a>`,
+			// the retired tools target and deeper tool paths (TIN-3814)
+			`<a data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/tools/drill">x</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/tools?q=drill">x</a>`,
 			`<a data-public-member="sign-in" href="${MEMBERS}/membership">x</a>`,
 			`<a data-public-member="keyholder" href="${MEMBERS}/review">Review</a>`,
 			`<a data-public-member="sign-in" href="${MEMBERS}/apply">Apply</a>`,

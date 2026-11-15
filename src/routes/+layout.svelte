@@ -12,6 +12,7 @@
 	import TailnetPrompt from '#lib/components/TailnetPrompt.svelte';
 	import { gatedSurface } from '#lib/gated/surface.svelte.js';
 	import { pageTitle } from '#lib/page-title.js';
+	import { TOOLS_LINK_LABEL } from '#lib/tools-copy.js';
 	import BusMark from '#lib/components/BusMark.svelte';
 	import ToolBusMark from '#lib/components/ToolBusMark.svelte';
 	import { theme } from '#lib/theme.svelte.js';
@@ -273,7 +274,10 @@
 				     sanctioned anchors that the gated-join-link and
 				     gated-member-app-url leak-scan rules let through. Keep each mark
 				     before its href, and the members URLs exact. The manifest's
-				     header-join item is no longer rendered. -->
+				     header-join item is no longer rendered. Tools sits with them, a
+				     plain link to the members Tools pages, which anyone can open
+				     (TIN-3814, operator answers in TIN-3847). -->
+				<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
 				<a
 					data-public-join="header"
 					href="/join/"
@@ -329,8 +333,9 @@
 			     pages. Each members URL is exact and carries its data-public-member
 			     mark before the href, which is what the gated-member-app-url
 			     leak-scan rule lets through. A signed-out visitor who follows
-			     Membership, Tools, Contribution or Mailbox name is sent to sign in
-			     by the members area. -->
+			     Membership, Contribution or Mailbox name is sent to sign in by the
+			     members area. Tools opens the members Tools pages, which need no
+			     sign in. -->
 			<nav class="site-footer__group" aria-label="Members">
 				<h2>Members</h2>
 				<ul>
@@ -339,7 +344,9 @@
 					<li>
 						<a data-public-member="membership" href="https://members.greatfallstoolbus.org/membership">Membership</a>
 					</li>
-					<li><a data-public-member="tools" href="https://members.greatfallstoolbus.org/scan">Tools</a></li>
+					<li>
+						<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
+					</li>
 					<li>
 						<a data-public-member="contribution" href="https://members.greatfallstoolbus.org/contribution"
 							>Contribution</a
