@@ -38,7 +38,8 @@ describe('tools copy', () => {
 	it('renders through the layout and the home page, beside the literal members URL', () => {
 		const layout = read('src/routes/+layout.svelte');
 		const home = read('src/routes/+page.svelte');
-		const anchor = '<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>';
+		const anchor =
+			'<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>';
 		// One in the header nav, one in the footer Members column.
 		expect(layout.split(anchor)).toHaveLength(3);
 		expect(layout).not.toContain('members.greatfallstoolbus.org/scan');
