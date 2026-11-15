@@ -1,6 +1,6 @@
-// Every new public string for the links into the members Tools pages (TIN-3814,
-// operator answers in TIN-3847: the public tool pages live in the members app,
-// opened up). The words below wait for the operator's approval as written.
+// Every new public string for the links into the members Tools pages (operator
+// answers on the public Tools pages: they live in the members app, opened up).
+// The words below wait for the operator's approval as written.
 //
 // This module holds words only. The members address stays a literal in the
 // markup of src/routes/+layout.svelte and src/routes/+page.svelte, because the

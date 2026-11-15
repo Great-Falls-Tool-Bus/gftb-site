@@ -276,7 +276,7 @@
 				     before its href, and the members URLs exact. The manifest's
 				     header-join item is no longer rendered. Tools sits with them, a
 				     plain link to the members Tools pages, which anyone can open
-				     (TIN-3814, operator answers in TIN-3847). -->
+				     (operator answers on the public Tools pages). -->
 				<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
 				<a
 					data-public-join="header"

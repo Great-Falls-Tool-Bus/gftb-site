@@ -1446,7 +1446,7 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-bottom: 2rem;
 }
 
-/* Tools to borrow (home, TIN-3814): one glass pane like its neighbours, with
+/* Tools to borrow (home): one glass pane like its neighbours, with
  * the accent edge on the left that marks it as the way into the members Tools
  * pages. Fixed copy and one button, so the pane has no state to wait for and
  * nothing to shift. One column on a phone; from 48rem the button sits on the

@@ -236,7 +236,7 @@
 		{/if}
 	</section>
 
-	<!-- Tools to borrow (TIN-3814, operator answers in TIN-3847): fixed copy and
+	<!-- Tools to borrow (operator answers on the public Tools pages): fixed copy and
 	     one strong link to the members Tools pages, which carry every tool's
 	     name, photo, status and where it lives. No tool data ships here, so
 	     nothing on this site can go stale. The words live in
