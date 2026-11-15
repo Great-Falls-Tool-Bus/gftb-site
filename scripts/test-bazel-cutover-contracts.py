@@ -806,8 +806,8 @@ class RepositoryContractTests(unittest.TestCase):
             self.manifest["authorities"],
             {
                 "content_authority": "Great-Falls-Tool-Bus/gftb-site reviewed public SVX",
-                "ci_templates": "tinyland-inc/ci-templates",
-                "package_registry": "tinyland-inc/bazel-registry",
+                "ci_templates": "xoxd-ai/ci-templates",
+                "package_registry": "xoxd-ai/bazel-registry",
             },
         )
         for forbidden in (
