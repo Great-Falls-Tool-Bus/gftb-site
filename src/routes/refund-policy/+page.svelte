@@ -34,7 +34,7 @@
 		<header class="log-entry__header">
 			<h1>Contribution refunds and cancellation</h1>
 			<!-- Operator-ratified interim summary (Option A, 2026-08-29). -->
-			<p>How to ask about a refund, and what happens when card contributions open.</p>
+			<p>How to ask about a refund, and how to change or stop a contribution.</p>
 		</header>
 
 		<div class="log-entry__body">
@@ -47,8 +47,8 @@
 
 			<h2>Card contributions</h2>
 			<p>
-				Today a keyholder can record a cash or check contribution, or a contribution of $0. When card contributions
-				open, this page will say how to cancel a recurring one.
+				Card contributions are open. To change or stop a recurring contribution, use Contribution in the members area or
+				ask a keyholder. A keyholder can also record a cash or check contribution, or a contribution of $0.
 			</p>
 
 			<h2>Cash or check contributions</h2>
@@ -89,7 +89,7 @@
 				<a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a> or use the <a href="/contact">contact form</a>.
 			</p>
 
-			<p><em>Last reviewed: 28 October 2026.</em></p>
+			<p><em>Last reviewed: 14 November 2026.</em></p>
 		</div>
 	</article>
 

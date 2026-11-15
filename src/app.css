@@ -2714,6 +2714,12 @@ figcaption {
 		font-size: 0.9rem;
 	}
 
+	/* Header links never break inside a label: a wrapped "Sign in" or
+	 * "Discussion archive" left the brand column to collapse instead. */
+	.site-nav a {
+		white-space: nowrap;
+	}
+
 	.hero__inner {
 		grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
 	}
@@ -2728,16 +2734,28 @@ figcaption {
 		align-items: center;
 	}
 
-	/* Five explicit tracks, the demo's intro-weighted footer template
+	/* Seven explicit tracks, the demo's intro-weighted footer template
 	 * extended by the operator's 2026-09-19 fuller footer sitemap ruling
-	 * (a new Site group alongside About / Get involved / Meta): the intro
-	 * column plus four nav groups. e2e/footer.spec.ts asserts the computed
-	 * track count matches this template at 768/1440 and collapses to a
-	 * single column below (the B4 breakpoint row); the #103 one-child-
+	 * (a Site group alongside About / Get involved / Meta) and the
+	 * 2026-11-14 members footer ruling (Members and Mail and lists): the
+	 * intro column plus six nav groups. e2e/footer.spec.ts asserts the
+	 * computed track count matches this template at 768/1440 and collapses
+	 * to a single column below (the B4 breakpoint row); the #103 one-child-
 	 * per-track lesson still holds. */
 	.site-footer__inner {
-		grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 2fr) repeat(6, minmax(0, 1fr));
 		align-items: start;
+	}
+}
+
+/* Between 48rem and 64rem the header holds seven links beside the
+ * wordmark, and with Sign in added the brand column collapsed mid-word.
+ * The header's Discussion archive link steps out in that range only. The
+ * same archive is in the footer's Mail and lists column on every page.
+ * Below 48rem the nav wraps (the 28rem block) and from 64rem it fits. */
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+	.site-nav a[href='https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/'] {
+		display: none;
 	}
 }
 

@@ -26,14 +26,21 @@ import { skipHomeIntro } from './support/intro';
 
 const MEMBERS_HOST = 'https://members.greatfallstoolbus.org';
 const SIGN_IN_URL = `${MEMBERS_HOST}/login`;
+/** The members URLs the served pages link, by mark (operator ruling 2026-11-14). */
+const PUBLIC_MEMBER_URLS = new Set([
+	SIGN_IN_URL,
+	`${MEMBERS_HOST}/membership`,
+	`${MEMBERS_HOST}/scan`,
+	`${MEMBERS_HOST}/contribution`,
+]);
 
 /**
  * Every link into the member app or the /join explainer, however spelled,
- * except the plain header and hero Join links (operator ruling 2026-11-14),
- * which carry data-public-join.
+ * except the plain Join links (data-public-join) and the members footer and
+ * header Sign in links (data-public-member), operator rulings 2026-11-14.
  */
 const GATED_LINKS = [
-	'a[href*="members.greatfallstoolbus.org"]',
+	'a[href*="members.greatfallstoolbus.org"]:not([data-public-member])',
 	'a[href="/join"]:not([data-public-join])',
 	'a[href^="/join/"]:not([data-public-join])',
 	'a[href^="/join#"]:not([data-public-join])',
@@ -85,7 +92,7 @@ for (const { label, width } of widths) {
 			await page.setViewportSize({ width, height: 900 });
 		});
 
-		test('an anonymous visitor has only the plain header and hero Join, and no wrapper left behind', async ({
+		test('an anonymous visitor has only the plain Join and members links, and no wrapper left behind', async ({
 			guardedPage,
 		}) => {
 			const page = await guardedPage('/');
@@ -100,7 +107,12 @@ for (const { label, width } of widths) {
 			const navJoin = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Join' });
 			await expect(navJoin).toHaveCount(1);
 			await expect(navJoin).toHaveAttribute('href', '/join/');
-			await expect(page.locator('a[data-public-join]')).toHaveCount(2);
+			await expect(page.locator('a[data-public-join]')).toHaveCount(3);
+			await expect(page.locator('a[data-public-member]')).toHaveCount(6);
+			const navSignIn = page
+				.getByRole('navigation', { name: 'Main navigation' })
+				.getByRole('link', { name: 'Sign in' });
+			await expect(navSignIn).toHaveAttribute('href', SIGN_IN_URL);
 			// No reserved space: not even an empty actions row or footer item.
 			await expect(page.locator('#faq-membership + dd .join-actions')).toHaveCount(0);
 			await expect(page.locator('.site-footer li:empty')).toHaveCount(0);
@@ -208,8 +220,13 @@ test('the layout shifts with the gated items: a member page is taller, an anonym
 	const measure = (target: Page) =>
 		target.evaluate(() => ({
 			faq: document.querySelector('#faq-membership + dd')?.getBoundingClientRect().height ?? Number.NaN,
-			footer: document.querySelector('.site-footer')?.getBoundingClientRect().height ?? Number.NaN,
+			footer: Array.from(document.querySelectorAll('.site-footer a')).map((link) => link.textContent?.trim() ?? ''),
 		}));
+	// The footer's Join and Sign in are static since the members footer ruling
+	// (2026-11-14), so the manifest adds no footer link: only the FAQ answer
+	// grows. The footer's height can still change, because the tool bus
+	// network button shows only while the manifest has no items, so the row
+	// compares the footer's links, not its height.
 	const before = await measure(anonymous);
 
 	const memberPage = await page.context().newPage();
@@ -220,7 +237,7 @@ test('the layout shifts with the gated items: a member page is taller, an anonym
 	await expect(memberPage.locator('.site-footer').getByRole('link', { name: 'Join', exact: true })).toHaveCount(1);
 	const after = await measure(memberPage);
 	expect(after.faq, 'the FAQ answer grows by the actions row').toBeGreaterThan(before.faq);
-	expect(after.footer, 'the footer grows by its Join and Sign in rows').toBeGreaterThan(before.footer);
+	expect(after.footer, 'the manifest adds or removes no footer link').toEqual(before.footer);
 });
 
 test('the 320px header fits when Join mounts', async ({ page, baseUrl }) => {
@@ -260,7 +277,7 @@ test('a manifest that fails, or lies, mounts nothing', async ({ page, baseUrl })
 			status: 200,
 			type: 'application/json',
 			body: JSON.stringify({
-				items: [{ slot: 'footer-join', kind: 'join', label: 'Join', href: 'https://evil.example/join' }],
+				items: [{ slot: 'how-membership', kind: 'how-membership', label: 'How', href: 'https://evil.example/join' }],
 			}),
 		},
 	];
@@ -288,13 +305,14 @@ test('no page links the member app application form directly', async ({ page, ba
 	await asMember(page, baseUrl);
 	for (const path of ['/', '/join/', '/contact']) {
 		await page.goto(path);
-		await expect(page.locator('footer').getByRole('link', { name: /^Member sign in/u }), path).toHaveCount(1);
+		await expect(page.locator('footer').getByRole('link', { name: 'Sign in', exact: true }), path).toHaveCount(1);
 		await expect(page.locator(`a[href^="${MEMBERS_HOST}/apply"]`), path).toHaveCount(0);
-		// Every link into the member app is the sign-in entry.
+		// Every link into the member app is the sign-in entry or one of the
+		// members footer's member-area pages, never a role page.
 		const memberLinks = await page
 			.locator(`a[href^="${MEMBERS_HOST}"]`)
 			.evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-		expect(new Set(memberLinks), path).toEqual(new Set([SIGN_IN_URL]));
+		for (const href of memberLinks) expect(PUBLIC_MEMBER_URLS.has(href ?? ''), `${path} ${href}`).toBe(true);
 	}
 });
 
@@ -321,8 +339,8 @@ test('/join is indexed and in the sitemap, and the footer rows and sharp edges h
 	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /^index/u);
 	await expect(page.locator('a[href*="/edit/"][href*="join"]')).toHaveCount(0);
 	const footer = page.locator('footer');
-	await expect(footer.getByRole('link', { name: 'Join', exact: true })).toHaveAttribute('href', '/join');
-	await expect(footer.getByRole('link', { name: /^Member sign in/u })).toHaveAttribute('href', SIGN_IN_URL);
+	await expect(footer.getByRole('link', { name: 'Join', exact: true })).toHaveAttribute('href', '/join/');
+	await expect(footer.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href', SIGN_IN_URL);
 	const rounded = await page.evaluate(() =>
 		[...document.querySelectorAll('main *')]
 			.filter((el) => getComputedStyle(el).borderRadius !== '0px')

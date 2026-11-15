@@ -9,7 +9,6 @@
 	import ContributeMenu from '#lib/components/ContributeMenu.svelte';
 	import { buildShaShort } from '#lib/build-info.js';
 	import { footerNavGroups, isActivePath, primaryNavItems } from '#lib/nav-items.js';
-	import GatedSlot from '#lib/components/GatedSlot.svelte';
 	import TailnetPrompt from '#lib/components/TailnetPrompt.svelte';
 	import { gatedSurface } from '#lib/gated/surface.svelte.js';
 	import { pageTitle } from '#lib/page-title.js';
@@ -268,17 +267,19 @@
 						>
 					{/if}
 				{/each}
-				<!-- Join is a plain link in the served HTML (operator ruling
-				     2026-11-14, which narrows the 2026-10-04 gated-surface ruling for
-				     /join only). data-public-join marks it as one of the two sanctioned
-				     /join anchors, header and hero, that the gated-join-link leak-scan
-				     rule lets through. The manifest's header-join item is no longer
-				     rendered. -->
+				<!-- Join and Sign in are plain links in the served HTML (operator
+				     rulings 2026-11-14, which narrow the 2026-10-04 gated-surface
+				     ruling). data-public-join and data-public-member mark the
+				     sanctioned anchors that the gated-join-link and
+				     gated-member-app-url leak-scan rules let through. Keep each mark
+				     before its href, and the members URLs exact. The manifest's
+				     header-join item is no longer rendered. -->
 				<a
 					data-public-join="header"
 					href="/join/"
 					aria-current={isActivePath(currentPath, ['/join']) ? 'page' : undefined}>Join</a
 				>
+				<a data-public-member="sign-in" href="https://members.greatfallstoolbus.org/login">Sign in</a>
 				<!-- D01 placement: the mode switch rides the third header column
 				     beside the anchors — the demo's AppBar.Trail position. -->
 				<ThemeSwitcher />
@@ -323,6 +324,45 @@
 				     newline, so the credit never runs into the next line's text. -->
 				<p class="site-footer__credit muted">Logo by Chris H.</p>
 			</div>
+			<!-- The members area's own footer links, on the main site (operator
+			     ruling 2026-11-14): the member-facing pages only, never the role
+			     pages. Each members URL is exact and carries its data-public-member
+			     mark before the href, which is what the gated-member-app-url
+			     leak-scan rule lets through. A signed-out visitor who follows
+			     Membership, Tools, Contribution or Mailbox name is sent to sign in
+			     by the members area. -->
+			<nav class="site-footer__group" aria-label="Members">
+				<h2>Members</h2>
+				<ul>
+					<li><a data-public-member="sign-in" href="https://members.greatfallstoolbus.org/login">Sign in</a></li>
+					<li><a data-public-join="footer" href="/join/">Join</a></li>
+					<li>
+						<a data-public-member="membership" href="https://members.greatfallstoolbus.org/membership">Membership</a>
+					</li>
+					<li><a data-public-member="tools" href="https://members.greatfallstoolbus.org/scan">Tools</a></li>
+					<li>
+						<a data-public-member="contribution" href="https://members.greatfallstoolbus.org/contribution"
+							>Contribution</a
+						>
+					</li>
+				</ul>
+			</nav>
+			<!-- Mail and lists says only what is live: the public discuss archive,
+			     and the members area page where a member chooses a mailbox name.
+			     No setup guide and no server name: mailboxes are not open yet. -->
+			<nav class="site-footer__group" aria-label="Mail and lists">
+				<h2>Mail and lists</h2>
+				<ul>
+					<li>
+						<ExternalLink href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
+							>Discuss archive</ExternalLink
+						>
+					</li>
+					<li>
+						<a data-public-member="mailbox" href="https://members.greatfallstoolbus.org/membership">Mailbox name</a>
+					</li>
+				</ul>
+			</nav>
 			{#each footerNavGroups as group (group.heading)}
 				<nav class="site-footer__group" aria-label={group.heading}>
 					<h2>{group.heading}</h2>
@@ -336,10 +376,6 @@
 								{/if}
 							</li>
 						{/each}
-						{#if group.heading === 'Get involved'}
-							<GatedSlot slot="footer-join" tag="li" />
-							<GatedSlot slot="footer-sign-in" tag="li" />
-						{/if}
 					</ul>
 				</nav>
 			{/each}

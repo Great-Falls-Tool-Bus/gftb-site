@@ -79,24 +79,18 @@ export const navItems: NavItem[] = [
 	// Footer navigation: the fuller tinyland.dev-pattern sitemap (operator
 	// ruling 2026-09-19). These are separate objects from their header/body
 	// counterparts on purpose, since a footer row can carry its own label
-	// ("Discussion board" here vs. "Discussion archive" in the header) while
+	// ("Discuss archive" in the footer vs. "Discussion archive" in the header) while
 	// still pointing at the same destination; the "Log archive" row below
 	// already established the pattern before this ruling.
 	{ label: 'Home', href: '/', match: ['/'], footerGroup: 'About' },
 	{ label: 'FAQ', href: '/#faq', match: [], footerGroup: 'About' },
 	{ label: 'Notes & Goals', href: '/#goals', match: [], footerGroup: 'About' },
 	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
-	// The footer Join and Member sign in rows come from the gated manifest
-	// (<GatedSlot slot="footer-join"> and "footer-sign-in"); no link into /join
-	// or the member app lives in this array.
+	// The footer's Members and Mail and lists columns are static markup in the
+	// layout, not entries here: their member-area links must stay exact literal
+	// anchors for the gated-member-app-url leak-scan rule (operator ruling
+	// 2026-11-14). The discuss archive moved there from Get involved.
 	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
-	{
-		label: 'Discussion board',
-		href: 'https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/',
-		match: [],
-		footerGroup: 'Get involved',
-		external: true,
-	},
 	{
 		label: 'GitHub',
 		href: 'https://github.com/Great-Falls-Tool-Bus',

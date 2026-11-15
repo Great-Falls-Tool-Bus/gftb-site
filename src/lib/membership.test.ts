@@ -75,7 +75,7 @@ describe('join path', () => {
 		expect(navItems.some((item) => item.label === 'Join' || item.label === 'Member sign in')).toBe(false);
 	});
 
-	it('keeps member-app addresses out of every public source file, and /join links to the header and hero', () => {
+	it('pins every /join anchor and every member-app link in public source to its mark', () => {
 		const sources = [
 			'src/routes/+layout.svelte',
 			'src/routes/+page.svelte',
@@ -85,28 +85,46 @@ describe('join path', () => {
 			'src/lib/components/GatedSlot.svelte',
 			'src/lib/gated/surface.svelte.ts',
 		];
-		// Operator ruling 2026-11-14: exactly one plain /join anchor in the header
-		// and one in the hero, each marked for the gated-join-link leak-scan rule.
-		const sanctioned: Record<string, string> = {
-			'src/routes/+layout.svelte': 'header',
-			'src/routes/+page.svelte': 'hero',
+		// Operator rulings 2026-11-14: the plain Join links sit in the header, the
+		// hero and the footer, and the members links sit in the header (Sign in)
+		// and the footer, each marked for its leak-scan rule.
+		const joinMarks: Record<string, string[]> = {
+			'src/routes/+layout.svelte': ['header', 'footer'],
+			'src/routes/+page.svelte': ['hero'],
+		};
+		const memberLinks: Record<string, Array<[string, string]>> = {
+			'src/routes/+layout.svelte': [
+				['sign-in', '/login'],
+				['sign-in', '/login'],
+				['membership', '/membership'],
+				['tools', '/scan'],
+				['contribution', '/contribution'],
+				['mailbox', '/membership'],
+			],
 		};
 		for (const source of sources) {
 			const text = read(source);
-			expect(text, source).not.toMatch(/members\.greatfallstoolbus\.org/u);
 			expect(text, source).not.toContain('membership-surface');
-			const joinAnchors = text.match(/href=\{?["'`]?\/join/gu) ?? [];
-			const marks = text.match(/data-public-join="(\w+)"/gu) ?? [];
-			if (sanctioned[source]) {
-				expect(joinAnchors, source).toHaveLength(1);
-				expect(marks, source).toEqual([`data-public-join="${sanctioned[source]}"`]);
-				expect(text, source).toMatch(new RegExp(`data-public-join="${sanctioned[source]}"\\s+href="/join/"`, 'u'));
-			} else {
-				expect(joinAnchors, source).toEqual([]);
-				expect(marks, source).toEqual([]);
-			}
+			const joins = joinMarks[source] ?? [];
+			expect(text.match(/href=\{?["'`]?\/join/gu) ?? [], source).toHaveLength(joins.length);
+			expect(
+				[...text.matchAll(/data-public-join="(\w+)"\s+href="\/join\/"/gu)].map((m) => m[1]),
+				source,
+			).toEqual(joins);
+			expect(text.match(/data-public-join=/gu) ?? [], source).toHaveLength(joins.length);
+			const members = memberLinks[source] ?? [];
+			expect(text.match(/members\.greatfallstoolbus\.org/gu) ?? [], source).toHaveLength(members.length);
+			expect(
+				[
+					...text.matchAll(
+						/data-public-member="([\w-]+)"\s+href="https:\/\/members\.greatfallstoolbus\.org(\/[\w-]+)"/gu,
+					),
+				].map((m) => [m[1], m[2]]),
+				source,
+			).toEqual(members);
+			expect(text.match(/data-public-member=/gu) ?? [], source).toHaveLength(members.length);
 		}
-		// The manifest URL is the one place the member host appears in public code.
+		// The manifest URL is the one other place the member host appears in public code.
 		expect(read('src/lib/gated/manifest.ts').match(/members\.greatfallstoolbus\.org/gu)).toHaveLength(1);
 	});
 
