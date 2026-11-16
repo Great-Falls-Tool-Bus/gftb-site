@@ -9,7 +9,7 @@
 	// "Member data" section is the operator's approved text of 2026-11-15, word
 	// for word: change it only with her approval. The two sentences on an AI
 	// assistant that end its "Accounts." paragraph are her approved text of
-	// 2026-11-16 (ruling comment 613888bb), word for word.
+	// 2026-11-16, word for word.
 	// TODO(jess): final wording review; the facts below are read from the code.
 </script>
 
