@@ -7,7 +7,9 @@
 	// interview 2026-10-02: the work session RSVP rides the contact relay, so
 	// both forms carry the relay's IP line and the list's private archive. The
 	// "Member data" section is the operator's approved text of 2026-11-15, word
-	// for word: change it only with her approval.
+	// for word: change it only with her approval. The two sentences on an AI
+	// assistant that end its "Accounts." paragraph are her approved text of
+	// 2026-11-16, word for word.
 	// TODO(jess): final wording review; the facts below are read from the code.
 </script>
 
@@ -70,7 +72,8 @@
 			<p>
 				Accounts. We hold your name, emails, membership status, roles, when you agreed to the member agreement and an
 				audit log. Sign-in uses an identity server we run and a cookie lasting up to seven days. We use no analytics or
-				trackers.
+				trackers. A keyholder may use an AI assistant to help with club work. It then reads what that keyholder can
+				read, and its provider processes that text.
 			</p>
 			<p>
 				Payments. Card payments use Stripe's pages, so card numbers never reach us. We keep your Stripe customer and
@@ -88,7 +91,7 @@
 				your records. Write to <code>keyholders@latoolb.us</code> to ask what we hold about you.
 			</p>
 
-			<p class="muted">Last reviewed: 15 November 2026.</p>
+			<p class="muted">Last reviewed: 16 November 2026.</p>
 		</div>
 	</article>
 
