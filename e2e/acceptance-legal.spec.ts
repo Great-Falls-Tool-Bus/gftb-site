@@ -43,7 +43,7 @@ test('the legal page embeds both documents with link fallbacks and keeps the rai
 
 test('the footer and the sitemap carry the legal route', async ({ page, request }) => {
 	await page.goto('/');
-	await expect(page.locator('footer a[href="/legal"]')).toHaveText('Legal');
+	await expect(page.locator('footer a[href="/legal/"]')).toHaveText('Legal');
 	const sitemap = await request.get('/sitemap.xml');
 	expect(await sitemap.text()).toContain('<loc>https://greatfallstoolbus.org/legal/</loc>');
 });

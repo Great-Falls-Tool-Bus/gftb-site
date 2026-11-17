@@ -106,10 +106,14 @@ describe('leak-scan detections', () => {
 
 	it('sanctions only the SourceLink surfaces of the site repo, never its tracker pages', () => {
 		// The edit-this-page affordance (demo #94, addendum B1.2) publishes the
-		// repo root plus /edit/, /blob/ and /tree/ source links and the advisory form.
+		// repo root plus /edit/, /blob/ and /tree/ source links and the security policy page.
 		// Every OTHER repo, and this repo's PR/issue/commit surfaces, stay
 		// banned repository pointers.
 		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site')).not.toContain('internal-tracker-reference');
+		// The footer Security link opens the repository's SECURITY.md policy page.
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/security/policy')).not.toContain(
+			'internal-tracker-reference',
+		);
 		expect(
 			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/edit/main/src/content/log/x.svx'),
 		).not.toContain('internal-tracker-reference');

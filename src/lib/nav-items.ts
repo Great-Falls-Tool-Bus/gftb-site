@@ -42,8 +42,8 @@ interface FooterNavItem extends NavItemBase {
 export type NavItem = HeaderNavItem | FooterNavItem;
 
 export const navItems: NavItem[] = [
-	{ label: 'Log', href: '/log', match: ['/log'], primary: true },
-	{ label: 'Contact', href: '/contact', match: ['/contact'], primary: true },
+	{ label: 'Log', href: '/log/', match: ['/log'], primary: true },
+	{ label: 'Contact', href: '/contact/', match: ['/contact'], primary: true },
 	// Operator ruling 2026-09-19: FAQ in the header, linking to the home
 	// FAQ section. The footer's own "Questions" row is retired in the same
 	// ruling; the fuller footer sitemap (below) carries FAQ instead.
@@ -51,8 +51,7 @@ export const navItems: NavItem[] = [
 	// Join is not a nav item: the header Join is a plain link in the layout,
 	// marked data-public-join (operator ruling 2026-11-14).
 	// Operator ruling 2026-08-31: GitHub in the header. The org page is the
-	// public target (gftb-site itself is private; a repo link would 404 for
-	// visitors, review E4).
+	// target: it lists every public repository of the club.
 	{ label: 'GitHub', href: 'https://github.com/Great-Falls-Tool-Bus', match: [], primary: true, external: true },
 	// Public HyperKitty archive UI for discuss@ — promoted from the footer to
 	// the header by operator ruling 2026-09-01 (the discuss board is a
@@ -78,19 +77,19 @@ export const navItems: NavItem[] = [
 	},
 	// Footer navigation: the fuller tinyland.dev-pattern sitemap (operator
 	// ruling 2026-09-19). These are separate objects from their header/body
-	// counterparts on purpose, since a footer row can carry its own label
-	// ("Discuss archive" in the footer vs. "Discussion archive" in the header) while
-	// still pointing at the same destination; the "Log archive" row below
-	// already established the pattern before this ruling.
+	// counterparts on purpose, since a footer row can carry its own label while
+	// still pointing at the same destination, as the "Log archive" row below
+	// does. The discuss archive keeps one name, "Discussion archive", in the
+	// header and the footer.
 	{ label: 'Home', href: '/', match: ['/'], footerGroup: 'About' },
 	{ label: 'FAQ', href: '/#faq', match: [], footerGroup: 'About' },
 	{ label: 'Notes & Goals', href: '/#goals', match: [], footerGroup: 'About' },
-	{ label: 'Log archive', href: '/log', match: ['/log'], footerGroup: 'About' },
+	{ label: 'Log archive', href: '/log/', match: ['/log'], footerGroup: 'About' },
 	// The footer's Members and Mail and lists columns are static markup in the
 	// layout, not entries here: their member-area links must stay exact literal
 	// anchors for the gated-member-app-url leak-scan rule (operator ruling
 	// 2026-11-14). The discuss archive moved there from Get involved.
-	{ label: 'Contact a keyholder', href: '/contact', match: ['/contact'], footerGroup: 'Get involved' },
+	{ label: 'Contact a keyholder', href: '/contact/', match: ['/contact'], footerGroup: 'Get involved' },
 	{
 		label: 'GitHub',
 		href: 'https://github.com/Great-Falls-Tool-Bus',
@@ -98,9 +97,9 @@ export const navItems: NavItem[] = [
 		footerGroup: 'Get involved',
 		external: true,
 	},
-	{ label: 'Privacy', href: '/privacy', match: ['/privacy'], footerGroup: 'Site' },
-	{ label: 'Refund policy', href: '/refund-policy', match: ['/refund-policy'], footerGroup: 'Site' },
-	{ label: 'Legal', href: '/legal', match: ['/legal'], footerGroup: 'Site' },
+	{ label: 'Privacy', href: '/privacy/', match: ['/privacy'], footerGroup: 'Site' },
+	{ label: 'Refund policy', href: '/refund-policy/', match: ['/refund-policy'], footerGroup: 'Site' },
+	{ label: 'Legal', href: '/legal/', match: ['/legal'], footerGroup: 'Site' },
 	// Same-origin resource, not an outbound destination, so a plain anchor.
 	{ label: 'Sitemap', href: '/sitemap.xml', match: [], footerGroup: 'Site' },
 ];

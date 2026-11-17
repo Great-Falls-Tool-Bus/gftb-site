@@ -303,9 +303,8 @@
 				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
 				     Degrade-to-nothing on
 				     local/unstamped builds is already the build-info contract.
-				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
-				     /commit page because that repo is public; this carrier is
-				     private and the leak-scan internal-tracker-reference rule bans
+				     DELIBERATELY NO ANCHOR (review B1): this repository is public
+				     now, but the leak-scan internal-tracker-reference rule still bans
 				     the repo's pull/issues/commit path segments in the artifact by
 				     name (docs/operating-rules.md sanctions exactly one repository pointer, the
 				     SourceLink affordance) — no sha length escapes a path-segment
@@ -362,7 +361,7 @@
 				<ul>
 					<li>
 						<ExternalLink href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
-							>Discuss archive</ExternalLink
+							>Discussion archive</ExternalLink
 						>
 					</li>
 					<li>
@@ -390,12 +389,13 @@
 				<h2>Meta</h2>
 				<ul>
 					<!-- D11's AX/agent row was retired by operator ruling 2026-08-31.
-					     Source and Security still point at the private site repo (a
-					     404 for visitors, review E4); whether they should point at the
-					     organization root instead is a separate operator call. D06:
-					     outbound meta links ride ExternalLink. -->
+					     The site repository is public, so Source opens it. Security
+					     opens its SECURITY.md policy page, which says to report a
+					     problem by email. The advisory form is not linked: private
+					     vulnerability reporting is off on the repository, so the form
+					     does not open. D06: outbound meta links ride ExternalLink. -->
 					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
-					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
+					<li><ExternalLink href={`${repoUrl}/security/policy`}>Security</ExternalLink></li>
 					<!-- The tailnet button mounts in the browser only, with a stamped probe
 					     URL, and leaves no empty item behind for anyone else. -->
 					{#if gatedSurface.showTailnetButton}
