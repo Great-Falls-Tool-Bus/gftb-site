@@ -16,6 +16,7 @@ export const EMPTY_MARKER = '__EMPTY__';
  */
 export const INVALID_MARKER = '__INVALID__';
 export const TAILNET_PROBE_KEY = 'STABLE_BUILD_TAILNET_PROBE_URL';
+export const MEMBERSHIP_PUBLIC_KEY = 'STABLE_BUILD_MEMBERSHIP_PUBLIC';
 export const MALFORMED_PROBE_URL_MESSAGE =
 	'PUBLIC_TAILNET_PROBE_URL was malformed when this build was stamped; ' +
 	'it must be empty or https://<node>.<tailnet>.ts.net/<path> (value not shown)';
@@ -47,7 +48,7 @@ function statusFilePath(env, cwd) {
  *
  * @param {NodeJS.ProcessEnv} [env]
  * @param {string} [cwd]
- * @returns {{ basePath: string, commitSha: string, tailnetProbeUrl: string }}
+ * @returns {{ basePath: string, commitSha: string, tailnetProbeUrl: string, membershipPublic: boolean }}
  */
 export function readBuildMetadata(env = process.env, cwd = process.cwd()) {
 	if (!env.BAZEL_STABLE_STATUS_FILE) {
@@ -66,6 +67,8 @@ export function readBuildMetadata(env = process.env, cwd = process.cwd()) {
 		basePath: encodedBasePath === EMPTY_MARKER ? '' : encodedBasePath,
 		commitSha,
 		tailnetProbeUrl: encodedTailnetProbeUrl === EMPTY_MARKER ? '' : encodedTailnetProbeUrl,
+		// Only the exact stamp turns it on. A missing key is off.
+		membershipPublic: values.get(MEMBERSHIP_PUBLIC_KEY) === '1',
 	};
 }
 

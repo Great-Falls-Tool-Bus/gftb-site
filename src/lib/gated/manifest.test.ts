@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+	MEMBERSHIP_PUBLIC,
 	CACHE_KEY,
 	TAILNET_CACHE_KEY,
 	TAILNET_PROBE_TIMEOUT_MS,
@@ -269,6 +270,33 @@ describe('resolveSurface', () => {
 	const base = { search: '', getStorage: () => null, pageOrigin: PAGE, tailnetUrl: '' };
 	const answer = (items: SurfaceItem[]) => async () => jsonResponse(manifest(...items));
 	const seams = (fetchImpl: FetchSeams['fetchImpl']): FetchSeams => ({ fetchImpl });
+
+	it('reads the manifest with the Access cookie by default, and with none in a public build', async () => {
+		expect(MEMBERSHIP_PUBLIC).toBe(false);
+		const credentialsFor = async (inputs: { membershipPublic?: boolean }) => {
+			const fetchImpl = vi.fn(answer([item()]));
+			const items = await resolveSurface({
+				...base,
+				...inputs,
+				fetchSeams: seams(fetchImpl as unknown as typeof fetch),
+			});
+			expect(items).toEqual([item()]);
+			return ((fetchImpl.mock.calls[0] as unknown[])[1] as RequestInit).credentials;
+		};
+		expect(await credentialsFor({})).toBe('include');
+		expect(await credentialsFor({ membershipPublic: false })).toBe('include');
+		expect(await credentialsFor({ membershipPublic: true })).toBe('omit');
+	});
+
+	it('still validates the manifest in a public build', async () => {
+		const fetchImpl = vi.fn(answer([item({ href: 'https://elsewhere.example/apply' })]));
+		const items = await resolveSurface({
+			...base,
+			membershipPublic: true,
+			fetchSeams: seams(fetchImpl as unknown as typeof fetch),
+		});
+		expect(items).toEqual([]);
+	});
 
 	it('serves the members manifest for a visitor with a session', async () => {
 		const fetchImpl = vi.fn(answer([item()]));

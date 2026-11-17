@@ -114,9 +114,22 @@ describe('readBuildMetadata (//:build)', () => {
 
 	it('decodes the empty marker and a stamped URL', () => {
 		const empty = statusFile([...base, 'STABLE_BUILD_TAILNET_PROBE_URL __EMPTY__']);
-		expect(readBuildMetadata(empty, '/')).toEqual({ basePath: '', commitSha: 'deadbee', tailnetProbeUrl: '' });
+		expect(readBuildMetadata(empty, '/')).toEqual({
+			basePath: '',
+			commitSha: 'deadbee',
+			tailnetProbeUrl: '',
+			membershipPublic: false,
+		});
 		const set = statusFile([...base, `STABLE_BUILD_TAILNET_PROBE_URL ${GOOD}`]);
 		expect(readBuildMetadata(set, '/').tailnetProbeUrl).toBe(GOOD);
+	});
+
+	it('turns the membership public switch on only for the exact stamp', () => {
+		const probe = 'STABLE_BUILD_TAILNET_PROBE_URL __EMPTY__';
+		const read = (value: string) =>
+			readBuildMetadata(statusFile([...base, probe, `STABLE_BUILD_MEMBERSHIP_PUBLIC ${value}`]), '/').membershipPublic;
+		expect(read('1')).toBe(true);
+		for (const value of ['__EMPTY__', '0', 'true', '11']) expect(read(value)).toBe(false);
 	});
 
 	it('fails on the invalid marker with fixed text', () => {
