@@ -10,6 +10,10 @@
 //
 // The members pages carry the tool data: names, photos, status and where each
 // tool lives. This site shows none of it, so nothing here can go stale.
+//
+// The due-back sentence follows the members app: platform
+// src/lib/server/inventory/public-tools.ts dueBackDateSql drops the date once
+// the day has passed, and the page then says "On loan" alone (TIN-3814).
 
 /** The header and footer item for the members Tools pages. */
 export const TOOLS_LINK_LABEL = 'Tools';
@@ -20,7 +24,7 @@ export const TOOLS_SECTION = {
 	paragraphs: [
 		'Members borrow tools from the Tool Bus for their projects and repairs.',
 		'Anyone can search them and see a photo of each tool and where it lives, since not every tool lives on the bus.',
-		'When a tool is out on loan, its page says when it is due back.',
+		'When a tool is out on loan, its page shows the day it is due back, until that day passes.',
 	],
 	linkLabel: 'Browse the tools',
 } as const;
