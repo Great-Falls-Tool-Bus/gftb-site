@@ -9,6 +9,11 @@ only; nothing is published to npm.
 
 ### Changed
 
+- TIN-5447: the v4 `validate` action in `.github/lanes.json` requests
+  `//:validate_suite`, which adds the four manifest drift tests, the
+  declared-source Gitleaks scan and the actionlint workflow check to the two
+  `//:lint_suite` tests. Every test in it is source-only and unstamped.
+
 - R574 (TIN-7477): `MODULE.bazel` binds the two first-party modules to one
   immutable `xoxd-ai/bazel-registry` commit with `single_version_override`;
   `.bazelrc` names no registry.

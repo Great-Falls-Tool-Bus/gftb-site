@@ -725,20 +725,38 @@ class RepositoryContractTests(unittest.TestCase):
             "actions": {
                 "validate": {
                     "command": "test",
-                    "targets": ["//:lint_suite"],
+                    "targets": ["//:validate_suite"],
                     "capability": "rbe-linux-x86_64",
                     "result": {"mode": "status-only"},
                 },
             },
         }
         self.assertEqual(self.plan, expected_plan)
-        # The fabric action is the lint suite (TIN-7477). A
-        # repeat on an input-identical commit must be a cache hit, so the plan
-        # carries no stamped build action.
+        # The fabric action is the validate suite (TIN-7477, TIN-5447): the
+        # lint suite plus the source-only checks. A repeat on an
+        # input-identical commit must be a cache hit, so the plan carries no
+        # stamped build action and the suite names no test that reads //:build.
         self.assertIn(
             'tests = [":eslint_test", ":prettier_check_test"],',
             bazel_target(self.build, "lint_suite"),
         )
+        validate_suite = bazel_target(self.build, "validate_suite")
+        self.assertEqual(
+            re.findall(r'"(:[a-z_]+)"', validate_suite),
+            [
+                ":current_source_secret_scan_test",
+                ":eslint_test",
+                ":goals_manifest_drift_test",
+                ":hours_manifest_drift_test",
+                ":log_manifest_drift_test",
+                ":prettier_check_test",
+                ":source_map_drift_test",
+                ":workflow_validation_test",
+            ],
+        )
+        for name in re.findall(r'"(?::)([a-z_]+)"', validate_suite):
+            with self.subTest(validate_suite_test=name):
+                self.assertNotIn('":build"', bazel_target(self.build, name))
 
         # Operator ruling 2026-09-28: GitHub Actions leave this repository.
         # The v4 caller and the signed-commits check are gone; the pre-merge
