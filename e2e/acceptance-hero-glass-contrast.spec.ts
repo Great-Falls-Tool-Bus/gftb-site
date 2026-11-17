@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test';
 import { contrastRatio, parseCssColor, roundRatio } from '../scripts/lib/color-contrast.mjs';
 import type { Rgb } from './support/png-luminance';
 import { measureGlassExtremes, resolveRoleRgb, setScheme } from './support/glass-contrast';
+import { skipHomeIntro } from './support/intro';
 
 // Real-pixel backstop for the shared translucent surface contract. The unit
 // gate bounds arbitrary black/white backdrops with the declared tint and local
@@ -23,6 +24,12 @@ function ratioAgainst(ink: Rgb, extreme: { rgb: Rgb }): number {
 }
 
 test.describe('glass surfaces: real rendered contrast', () => {
+	// The arriving intro veils the page for several seconds on every full load by
+	// ruling; the pixel measure must read the glass over the scene, not the veil.
+	test.beforeEach(async ({ page }) => {
+		await skipHomeIntro(page);
+	});
+
 	test('backdrop-filter actually computes a blur, not none', async ({ page, baseURL }) => {
 		// Regression guard for the exact bug: a hand-written
 		// -webkit-backdrop-filter line made the build emit ONLY the prefixed
