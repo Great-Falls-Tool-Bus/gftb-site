@@ -14,7 +14,7 @@ describe('contact copy', () => {
 
 	it('keeps the house copy rules', () => {
 		for (const text of [CONTACT_NEXT_STEP, CONTACT_SENT_NEXT_STEP]) {
-			expect(text, text).not.toContain('—');
+			expect(text, text).not.toContain('\u2014');
 			expect(text, text).not.toContain(';');
 			expect(text, text).not.toMatch(/applications open after|pilot|open house/iu);
 		}
