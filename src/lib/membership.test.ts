@@ -87,13 +87,16 @@ describe('join path', () => {
 		];
 		// Operator rulings 2026-11-14: the plain Join links sit in the header, the
 		// hero and the footer, and the members links sit in the header (Sign in)
-		// and the footer, each marked for its leak-scan rule.
+		// and the footer, each marked for its leak-scan rule. TIN-3814 adds Tools
+		// to the header and the home page and retargets the footer Tools link from
+		// /scan to the members Tools pages.
 		const joinMarks: Record<string, string[]> = {
 			'src/routes/+layout.svelte': ['header', 'footer'],
 			'src/routes/+page.svelte': ['hero'],
 		};
 		const memberLinks: Record<string, Array<[string, string]>> = {
 			'src/routes/+layout.svelte': [
+				['tools', '/tools'],
 				['sign-in', '/login'],
 				['sign-in', '/login'],
 				['membership', '/membership'],
@@ -101,6 +104,7 @@ describe('join path', () => {
 				['contribution', '/contribution'],
 				['mailbox', '/membership'],
 			],
+			'src/routes/+page.svelte': [['tools', '/tools']],
 		};
 		for (const source of sources) {
 			const text = read(source);

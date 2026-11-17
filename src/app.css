@@ -1446,6 +1446,46 @@ html.motion-safe-ready .reveal-armed.reveal-in {
 	margin-bottom: 2rem;
 }
 
+/* Tools to borrow (home): one glass pane like its neighbours, with
+ * the accent edge on the left that marks it as the way into the members Tools
+ * pages. Fixed copy and one button, so the pane has no state to wait for and
+ * nothing to shift. One column on a phone; from 48rem the button sits on the
+ * right, on the last line of the text. Sharp edges: no radius anywhere. */
+.tools-band {
+	display: grid;
+	gap: 1.5rem;
+	border-left: 4px solid var(--accent);
+}
+
+.tools-band__text {
+	max-width: 46rem;
+}
+
+.tools-band__text h2 {
+	margin-bottom: 0.85rem;
+}
+
+.tools-band__text p {
+	margin-bottom: 0.5rem;
+	font-size: 1.05rem;
+}
+
+.tools-band__text p:last-child {
+	margin-bottom: 0;
+}
+
+.tools-band__action .button {
+	min-width: 12rem;
+}
+
+@media (min-width: 48rem) {
+	.tools-band {
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: end;
+		gap: 2.5rem;
+	}
+}
+
 .grid {
 	display: grid;
 	gap: 1rem;

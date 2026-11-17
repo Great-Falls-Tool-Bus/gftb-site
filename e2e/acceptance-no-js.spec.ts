@@ -4,6 +4,7 @@ import { expect, test } from './support/fixtures';
 import { primaryNavItems } from '../src/lib/nav-items';
 import { MANIFEST_URL } from '../src/lib/gated/manifest';
 import { HOME_LOG_COUNT, publicLogs } from '../src/lib/public-logs';
+import { TOOLS_SECTION } from '../src/lib/tools-copy';
 import { CHALLENGE_URL, CONTACT_URL, FORM_ORIGIN, installExternalGuard, stubChallenge } from './support/network';
 import { forceTierMax } from './support/wiper-tier';
 
@@ -19,6 +20,9 @@ const GATED_LINKS = [
 	'a[href^="/join#"]:not([data-public-join])',
 	'a[href^="https://greatfallstoolbus.org/join"]',
 ].join(', ');
+
+/** The members Tools pages, open to everyone (TIN-3814). */
+const TOOLS_URL = 'https://members.greatfallstoolbus.org/tools';
 
 async function unresolvedHomeHashes(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
@@ -54,6 +58,15 @@ test.describe('JavaScript disabled', () => {
 		await expect(page.locator('#faq')).toContainText('Thursdays, 3 to 4 PM ET');
 		await expect(page.locator('#faq').getByText(/Thursdays, 3 to 4 PM ET/u)).toHaveCount(1);
 		await expect(page.getByRole('heading', { name: 'Notes & Goals' })).toBeVisible();
+		// TIN-3814: the Tools section, fixed copy and one link to the members
+		// Tools pages, right after Notes & Goals.
+		await expect(page.getByRole('heading', { name: TOOLS_SECTION.heading, level: 2 })).toBeVisible();
+		await expect(page.locator('.page-shell > #goals + #tools + #faq')).toHaveCount(1);
+		await expect(page.locator('#tools').getByRole('link')).toHaveCount(1);
+		await expect(page.locator('#tools').getByRole('link', { name: TOOLS_SECTION.linkLabel })).toHaveAttribute(
+			'href',
+			TOOLS_URL,
+		);
 		// exact: the log entry's own title ("First public log entry") would
 		// otherwise substring-match this heading query.
 		await expect(page.getByRole('heading', { name: 'Public log', exact: true })).toBeVisible();
@@ -125,9 +138,11 @@ test.describe('JavaScript disabled', () => {
 		// 2026-09-01); the count derives from the SSOT so it cannot drift. Join
 		// and Sign in are not in the SSOT: they are plain links after the SSOT
 		// items in the served HTML (operator rulings 2026-11-14), so they are
-		// there without scripts.
+		// there without scripts. Tools (TIN-3814) is a plain link to the members
+		// Tools pages, just before Join, for the same reason.
 		const headerLinks = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
-		await expect(headerLinks).toHaveCount(primaryNavItems.length + 2);
+		await expect(headerLinks).toHaveCount(primaryNavItems.length + 3);
+		await expect(page.locator(`.site-nav a[data-public-member="tools"][href="${TOOLS_URL}"]`)).toHaveCount(1);
 		await expect(page.locator('.site-nav a[data-public-join="header"][href="/join/"]')).toHaveCount(1);
 		await expect(
 			page.locator('.site-nav a[data-public-member="sign-in"][href="https://members.greatfallstoolbus.org/login"]'),
@@ -138,6 +153,7 @@ test.describe('JavaScript disabled', () => {
 			'FAQ',
 			/^GitHub/u,
 			/^Discussion archive/u,
+			'Tools',
 			'Join',
 			'Sign in',
 		]);
@@ -171,8 +187,12 @@ test.describe('JavaScript disabled', () => {
 					/<a\b[^>]*\sdata-public-member="([\w-]+)"[^>]*\shref="https:\/\/members\.greatfallstoolbus\.org(\/[\w-]+)"/gu,
 				),
 			].map((m) => `${m[1]} ${m[2]}`);
+			// Header Tools and Sign in, the home Tools button on / only, then the
+			// members footer, whose Tools link moved from /scan to /tools (TIN-3814).
 			expect(memberAnchors, path).toEqual([
+				'tools /tools',
 				'sign-in /login',
+				...(path === '/' ? ['tools /tools'] : []),
 				'sign-in /login',
 				'membership /membership',
 				'tools /tools',

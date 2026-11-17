@@ -108,7 +108,9 @@ for (const { label, width } of widths) {
 			await expect(navJoin).toHaveCount(1);
 			await expect(navJoin).toHaveAttribute('href', '/join/');
 			await expect(page.locator('a[data-public-join]')).toHaveCount(3);
-			await expect(page.locator('a[data-public-member]')).toHaveCount(6);
+			// The six members links of 2026-11-14 plus the header Tools link and the
+			// home Tools button (TIN-3814).
+			await expect(page.locator('a[data-public-member]')).toHaveCount(8);
 			const navSignIn = page
 				.getByRole('navigation', { name: 'Main navigation' })
 				.getByRole('link', { name: 'Sign in' });
