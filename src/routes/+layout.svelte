@@ -12,7 +12,6 @@
 	import TailnetPrompt from '#lib/components/TailnetPrompt.svelte';
 	import { gatedSurface } from '#lib/gated/surface.svelte.js';
 	import { pageTitle } from '#lib/page-title.js';
-	import { TOOLS_LINK_LABEL } from '#lib/tools-copy.js';
 	import BusMark from '#lib/components/BusMark.svelte';
 	import ToolBusMark from '#lib/components/ToolBusMark.svelte';
 	import { theme } from '#lib/theme.svelte.js';
@@ -274,10 +273,7 @@
 				     sanctioned anchors that the gated-join-link and
 				     gated-member-app-url leak-scan rules let through. Keep each mark
 				     before its href, and the members URLs exact. The manifest's
-				     header-join item is no longer rendered. Tools sits with them, a
-				     plain link to the members Tools pages, which anyone can open
-				     (operator answers on the public Tools pages). -->
-				<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
+				     header-join item is no longer rendered. -->
 				<a
 					data-public-join="header"
 					href="/join/"
@@ -343,9 +339,7 @@
 					<li>
 						<a data-public-member="membership" href="https://members.greatfallstoolbus.org/membership">Membership</a>
 					</li>
-					<li>
-						<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
-					</li>
+					<li><a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">Tools</a></li>
 					<li>
 						<a data-public-member="contribution" href="https://members.greatfallstoolbus.org/contribution"
 							>Contribution</a

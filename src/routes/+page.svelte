@@ -11,7 +11,6 @@
 	import { reveal } from '#lib/motion.svelte.js';
 	import GatedSlot from '#lib/components/GatedSlot.svelte';
 	import { INTEREST_PATH, MEMBER_INTAKE } from '#lib/membership.js';
-	import { TOOLS_SECTION } from '#lib/tools-copy.js';
 
 	// Scroll-reveal (D04): each below-hero section arms with a per-item
 	// 70ms stagger. The hidden start state only exists under
@@ -234,28 +233,6 @@
 				{/if}
 			</div>
 		{/if}
-	</section>
-
-	<!-- Tools to borrow (operator answers on the public Tools pages): fixed copy and
-	     one strong link to the members Tools pages, which carry every tool's
-	     name, photo, status and where it lives. No tool data ships here, so
-	     nothing on this site can go stale. The words live in
-	     src/lib/tools-copy.ts. The members URL stays a literal, its
-	     data-public-member mark before the href, for the gated-member-app-url
-	     leak-scan rule. It sits right under Notes & Goals because the first-load
-	     intro lands Notes & Goals under the header. -->
-	<section class="section tools-band reveal-armed" use:reveal={{ delay: 105 }} id="tools" aria-labelledby="tools-title">
-		<div class="tools-band__text">
-			<h2 id="tools-title">{TOOLS_SECTION.heading}</h2>
-			{#each TOOLS_SECTION.paragraphs as paragraph (paragraph)}
-				<p>{paragraph}</p>
-			{/each}
-		</div>
-		<div class="tools-band__action">
-			<a class="button" data-public-member="tools" href="https://members.greatfallstoolbus.org/tools"
-				>{TOOLS_SECTION.linkLabel}</a
-			>
-		</div>
 	</section>
 
 	<!-- Questions people ask (Katherine T.'s copy, 2026-09-19, verbatim except

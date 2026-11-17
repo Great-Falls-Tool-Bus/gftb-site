@@ -262,8 +262,6 @@ describe('leak-scan detections', () => {
 			`<a data-public-member="contribution" href="${MEMBERS}/contribution">Contribution</a>`,
 			`<a data-public-member="mailbox" href="${MEMBERS}/membership">Mailbox name</a>`,
 			`<a class="x" data-public-member="tools" href="${MEMBERS}/tools">Tools</a>`,
-			// The home Tools button (TIN-3814): a class before the mark still passes.
-			`<a class="button" data-public-member="tools" href="${MEMBERS}/tools">Browse the tools</a>`,
 			`\`<li><a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a></li>\``,
 		]) {
 			expect(idsFiring(sanctioned), sanctioned).not.toContain('gated-member-app-url');
