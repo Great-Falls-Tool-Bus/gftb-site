@@ -57,24 +57,35 @@ gftb_ai_attribution_line() {
   return 1
 }
 
-# Run the hook of the same name from the global core.hooksPath, when one is
-# set, executable, and a different directory, so a machine-wide hook layer
-# keeps running. Never chains twice and never chains to itself.
-# $1 hook name, $2 file holding the stdin to replay (or empty), rest: args.
+# A global hook owns Huskycat unless the contributor selects the repository.
+# Keep its exit status, including a refusal from the signing identity check.
 gftb_chain() {
-  local hook="$1" input="$2" global here there
+  local hook="$1" input="$2" global here there owner
   shift 2
   [ -z "${GFTB_HOOKS_CHAINED:-}" ] || return 0
-  global="$(git config --global --type=path --get core.hooksPath 2>/dev/null || true)"
-  [ -n "$global" ] || return 0
-  here="$(cd "$(dirname "$0")" && pwd -P)" || return 0
-  there="$(cd "$global" 2>/dev/null && pwd -P)" || return 0
-  [ "$here" != "$there" ] || return 0
-  [ -f "$there/$hook" ] && [ -x "$there/$hook" ] || return 0
   export GFTB_HOOKS_CHAINED=1
-  if [ -n "$input" ]; then
-    "$there/$hook" "$@" < "$input"
-  else
-    "$there/$hook" "$@"
+  global="$(git config --global --type=path --get core.hooksPath 2>/dev/null || true)"
+  here="$(cd "$(dirname "$0")" && pwd -P)" || return 1
+  there=""
+  if [ -n "$global" ]; then
+    there="$(cd "$global" 2>/dev/null && pwd -P)" || there=""
   fi
+  if [ -n "$there" ] && [ "$here" != "$there" ] && [ -f "$there/$hook" ] && [ -x "$there/$hook" ]; then
+    if [ -n "$input" ]; then
+      "$there/$hook" "$@" < "$input" || return $?
+    else
+      "$there/$hook" "$@" || return $?
+    fi
+    owner="$(git config --get gftb.huskycatOwner || true)"
+    [ "$owner" = repo ] || return 0
+  fi
+  case "$hook" in
+    pre-commit|commit-msg)
+      if command -v huskycat >/dev/null 2>&1; then
+        huskycat hook "$hook" "$@" || gftb_warn "huskycat hook $hook failed" "Install the hooks" "huskycat spec verify"
+      else
+        gftb_warn "Huskycat is missing from PATH" "Install the hooks" "command -v huskycat"
+      fi
+      ;;
+  esac
 }

@@ -154,9 +154,32 @@ printf 'more %s dash\n' "$em" >> dash.txt
 git add dash.txt
 check "em dash added to a file that had one is quiet" 0 --quiet -- commit -m "docs: extend dash file"
 
+# Record each local Huskycat dispatch without loading a developer's formatter.
+mkdir "$work/bin"
+cat > "$work/bin/huskycat" <<'HOOK'
+#!/usr/bin/env bash
+printf '%s %s\n' "$1" "$2" >> "$GFTB_TEST_DISPATCH"
+HOOK
+chmod +x "$work/bin/huskycat"
+export PATH="$work/bin:$PATH" GFTB_TEST_DISPATCH="$work/dispatch"
+printf 'hook pre-commit\nhook commit-msg\n' > "$work/expected"
+: > "$work/dispatch"
+check "the global hook owns Huskycat by default" 0 --quiet -- commit -m "test: global hooks"
+check "the repository does not run a second formatter" 0 --quiet -- test ! -s "$work/dispatch"
+git config gftb.huskycatOwner repo
+check "a custom global hook can delegate formatting" 0 --quiet -- commit -m "test: custom hooks"
+check "both Huskycat hooks run once" 0 --quiet -- cmp "$work/expected" "$work/dispatch"
+git config --unset gftb.huskycatOwner
+git config --global --unset core.hooksPath
+: > "$work/dispatch"
+check "a contributor without global hooks runs Huskycat" 0 --quiet -- commit -m "test: contributor hooks"
+check "the standalone path runs both hooks once" 0 --quiet -- cmp "$work/expected" "$work/dispatch"
+: > "$work/dispatch"
+
 # Loop guard: a global hooks path equal to this directory is never chained to.
 git config --global core.hooksPath "$hooks"
 check "global hooks path equal to the repo hooks does not loop" 0 --quiet -- commit -m "chore: loop guard"
+check "the shared hook path runs both hooks once" 0 --quiet -- cmp "$work/expected" "$work/dispatch"
 git config --global core.hooksPath "$work/global-hooks"
 
 # pre-push
