@@ -130,6 +130,26 @@ describe('readBuildMetadata (//:build)', () => {
 	});
 });
 
+describe('GF revision stamp', () => {
+	const sha = '1234567890abcdef'.repeat(2) + '12345678';
+
+	it('uses the admitted revision for the footer and the same public probe for build and scan', () => {
+		const env = { ...statusFile([`BUILD_EMBED_LABEL ${sha}`]), PUBLIC_TAILNET_PROBE_URL: GOOD };
+		const probe = 'https://gftb-probe.taila4c78d.ts.net/v1/tailnet';
+		expect(readBuildMetadata(env, '/')).toEqual({ basePath: '', commitSha: '1234567', tailnetProbeUrl: probe });
+		expect(readTailnetProbeUrl(env, '/')).toEqual({ url: probe, source: 'stamp' });
+	});
+
+	it('rejects a short revision or an incomplete workspace stamp', () => {
+		for (const lines of [
+			['BUILD_EMBED_LABEL deadbee'],
+			[`BUILD_EMBED_LABEL ${sha}`, 'STABLE_BUILD_BASE_PATH __EMPTY__'],
+		]) {
+			expect(() => readBuildMetadata(statusFile(lines), '/')).toThrow(/build metadata keys are missing/u);
+		}
+	});
+});
+
 describe('readTailnetProbeUrl (//:scanned_build and just leak-scan)', () => {
 	const other = 'https://other.example.ts.net/probe.svg';
 

@@ -42,6 +42,22 @@ function statusFilePath(env, cwd) {
 }
 
 /**
+ * GF supplies the exact revision through Bazel's --embed_label and ignores
+ * repository rc files. Its apex build and leak scan use the published probe
+ * default. Local workspace-status overrides still apply together.
+ * @param {Map<string, string>} values
+ */
+function fabricRevision(values) {
+	if (['STABLE_BUILD_BASE_PATH', 'STABLE_BUILD_COMMIT_SHA', TAILNET_PROBE_KEY].some((key) => values.has(key))) {
+		return undefined;
+	}
+	const label = values.get('BUILD_EMBED_LABEL') ?? '';
+	return /^[0-9a-f]{40}$/u.test(label) ? label : undefined;
+}
+
+const APEX_PROBE_URL = 'https://gftb-probe.taila4c78d.ts.net/v1/tailnet';
+
+/**
  * Build metadata for the stamped Vite build. Throws when the status file is
  * absent, when any key is missing, or when the probe URL was stamped invalid.
  *
@@ -55,6 +71,8 @@ export function readBuildMetadata(env = process.env, cwd = process.cwd()) {
 	}
 	const declaredStatusPath = statusFilePath(env, cwd);
 	const values = parseStatus(readFileSync(declaredStatusPath, 'utf8'));
+	const revision = fabricRevision(values);
+	if (revision) return { basePath: '', commitSha: revision.slice(0, 7), tailnetProbeUrl: APEX_PROBE_URL };
 	const encodedBasePath = values.get('STABLE_BUILD_BASE_PATH');
 	const commitSha = values.get('STABLE_BUILD_COMMIT_SHA');
 	const encodedTailnetProbeUrl = values.get(TAILNET_PROBE_KEY);
@@ -86,5 +104,5 @@ export function readTailnetProbeUrl(env = process.env, cwd = process.cwd()) {
 		return { url: env.PUBLIC_TAILNET_PROBE_URL ?? '', source: 'environment' };
 	}
 	const values = parseStatus(readFileSync(statusFilePath(env, cwd), 'utf8'));
-	return { url: values.get(TAILNET_PROBE_KEY) ?? '', source: 'stamp' };
+	return { url: values.get(TAILNET_PROBE_KEY) ?? (fabricRevision(values) ? APEX_PROBE_URL : ''), source: 'stamp' };
 }

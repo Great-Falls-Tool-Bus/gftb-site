@@ -6,6 +6,15 @@
 			"targets": ["//:lint_suite"],
 			"capability": "rbe-linux-x86_64",
 			"result": { "mode": "status-only" }
+		},
+		"site-build": {
+			"command": "build",
+			"targets": ["//:deployment_bundle"],
+			"capability": "rbe-linux-x86_64",
+			"result": {
+				"mode": "export-regular-files",
+				"output_groups": ["default"]
+			}
 		}
 	}
 }
