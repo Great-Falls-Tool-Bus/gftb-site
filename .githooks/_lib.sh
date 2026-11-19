@@ -57,8 +57,10 @@ gftb_ai_attribution_line() {
   return 1
 }
 
-# A global hook owns Huskycat unless the contributor selects the repository.
-# Keep its exit status, including a refusal from the signing identity check.
+# Run the hook of the same name from the global core.hooksPath, when one is
+# set, executable, and a different directory, so a machine-wide hook layer
+# keeps running. Never chains twice and never chains to itself.
+# $1 hook name, $2 file holding the stdin to replay (or empty), rest: args.
 gftb_chain() {
   local hook="$1" input="$2" global here there owner
   shift 2
@@ -76,6 +78,7 @@ gftb_chain() {
     else
       "$there/$hook" "$@" || return $?
     fi
+    # A global hook owns Huskycat unless the contributor selects the repository.
     owner="$(git config --get gftb.huskycatOwner || true)"
     [ "$owner" = repo ] || return 0
   fi
