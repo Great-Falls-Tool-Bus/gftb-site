@@ -6,22 +6,15 @@ test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
 });
 
-// ContributeMenu.svelte (review round 1 finding C, round 2 follow-up):
-// shipped with zero e2e coverage, which review round 2 named as exactly why
-// the no-js, sharp-edges, print and motion sweeps all stayed green through
-// three real defects (dead no-JS control, un-rendered blur, a 320px click
-// steal on the footer). This spec exercises the component directly rather
-// than relying on generic sweeps to happen to cover it.
+// ContributeMenu.svelte needs direct coverage for scriptless visitors, keyboard access and
+// overlap with the footer at 320px.
 
 test.describe('no-JS', () => {
 	test.use({ javaScriptEnabled: false });
 
 	test('the trigger is absent, not dead, without JavaScript', async ({ page }) => {
-		// Review round 2 finding C.1: the prior revision shipped the trigger in
-		// the served HTML — advertising aria-haspopup/aria-controls to
-		// assistive tech — with no menu markup and no working click. The fix
-		// mounts nothing until hydrated, so a no-JS visitor sees no trigger at
-		// all (absent gracefully) rather than a broken one.
+		// Without hydration the trigger cannot open a menu. Omit it from the served HTML so assistive
+		// technology encounters usable controls.
 		for (const path of ['/', '/contact', '/log', '/404']) {
 			await page.goto(path);
 			await expect(page.locator('.contribute-trigger')).toHaveCount(0);
@@ -55,9 +48,8 @@ test.describe('hydrated behaviour', () => {
 		const directChildTags = await menu.evaluate((el) =>
 			Array.from(el.children).map((child) => ({ tag: child.tagName, role: child.getAttribute('role') })),
 		);
-		// Every direct child of role=menu must itself be role=presentation (the
-		// <ul> wrapper) — no <p> header, no <button> close as a sibling inside
-		// the menu role.
+		// The <ul> wrapper has role=presentation. Headers and the close button belong outside the
+		// menu role.
 		for (const child of directChildTags) {
 			expect(child.role, `direct child of role=menu: <${child.tag}>`).toBe('presentation');
 		}
@@ -84,8 +76,7 @@ test.describe('hydrated behaviour', () => {
 		await page.locator('.contribute-trigger').click();
 		// Focus lands on the first item on open (APG menu-button pattern).
 		await expect(page.locator('[role="menuitem"]').first()).toBeFocused();
-		// Shift+Tab from the first item must reach the close button — the
-		// trap now spans the whole panel, not just the items.
+		// Shift+Tab from the first item reaches the panel's close button.
 		await page.keyboard.press('Shift+Tab');
 		await expect(page.locator('.contribute-panel__close')).toBeFocused();
 		await page.keyboard.press('Enter');
@@ -175,9 +166,7 @@ test.describe('320px footer clearance (review round 2 finding C.3)', () => {
 		await page.mouse.wheel(0, 100000); // scroll to the true bottom
 		const security = page.getByRole('link', { name: /Security/ });
 		await expect(security).toBeVisible();
-		// A real click, not a geometry check — this is what the review used to
-		// prove the collision (a visual near-miss can still steal the click if
-		// the trigger's hit area is on top).
+		// Clicking catches overlapping hit areas that a geometry check could miss.
 		const [popup] = await Promise.all([page.waitForEvent('popup'), security.click()]);
 		expect(popup.url()).toContain('github.com');
 		await popup.close();
@@ -191,8 +180,7 @@ test.describe('320px footer clearance (review round 2 finding C.3)', () => {
 		await page.mouse.wheel(0, 100000);
 		const license = page.getByRole('link', { name: /CC BY-SA/ });
 		await expect(license).toBeVisible();
-		// This particular link is a plain <a> (no target="_blank"), unlike the
-		// ExternalLink-rendered Source/Security rows — it navigates same-tab.
+		// This plain <a> navigates in the same tab. The ExternalLink rows use target="_blank".
 		await license.click();
 		await expect(page).toHaveURL(/creativecommons\.org/);
 	});

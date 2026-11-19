@@ -1,11 +1,8 @@
-// The membership copy invariant: nothing on the public site may make
-// membership depend on paying, donating, or pledging. Membership comes from
-// an application, a tour, and a keyholder's approval; a contribution is
-// optional, separate, and may be $0. The unit test applies this to the page
-// sources and the acceptance spec applies it to the rendered pages, so a
-// regression fails in both places.
+// Membership requires an application, a tour and a keyholder’s approval. A contribution is
+// optional and may be $0. Check source and rendered copy for wording that ties membership to
+// payment.
 
-/** One sentence that conditions membership on money, gear, or a pledge. */
+/** A sentence that makes membership depend on a contribution. */
 export interface MembershipCopyViolation {
 	sentence: string;
 	reason: 'pledge' | 'amount' | 'condition';
@@ -31,11 +28,8 @@ export function sentences(text: string): string[] {
 }
 
 /**
- * Sentences that condition membership on money, gear, tools, or a pledge.
- * A pledge, or a non-zero dollar amount beside membership, is always a
- * violation. Otherwise a sentence fails when it names membership, money or
- * goods, and a requirement together, without a negation. Questions are
- * skipped: "Do I have to pay to join?" asks, it does not require.
+ * Flag pledges and nonzero amounts beside membership. Otherwise match a membership term, a
+ * contribution and a requirement together, unless negated. Skip questions.
  */
 export function membershipCopyViolations(text: string): MembershipCopyViolation[] {
 	const found: MembershipCopyViolation[] = [];
@@ -57,7 +51,7 @@ export function membershipCopyViolations(text: string): MembershipCopyViolation[
 	return found;
 }
 
-/** Visible text of a Svelte or HTML source: no script, style, comments, or tags. */
+/** Extract visible text from Svelte or HTML for the copy check. */
 export function visibleSourceText(source: string): string {
 	return source
 		.replace(/<script[\s\S]*?<\/script>/giu, ' ')

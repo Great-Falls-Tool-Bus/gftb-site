@@ -2,25 +2,10 @@
 	import { Switch } from '@skeletonlabs/skeleton-svelte';
 	import { theme } from '#lib/theme.svelte.js';
 
-	// Light/dark switcher (D01+D02) — the demo ThemeSwitcher's behaviour on
-	// the v5 Switch anatomy (Control/Thumb/HiddenInput, with a
-	// Switch.Context snippet driving the sun/moon crossfade). The switch
-	// reflects the RESOLVED mode (theme.isDark), so it reads correctly
-	// whether the visitor picked an explicit mode or is on `system`.
-	// Flipping it always persists an explicit light/dark.
-	//
-	// New visitors default to `system` (store default), so the switch
-	// follows the OS color scheme until the visitor flips it. This is a
-	// single two-state toggle, not a menu.
-	//
-	// House constraints carried here rather than in the markup:
-	// - no icon dependency (house-stack contract) — the glyphs are inline
-	//   hand-authored <svg>, aria-hidden, decorative;
-	// - every colour is a role (src/app.css .mode-switch rules), never a raw
-	//   palette token;
-	// - slide/crossfade transitions are declared only under
-	//   prefers-reduced-motion: no-preference (src/app.css), so reduced
-	//   motion collapses to an instant state change.
+	// D01+D02 adapt the demo ThemeSwitcher to the v5 Switch anatomy. Reflect theme.isDark so
+	// `system` follows the OS until the visitor picks an explicit mode. Keep the inline
+	// glyphs decorative. The .mode-switch rules in src/app.css provide role colours and
+	// enable the crossfade only under prefers-reduced-motion: no-preference.
 
 	function onCheckedChange(details: { checked: boolean }) {
 		theme.setMode(details.checked ? 'dark' : 'light');

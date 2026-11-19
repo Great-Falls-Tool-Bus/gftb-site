@@ -127,8 +127,8 @@ describe('DropletField', () => {
 		const held = machine.holdStrokeAt(0.5, dwell + 100);
 		expect(held).toBe(0.5);
 		const clock = machine.strokeSample(dwell + 100);
-		// The hold jumped the blade to the midpoint: that jump is a leg and
-		// clears what it crossed; a second frame on the same hold changes nothing.
+		// The jump to the held midpoint clears its swept leg. A second frame at that position
+		// sweeps no new area.
 		field.step(0, clock);
 		expect(field.step(0, clock)).toBe(false);
 		// Everything the blades crossed so far is gone: no live bead has its

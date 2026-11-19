@@ -1,10 +1,5 @@
-// The home intro as a pure machine: veil, lift, hold, scroll, done,
-// cancelled. The DOM adapter (controller.ts) feeds it a clock, the page's
-// scroll position, the target for the scroll and whether the wiper stack has
-// hydrated; it answers with one command per frame. It knows nothing about
-// elements, timers or storage, so it is tested in node. (Operator rulings
-// 2026-09-10: every full load of the home route, no storage, the veil holds
-// until the wiper stack is ready, any input cancels, focus is never moved.)
+// controller.ts supplies the clock, scroll position, target and wiper readiness.
+// The intro runs on each full home load. Any input cancels it and focus stays put.
 
 export const INTRO_TIMING = {
 	/** The mark drives in and parks (1.4 s), then dwells; the veil may lift from here. */
@@ -103,7 +98,7 @@ export class IntroMachine {
 		this.#reason = reason;
 	}
 
-	/** One call per animation frame. `targetY` is the scroll that lands the goals under the header. */
+	/** Each frame uses `targetY` to place the goals below the header. */
 	step(now: number, scrollY: number, targetY: number): IntroCommand {
 		if (this.terminal) return { kind: 'idle' };
 		if (Math.abs(scrollY - this.#lastWritten) > this.#timing.deviationPx) {

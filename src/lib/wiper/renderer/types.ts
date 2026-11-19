@@ -50,9 +50,8 @@ export interface SceneFrame {
 	/** Frost strength ahead of the blades, 0..1 (M4). */
 	frost: number;
 	/**
-	 * Where the blade layer has anything to draw, CSS px, or null when the
-	 * blades are parked out of frame; the layer clears and skips the rest.
-	 * Ignored by the scene layer, which paints every pixel.
+	 * Blade bounds in CSS pixels. Return null for parked blades. The scene still paints every
+	 * pixel.
 	 */
 	scissor?: { x: number; y: number; width: number; height: number } | null;
 }
@@ -71,8 +70,8 @@ export interface RendererHandle {
 	/** CSS size and device pixel ratio; the backing store follows. */
 	resize(cssWidth: number, cssHeight: number, dpr: number): void;
 	/**
-	 * The bead field: (cols + 2) x (rows + 2) texels of x, y, r in CSS px and
-	 * alpha, a zero border around the grid; the renderer scales to device px.
+	 * Bead texels store x, y and r in CSS pixels plus alpha. A zero border surrounds the grid.
+	 * The renderer scales to device pixels.
 	 */
 	uploadDroplets(data: Float32Array, cols: number, rows: number, cellCss: number): void;
 	/** The static frost grain, 0..255. */

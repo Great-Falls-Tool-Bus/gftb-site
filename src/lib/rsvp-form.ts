@@ -103,14 +103,8 @@ export function toRsvpPayload(slot: RsvpSlot, values: RsvpFormValues, altcha = '
 }
 
 /**
- * What the dialog says after a send that did not land:
- * - `invalid-email`: a 400 about the address ("a valid email is required").
- * - `verification`: a 400 asking for the human check (once enforcement is on).
- * - `rate-limited`: 429, the relay's per-connection or global limit.
- * - `server`: 500 and up.
- * - `rejected`: any other refusal.
- * - `unreachable`: no answer at all (offline, CORS, the relay down).
- * - `timeout`: no answer in time.
+ * Classify relay refusals separately from a timeout or an unreachable relay so the dialog can
+ * show the matching recovery.
  */
 export type RsvpFailure =
 	'invalid-email' | 'verification' | 'rate-limited' | 'server' | 'rejected' | 'unreachable' | 'timeout';
@@ -140,10 +134,7 @@ export function rsvpSubject(slot: RsvpSlot): string {
 	return `RSVP ${slot.label}`;
 }
 
-/**
- * The mailto RSVP: the band's control before hydration, and the dialog's
- * fallback when the relay cannot be reached, carrying what was typed.
- */
+/** Use mailto before hydration or when the relay is unreachable. Preserve the visitor’s input. */
 export function buildRsvpMailtoHref(
 	to: string,
 	slot: RsvpSlot,

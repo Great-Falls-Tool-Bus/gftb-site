@@ -1,15 +1,12 @@
-// Finite browser acceptance over Bazel's declared //:build. No download,
-// preview rebuild, ambient server, or installed-browser search. This is not a
-// deployed LOOK.
+// Run browser acceptance against Bazel's declared //:build. The enclosing action supplies
+// Chromium.
 //
 //   run-browser-acceptance.mjs --config <file in e2e/bazel> --chromium-env <VAR>
 //       [--label <words>] [--deadline-ms <n>] [--revision-env <VAR>]
 //
-// //:browser_smoke_test runs browser-acceptance.config.ts (nine specs) with
-// GF's provisioned /bin/chromium (TIN-1131). //:e2e_test (R583, TIN-7477)
-// runs e2e.config.ts (every e2e/*.spec.ts) with the Chromium that
-// //tools/chromium resolves, and --revision-env makes the harness refuse a
-// Chromium whose Playwright revision differs from the linked playwright-core.
+// //:browser_smoke_test uses browser-acceptance.config.ts with GF's /bin/chromium under
+// TIN-1131. //:e2e_test uses e2e.config.ts with //tools/chromium under R583 and TIN-7477.
+// --revision-env checks that Chromium matches the linked playwright-core.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import {
@@ -44,9 +41,7 @@ if (options.chromiumEnv === 'GF_RBE_CHROMIUM_EXECUTABLE' && chromiumPath !== '/b
 }
 accessSync(chromiumPath, constants.X_OK);
 if (options.revisionEnv) {
-	// The Chromium revision the linked playwright-core drives, read from the
-	// package itself (playwright-core is a dependency of @playwright/test's
-	// own dependency, playwright).
+	// Resolve the Chromium revision through @playwright/test's own playwright dependency.
 	const playwright = createRequire(require.resolve('@playwright/test/package.json'));
 	const core = createRequire(playwright.resolve('playwright/package.json'));
 	// playwright-core's exports map omits browsers.json, so go through package.json.
@@ -64,9 +59,8 @@ if (!statSync(join(buildDir, 'index.html')).isFile() || !statSync(join(buildDir,
 }
 
 const scratch = mkdtempSync(join(scratchRoot, 'gftb-browser-'));
-// Discard browser-debug/remote-connect steering before either Playwright
-// import. The enclosing action supplies execution authority, not an ambient
-// browser connection or a user profile. Every writable directory is ours.
+// Clear browser-debug and remote-connect settings before importing Playwright. The enclosing
+// action supplies the browser and its writable directories.
 for (const name of Object.keys(process.env)) {
 	if (name.startsWith('PW_') || name.startsWith('PWTEST_') || name.startsWith('PLAYWRIGHT_') || name === 'PWDEBUG') {
 		delete process.env[name];
@@ -85,11 +79,9 @@ for (const [name, leaf] of [
 }
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1';
 
-// Chromium binds its process-singleton Unix socket inside a fresh directory
-// under its own TMPDIR, and a socket path is capped at 108 bytes. The private
-// scratch above sits deep in the Bazel test tree, so the browser process alone
-// gets a short owner-only directory under /tmp (per-action and hermetic under
-// Bazel's sandbox). The profile, cache and results stay in the scratch.
+// Chromium creates its process-singleton Unix socket beneath TMPDIR. The 108-byte limit
+// requires a short private directory under /tmp. The profile, cache and results stay in the
+// Bazel scratch directory.
 const chromiumTmp = mkdtempSync('/tmp/gftb-chromium-');
 const singletonSocket = join(chromiumTmp, '.org.chromium.Chromium.XXXXXX', 'SingletonSocket');
 if (Buffer.byteLength(singletonSocket) >= 100) {
@@ -147,11 +139,9 @@ try {
 		args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
 	});
 	const page = await browser.newPage();
-	// The smoke reads the built page alone, so nothing off-origin may answer it.
-	// Since the member host opened (TIN-3847) its manifest answers JSON to the
-	// real site origin only, and a live fetch from this loopback origin fails CORS.
-	// The manifest gets what the specs' anonymous visitor gets (e2e/support/network.ts):
-	// a login page, HTML, which the resolver refuses. Anything else off-origin is aborted.
+	// The loopback smoke test must work offline. Under TIN-3847, the manifest accepts only the
+	// real site origin. Match the anonymous login HTML from e2e/support/network.ts and abort other
+	// off-origin requests.
 	await page.route('**/*', async (route) => {
 		const url = route.request().url();
 		if (url.startsWith('data:') || url.startsWith('blob:') || new URL(url).origin === baseURL) return route.continue();
@@ -191,7 +181,6 @@ try {
 	} finally {
 		server.closeAllConnections();
 		await new Promise((resolveClose) => server.close(resolveClose));
-		// Only the exact nonempty directories created above are removed.
 		rmSync(chromiumTmp, { recursive: true, force: true });
 		rmSync(scratch, { recursive: true, force: true });
 	}
@@ -236,9 +225,8 @@ async function runAcceptance(baseURL) {
 		const code = await new Promise((resolveExit, rejectExit) => {
 			child.once('error', rejectExit);
 			child.once('close', (exitCode) => resolveExit(exitCode));
-			// Playwright owns the ordinary suite deadline (globalTimeout) and
-			// browser teardown. This outer bound also terminates a wedged CLI/process
-			// group, without touching another action's browser or server.
+			// Playwright owns globalTimeout and ordinary teardown. This deadline also stops a wedged CLI
+			// and its own process group.
 			killTimer = setTimeout(() => {
 				timedOut = true;
 				stop();

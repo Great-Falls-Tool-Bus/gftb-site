@@ -16,7 +16,7 @@ export interface PublicGoalMetadata extends FeaturedImageMetadata {
 	kind: PublicGoalKind;
 	order: number;
 	title: string;
-	/** Plain-English timing, e.g. "Sunday, September 20, 2026" or "After the tax ID". */
+	/** Timing as text, such as "Sunday, September 20, 2026" or "After the tax ID". */
 	window?: string;
 	cta_label?: string;
 	/** Site-relative path or https URL; travels with cta_label. */

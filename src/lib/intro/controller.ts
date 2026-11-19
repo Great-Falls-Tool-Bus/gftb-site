@@ -55,8 +55,7 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 		return INERT;
 	};
 
-	// Not armed before paint (motion, path, fragment, the hook), or disarmed
-	// by input before the bundle mounted, or by the fail-open timer.
+	// Skip the intro if prepaint checks, input or the timer already disarmed it.
 	if (!root.classList.contains(INTRO_ARMED_CLASS)) return skip();
 	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	// Forced colours stand the whole wiper enhancement down; nothing to lead to.
@@ -71,10 +70,8 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 	if (!goals) return skip();
 	const target = document.getElementById(INTRO_TARGET_ID) ?? goals;
 
-	// The controller owns the veil from here: steady until it lifts. A reload
-	// has its old scroll position restored beneath the veil by now; the page
-	// goes back to the top once, and from here any scroll that is not the
-	// intro's own ends it.
+	// Reset the restored scroll position while the veil covers the page. An external scroll
+	// after this ends the intro.
 	root.classList.add(INTRO_LIVE_CLASS);
 	window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 	const machine = new IntroMachine(performance.now());
@@ -123,10 +120,8 @@ export function mountHomeIntro(overlay: HTMLElement, options: IntroOptions = {})
 			tier: canvas.dataset.tier ?? '',
 			warm: canvas.dataset.warm !== undefined,
 		}));
-	// Where the band lands: the same place an anchor jump puts it, under the
-	// sticky header by its scroll margin, never past the page's end. Read
-	// through the offset chain, which ignores transforms: a section may still
-	// be carrying its reveal translate while the tween measures it.
+	// Target the anchor below the sticky header and clamp to the document end. Use the offset
+	// chain to ignore reveal transforms.
 	const documentTop = (element: HTMLElement) => {
 		let top = 0;
 		for (let node: HTMLElement | null = element; node; node = node.offsetParent as HTMLElement | null) {

@@ -1,12 +1,6 @@
-// The home page's first-load intro (operator rulings 2026-09-10 and
-// 2026-09-19, the mark drives in and parks): armed
-// before first paint on every full load, self-hiding with no bundle, the
-// veil held until the wiper stack has hydrated, landing Notes & Goals under
-// the header (the work sessions band left the top of the page on 2026-10-02,
-// so the scroll target is #goals again, the readiness source too), replayed
-// on a reload, never under reduce, a fragment, the data-intro-off hook, JS
-// off or paper, cancelled by any input, and never in the way of the skip
-// link.
+// The 2026-09-10 and 2026-09-19 rulings cover the mark driving in and parking on full loads.
+// The veil waits for wiper hydration and can clear without the bundle. Since 2026-10-02, #goals
+// supplies the landing target and readiness signal.
 import { expect, test, type Page } from '@playwright/test';
 import { skipHomeIntro } from './support/intro';
 import { stubAnonymousManifest } from './support/network';
@@ -24,9 +18,8 @@ const targetTop = (page: Page) =>
 		const max = document.documentElement.scrollHeight - window.innerHeight;
 		return { top: target.getBoundingClientRect().top, margin, scrollY: window.scrollY, max };
 	});
-// Layout below the band (a section's reveal settle) may still be finishing in
-// the frames after the tween lands, so the landing is read with a short settle
-// window; the scroll position itself must not move in that window.
+// Below-band layout can settle after the tween lands. Scroll position must hold throughout that
+// window.
 const landed = async (page: Page) => {
 	const first = await targetTop(page);
 	expect(first).not.toBeNull();
@@ -109,8 +102,7 @@ test.describe('motion allowed', () => {
 		expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
 		expect(problems).toEqual([]);
 
-		// A full reload replays the whole sequence from the top: the restored
-		// scroll position is undone beneath the veil and the tween lands again.
+		// On reload, the veil hides the reset of the restored scroll position.
 		await page.reload();
 		await expect.poll(() => state(page), { timeout: 3000 }).toBe('veil');
 		expect(await page.evaluate(() => window.scrollY)).toBe(0);
@@ -136,8 +128,7 @@ test.describe('motion allowed', () => {
 
 	test('a key during the scroll stops the page where it is', async ({ page }) => {
 		await page.goto('/');
-		// Press the moment the tween starts: it lasts 1.6 s, so a coarse poll
-		// could otherwise watch it land before the key arrives.
+		// Send the key at the start of the 1.6 s tween. A coarse poll can miss it.
 		await expect.poll(() => state(page), { timeout: 12_000, intervals: [40] }).toBe('scroll');
 		await page.keyboard.press('Shift');
 		const at = await page.evaluate(() => window.scrollY);
@@ -163,7 +154,7 @@ test.describe('motion allowed', () => {
 	}) => {
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await expect.poll(() => state(page), { timeout: 5000 }).toBe('veil');
-		// Live and visible while these are read: no keypress yet, so nothing has cancelled it.
+		// Live and visible while these are read: no keypress yet, so nothing has canceled it.
 		expect(await visibility(page)).toBe('visible');
 		expect(await intro(page).evaluate((el) => el.querySelectorAll('a, button, input, [tabindex]').length)).toBe(0);
 		expect(await intro(page).evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
@@ -189,9 +180,8 @@ test.describe('motion allowed', () => {
 	});
 
 	test('the veil holds past the minimum dwell while the wiper canvases are still pending', async ({ page }) => {
-		// Stall the WebGL2 rung's chunk (found by its content, the hashes are
-		// not known here) so the canvases still sit at pending well past the
-		// 3 s minimum: the veil must not lift on the timer alone.
+		// Identify the WebGL2 chunk by content because its filename is hashed. Stalling it past the 3
+		// s minimum tests whether the veil waits for readiness.
 		await forceTierMax(page, 'webgl2');
 		await page.route('**/_app/immutable/chunks/*.js', async (route) => {
 			const response = await route.fetch();
@@ -214,8 +204,7 @@ test.describe('motion allowed', () => {
 		expect(await state(page)).toBe('veil');
 		expect(await visibility(page)).toBe('visible');
 		await expect.poll(() => state(page), { timeout: 10_000 }).not.toBe('veil');
-		// Lifted once the stalled rung came up (or at the 5.5 s cap past mount):
-		// well past the minimum, and bounded loosely for a loaded rig.
+		// Allow for a loaded host while checking the 5.5 s cap after mount.
 		const liftedAt = Date.now() - start;
 		expect(liftedAt).toBeGreaterThan(3600);
 		expect(liftedAt).toBeLessThan(9000);
@@ -256,8 +245,7 @@ test.describe('motion allowed', () => {
 	test('the mark drives in from the left and parks at centre before the veil lifts', async ({ page }) => {
 		await page.goto('/', { waitUntil: 'commit' });
 		await expect.poll(() => state(page), { timeout: 5000 }).toBe('veil');
-		// Drive the mark's own animation clock rather than the wall clock, so
-		// the row reads the same three moments however loaded the rig is.
+		// Drive the animation clock to sample the same three moments under load.
 		const at = (ms: number) =>
 			page.evaluate((time) => {
 				const mark = document.querySelector<HTMLElement>('.home-intro__mark');

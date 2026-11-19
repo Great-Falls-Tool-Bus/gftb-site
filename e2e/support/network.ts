@@ -56,8 +56,7 @@ async function fulfillAnonymousManifest(route: Route): Promise<void> {
 }
 
 /**
- * For specs that install no external guard: answers the gated manifest at once
- * as an anonymous visitor gets it, so no request waits on the real network.
+ * Serve the anonymous manifest response locally for specs without an external guard.
  */
 export async function stubAnonymousManifest(page: Page): Promise<void> {
 	await page.route(MANIFEST_URL, fulfillAnonymousManifest);
@@ -69,9 +68,8 @@ export const MEMBER_MANIFEST = { items: FIXTURE_ITEMS };
 const MEMBERS_APPLY = 'https://members.greatfallstoolbus.org/apply';
 
 /**
- * The manifest while intake is open, in the member app's own shape
- * (greatfallstoolbus.org `src/lib/server/public-surface.ts`): the FAQ Apply
- * points at the application form, and /join gains its own Apply beside sign in.
+ * Match the open-intake manifest in greatfallstoolbus.org `src/lib/server/public-surface.ts`.
+ * The FAQ and /join then offer the application link.
  */
 export const OPEN_MEMBER_MANIFEST = {
 	items: [
@@ -177,8 +175,8 @@ export async function stubContactEndpoint(
 	await page.route(url, async (route) => {
 		const request = route.request();
 
-		// A JSON POST is not a simple request, so the browser preflights it. The
-		// preflight answer is where an exact-origin policy is actually enforced.
+		// The browser preflights a JSON POST. The preflight response enforces the exact-origin
+		// policy.
 		if (request.method() === 'OPTIONS') {
 			const preflightOrigin = request.headers().origin ?? '';
 			const allowed = options.allowOrigin ?? 'exact';

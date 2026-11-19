@@ -1,7 +1,5 @@
-/* GFTB CityLink palette — colors-only block (TIN-3853 spec v0).
- * NOT a standalone theme: spacing/typography/radius tokens land on the
- * theme train (TIN-3854). Layer after Skeleton base so theme.css defaults
- * for any remaining tokens still resolve. */
+/* TIN-3853 spec v0 supplies the GFTB CityLink colours. Load after Skeleton base so other
+ * tokens keep their theme.css defaults. TIN-3854 owns spacing, typography and radius. */
 [data-theme='gftb'] {
 	--color-primary-50: oklch(97.5% 0.0131 294.64deg);
 	--color-primary-100: oklch(89.06% 0.0593 294.64deg);

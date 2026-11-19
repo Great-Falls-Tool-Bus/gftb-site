@@ -40,10 +40,8 @@ export default defineConfig({
 	workers: 1,
 	reporter: 'list',
 	timeout: 30_000,
-	// About 80 tests run serially on one worker; a shared lab host needs more than
-	// three minutes for the set. Per-test and per-action limits are unchanged.
-	// Operator ruling 2026-10-02: eight canvas-reading tests may take 90 s each,
-	// so the set gains 8 x 60 s; tracked in Linear under the canvas-reading tests issue.
+	// About 80 tests share one worker. The 2026-10-02 ruling budgets 90 s each for eight canvas
+	// tests and adds 8 x 60 s to the suite limit.
 	globalTimeout: 1_080_000,
 	outputDir,
 	updateSnapshots: 'none',

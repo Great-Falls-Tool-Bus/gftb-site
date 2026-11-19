@@ -1,17 +1,9 @@
 import type { Page } from '@playwright/test';
 import { expect, test, type GuardedGoto } from './support/fixtures';
 
-// Acceptance row (§3): the page works at 320, 375, 390, 430, 768, 1280 and
-// 1440 CSS pixels and at 200% zoom, with no horizontal scroll and no clipped
-// controls. The 390/430/1440 rows absorb the breakpoint set of the retired
-// overflow.spec.ts (ported from the previous apex's verified breakpoints).
-//
-// Zoom is exercised by halving the viewport rather than by driving browser
-// chrome: at 200% zoom the layout viewport is exactly half the device width in
-// CSS pixels, which is the property every reflow rule is written against. The
-// smallest case is held at 320 CSS pixels because that is the WCAG 1.4.10
-// reflow floor, and `body { min-width: 320px }` makes anything narrower a
-// deliberate non-goal rather than a defect.
+// §3 covers unclipped controls and horizontal overflow across viewport widths and at 200% zoom.
+// Halving the CSS viewport models reflow at that zoom. WCAG 1.4.10 and `body { min-width: 320px
+// }` set the 320 CSS pixel floor.
 
 const widths = [
 	{ label: '320 (reflow floor)', width: 320 },
@@ -23,10 +15,7 @@ const widths = [
 	{ label: '1440 (wide desktop)', width: 1440 },
 ];
 
-// One source of truth: the physical device width. The layout viewport a browser
-// reports at 200% zoom is that width halved, so the tested viewport is DERIVED
-// here rather than restated (an assertion that `width * 2 === physicalWidth`
-// over two literals in the same table proves arithmetic, not the page).
+// At 200% zoom the layout viewport is half the physical device width.
 const zoomCases = [1280, 768, 640].map((physicalWidth) => ({
 	label: `${physicalWidth} at 200% zoom`,
 	physicalWidth,
@@ -46,23 +35,12 @@ async function horizontalOverflow(page: Page) {
 		scrollWidth: document.documentElement.scrollWidth,
 		innerWidth: window.innerWidth,
 		widest: Array.from(document.querySelectorAll<HTMLElement>('body *'))
-			// The brand-vectors background is a sanctioned CLIPPED layer (the
-			// same precedent as the scroll region above, for painting instead
-			// of scrolling). TinyVectors draws its blob world through a square
-			// viewBox with preserveAspectRatio="slice" cover behaviour, so on
-			// any non-square viewport the SVG geometry's layout rects extend
-			// past the viewport edges BY DESIGN while `.brand-vectors-bg`'s
-			// `overflow: clip` guarantees none of it paints or scrolls. The
-			// layer is `position: fixed` (it cannot contribute to
-			// document.scrollWidth, which the assertion below still proves)
-			// and `pointer-events: none` with no interactive content (so the
-			// clipped-controls sweep still covers everything it ever did).
+			// TinyVectors uses preserveAspectRatio="slice", so SVG geometry can extend outside a
+			// non-square viewport. The fixed .brand-vectors-bg layer clips it and ignores pointer
+			// events. The document width check still covers page overflow.
 			.filter((element) => !element.closest('.brand-vectors-bg'))
-			// Operator interview 2026-10-02: the work sessions marquee is a
-			// sanctioned clipped scroll region inside its band. Its later cards
-			// (and its duplicate copy) lie past the viewport by design until they
-			// scroll in; the scroller itself is still measured here, and the
-			// document scroll width below still proves the page never widens.
+			// Under the 2026-10-02 ruling, the work sessions marquee clips later cards and its duplicate
+			// track. Measure the scroller and document width.
 			.filter((element) => !element.closest('.hours-marquee__track'))
 			.map((element) => ({ tag: element.tagName, right: element.getBoundingClientRect().right }))
 			.filter((entry) => entry.right > window.innerWidth + 1)
@@ -87,10 +65,8 @@ async function clippedControls(page: Page, selector: string) {
 			if (element.tagName === 'INPUT' && element.closest('.mode-switch, .wiper-stalk')) continue;
 			if (element.offsetParent === null && getComputedStyle(element).position !== 'fixed') continue;
 			const box = element.getBoundingClientRect();
-			// A control on a work sessions card scrolled wholly or partly out of
-			// the moving marquee (operator interview 2026-10-02) is clipped by the
-			// scroller, not by the viewport; a card wholly in view is measured
-			// like everything else, and the scroller itself is a measured box.
+			// The marquee intentionally clips cards as they scroll. Measure fully visible cards and the
+			// scroller itself.
 			const track = element.closest('.hours-marquee');
 			if (track) {
 				const region = track.getBoundingClientRect();
@@ -134,11 +110,8 @@ for (const { label, width } of zoomCases) {
 }
 
 /**
- * WCAG 2.2 SC 2.5.8 (Target Size, Minimum) as written, including its two
- * exceptions: a target set inline in a sentence is exempt, and an undersized
- * target passes when a 24 CSS pixel circle centred on it touches no other
- * target. Asserting the bare 24x24 rectangle instead would fail the header nav
- * for a spacing reason the specification explicitly permits.
+ * WCAG 2.2 SC 2.5.8 exempts inline sentence targets. An undersized target can pass if a
+ * centered 24 CSS pixel circle touches no other target.
  */
 test('interactive targets satisfy WCAG 2.2 target size on a phone', async ({ page, guardedPage }) => {
 	await openPage(page, guardedPage, 375);

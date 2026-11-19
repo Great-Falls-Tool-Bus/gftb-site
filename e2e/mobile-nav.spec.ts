@@ -9,11 +9,8 @@ import {
 	type Rgb,
 } from '../scripts/lib/color-contrast.mjs';
 
-// The colour maths comes from the shared module rather than a local copy. The
-// local copy read `getComputedStyle` output with /[\d.]+/ and assumed rgb();
-// once the panel moved onto CityLink tokens Chromium started returning
-// `oklch(0.3832 0.0755 294.64)`, which that regex read as a red channel of
-// 0.3832 — turning a 12.4:1 pair into a reported 1.0:1 failure.
+// Chromium can return `oklch(0.3832 0.0755 294.64)` from getComputedStyle. The shared colour
+// parser preserves its channels when calculating contrast.
 
 test.use({ viewport: { width: 375, height: 667 } });
 
@@ -47,11 +44,8 @@ test('keyboard users can leave the repeated header and reach main content', asyn
 	await expect(page.locator('main')).toBeFocused();
 });
 
-// B3 (previous apex drawer hit-test, adapted to the anchor nav): every header
-// nav link is fully inside the viewport AND actually receives a tap at its
-// centre — content stacked over the nav and off-canvas overflow both fail
-// here. This is the #139 bug class: a wide brand once pushed the nav control
-// past the right edge at this exact viewport.
+// At B3, hit-test each link at its centre. This catches both overlapping content and navigation
+// pushed offscreen as in #139.
 test('header nav links are on-screen and receive the tap at 375px', async ({ page }) => {
 	await page.goto('/');
 	const links = page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link');
@@ -104,9 +98,8 @@ for (const width of [375, 1280]) {
 	}
 }
 
-// B1 at the 320px reflow floor against a hostile brand: the wordmark column
-// must shrink (grid minmax(0,auto) + min-width: 0) rather than push the nav
-// off the right edge or widen the document.
+// At the 320px reflow floor, the wordmark column must shrink so the nav stays inside the
+// viewport.
 test('a long brand string cannot push the nav off-edge at 320px', async ({ page }) => {
 	await page.setViewportSize({ width: 320, height: 667 });
 	await page.goto('/');
@@ -126,13 +119,8 @@ test('a long brand string cannot push the nav off-edge at 320px', async ({ page 
 	expect(state.navLinks.length).toBeGreaterThan(0);
 	expect(state.navLinks.every(Boolean), 'nav links all fully on-screen with the fixture brand').toBe(true);
 	expect(state.scrollWidth, 'document overflow with the fixture brand').toBeLessThanOrEqual(state.innerWidth + 1);
-	// The wordmark clamps, so a hostile brand cannot grow the sticky header
-	// without bound (unclamped, this fixture reached ~192px —
-	// more than half of a 320x568 viewport gone to chrome). Ceiling re-tuned
-	// for the ported demo type scale (18px base, B1.3): three clamped lines
-	// measured ~87px; 92 keeps the bound tight. Below 28rem the clamp is four
-	// lines at line-height 1 (72px), and the wrapped nav sets the header height:
-	// 83px measured at 320 and 375 with this fixture.
+	// The header height ceiling allows the wrapped nav and the clamped wordmark. At 320 and 375
+	// the fixture measured 83px. Without a clamp the header reached ~192px.
 	expect(state.headerHeight, 'sticky header height with the fixture brand').toBeLessThanOrEqual(92);
 });
 

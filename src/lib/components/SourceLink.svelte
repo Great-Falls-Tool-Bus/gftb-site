@@ -1,15 +1,9 @@
 <script lang="ts">
-	// The git-onboarding affordance, ported from the demo site (#94,
-	// src/lib/components/SourceLink.svelte): a page links to its own source so
-	// a reader can see "this page lives in git" and propose an edit through
-	// GitHub's web editor. On the log it is wired PER POST (B1.2): the route
-	// map covers /log/<slug> permalinks and points at the .svx file itself.
-	//
-	// No org/repo string is hardcoded. The repo URL, branch, and the
-	// route -> source-path map all flow from src/lib/generated/source-map.json,
-	// which `just source-map-build` derives from tinyland.repo.json /
-	// package.json plus the routes tree and the log content tree; `just
-	// source-map-check` drift-gates it. Icons are not ported (no icon dep).
+	// Ported from the demo’s src/lib/components/SourceLink.svelte in #94. Each /log/<slug>
+	// permalink opens its own .svx file for GitHub editing. `just source-map-build` derives
+	// the repo, branch and route paths in src/lib/generated/source-map.json from
+	// tinyland.repo.json, package.json, routes and log content. `just source-map-check`
+	// detects drift.
 	import sourceMap from '#lib/generated/source-map.json';
 
 	interface Props {

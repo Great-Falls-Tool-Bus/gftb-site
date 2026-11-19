@@ -4,22 +4,13 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { prepareSvelteKitTypes } from './prepare-sveltekit-types.mjs';
 
-// RU13: TypeScript 7.0.2 is the project's `typescript`, so svelte-check runs
-// in its native mode (`--tsgo`): svelte2tsx writes the transpiled components
-// to .svelte-kit and TypeScript 7 (`typescript/bin/tsc`) checks them together
-// with every .ts file the tsconfig includes. patches/svelte-check@4.7.6.patch
-// lets `--tsgo` find TypeScript 7 as `typescript` itself.
-//
-// Modes:
-//   --workspace <tree>           Bazel test: check a writable scratch copy of
-//                                the declared workspace (.svelte-kit in
-//                                runfiles is read-only, and --tsgo writes it).
-//   --workspace <tree> --canary  Seed one .ts and one .svelte type error and
-//                                fail unless svelte-check reports both. Under
-//                                --tsgo a tsconfig that checks nothing reports
-//                                0 errors (sveltejs/language-tools#3136); this
-//                                proves the gate is live.
-//   (no --workspace)             `bazel run` from the source tree, e.g. --watch.
+// RU13 uses svelte-check with --tsgo. svelte2tsx writes components to .svelte-kit, then
+// TypeScript 7.0.2 checks them alongside the tsconfig's .ts files.
+// patches/svelte-check@4.7.6.patch resolves typescript/bin/tsc. With --workspace <tree>,
+// Bazel checks a writable scratch copy because runfiles are read-only. Add --canary to seed
+// one .ts and one .svelte error. Requiring both detects empty checks under
+// sveltejs/language-tools#3136. Without --workspace, bazel run uses the source tree and
+// accepts --watch.
 
 const require = createRequire(import.meta.url);
 const svelteCheckCli = resolve(dirname(require.resolve('svelte-check/package.json')), 'bin/svelte-check');

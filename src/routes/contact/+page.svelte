@@ -3,17 +3,10 @@
 	import SourceLink from '#lib/components/SourceLink.svelte';
 	import ExternalLink from '#lib/components/ExternalLink.svelte';
 
-	// The contact form on its OWN page — the demo site's architecture
-	// (greatfallstoolbus.org@origin/main src/routes/contact/+page.svelte),
-	// restored by addendum B1.4: ALTCHA proof-of-work + honeypot + bounds +
-	// exact-origin CORS against the forms.latoolb.us relay, with the mailto
-	// compose as the deliberate manual fallback (spec §3 contact relay
-	// :118-127 and §10). The root page's row 8 links here.
-	//
-	// The panel was the restored purple inversion (gen_board.py:170-179);
-	// a 2026-08-31 operator ruling flattened it to plain page ground
-	// (surfaces are borderless sitewide). See the .contact-card comment
-	// in src/app.css.
+	// Addendum B1.4 follows the demo route at greatfallstoolbus.org@origin/main
+	// src/routes/contact/+page.svelte. The forms.latoolb.us relay uses ALTCHA, a honeypot,
+	// bounds and exact-origin CORS. Keep the mailto fallback from spec §3 :118-127 and §10.
+	// The 2026-08-31 ruling uses the plain page ground for .contact-card in src/app.css.
 </script>
 
 <div class="page-shell">
@@ -26,10 +19,8 @@
 
 	<section class="contact-card contact-card--form" aria-labelledby="contact-title">
 		<div class="contact-copy">
-			<!-- TODO(jess): contact heading. "Bring a question, a skill, or a
-			     tool story." was swept as AI-authored copy (operator re-review
-			     2026-08-19, salvaged from restoration PR-5); the interim heading
-			     is the spec row's own term. -->
+			<!-- TODO(jess): The contact heading uses the interim spec term pending
+			     review. -->
 			<h1 id="contact-title">Contact</h1>
 			<p>
 				The form reaches <a href="mailto:keyholders@latoolb.us">keyholders@latoolb.us</a>, the private role list for
@@ -45,16 +36,11 @@
 			<ContactForm />
 		</div>
 		<div class="qr-card">
-			<!-- NON-ADOPTION RECORD (FR-9, Skeleton audit §a) — do not "fix":
-			     this static, committed QR <img> STAYS; the runtime Zag/v5 QR
-			     Code component was considered and rejected. The printed-artifact
-			     decode and always-encode-the-apex acceptance (spec §3:129-142;
-			     0014:88-89) are satisfied with zero runtime JS, and the
-			     committed SVG is byte-identity-gated against a fresh qrencode
-			     run (`just qr-verify`, which also cross-checks the pinned
-			     payload against package.json's homepage; independent decode
-			     verification is a manual scan) — a runtime component would
-			     trade a proven artifact for a client dependency. -->
+			<!-- NON-ADOPTION RECORD for FR-9 and Skeleton audit §a. The committed QR SVG
+			     works on paper without JavaScript. `just qr-verify` compares fresh
+			     qrencode bytes and checks the payload against the package.json homepage.
+			     Verify the printed code with a manual scan as specified in §3:129-142 and
+			     0014:88-89. -->
 			<img
 				class="qr"
 				src="/qr/greatfallstoolbus-apex.svg"

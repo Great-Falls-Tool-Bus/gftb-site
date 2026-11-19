@@ -1,10 +1,8 @@
 import { EMAIL_RE } from './contact-form';
 
 /**
- * Pure decisions for the list-signup capture modal
- * (src/lib/components/SubscribeCapture.svelte). Nothing here touches the
- * DOM, storage, or the clock: the component gathers the signals and this
- * module says whether the modal may arm and what the request looks like.
+ * The capture modal supplies browser state. These functions decide when it may open and
+ * construct the signup request.
  */
 
 export interface SubscribeFormValues {
@@ -57,7 +55,7 @@ export const CAPTURE_SUPPRESSED_PATHS = ['/contact', '/legal', '/privacy'] as co
 export interface CaptureSignals {
 	/** Visible time on the page so far. */
 	dwellMs: number;
-	/** The visitor has scrolled past the hero (or one viewport where there is none). */
+	/** Past the hero, or past one viewport when the page has no hero. */
 	scrolledPast: boolean;
 	reducedMotion: boolean;
 	viewportWidth: number;

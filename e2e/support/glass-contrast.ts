@@ -1,16 +1,9 @@
 import type { Page } from '@playwright/test';
 import { decodePng, luminanceExtremes, type Rgb } from './png-luminance';
 
-// Shared glass-contrast measurement (lifted from
-// acceptance-hero-glass-contrast.spec.ts so the Notes & Goals pane backstop
-// in home-goals.spec.ts measures with the same implementation).
-//
-// Methodology: hide everything inside the selected element except its own
-// painted background (visibility: hidden on descendants leaves the parent's
-// background/backdrop-filter and its ::before untouched), screenshot just
-// that element, and scan the PNG for the darkest/lightest pixel by WCAG
-// relative luminance. That is the true composite: blur, saturate, panel
-// tint and whatever sits underneath, already baked in by the compositor.
+// Hide descendants with visibility: hidden to preserve the background, backdrop-filter and
+// ::before. Scanning the screenshot measures the composited luminance for
+// acceptance-hero-glass-contrast.spec.ts and home-goals.spec.ts.
 
 export async function setScheme(page: Page, scheme: 'light' | 'dark') {
 	await page.evaluate((mode) => {
@@ -22,10 +15,10 @@ export async function setScheme(page: Page, scheme: 'light' | 'dark') {
 	return response;
 }
 
-/** Resolves a CSS custom property to true 8-bit sRGB via a canvas round-trip
- * (getComputedStyle can hand back an oklch() string verbatim; canvas
- * fillStyle always normalizes to a paintable colour). The selected container
- * supplies inherited local roles, including the stronger glass inks. */
+/**
+ * Convert an inherited role to 8-bit sRGB through canvas. getComputedStyle may preserve
+ * oklch(), while fillStyle normalizes the colour.
+ */
 export async function resolveRoleRgb(page: Page, role: string, selector = 'body'): Promise<Rgb> {
 	return page.evaluate(
 		({ cssVar, scope }) => {
@@ -52,10 +45,8 @@ export async function resolveRoleRgb(page: Page, role: string, selector = 'body'
 }
 
 /**
- * `margin` is the scan inset in CSS px: the hero keeps the original 6; a
- * caller passes whatever inset keeps the sample inside the surface it is
- * measuring at fractional scroll offsets (the Notes & Goals panes carry no
- * border, so nothing but the fill is ever inside their clip).
+ * `margin` insets the scan in CSS pixels. The hero uses 6 to keep samples inside the surface at
+ * fractional scroll offsets.
  */
 export async function measureGlassExtremes(page: Page, selector: string, margin = 6) {
 	const rect = await page.evaluate((sel) => {
@@ -86,16 +77,8 @@ export interface InkSampleRect {
 }
 
 /**
- * The scene canvas is measured as painted, with nothing hidden: screenshot
- * the element and scan only the pixels under the given rects (the notes'
- * text boxes, relative to the element). Returns the darkest and lightest
- * pixel by WCAG relative luminance across all rects.
- */
-/**
- * A second capture that marks where an element's own paint is present: the
- * probe style paints a sentinel colour where the element paints at all (a
- * masked-away region shows whatever lies beneath instead), and `isPresent`
- * reads the sentinel back. Pixels that fail it are left out of a measure.
+ * A probe colour marks pixels where the element paints. `isPresent` excludes masked regions
+ * that show the surface beneath.
  */
 export interface PresenceProbe {
 	style: string;
@@ -157,6 +140,7 @@ function pngBounds(rect: InkSampleRect, image: ReturnType<typeof decodePng>, sca
 	};
 }
 
+/** Return the darkest and lightest sampled pixels across the supplied rectangles. */
 export async function measureExtremesInRects(
 	page: Page,
 	selector: string,

@@ -51,7 +51,6 @@ test.describe('prefers-reduced-motion', () => {
 	});
 
 	test('anchor navigation still lands on its target with motion reduced', async ({ page, guardedPage }) => {
-		// The skip link remains a useful same-page anchor after content edits.
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await guardedPage();
 		await page.keyboard.press('Tab');
@@ -89,11 +88,8 @@ test.describe('keyboard operability', () => {
 				focusable
 					.filter((element) => !element.closest('.honeypot'))
 					.filter((element) => element.getAttribute('tabindex') !== '-1')
-					// Operator interview 2026-10-02: the work sessions loop repeats its
-					// rows in a duplicate track that only closes the loop. That copy is
-					// aria-hidden with tabindex -1 buttons, so it is never a tab stop and
-					// is not expected as one; every row is still reached once, in its
-					// first copy.
+					// Under the 2026-10-02 ruling, the loop repeats its rows in an aria-hidden track with
+					// tabindex -1 buttons. Keyboard users reach each row once.
 					.filter((element) => !element.closest('[inert], [aria-hidden="true"]'))
 					// A native radio group is one tab stop: the checked radio, or the
 					// first when none is (the wiper stalk's four detents).
@@ -141,13 +137,8 @@ test.describe('keyboard operability', () => {
 		await page.waitForLoadState('networkidle');
 
 		const invisible = await page.evaluate(async () => {
-			// Declare keyboard modality before the sweep: the switch's ring is
-			// deliberately keyboard-only (Zag's focus-visible modality
-			// tracking — a mouse click paints no ring, by design), and this
-			// sweep drives focus programmatically. One Tab keydown is exactly
-			// what a keyboard user emits before every focus simulated below;
-			// Zag's document-level tracker accepts it and flips the modality
-			// to keyboard, so the real indicator becomes observable.
+			// Zag tracks keyboard modality at the document level. Press Tab before programmatic focus so
+			// the keyboard-only indicator paints during the sweep.
 			document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
 			const readable = (element: HTMLElement) => {
 				const style = getComputedStyle(element);
@@ -167,24 +158,16 @@ test.describe('keyboard operability', () => {
 				),
 			)
 				.filter((element) => !element.closest('.honeypot'))
-				// The work sessions loop's duplicate track (operator interview
-				// 2026-10-02) is aria-hidden and never takes focus from the keyboard
-				// or a press; its first copy is measured.
+				// The duplicate track is aria-hidden under the 2026-10-02 ruling. Measure each focus
+				// indicator on the first copy.
 				.filter((element) => !element.closest('[inert], [aria-hidden="true"]'));
 
-			// Reactive components apply their focus state on the next render
-			// (Zag transitions the machine, Svelte writes data-focus-visible),
-			// so the post-focus read settles a frame before measuring; plain
-			// controls are unaffected.
+			// Wait one frame for Svelte to write Zag's data-focus-visible state before measuring.
 			const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
 			for (const control of controls) {
-				// The mode switch's hidden input is Zag's clipped 1px a11y
-				// channel: its indicator paints on the switch ROOT (Zag flags
-				// data-focus-visible there and app.css draws the rescue-edge
-				// outline), so that is the element measured — the indicator a
-				// person can actually perceive, not a clipped box's computed
-				// style (review E7).
+				// Zag clips the switch input to 1px and sets data-focus-visible on the root. Measure the
+				// rescue-edge outline that app.css paints there.
 				const indicatorHost =
 					control.tagName === 'INPUT' && control.closest('.mode-switch, .wiper-stalk__item')
 						? (control.closest('.mode-switch, .wiper-stalk__item') as HTMLElement)
@@ -209,13 +192,9 @@ test.describe('keyboard operability', () => {
 	});
 
 	test('the contact form can be completed and submitted without a pointer', async ({ page, guardedPage }) => {
-		// Submitted, not just typed into: the acceptance row is that a keyboard-only
-		// visitor can actually send the form, so this drives Tab/Enter all the way
-		// to the POST and asserts the endpoint received it.
+		// Exercise Tab and Enter through submission so the assertion covers receipt of the POST.
 		await guardedPage('/contact');
-		// Registered after the prologue's catch-all guard so it takes precedence
-		// for the contact URL; the endpoint is only reached on submit, well after
-		// load, so registering it post-goto changes nothing observable.
+		// Register after the catch-all guard so the contact handler takes precedence on submit.
 		const capture = await stubContactEndpoint(page);
 
 		const message = 'I would like to help with the waterproofing session.';

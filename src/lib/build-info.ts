@@ -1,28 +1,11 @@
-// Build provenance for the footer "built from <sha>" line — a port of the old
-// apex's #140 mechanism onto this repo's one build-constant channel: the Bazel
-// stable-status stamp (scripts/bazel/workspace-status.sh) flows through
-// vite.config.ts's `define` block as __COMMIT_SHORT__. The stamp carries an
-// EXPLICITLY supplied identity only (BUILD_COMMIT_SHA, CI and
-// publish invocations) and is truncated to 7 chars AT THE SOURCE, so the
-// 40-hex form never reaches Vite and can never be inlined into shipped bytes
-// (the leak-scan gate rejects 40-hex in the artifact as its backstop). An
-// unidentified (local / dev) build stamps the literal 'unknown', so the
-// footer renders nothing. Fail-quiet: absence renders nothing, never a
-// broken value.
+// The footer follows the apex build stamp from #140.
+// scripts/bazel/workspace-status.sh truncates BUILD_COMMIT_SHA to 7 hex characters.
+// Vite exposes that stamp as __COMMIT_SHORT__. A local build stamps 'unknown'.
 
-// vitest evaluates this module without Vite's define step, so the global can
-// be absent entirely; the typeof guard keeps that path (and any future
-// non-Vite consumer) on the fail-quiet branch.
+// Vitest can load this module without Vite's define step.
 const stamped = typeof __COMMIT_SHORT__ === 'undefined' ? '' : __COMMIT_SHORT__;
 
-/**
- * Normalize the stamped value to a trustworthy 7-char short sha, or '' when
- * absent/untrustworthy. The stamp hands across exactly 7 hex chars or the
- * literal 'unknown'; anything else — including an untruncated 40-hex sha,
- * which must be cut at the stamp and never here — reads as absent so the
- * footer renders no line rather than a value from a channel that skipped the
- * source truncation.
- */
+/** Hide invalid stamps, including a 40-hex SHA that missed truncation at the source. */
 export function normalizeSha(raw: unknown): string {
 	if (typeof raw !== 'string') return '';
 	const value = raw.trim().toLowerCase();

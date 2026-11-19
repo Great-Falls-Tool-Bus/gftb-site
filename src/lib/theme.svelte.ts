@@ -1,19 +1,9 @@
 import { browser } from '$app/env';
 
 /**
- * Theme store — the demo store shape, ported verbatim (D01/D02; demo #81
- * `d381333` / #109 `1a85567`, `theme.svelte.ts:12-84`).
- *
- * Single CityLink theme (`gftb`) on this carrier; multi-theme later. Color
- * mode (`light` | `dark` | `system`) is the user-tunable axis and is
- * persisted to localStorage under `color-mode`. Theme id is persisted under
- * `skeleton-theme` for forward compatibility with the canonical Skeleton
- * pattern (and matches the inline FOUC script in `src/app.html`).
- *
- * NOT the v5 cookbook's binary model: new visitors default to `system` (no
- * `|| 'dark'` fallback), `setMode('system')` REMOVES the storage key, and a
- * `matchMedia` change listener re-resolves while the visitor stays on
- * `system` — all three are the demo's shipped decisions.
+ * The store follows the apex theme.svelte.ts at d381333 and 1a85567.
+ * The inline script in src/app.html reads the same color-mode and skeleton-theme keys.
+ * System mode removes the color-mode override and follows changes to the OS setting.
  */
 export type ColorMode = 'light' | 'dark' | 'system';
 

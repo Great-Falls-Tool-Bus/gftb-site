@@ -1,13 +1,6 @@
-// WebGPU tier: one shared device, one shader module, one pipeline; a handle
-// per canvas (the scene, opaque; the blades, premultiplied over the notes).
-// Every failure returns through the selection result or the handle's loss
-// callbacks; nothing here writes to the console (the no-JS spec fails the
-// home page on any console error or warning): the uncaptured-error handler
-// and the loss promise are installed before the first resource, creation
-// runs under error scopes, the canvas is claimed last so a failure leaves
-// it free for WebGL2, and a frame that throws counts as a loss. The adapter
-// and device request run under a deadline: a request the host answers late
-// is closed on arrival and never seen by a handle.
+// The scene and blades share a device, shader module and pipeline. Register error and loss
+// handlers before creating resources. Claim the canvas last so WebGL2 can use it after a
+// failure. Close late devices when the adapter or device request times out.
 import { HOST_TIMER, withDeadline, type DeadlineTimer } from './deadline';
 import { WEBGPU_ACQUIRE_DEADLINE_MS } from './shaders/constants';
 import { SCENE_WGSL } from './shaders/scene.wgsl';
@@ -77,15 +70,14 @@ async function openDevice(gpu: GPU): Promise<GPUDevice | RendererFailure> {
 	}
 }
 
-/** The device and pipeline, once per page; the canvas is untouched here. */
+/** Create the shared device and pipeline before claiming a canvas. */
 async function acquire(deps: AcquireDeps): Promise<Shared | RendererFailure> {
 	const gpu = deps.gpu();
 	if (!gpu) return { kind: 'no-api' };
 	const opening = openDevice(gpu);
 	const opened = await withDeadline(opening, deps.deadlineMs, deps.timer);
 	if (!opened.settled) {
-		// The host may still answer after the ladder has moved on: close that
-		// device on arrival. No handle ever saw it, so there is nothing to fail.
+		// Close a device that arrives after the deadline.
 		opening
 			.then((late) => {
 				if (!('kind' in late)) late.destroy();

@@ -49,7 +49,7 @@
         # //:e2e_test's Chromium (R583): Playwright's own Chromium build from
         # nixpkgs-playwright, behind one stable bin/chromium, plus the DejaVu
         # fonts.conf on Linux. tools/chromium/nix-paths.json pins its store
-        # path per system; `just chromium-pin` refreshes it.
+        # path for each system. Refresh it with `just chromium-pin`.
         pwPkgs = nixpkgs-playwright.legacyPackages.${system};
         e2eBrowsers = pwPkgs.playwright-driver.browsers.override {
           withChromium = true;

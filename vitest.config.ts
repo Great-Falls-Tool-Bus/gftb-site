@@ -1,8 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
-// `#lib/*` resolves through package.json `imports` (SvelteKit 3 replaced the
-// generated `$lib` alias with Node subpath imports), so the unit suite needs
-// no alias of its own.
+// SvelteKit 3 resolves #lib/* through package.json imports. The unit suite uses the same
+// mapping.
 export default defineConfig({
 	test: {
 		include: ['src/**/*.test.ts', 'src/**/*.test.svelte.ts', 'scripts/**/*.test.mts'],

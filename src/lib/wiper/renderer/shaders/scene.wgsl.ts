@@ -1,11 +1,6 @@
-// The WebGPU scene shader as a template string (the build-output scanner
-// classifies files by extension and fails closed on anything it does not
-// know, so shaders live inside modules). The same constants as the GLSL and
-// the same names: every GLSL uniform u_name appears here verbatim as a
-// struct member or a binding, so the source contract can hold the two tiers
-// in lockstep, and both read the one uniform block (renderer/uniform-block.ts).
-// Sampling sites use textureSampleLevel so they need no uniform control
-// flow; the bead field is fetched by texel with textureLoad.
+// Keep the shader in a module the build scanner recognizes. Uniforms share names and layout
+// with GLSL. textureSampleLevel supports sampling in nonuniform flow. textureLoad reads
+// individual bead texels.
 import { DROP_LENS, DROP_RIM_DARKEN, DROP_RIM_LIGHTEN, DROP_SPEC, MAX_ARMS, MAX_BLOBS } from './constants';
 
 /** A number as a WGSL f32 literal (32 reads 32.0). */

@@ -20,11 +20,11 @@
  * @property {number} alpha 0..1; 1 for fully opaque colours.
  */
 
-/** WCAG 2.2 SC 1.4.3 — normal body text. */
+/** WCAG 2.2 SC 1.4.3 for normal body text. */
 export const TEXT_AA_RATIO = 4.5;
-/** WCAG 2.2 SC 1.4.3 — large text (>=24px, or >=18.66px bold). */
+/** WCAG 2.2 SC 1.4.3 for large text, >=24px or >=18.66px bold. */
 export const LARGE_TEXT_AA_RATIO = 3;
-/** WCAG 2.2 SC 1.4.11 — user-interface components and graphical objects. */
+/** WCAG 2.2 SC 1.4.11 for user-interface components and graphical objects. */
 export const NON_TEXT_RATIO = 3;
 
 const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
@@ -45,9 +45,8 @@ function clampChannel(value) {
 }
 
 /**
- * Splits a functional colour's argument list into its components and its
- * optional alpha, accepting both the legacy comma form and the modern
- * space-plus-slash form.
+ * Split colour components and optional alpha in legacy comma syntax or modern
+ * space-plus-slash syntax.
  *
  * @param {string} args
  * @returns {{ components: string[], alpha: string | undefined }}
@@ -121,15 +120,10 @@ function linearToSrgb255(value) {
 }
 
 /**
- * Ottosson OKLab to sRGB. This is the single copy of the transform:
- * `src/lib/theme/palette.test.ts` proves the palette's documented hexes
- * through `parseCssColor`/`formatRgb` rather than restating the matrix.
- *
- * Needed because Chromium serialises a computed `oklch()`/`color-mix(in oklab, ...)`
- * colour *as* `oklch(...)`/`oklab(...)` rather than converting it to `rgb()`.
- * A parser that only understands `rgb()` silently reads an OKLab lightness of
- * 0.38 as a red channel of 0.38/255 — which is how a fully-passing palette can
- * measure as a 1.0:1 contrast failure.
+ * Chromium can preserve oklch() or oklab() in computed colours. Treating OKLab lightness as
+ * an RGB channel distorts contrast ratios. Convert with Ottosson's OKLab to sRGB transform.
+ * src/lib/theme/palette.test.ts checks palette hex values through parseCssColor and
+ * formatRgb.
  *
  * @param {number} lightness 0..1
  * @param {number} a
@@ -263,7 +257,7 @@ export function parseCssColor(input) {
 }
 
 /**
- * Simple (non-premultiplied) source-over composite of `foreground` onto `backdrop`.
+ * Composite `foreground` over `backdrop` using non-premultiplied channels.
  *
  * @param {Rgb} foreground
  * @param {Rgb} backdrop
@@ -295,9 +289,7 @@ export function relativeLuminance(color) {
 }
 
 /**
- * WCAG contrast ratio. Translucent inputs are composited over `background`
- * first, because a ratio computed against an un-composited alpha colour is
- * meaningless — and quietly optimistic.
+ * Composite translucent inputs over `background` before calculating the WCAG contrast ratio.
  *
  * @param {Rgb | string} foreground
  * @param {Rgb | string} background
@@ -314,9 +306,8 @@ export function contrastRatio(foreground, background) {
 }
 
 /**
- * Renders a parsed colour as `#rrggbb` (or `rgb(r g b / a)` when translucent)
- * so a failure message names a colour a person can look up, not an OKLab
- * triple.
+ * Render opaque colours as `#rrggbb` and translucent ones as `rgb(r g b / a)` in failure
+ * messages.
  *
  * @param {Rgb | string} color
  * @returns {string}

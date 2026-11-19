@@ -80,11 +80,8 @@ const imagedEntries = [
 const imagelessEntry = published.find((entry) => !imagedEntries.some((imaged) => imaged.slug === entry.slug))!;
 
 test('only the imaged entries render featured-image markup on /log', async ({ page }) => {
-	// The published entries with an `image` (2026-08-11 from the 2026-09-01
-	// curation, 2026-09-07 from the operator's own batch): each archive row
-	// pins src, alt and sharp corners. Every other row keeps the honest empty
-	// state — no <img>, no <figure>, no reserved box — so the zeros survive as
-	// an exact count.
+	// The 2026-08-11 and 2026-09-07 entries carry images. Every other archive row omits both <img>
+	// and <figure> so it reserves no space.
 	await page.goto('/log');
 	await expect(page.locator('.log-list li')).toHaveCount(published.length);
 	await expect(page.locator('.log-list img')).toHaveCount(imagedEntries.length);
@@ -142,11 +139,8 @@ test('removed entries stay deleted and retained drafts stay unpublished', async 
 	}
 });
 
-// The shelves entry carries the cut sheet as an embedded PDF (2026-09-19):
-// the file serves from the static carrier, the object element has a plain
-// link inside it for browsers that show no PDFs inline, and the permalink
-// keeps the sharp-edges and no-horizontal-scroll rails the page sweeps do not
-// visit (they cover /, /404, /log and /contact only).
+// The 2026-09-19 shelves entry embeds a static PDF. Its inner link serves browsers without
+// inline PDF support. The sitewide layout sweep misses this permalink.
 test('the shelves cut sheet serves as a PDF from the static carrier', async ({ request }) => {
 	const response = await request.get('/cad/port_side_shelves_cut_list.pdf');
 	expect(response.status()).toBe(200);

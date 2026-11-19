@@ -17,14 +17,10 @@ import {
 
 import { contrastRatio, formatRgb, parseCssColor } from '../../../scripts/lib/color-contrast.mjs';
 
-// Every assertion here re-derives its numbers through the shared colour maths
-// in scripts/lib/color-contrast.mjs (Ottosson OKLab + WCAG 2.1 relative
-// luminance) so palette.ts, theme-gftb.css, and the meta spec's claims cannot
-// drift apart silently — and so this suite and the acceptance contrast gates
-// cannot disagree about what a ratio means. `parseCssColor` understands the
-// `oklch(L% C Hdeg)` spelling palette.ts documents, `formatRgb` renders an
-// opaque colour as the same `#rrggbb` form the palette pins, and
-// `contrastRatio` is the WCAG definition over 8-bit sRGB.
+// Recompute palette.ts and theme-gftb.css through scripts/lib/color-contrast.mjs so the
+// palette and acceptance gates share Ottosson OKLab and WCAG 2.1 relative luminance.
+// parseCssColor reads `oklch(L% C Hdeg)`. formatRgb produces `#rrggbb` and contrastRatio
+// measures 8-bit sRGB.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const themeCss = readFileSync(path.join(repoRoot, 'src/lib/styles/theme-gftb.css'), 'utf8');

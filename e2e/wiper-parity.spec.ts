@@ -10,12 +10,9 @@ import {
 	packUniformBlock,
 } from '../src/lib/wiper/renderer/uniform-block';
 
-// The two tiers paint one picture: the same uniform block, the same textures,
-// the same synthetic frame, drawn once by the GLSL through WebGL2 and once by
-// the WGSL through WebGPU, read back and compared pixel by pixel. Runs only
-// where a WebGPU adapter exists (the chromium-webgpu project on the rail, or
-// any GPU browser); elsewhere it skips and says so. Outside the Bazel smoke
-// list on purpose: the rail's default headless shell has no adapter.
+// Draw identical textures, uniforms and a synthetic frame through WebGL2 and WebGPU. Compare
+// the GLSL and WGSL output pixel by pixel. This requires a WebGPU adapter such as the
+// chromium-webgpu project's. The default Bazel smoke shell lacks one.
 const WIDTH = 640;
 const HEIGHT = 320;
 const DPR = 1;

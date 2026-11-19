@@ -19,10 +19,8 @@ describe('checked-in public log content', () => {
 			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
 			const frontmatter = raw.match(/^---\n([\s\S]*?)\n---/u)?.[1];
 			expect(frontmatter, `${file} frontmatter`).toBeTruthy();
-			// The gate is boolean and explicit: published entries render;
-			// published:false files are operator-pending drafts (B1.2) and MUST
-			// carry a TODO(jess) marker. Either way the pointer scans below run
-			// on the whole file — a draft is not a place to park private text.
+			// B1.2 requires an explicit boolean publication flag and an operator marker on each
+			// pending draft. Scan the whole file for private pointers regardless of publication.
 			expect(frontmatter, `${file} publication gate`).toMatch(/^published:\s*(?:true|false)$/mu);
 			if (/^published:\s*false$/mu.test(frontmatter ?? '')) {
 				expect(raw, `${file} draft without a TODO(jess) marker`).toContain('TODO(jess)');

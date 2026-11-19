@@ -55,9 +55,8 @@ async function open(page: Page, baseUrl: string, path = '/') {
 
 const button = (page: Page) => page.getByTestId('tailnet-open');
 const dialog = (page: Page) => page.getByTestId('tailnet-dialog');
-// The footer and header Sign in links are plain links for everyone (operator
-// ruling 2026-11-14), so the FAQ's gated Member sign in is the item that shows
-// the manifest's member links mounted.
+// Under the 2026-11-14 ruling, the header and footer Sign in links are always visible. The FAQ
+// member link signals manifest readiness.
 const member = (page: Page) => page.locator('#faq-membership + dd').getByRole('link', { name: /^Member sign in/u });
 
 // These rows exercise the footer prompt, not the home page's wiper scene. The
@@ -111,8 +110,8 @@ test('yes: the member links mount, the button goes, and the answer holds for the
 	expect(run.probed).toEqual([`GET ${PROBE_URL}`, `GET ${SURFACE_URL}`]);
 	await dialog(page).getByRole('button', { name: 'Close' }).click();
 	await expect(member(page)).toHaveCount(1);
-	// The header and footer Join are plain links for everyone (operator rulings
-	// 2026-11-14), so the FAQ actions row is the gated item that shows the member links mounted.
+	// Under the 2026-11-14 ruling, the header and footer Join links are always visible. The FAQ
+	// actions signal manifest readiness.
 	await expect(page.locator('#faq-membership + dd .join-actions')).toHaveCount(1);
 	await expect(button(page)).toHaveCount(0);
 

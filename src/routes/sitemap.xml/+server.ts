@@ -1,6 +1,4 @@
-// Prerendered sitemap. Static pages plus the published log permalinks and
-// archive pages — all derived from the same loader every rendered surface
-// uses, so drafts (published: false) can never appear here (spec §3).
+// The sitemap shares the published log manifest with the archive and permalinks.
 import { logPageCount, publicLogs } from '#lib/public-logs.js';
 import type { RequestHandler } from './$types';
 

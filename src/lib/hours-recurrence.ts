@@ -1,9 +1,6 @@
-// Expands a published hours slot into dated rows on the VISITOR's clock. The
-// build never calls this: prerender shows clock-free rule text, and the band
-// swaps in these rows after mount, so the same source always builds the same
-// tree. Calendar stepping uses UTC calendar dates; comparisons use New York
-// wall-clock strings; each row's offset is resolved through Intl in two passes
-// so a DST change between now and the session is respected.
+// Expand sessions after mount so prerender stays independent of the build date. Step through
+// UTC dates, compare New York wall times and resolve offsets twice through Intl to account for
+// daylight saving changes.
 import {
 	HOURS_TIMEZONE,
 	dayNumberToIsoDate,
@@ -27,7 +24,7 @@ export interface HoursOccurrence {
 	weekday: PublicHoursSlot['weekday'];
 	start: string;
 	end: string;
-	/** UTC offset in force at the start, e.g. `-04:00`. */
+	/** UTC offset at the start, such as `-04:00`. */
 	offset: string;
 	/** `YYYY-MM-DDTHH:MM±HH:MM`, for `<time datetime>`. */
 	startIso: string;
@@ -87,9 +84,8 @@ function formatOffset(minutes: number): string {
 }
 
 /**
- * The New York UTC offset for a wall-clock date and time: guess with the
- * wall clock read as UTC, take the offset there, then resolve again at the
- * corrected instant.
+ * Read the wall time as UTC for an initial offset. Resolve the offset again at the corrected
+ * instant.
  */
 export function newYorkOffset(date: string, time: string): string {
 	const wallAsUtc = Date.parse(`${date}T${time}:00Z`);

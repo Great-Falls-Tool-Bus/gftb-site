@@ -1,23 +1,9 @@
 <script lang="ts">
-	// The reusable featured-image affordance for the frontmatter image group
-	// (src/lib/featured-image-schema.ts). Callers pass metadata through
-	// UNCONDITIONALLY: when no image is set the component renders nothing at
-	// all — the honest empty state, no placeholder, no reserved box.
-	//
-	// Variants:
-	//  - `thumb`: the archive-row treatment (jesssullivan.github.io blog-list
-	//    inspiration) — a fixed 3/2 crop box (CSS) so rows cannot shift as
-	//    images load; an entry's own `image_aspect` overrides it inline.
-	//  - `hero`: the top-of-post treatment — natural aspect unless the entry
-	//    names one.
-	//
-	// Plain and borderless, never a card, sharp corners (operator rulings
-	// B1.2 + 2026-08-30; e2e/acceptance-sharp-edges.spec.ts sweeps /log).
-	// Consumers: the /log archive rows (thumb), the /log/<slug> permalink
-	// (hero), and — since the 2026-09-01 batch's deferred home-integration
-	// item — the home latest-5 citation rows (thumb). The home goals
-	// rotator consumes the same frontmatter group through the home page's
-	// designed `media` snippet (NotesAndGoals.svelte) rather than this component.
+	// Read the image group from src/lib/featured-image-schema.ts. Missing images reserve no
+	// space. The `thumb` layout follows the jesssullivan.github.io blog list. Reserve a 3/2
+	// crop box unless `image_aspect` overrides it. The `hero` variant keeps the image’s
+	// natural aspect by default. NotesAndGoals.svelte consumes the same group through its
+	// `media` snippet.
 	interface Props {
 		src?: string;
 		alt?: string;

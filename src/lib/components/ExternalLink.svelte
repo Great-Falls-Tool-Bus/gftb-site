@@ -1,12 +1,7 @@
 <script lang="ts">
-	// The outbound-link affordance, ported from the apex ExternalLink (D06,
-	// #75): one component for every anchor that leaves the site, so
-	// rel/target/a11y can never drift apart across call sites. The mark is a
-	// small monospace [↗] that reads as "this leaves the site", not
-	// decoration. The mark is aria-hidden; a visually-hidden "(opens in a
-	// new tab)" carries the meaning to assistive tech. In print the mark is
-	// dropped and the URL is expanded after the text (the @media print block
-	// in src/app.css — D03 pairs with this component).
+	// D06 ports the apex ExternalLink from #75. Hide the [↗] glyph from assistive technology
+	// and announce “(opens in a new tab)” instead. The D03 print rules in src/app.css
+	// replace the glyph with the URL.
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -24,9 +19,8 @@
 	let { href, external = true, mark = true, class: klass = '', label, children }: Props = $props();
 
 	const rel = $derived(external ? 'external noopener noreferrer' : 'noopener noreferrer');
-	// An aria-label REPLACES the whole accessible name, which silently
-	// discarded the sr-only "(opens in a new tab)" exactly on labelled links
-	// (review E5) — so the affordance is folded into the override.
+	// An aria-label replaces the entire accessible name. Include “(opens in a new tab)” in the
+	// override so labelled links announce it too.
 	const ariaLabel = $derived(label ? `${label} (opens in a new tab)` : undefined);
 </script>
 

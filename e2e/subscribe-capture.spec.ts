@@ -1,11 +1,6 @@
-// The list-signup capture modal (rehearsal only, PUBLIC_SUBSCRIBE_CAPTURE).
-// These rows run against a flag-on build: the component publishes its arm
-// decision on <html data-subscribe-capture>, and a build made with the flag
-// off never sets it, so the suite skips itself there instead of failing.
-//
-// The dwell hook `data-subscribe-capture-dwell-ms` (docs/operating-rules.md
-// "Test hooks") credits the 45 s dwell; the scroll-past-the-hero half of the arm
-// rule is still exercised for real, as is every suppression below.
+// PUBLIC_SUBSCRIBE_CAPTURE marks enabled builds with <html data-subscribe-capture>. The dwell
+// hook `data-subscribe-capture-dwell-ms` credits the 45 s delay under docs/operating-rules.md.
+// Scrolling and suppression still run in the browser.
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { skipHomeIntro } from './support/intro';
@@ -142,8 +137,8 @@ test.describe('subscribe capture (flag on)', () => {
 	});
 
 	test('never arms while the home intro is live', async ({ page, guardedPage }) => {
-		// Dwell is credited and the intro's own scroll lands below the hero, so
-		// the only thing holding the modal back during the intro is the intro.
+		// The dwell and scroll conditions are satisfied. Only the active intro can suppress the
+		// modal.
 		await creditDwell(page);
 		await guardedPage('/');
 		const introArmed = await page.evaluate(() => document.documentElement.classList.contains('intro-armed'));
@@ -179,9 +174,8 @@ test.describe('subscribe capture (flag on)', () => {
 		}
 		expect(duringIntro.some((row) => row.capture === 'intro-live')).toBe(true);
 
-		// The intro lands Notes & Goals under the sticky header, which leaves the
-		// hero's bottom edge just inside the viewport: the rule reports the hero,
-		// and one more scroll past it arms the box with the intro gone.
+		// The intro lands on Notes & Goals with the hero edge still visible. One more scroll
+		// satisfies the hero condition.
 		await expect.poll(() => published(page), { timeout: 10_000 }).toBe('hero');
 		await scrollPastHero(page);
 		await expect.poll(() => published(page)).toBe('armed');
@@ -234,8 +228,7 @@ test.describe('subscribe capture (flag on)', () => {
 		await skipHomeIntro(page);
 		await creditDwell(page);
 		await guardedPage('/');
-		// After the guard: Playwright matches routes newest first, so a stub
-		// registered before the fixture's external guard would be shadowed by it.
+		// Register after the external guard because Playwright matches the newest route first.
 		const capture = await stubContactEndpoint(page, {}, SUBSCRIBE_URL);
 		test.skip(!(await flagOn(page)), 'flag-off build: the capture component is absent');
 		await scrollPastHero(page);

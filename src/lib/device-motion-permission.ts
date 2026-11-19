@@ -1,26 +1,7 @@
 /**
- * First-gesture device-motion handshake (operator ruling 2026-09-09).
- *
- * Browsers that gate the accelerometer behind a permission API (iOS Safari)
- * only answer `DeviceOrientationEvent.requestPermission()` from inside a user
- * gesture; a gesture-less call is rejected and tinyvectors 0.3.7 latches the
- * instance to `denied` (DeviceMotion.ts:180-208 at v0.3.7). So there is no
- * "prompt automatically" on iOS. What there is: the visitor's first neutral
- * tap inside the page, which this module borrows once. Nothing is rendered.
- *
- * - Desktop and Android: `requiresPermission` is false, the package starts
- *   listening on its own, `available()` is false, and nothing ever arms.
- * - Reduced motion: nothing arms; turning Reduce Motion on mid-session
- *   disarms, turning it off re-arms only if no request was ever made.
- * - Interactive targets (links, buttons, form fields, the mode switch) never
- *   trigger the handshake: a navigation tap must not raise a system dialog.
- * - The native call is made synchronously inside the click stack (awaiting a
- *   tick first forfeits transient activation). `attempted` latches only once
- *   the package reports a settled state (granted, denied, or listening), so a
- *   tap that lands before the deferred component has physics does not burn
- *   the one shot; the listener re-arms for the next neutral tap instead.
- * - Denial is silent: the package stops listening, the blobs keep their idle
- *   drift, and this module never asks again for the life of the page.
+ * On iOS, request accelerometer access during the first neutral tap. Interactive controls and
+ * reduced motion must never trigger the prompt. If physics is still loading, try the next
+ * neutral tap. Once the request settles, stop asking for the rest of the page load.
  */
 
 /** The existing TinyVectors instance API; physics and sensor IO stay in the package. */
@@ -41,7 +22,7 @@ export interface MotionPreference {
 	removeEventListener(type: 'change', listener: () => void): void;
 }
 
-/** A DOM-shaped source of click gestures (the main landmark in production). */
+/** Gesture source inside the main landmark. */
 export interface GestureSource {
 	addEventListener(type: 'click', listener: (event: Event) => void, options?: AddEventListenerOptions): void;
 	removeEventListener(type: 'click', listener: (event: Event) => void, options?: EventListenerOptions): void;
@@ -143,7 +124,7 @@ export function createDeviceMotionHandshake(
 		inFlight = true;
 		disarm();
 		publish(state());
-		// Synchronous inside the click stack: an await first forfeits transient activation.
+		// Request permission synchronously while the gesture still has transient activation.
 		let request: Promise<boolean>;
 		try {
 			request = current.requestDeviceMotionPermission();

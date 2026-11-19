@@ -1,11 +1,6 @@
-// The bead field (M4): one droplet at most per grid cell over the glass,
-// simulated on the CPU from the machine's stroke clock and uploaded to the
-// scene shader as a small float texture. Births come during the rest and
-// ahead of a moving blade; a pass kills every bead whose whole extent the
-// blade crossed, so beads are eaten under the rubber, never popped. Two
-// stroke samples reconstruct every angle a blade crossed between frames,
-// whatever the frame gap, so a slow rig clears the same beads a fast one
-// does. Pure TypeScript: vitest drives it with a real WiperMachine.
+// The CPU tracks one bead in each cell and uploads the field as a float texture. A bead disappears
+// when the blade passes its full extent. Two stroke samples cover the whole sweep between
+// frames.
 import { phiAt, polar, type ArmSpec, type WiperGeometry } from './geometry';
 import type { StrokeSample } from './machine';
 import {
@@ -33,11 +28,7 @@ export interface StrokeLeg {
 	to: number;
 }
 
-/**
- * The legs a blade travelled between two stroke samples. A leg is a raw
- * progress interval within one stroke; a gap that spans the turnaround or
- * park yields one leg per stroke touched.
- */
+/** Each leg covers one stroke. Split at turnaround or park when a frame spans multiple strokes. */
 export function strokeLegs(prev: StrokeSample, next: StrokeSample): StrokeLeg[] {
 	const passes = next.passesDone - prev.passesDone;
 	const legs: StrokeLeg[] = [];
@@ -69,7 +60,7 @@ export interface DropletFieldOptions {
 	preseed?: number;
 }
 
-/** Per-cell bead state; a bead exists where rFinal > 0. */
+/** A cell contains a bead when rFinal > 0. */
 interface Cells {
 	x: Float32Array;
 	y: Float32Array;
@@ -124,8 +115,7 @@ export class DropletField {
 		this.#geometry = geometry;
 		const cols = Math.max(1, Math.min(DROP_MAX_COLS, Math.ceil(geometry.box.width / this.cellCss)));
 		const rows = Math.max(1, Math.min(DROP_MAX_ROWS, Math.ceil(geometry.box.height / this.cellCss)));
-		// While the grid keeps its columns and rows the beads stay where they
-		// are: a one-pixel resize must not reseed the glass.
+		// Keep existing beads when a resize leaves the grid dimensions unchanged.
 		if (cols === this.cols && rows === this.rows && this.data.length > 0) return;
 		this.cols = cols;
 		this.rows = rows;
@@ -171,9 +161,7 @@ export class DropletField {
 	#sweep(legs: StrokeLeg[], arms: readonly ArmSpec[]): boolean {
 		const cells = this.#cells;
 		let changed = false;
-		// A leg that reaches the end of its stroke also takes the beads whose
-		// extent hangs past that end of the fan: the blade parks on them or
-		// turns around over them, so nothing survives at the corners.
+		// At turnaround or park, clear beads that extend beyond the end of the fan.
 		const ranges = arms.map((arm) =>
 			legs.map((leg) => {
 				const angles = legAngles(arm, leg);

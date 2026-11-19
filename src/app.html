@@ -10,12 +10,9 @@
 		     with `description` in src/routes/+layout.svelte;
 		     e2e/acceptance-copy-deslop.spec.ts enforces the parity. -->
 		<meta name="description" content="A community-run tool library taking shape in Lewiston–Auburn, Maine." />
-		<!-- browser chrome cannot read CSS vars: literals tracking primary-700 / surface-950.
-		     ACCEPTED LIMITATION (D01 port note): these stay media-keyed while the
-		     page itself keys on data-mode — a visitor who overrides the OS scheme
-		     gets the OS-scheme browser chrome tint. Browser chrome cannot follow a
-		     DOM attribute, and re-writing these from script would put paint-time
-		     colour logic in two places for a tint-only surface. -->
+		<!-- Browser chrome uses primary-700 and surface-950 literals. D01 follows the OS
+		     media query for this tint even when a visitor overrides data-mode on the
+		     page. -->
 		<meta name="theme-color" content="#564682" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#28222b" media="(prefers-color-scheme: dark)" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
@@ -23,17 +20,13 @@
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/site.webmanifest" />
 		<script>
-			// FOUC prevention (D02, ported from the demo app.html:8-33): read
-			// color-mode and theme from localStorage and apply data-mode +
-			// data-theme synchronously before Svelte mounts. An explicit stored
-			// value wins; otherwise matchMedia resolves `system`. No-JS visitors
-			// keep the static data-mode="light" above — the accepted v5
-			// light-switch trade (attribute keying replaces the media-query dark
-			// block, so dark requires the attribute to be set).
+			// The D02 pre-paint script comes from the demo app.html:8-33. Resolve color-mode
+			// and theme from localStorage before Svelte mounts. Stored preferences win. For
+			// `system`, matchMedia supplies the mode. Without JavaScript the static
+			// data-mode="light" remains.
 			(function () {
-				// Scripts run, whatever the motion setting: CSS keyed to html.js
-				// reserves room for what a script will swap in after mount (the
-				// work sessions band), which no-JS visitors never get.
+				// CSS uses html.js to reserve space for the work sessions band before the
+				// script mounts it.
 				document.documentElement.classList.add('js');
 				try {
 					var stored = localStorage.getItem('color-mode');
@@ -45,11 +38,8 @@
 					if (theme) {
 						document.documentElement.setAttribute('data-theme', theme);
 					}
-					// The motion-safe arm belongs to the reveal system (D04): the
-					// hidden reveal start state only ever applies under this class,
-					// which is set before first paint and ONLY when motion is
-					// allowed — reduced-motion and no-JS visitors always render at
-					// rest.
+					// D04 arms the hidden reveal state before first paint only when motion is
+					// allowed. Reduced-motion and scriptless visitors see the resting state.
 					var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 					if (!reduceMotion) {
 						document.documentElement.classList.add('motion-safe-ready');
@@ -62,12 +52,10 @@
 							document.documentElement.classList.remove('motion-safe-ready');
 							document.documentElement.classList.remove('intro-armed');
 						}, 3000);
-						// Home intro (operator rulings 2026-09-10): every full load of the
-						// home path, never with a fragment, never while <html data-intro-off>
-						// (the test and LOOK hook) is present; no storage. Armed before
-						// first paint so the veil is the first frame and the page holds the
-						// top beneath it; the stylesheet ends it hidden by itself. Any input
-						// before hydration disarms it; src/lib/intro takes over on mount.
+						// The 2026-09-10 ruling arms the home intro before paint on a full
+						// load without a fragment or <html data-intro-off>. The veil covers
+						// the page at its top and CSS hides it at the end. Input disarms it
+						// before hydration. src/lib/intro takes over on mount.
 						var forcedColors = window.matchMedia && window.matchMedia('(forced-colors: active)').matches;
 						if (
 							!forcedColors &&
@@ -86,7 +74,7 @@
 						}
 					}
 				} catch (e) {
-					// localStorage unavailable (privacy mode, etc.): keep defaults.
+					// Keep the defaults if localStorage is unavailable.
 				}
 			})();
 		</script>
