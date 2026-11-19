@@ -13,7 +13,7 @@ just setup
 just dev
 ```
 
-Content editing needs no site `.env` file. Follow the [content guide](docs/content-train.md) for log entries.
+Content editing needs no site `.env` file. Drafts are public on GitHub. See the [content guide](docs/content-train.md) before sharing a log entry.
 Run `just check` for the full local suite. The Linux lab merge gate is `just gate-deploy`.
 The [Justfile](Justfile) lists the recipes. Submit signed changes from your fork under the [contribution contract](CONTRIBUTING.md) and [standing rules](docs/operating-rules.md).
 
