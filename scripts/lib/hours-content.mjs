@@ -215,9 +215,8 @@ function renderEntry(entry) {
 }
 
 /**
- * The manifest source before Prettier: PUBLISHED entries only, every entry
- * validated, and no clock read anywhere, so two runs at different times
- * produce the same bytes.
+ * Validate every entry and render only published hours. Reading no clock keeps the source
+ * deterministic before Prettier.
  *
  * @param {HoursEntry[]} entries
  * @returns {string}

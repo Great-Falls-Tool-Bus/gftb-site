@@ -22,12 +22,8 @@ export default ts.config(
 		},
 	},
 	{
-		// Test-only modules live in scripts/lib precisely so shipped code cannot
-		// reach them: scripts/lib/leak-scan-rules.json carries credential-detection
-		// regexes (ghp_, AKIA/ASIA, glpat-, JWT, kubeconfig fragments) that do not
-		// belong in a public client bundle. The file location is the primary
-		// defence; this is the second, and src/lib/leak-scan.test.ts asserts it
-		// from the other side.
+		// Keep scripts/lib/leak-scan-rules.json and its detection patterns out of the public
+		// client bundle. src/lib/leak-scan.test.ts also checks this boundary.
 		files: ['src/**'],
 		rules: {
 			'no-restricted-imports': [
@@ -63,14 +59,8 @@ export default ts.config(
 		rules: {
 			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 			'@typescript-eslint/no-explicit-any': 'error',
-			// House canon (TIN-2225): ban the `$derived(() => …)` thunk. Passing an
-			// arrow to `$derived` stores the *function* as the rune's value instead
-			// of evaluating it — a silent reactivity bug. Correct forms:
-			//   • `$derived(expr)`        for a single expression
-			//   • `$derived.by(() => …)`  for multi-statement derivations
-			// `$derived.by(...)` has a MemberExpression callee, so the selector
-			// (Identifier callee named `$derived` with a direct arrow argument)
-			// leaves it untouched.
+			// TIN-2225: a direct arrow makes $derived store the function itself.
+			// Use $derived(expr) for an expression or $derived.by(() => …) for a callback.
 			'no-restricted-syntax': [
 				'error',
 				{

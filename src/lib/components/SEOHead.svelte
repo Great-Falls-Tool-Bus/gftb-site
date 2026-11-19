@@ -9,12 +9,9 @@
 		image?: string;
 		imageAlt?: string;
 		noindex?: boolean;
-		/**
-		 * `undefined` derives the canonical URL from the current path. `null`
-		 * emits no canonical link and no `og:url` at all, which is what an error
-		 * surface needs: a canonical on a 404 is a soft-404 signal, and pointing
-		 * one at the home page tells a crawler the missing URL *is* the home page.
-		 */
+		/** `undefined` derives the canonical URL from the current path. `null` omits the
+		 * canonical link and `og:url`. Pointing a 404 at the home page could make a
+		 * crawler treat the missing URL as an alias. */
 		canonical?: string | null | undefined;
 		ogType?: string;
 		siteName?: string;

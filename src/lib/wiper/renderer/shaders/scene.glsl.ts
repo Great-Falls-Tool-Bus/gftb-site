@@ -1,17 +1,6 @@
-// The WebGL2 scene shader as template strings (the build-output scanner
-// classifies files by extension and fails closed on anything it does not
-// know, so shaders live inside modules). No URLs, no mailboxes in here.
-//
-// One program, one triangle, two layers. Layer 0, the scene behind the
-// notes: the page ground, tinyvectors' blob field, frost and beads. The
-// notes themselves are translucent glass panes whose inks were chosen to
-// read over any backdrop, so the scene owes them nothing under text
-// (operator ruling at the M4 ratification: the former ink clamp is gone).
-// Layer 1, the blades over the notes: the wiper arms as 2D signed-distance
-// chrome and rubber lit analytically (a dusk sky reflected in a half-cylinder
-// cross-section, a key light, a rim light, a fresnel-weighted iridescent
-// sheen) and their soft shadow, written premultiplied over transparency so
-// the blade passes over the panes it wipes.
+// The build scanner recognizes shaders embedded in modules. One triangle draws both layers.
+// Layer 0 paints the ground, blobs, frost and beads behind the notes. Layer 1 paints
+// the blades and their shadows with premultiplied alpha above the notes.
 import { DROP_LENS, DROP_RIM_DARKEN, DROP_RIM_LIGHTEN, DROP_SPEC, MAX_ARMS, MAX_BLOBS } from './constants';
 
 /** A number as a GLSL float literal (32 reads 32.0). */

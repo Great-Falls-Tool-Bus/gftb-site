@@ -1,12 +1,7 @@
 <script lang="ts">
-	// The home page's first-load veil (operator rulings 2026-09-10 and
-	// 2026-09-19): page ground while the brand mark drives in from the left and
-	// parks at centre as the page hydrates, then header and hero alone,
-	// then a scripted scroll to Notes and Goals as the wiper comes ready. It is
-	// prerendered so it can be painted before first paint, hidden unless
-	// app.html has armed it, and driven by src/lib/intro once mounted. The
-	// controller is mounted through an attachment, the element-scoped setup
-	// with cleanup that Svelte 5 provides for exactly this.
+	// app.html arms the prerendered veil before the first paint. The brand mark parks as the
+	// page hydrates. src/lib/intro controls the reveal and scroll to Notes and Goals once the
+	// wiper is ready. The attachment cleans up on unmount.
 	import type { Attachment } from 'svelte/attachments';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { mountHomeIntro, type IntroHandle, type IntroState } from '#lib/intro/controller.js';

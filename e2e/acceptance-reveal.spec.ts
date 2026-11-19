@@ -6,11 +6,8 @@ test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
 });
 
-// Acceptance rows for the scroll-reveal system (D04): armed only under
-// html.motion-safe-ready (set pre-paint, only when motion is allowed),
-// revealed by IntersectionObserver with per-item stagger, and FAIL-OPEN —
-// no combination of reduced motion, disabled JavaScript, or a dead bundle
-// may ever strand content hidden.
+// D04 arms scroll reveals through html.motion-safe-ready when motion is allowed. Content must
+// remain accessible with reduced motion, disabled JavaScript or a failed bundle.
 
 test.describe('motion allowed', () => {
 	test('below-fold sections arm hidden, then reveal as they scroll in', async ({ page }) => {
@@ -38,9 +35,7 @@ test.describe('motion allowed', () => {
 	test('the layout cancels the fail-open timer once hydrated', async ({ page }) => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		// Hydration succeeded, so the arm class must still be present well
-		// past the 3s failsafe horizon (a fired failsafe would remove it and
-		// un-stagger every reveal).
+		// Successful hydration keeps the arm class past the 3s failsafe.
 		await page.waitForTimeout(3500);
 		expect(await page.evaluate(() => document.documentElement.classList.contains('motion-safe-ready'))).toBe(true);
 	});
@@ -62,11 +57,8 @@ test.describe('fail-open', () => {
 	});
 
 	test('a dead bundle trips the 3s failsafe and un-hides everything', async ({ page }) => {
-		// Abort every app SCRIPT request (the stylesheet still loads, so the
-		// armed-hidden state is real): the inline head script still runs and
-		// arms the page, but hydration never happens, so nothing can ever call
-		// `use:reveal`. The failsafe is what stands between this state and
-		// permanently invisible content.
+		// Abort the app scripts but keep the stylesheet and inline head script. The page arms before
+		// hydration, so only the failsafe can reveal the content.
 		await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 

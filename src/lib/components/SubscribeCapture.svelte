@@ -1,30 +1,10 @@
 <script lang="ts">
-	// Dwell-armed list-signup capture (rehearsal only, behind the build-time
-	// PUBLIC_SUBSCRIBE_CAPTURE flag; +layout.svelte mounts this on browser
-	// idle and only when the flag is on). The modal arms after the visitor has
-	// spent CAPTURE_DWELL_MS on the site AND scrolled past the hero, on a
-	// viewport at least CAPTURE_MIN_VIEWPORT_WIDTH wide, never while the home
-	// first-load intro is armed, live or lifting (read from the <html> classes
-	// src/lib/intro owns; nothing about the intro is restated here), never on
-	// /contact, /legal or /privacy, never under reduced motion, forced colours
-	// or paper, and never again for 30 days after a dismissal or ever after a
-	// signup. The decision itself is src/lib/subscribe-form.ts's pure
-	// armCapture; this file only gathers the signals and publishes the
-	// outcome on <html data-subscribe-capture> for tests and LOOKs.
-	//
-	// It is a list signup and nothing else: an email, a confirmation email,
-	// an unsubscribe link in every message. The request goes to the same
-	// separately owned forms API the contact form uses, with the same
-	// honeypot and the same ALTCHA proof-of-work (the vendored widget script
-	// is loaded once, through the loader ContactForm.svelte and the RSVP
-	// dialog share, and only once the modal has actually armed so a visit
-	// that never arms fetches nothing). It never arms while the RSVP dialog
-	// is open (<html data-rsvp-open>).
-	//
-	// Test and LOOK hook, read from <html> (no URL query, no storage):
-	// `data-subscribe-capture-dwell-ms="<n>"` credits the dwell already
-	// served, so a rig can arm with n=0 after scrolling past the hero. It is
-	// only ever read by this component, which only exists on a flag-on build.
+	// +layout.svelte mounts this rehearsal dialog on browser idle when
+	// PUBLIC_SUBSCRIBE_CAPTURE is enabled. Gather the inputs for armCapture in
+	// src/lib/subscribe-form.ts. Read the home intro state from <html> and publish the
+	// decision on data-subscribe-capture. Suppress signup while data-rsvp-open is set. The
+	// shared ALTCHA loader runs only once the dialog arms. Tests can credit elapsed dwell with
+	// data-subscribe-capture-dwell-ms="<n>".
 	import { onMount, tick, untrack } from 'svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { page } from '$app/state';
@@ -44,9 +24,8 @@
 		type SubscribeFieldErrors,
 		type SubscribeFormValues,
 	} from '#lib/subscribe-form.js';
-	// The parts are bound to flat local names once, so the minified bundle
-	// carries no `X.Title`-style member access for the leak scan to read
-	// as a personal name (operator ruling 2026-10-02).
+	// Bind the Dialog parts to flat names. Minified `X.Title` member access can look like a
+	// personal name to the leak scan.
 	const {
 		Backdrop: DialogBackdrop,
 		Positioner: DialogPositioner,
@@ -84,9 +63,8 @@
 		document.documentElement.dataset.subscribeCapture = state;
 	}
 
-	// localStorage can be absent or throw (privacy mode, cleared site data);
-	// every read and write is guarded, and the modal still decides correctly
-	// without it (no memory means no suppression, which is the honest answer).
+	// Read and write localStorage defensively. When storage is unavailable the modal cannot
+	// remember a dismissal.
 	function readStored(key: string): number | null {
 		try {
 			return parseStoredTime(localStorage.getItem(key));
@@ -298,28 +276,11 @@
 	}
 </script>
 
-<!-- ADOPTION RECORD (Skeleton audit §a, the third entry after the two
-     NON-ADOPTION RECORDs at ContactForm.svelte and src/app.css .prior-logs):
-     this surface ADOPTS the v5 Dialog anatomy (Backdrop / Positioner /
-     Content / Title / Description / CloseTrigger over the Zag dialog
-     machine) instead of a native <dialog> or the hand-rolled trap
-     ContributeMenu.svelte carries. Reasons, in order: (1) the surface is
-     modal by design (it hides the page below from assistive tech, returns
-     focus on dismiss, and dismisses on Escape and backdrop), which is
-     exactly the machine's contract and is the part a hand-rolled version
-     gets subtly wrong (ContributeMenu's review round 2 finding C is the
-     local precedent); (2) a native <dialog>.showModal() puts the box in the
-     top layer, above --z-intro, so it could not be kept below the first-load
-     veil by the semantic z ladder at all; (3) the anatomy renders plain
-     elements with no styles of its own, so sharp edges, the role layer and
-     the print/forced-colours absence are all this file's own :global style
-     block below (not app.css, so a flag-off build ships no selector naming
-     this surface). It is
-     configured escapable: Escape, the backdrop, the close control and
-     "Not now" all close it, and focus is restored to wherever it was.
-     Skeleton's Portal was NOT adopted: the layout mounts this after the
-     footer already, and .app-shell has no transform, so fixed positioning
-     holds in place. -->
+<!-- ADOPTION RECORD for Skeleton audit §a. The v5 Dialog anatomy handles Escape, backdrop
+     dismissal and focus restoration. A native <dialog>.showModal() would enter the top
+     layer above --z-intro. The layout mounts this after the footer and .app-shell has no
+     transform, so fixed positioning works without a Portal. Component-local :global rules
+     style the plain anatomy elements. -->
 {#if open}
 	<Dialog
 		open={true}
@@ -429,18 +390,9 @@
 {/if}
 
 <style>
-	/* The dialog's whole dress lives here, not in app.css, so a build made
-	   with the flag off ships no selector naming this surface either (the
-	   component is stubbed out of that build entirely, and its styles go
-	   with it). Every rule is :global because the Dialog anatomy renders the
-	   classed elements itself. Existing roles only (no new colour); backdrop
-	   and box ride the semantic ladder BELOW --z-intro so the first-load veil
-	   always wins, and the component never arms while the veil is up anyway.
-	   Sharp edges throughout; no transition or animation anywhere; absent on
-	   paper (the print rule at the end) and under forced colours (the arm
-	   rule refuses it, and the component stands down if it flips on
-	   mid-open; the wiper's own forced-colours block must stay app.css's
-	   last, so no rule for it is added here). */
+	/* Keep Dialog styles in this component so a flag-off build omits them. Use :global
+	 * because the anatomy creates the elements. The backdrop and dialog sit below
+	 * --z-intro. Hide them in print and stand down when forced colours turn on. */
 	:global(.subscribe-capture__backdrop) {
 		position: fixed;
 		inset: 0;

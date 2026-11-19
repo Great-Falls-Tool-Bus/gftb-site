@@ -20,8 +20,7 @@ import {
 	wipeAngleDeg,
 } from './geometry';
 
-// The pane boxes the acceptance suite meets: three-up rows on wide viewports,
-// one-up rows on phones, plus a tall one-up page and a squat wide page.
+// Cover three-column wide and single-column phone layouts, including tall and squat panes.
 const BOXES = [
 	{ label: '1440 three-up', width: 1152, height: 620 },
 	{ label: '1280 three-up', width: 1088, height: 640 },

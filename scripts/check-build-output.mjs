@@ -1,33 +1,11 @@
 #!/usr/bin/env node
 /**
- * `just leak-scan` — run the shared leak rules over a built static artefact.
- *
- * This file is a THIN RUNNER. Every rule, every allowlist and the whole
- * walk/scan implementation live in scripts/lib/leak-scan.mjs, which is the same
- * module src/lib/leak-scan.test.ts imports under vitest. One implementation,
- * tested once: there is no second copy here to drift from the tested one.
- *
- * It deliberately fails loudly rather than quietly passing:
- *   exit 2 — the build directory is absent, is not a directory, or contains no
- *            scannable text output (a scan with nothing to scan is not a pass);
- *   exit 2 — the tree contains a file whose extension the scanner has no
- *            verdict for (fail-closed; see collectFiles);
- *   exit 1 — one or more findings.
- *
- * Operator-supplied literals (real private names, private hostnames) can be
- * passed through GFTB_LEAK_SCAN_DENY as a comma-separated list. They are never
- * committed. The script reports whether it ran with or without that list.
- *
- * B1 regression gate (PR #33 review): every `published: false` entry's
- * title and summary (scripts/lib/log-content.mjs) is ALWAYS folded into the
- * denylist too, unconditionally — not opt-in like GFTB_LEAK_SCAN_DENY. The
- * review proved a draft's full prose shipping in build/_app/immutable/
- * chunks; the fix (src/lib/generated/log-manifest.ts, B1) should make that
- * structurally impossible, but this makes it a build-breaking finding, not
- * an assumption, on the exact artefact `just build` and `just
- * leak-scan-stamped` scan. In `--copy-to <output>` mode it copies the input
- * TreeArtifact, scans the copy, and exposes that declared directory only when
- * the scan succeeds; //:deployment_bundle consumes that fail-closed boundary.
+ * `just leak-scan` checks build output with scripts/lib/leak-scan.mjs. Exit 1 means the scan
+ * found a match. Exit 2 means the directory is missing, has no scannable output or contains
+ * an unclassified extension. Operators can supply private literals through
+ * GFTB_LEAK_SCAN_DENY at runtime. Draft titles and summaries from scripts/lib/log-content.mjs
+ * are always checked. With `--copy-to <output>`, //:deployment_bundle receives the copied
+ * TreeArtifact only after the scan passes.
  */
 
 import { cpSync, existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
@@ -97,8 +75,8 @@ const draftLogEntries = readLogEntries(path.join(REPO_ROOT, 'src', 'content', 'l
 const draftDeniedLiterals = distinctiveDraftLiterals(draftLogEntries);
 const draftGoalEntries = readGoalEntries(path.join(REPO_ROOT, 'src', 'content', 'goals'));
 const draftGoalDeniedLiterals = distinctiveDraftGoalLiterals(draftGoalEntries);
-// Unpublished hours files contribute only their notes of 20 characters or
-// more: staff names, times and "the bus" already render in the FAQ.
+// Unpublished hours notes need at least 20 characters. Names, times and "the bus" already
+// appear in the FAQ.
 const draftHoursEntries = readHoursEntries(path.join(REPO_ROOT, 'src', 'content', 'hours'));
 const draftHoursDeniedLiterals = distinctiveDraftHoursLiterals(draftHoursEntries);
 

@@ -17,11 +17,8 @@ export interface ArmSpec {
 	/** Half of the coverage fan, radians; the blade reaches +halfSweep at the turnaround. */
 	readonly halfSweep: number;
 	/**
-	 * Park angle, radians, at least halfSweep: the blade rests at -park with
-	 * its tip on or below the glass line, so nothing of it lies over the
-	 * notes between wipes. A stroke runs from -park to +halfSweep; the first
-	 * part of it is the blade rising into frame (operator ruling at LOOK 3:
-	 * both blades travel the same way, tandem, and never cross).
+	 * The blade rests at -park, with its tip below or on the glass line. A stroke runs to
+	 * +halfSweep. Both blades travel together without crossing.
 	 */
 	readonly park: number;
 	/** The x range this arm owns, [from, to). */
@@ -95,8 +92,7 @@ function armFor(span: readonly [number, number], box: PaneBox): ArmSpec {
 	const pivotY = Math.max(box.height * (1 + HUB_DROP), box.height + reach / Math.tan(toRadians(PHI_MAX_DEG)));
 	const halfSweep = Math.atan(reach / (pivotY - box.height));
 	const length = TIP_MARGIN * Math.hypot(reach, pivotY);
-	// Parked, the tip is on or below the glass line: cos(park) * length is
-	// the tip's height above the hub, which must not exceed the hub's drop.
+	// At park, cos(park) * length must fit within the hub drop to keep the tip below the glass.
 	const park = Math.max(halfSweep, Math.acos(Math.min(1, Math.max(0, pivotY - box.height - PARK_TIP_DROP) / length)));
 	return { pivotX, pivotY, length, halfSweep, park, span };
 }
@@ -132,12 +128,8 @@ export function armAt(geometry: WiperGeometry, x: number): ArmSpec {
 }
 
 /**
- * Every arm whose blade passes over any part of a pane-local box, the owner
- * of its centre first. In tandem the second blade's tip crosses the first
- * span's lower reaches on its way up and the first blade reaches into the
- * second span at the turnaround, and a note straddling the boundary meets
- * both fans outright; such a note carries a mask per arm (composited in
- * app.css), so every blade wipes exactly what it passes.
+ * List blades that reach the box, starting with the blade over its center. A note between both
+ * fans gets a mask from each.
  */
 export function armsOver(geometry: WiperGeometry, box: ItemBox): ArmSpec[] {
 	const owner = armAt(geometry, box.left + box.width / 2);
@@ -210,8 +202,7 @@ export function bladePoseAt(
 ): BladePose {
 	const swept = sweepSpan(arm) * Math.min(Math.max(unit, 0), 1);
 	const phi = phase === 'dwell' ? parkAngle(arm) : phase === 'out' ? -arm.park + swept : arm.halfSweep - swept;
-	// The rubber trails the frame by the angular speed, which the cosine ease
-	// makes sin(pi t): nothing at the ends, most through the middle.
+	// Rubber trails most at mid-stroke because angular speed follows sin(pi t).
 	const travel = phase === 'dwell' ? 0 : phase === 'out' ? 1 : -1;
 	const flex = travel * Math.sin(Math.PI * Math.min(Math.max(t, 0), 1));
 	const width = Math.min(
@@ -233,7 +224,7 @@ export function bladePoseAt(
 	};
 }
 
-/** Static per-item custom properties; item and pane rects are in the same coordinate space. */
+/** Measure the item and pane in the same coordinate space. */
 export function maskVarsFor(
 	arm: ArmSpec,
 	item: { left: number; top: number },
@@ -262,13 +253,9 @@ export interface TrainVars {
 }
 
 /**
- * A page's notes leave as one row. The first blade whose rubber reaches a
- * note's top-left corner (its ray crossing that corner earliest in the
- * stroke) drives the row at its own speed from that contact, so the row
- * rides the blade and no note overtakes the next; the run is the extra
- * distance, spread over the rest of the stroke, that puts the leftmost
- * note's left edge on the glass's right edge exactly at the turnaround.
- * Notes out of every blade's reach still ride the earliest ray.
+ * The first blade to reach any note’s top-left corner drives the whole row. Spread the extra
+ * travel over the remaining stroke so the leftmost note clears the glass at turnaround. Notes
+ * outside the fan follow the same motion.
  */
 export function trainFor(geometry: WiperGeometry, notes: readonly ItemBox[]): TrainVars {
 	const round = (value: number) => Math.round(value * 100) / 100;

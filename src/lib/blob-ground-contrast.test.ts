@@ -5,22 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { contrastRatio, roundRatio, type Rgb } from '../../scripts/lib/color-contrast.mjs';
 import { resolveRole, schemes } from '../../scripts/lib/css-tokens.mjs';
 
-// Analytic worst-case ground under the brand-vectors layer (operator ruling
-// 2026-09-09: opacity 0.2). tinyvectors paints each blob with mix-blend-mode
-// multiply in light mode and screen in dark mode (BlobSVG.svelte, v0.3.7),
-// inside a container at the layout's opacity. A screenshot of the live layer
-// samples one frame of a randomly seeded, moving field and cannot gate this;
-// compositing every blob colour at full blob opacity over --bg is the worst
-// pixel one blob can put under body copy, and it is deterministic.
-//
-// Why one blob and not two stacked: the two-stack composite fails --fg-muted
-// (light) and --link (dark) at EVERY useful opacity, including the 0.1 that
-// shipped before this ruling (matrix in the TIN-4334 record), so it is not a
-// gate anyone can pass; blobs are soft radial gradients at 0.75/0.9 group
-// opacity, so a full-colour overlap of two is well beyond what the layer
-// paints. One full blob is the honest ceiling. The 2026-09-09 ruling's
-// fallback applies: the layer runs at 0.15, where every role clears its
-// floor under one blob in both schemes (dark links at exactly 4.5).
+// The 2026-09-09 ruling requested opacity 0.2. BlobSVG.svelte in v0.3.7 multiplies in light
+// mode and screens in dark mode. Composite one full-colour blob over --bg for a repeatable
+// worst case. A screenshot samples only one frame. TIN-4334 records that stacking two solid
+// blobs fails --fg-muted in light and --link in dark even at 0.1. The actual blobs have
+// soft gradients and 0.75/0.9 group opacity. At the ruling’s fallback of 0.15, all roles
+// pass under one blob. Dark links reach exactly 4.5.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const appCss = readFileSync(path.join(repoRoot, 'src/app.css'), 'utf8');
@@ -46,7 +36,9 @@ function blend(scheme: string, backdrop: number, color: number): number {
 	return scheme === 'dark' ? 255 - ((255 - backdrop) * (255 - color)) / 255 : (backdrop * color) / 255;
 }
 
-/** One blob at the layer's opacity, blended per the scheme, over a backdrop. */
+/**
+ * Blend one blob over the backdrop at the layer’s opacity for this scheme.
+ */
 function layer(scheme: string, backdrop: Rgb, color: Rgb, alpha: number): Rgb {
 	const mix = (b: number, c: number) => Math.round(b * (1 - alpha) + alpha * blend(scheme, b, c));
 	return {

@@ -31,7 +31,7 @@ describe('the wiper stalk table', () => {
 			expect(entry.sweepMs).toBeGreaterThan(0);
 			expect(entry.sweepMs).toBeLessThan(entry.dwellMs);
 		}
-		// Long enough to read as a wiper once the blades are drawn: 0.9 s per stroke.
+		// Allow 0.9 s for each stroke so the blade motion remains visible.
 		expect(SWEEP_MS).toBeGreaterThanOrEqual(1600);
 	});
 

@@ -1,20 +1,11 @@
-// SvelteKit 3 configuration. Kit 3 no longer reads svelte.config.js (it fails
-// the build when that file exists); its options are passed to the sveltekit()
-// Vite plugin instead. vite.config.ts imports this default export and hands it
-// to sveltekit(), so the former `kit.*` options sit at the top level here,
-// beside extensions, preprocess and compilerOptions.
+// vite.config.ts passes these options to the SvelteKit 3 plugin.
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { escapeSvelte, mdsvex } from 'mdsvex';
 import { codeToHtml } from 'shiki';
 
-// Code-surface contract (D07): svx code fences are highlighted AT BUILD TIME
-// by shiki with a light+dark theme pair and `defaultColor: false`, so the
-// emitted `pre.shiki` markup carries only `--shiki-light`/`--shiki-dark`
-// custom properties per token — src/app.css walks those variables into
-// painted colour, keyed on the same data-mode attribute as the role layer.
-// No shiki byte ever reaches the client bundle: this runs inside the mdsvex
-// preprocessor, and the output is static HTML.
+// Shiki highlights code during prerender. src/app.css selects each token color
+// from --shiki-light or --shiki-dark using the page's data-mode.
 const SHIKI_THEMES = { light: 'github-light', dark: 'github-dark' };
 
 /**
@@ -56,14 +47,8 @@ const config = {
 	compilerOptions: {
 		runes: true,
 	},
-	// No `fallback`. `src/routes/404` is a prerendered route, so adapter-static
-	// writes the real, server-rendered error body to `build/404.html` — which
-	// is the file the Caddyfile's `handle_errors` block serves. A fallback
-	// would target the same filename and win, because adapter-static writes it
-	// after the prerendered pages, and a fallback is rendered with `ssr: false`
-	// and an empty branch: no title, no heading, no link home. That is what a
-	// scriptless visitor used to get, and it is indistinguishable from the
-	// zero-byte body it was supposed to replace.
+	// Caddy serves the prerendered build/404.html at missing paths.
+	// An adapter fallback would overwrite it with an empty client shell.
 	adapter: adapter({
 		pages: process.env.BUILD_OUTPUT_DIR ?? 'build',
 		assets: process.env.BUILD_OUTPUT_DIR ?? 'build',
@@ -77,10 +62,7 @@ const config = {
 	prerender: {
 		handleHttpError: 'warn',
 		handleMissingId: 'warn',
-		// /log/[slug] and /log/page/[n] generate their entries from the
-		// PUBLISHED log set (B1.2). While every checked-in post is still a
-		// published:false TODO(jess) draft the set is empty, which is a
-		// legitimate state, not a crawl failure — warn, never fail.
+		// /log/[slug] and /log/page/[n] can have no entries when the archive is empty.
 		handleUnseenRoutes: 'warn',
 	},
 };

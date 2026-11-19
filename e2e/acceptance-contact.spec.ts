@@ -9,15 +9,8 @@ import {
 	type ContactStubOptions,
 } from './support/network';
 
-// Acceptance rows (§10, Contact): exact-origin CORS on the form endpoint,
-// challenge (ALTCHA) and honeypot enforcement, input bounds and rate-limit
-// behaviour, retry preserving entered values, a delivery canary hook, and the
-// endpoint-down fallback copy.
-//
-// `forms.latoolb.us` is owned by another repository and is never contacted from
-// here. Every row below runs against a local handler that implements the policy
-// under test; the live counterpart of each row is declared at the bottom of the
-// file and skips with a reason rather than reporting a green it did not earn.
+// §10 covers the contact form. Local handlers exercise submission policy and recovery. The live
+// checks for `forms.latoolb.us` record their skip reasons.
 
 const VALID = {
 	name: 'Ada Lovelace',
@@ -27,9 +20,7 @@ const VALID = {
 
 async function openContact(page: Page, guardedPage: GuardedGoto, options: ContactStubOptions = {}) {
 	await guardedPage('/contact');
-	// Registered after the prologue's catch-all guard so it takes precedence for
-	// the contact URL; the endpoint is only reached on submit, well after load,
-	// so registering it post-goto changes nothing observable.
+	// Register after the catch-all guard so the contact handler takes precedence on submit.
 	return stubContactEndpoint(page, options);
 }
 
@@ -61,11 +52,8 @@ test.describe('exact-origin CORS on the form endpoint', () => {
 
 		expect(capture.headers).toHaveLength(1);
 		expect(capture.headers[0].origin).toBe(new URL(baseUrl).origin);
-		// `content-type: application/json` is what makes this a non-simple request,
-		// so a real browser preflights it and the endpoint's exact-origin policy is
-		// enforced on the preflight. Playwright serves fulfilled routes without
-		// issuing that preflight, so the preflight itself is asserted only in the
-		// live-endpoint block at the bottom of this file.
+		// A browser preflights `content-type: application/json`. Playwright fulfills routed requests
+		// directly, so only the live-endpoint tests exercise preflight.
 		expect(capture.headers[0]['content-type']).toBe('application/json');
 		expect(requests.filter((entry) => entry.endsWith('/api/contact'))).toContain(`POST ${CONTACT_URL}`);
 	});
@@ -299,10 +287,8 @@ test.describe('delivery canary', () => {
 	});
 });
 
-// The rows below need the live `forms.latoolb.us` deployment, which this
-// repository neither owns nor is allowed to call from CI. They are declared so
-// the gap is visible in the report, and they run only when an operator points
-// GFTB_LIVE_CONTACT_ENDPOINT at a real deployment.
+// The operator supplies GFTB_LIVE_CONTACT_ENDPOINT for checks against the live
+// `forms.latoolb.us` deployment. CI uses local handlers.
 const liveEndpoint = process.env.GFTB_LIVE_CONTACT_ENDPOINT;
 const liveReason =
 	'needs a live contact endpoint: set GFTB_LIVE_CONTACT_ENDPOINT to run (this repo does not own forms.latoolb.us)';

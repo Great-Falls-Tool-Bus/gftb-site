@@ -1,10 +1,5 @@
-// The work-sessions band's row model and presentation choice (operator
-// interview 2026-10-02, layout revised the same day). The server render
-// builds one rule row per published slot, clock-free; after mount the band
-// swaps in dated rows expanded on the visitor's clock. Which presentation the
-// dated rows take is a pure function of the row count, the band's variant,
-// the room it has and the visitor's media, so it is pinned here rather than
-// in the component, as are the marquee's geometry, speed and hold rules.
+// Prerender one rule for each published slot, then expand dates on the visitor’s clock. The
+// available space and visitor’s media settings determine how the rows move.
 import { DEFAULT_HORIZON_DAYS, MAX_ROWS, upcomingSessions, type HoursOccurrence } from './hours-recurrence';
 import {
 	formatLocation,
@@ -26,11 +21,9 @@ import { assertPublicHoursSlot, type PublicHoursSlot } from './public-hours-sche
 export type HoursVariant = 'marquee' | 'aside';
 
 /**
- * - `rules`: the server render, one clock-free rule row per slot.
- * - `empty`: nothing scheduled.
- * - `static`: every row at rest (the aside, reduced motion, forced colours,
- *   or a list too short to fill the band's width).
- * - `marquee`: the cards scroll right to left over a duplicated track.
+ * Show rules before hydration or an empty state without sessions. Keep rows still in the aside,
+ * under reduced motion or forced colors, or when the cards cannot fill the band. The marquee
+ * scrolls a duplicated track.
  */
 export type HoursMode = 'rules' | 'empty' | 'static' | 'marquee';
 
@@ -58,11 +51,7 @@ export const MARQUEE_PX_PER_SECOND = 36;
 /** After a visitor scrolls the cards by hand, how long they rest before moving again. */
 export const MARQUEE_RESUME_MS = 3000;
 
-/**
- * A card's width in px for a band `viewportPx` wide: at most
- * MARQUEE_CARD_REM, and on a phone 85% of the band, so part of the next card
- * always shows and says there is more.
- */
+/** On narrow screens cap each card at 85% of the band so part of the next card remains visible. */
 export function marqueeCardWidth(viewportPx: number, remPx: number): number {
 	return Math.max(0, Math.min(MARQUEE_CARD_REM * remPx, Math.floor(viewportPx * 0.85)));
 }
@@ -75,9 +64,8 @@ export interface MarqueeFillsInput {
 }
 
 /**
- * The loop is seamless only when one copy of the cards is at least as wide
- * as the band: otherwise the end of the duplicate would leave a gap. A single
- * card never moves.
+ * One copy of the cards must fill the band to avoid a gap when the track loops. Keep a single
+ * card still.
  */
 export function marqueeFills({ rows, cardPx, gapPx, viewportPx }: MarqueeFillsInput): boolean {
 	if (rows < 2 || viewportPx <= 0 || cardPx <= 0) return false;
@@ -106,7 +94,7 @@ export function marqueeWrap(offset: number, copyPx: number): number {
  * into it, with no separate control):
  * - `hover`: a mouse or pen is over the cards.
  * - `focus`: keyboard focus is inside them, so the focused card never moves away.
- * - `press`: a finger or button is down on them, until it lifts or is cancelled.
+ * - `press`: a finger or button is down on them, until it lifts or is canceled.
  * - `scroll`: the visitor scrolled them by hand; held until MARQUEE_RESUME_MS
  *   after the last scroll.
  * - `dialog`: the RSVP dialog is open.
@@ -137,7 +125,7 @@ export interface HoursBandRow {
 	today: boolean;
 }
 
-/** The server render's rows: one per slot that still has a session to show. */
+/** Prerender one rule for each slot with sessions to show. */
 export function ruleRows(slots: readonly PublicHoursSlot[]): HoursBandRow[] {
 	const rows: HoursBandRow[] = [];
 	for (const slot of slots) {
@@ -187,11 +175,8 @@ export function rowsOnVisitorClock(slots: readonly PublicHoursSlot[]): HoursBand
 }
 
 /**
- * A clock-free upper bound on the dated rows the band can show after mount:
- * each slot contributes at most one session per week of the horizon (fewer
- * for a short finite series), and the band never shows more than MAX_ROWS.
- * The server render reserves room from it so the swap shifts as little as it
- * can without knowing the date.
+ * Reserve space before hydration using the weekly horizon, finite series length and MAX_ROWS.
+ * This limits layout shifts without reading a clock.
  */
 export function reserveRows(slots: readonly PublicHoursSlot[]): number {
 	const perWeekOfHorizon = Math.ceil(DEFAULT_HORIZON_DAYS / 7);

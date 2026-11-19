@@ -1,19 +1,9 @@
 <script lang="ts">
-	// The home page's Notes & Goals surface: the goals collection
-	// (src/content/goals/*.md, via the generated manifest) as a borderless grid
-	// that, once enhanced, pages under a windshield wiper. The served HTML,
-	// reduced motion, the Off detent, print and forced colours are all the
-	// same plain grid of every note; hydration adds paging, the wipe (a DOM
-	// mask in lockstep with the engine's clock, src/lib/wiper) and one stalk.
-	// Nothing here is a card: the pane carries no background and no border.
-	//
-	// Edit affordances (operator ruling 2026-09-08): every row links to its
-	// own source file through GitHub's web editor, and the section's footer
-	// links the whole collection. No org/repo string is hardcoded: repo URL
-	// and branch flow from src/lib/generated/source-map.json (the SourceLink
-	// pattern), the per-row path from the manifest's `sourcePath`. The links
-	// are plain anchors, not the D06 ExternalLink, so the print stylesheet
-	// does not expand eight repository URLs onto paper.
+	// Render every goal in the plain grid for print, forced colours, reduced motion, the Off
+	// detent and scriptless visits. Hydration adds paging and a DOM mask timed by
+	// src/lib/wiper. For the 2026-09-08 edit links, src/lib/generated/source-map.json supplies
+	// the repo and branch and the goals manifest supplies `sourcePath`. Use plain anchors so
+	// print omits the expanded GitHub URLs.
 	import { onMount, type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import sourceMap from '#lib/generated/source-map.json';
@@ -57,12 +47,8 @@
 	const view = $derived(engine.view);
 	let paneEl = $state<HTMLElement>();
 	let glassEl = $state<HTMLElement>();
-	// A GPU device or context lost, during the ladder or after it (a reload
-	// racing the last document's teardown, a GPU process reset), remounts the
-	// scene on fresh canvases after a short pause so the new mount does not
-	// land inside the same reset; the ladder's ceiling has already stepped
-	// down where the loss warrants it. Bounded, so a rig that loses every
-	// device settles on the plain grid instead of remounting forever.
+	// Wait for a GPU reset to settle before remounting fresh canvases at the lowered ceiling.
+	// Bound retries so repeated device loss restores the plain grid.
 	const SCENE_RELAUNCH_LIMIT = 3;
 	const SCENE_RELAUNCH_PAUSE_MS = 400;
 	let sceneGeneration = $state(0);
@@ -119,10 +105,8 @@
 		const row = (event.target as Element | null)?.closest('li');
 		if (row && listEl) {
 			const index = Array.prototype.indexOf.call(listEl.children, row);
-			// Focus-follow: a note off the page is brought on at once. A note on
-			// the page that is leaving (an out-stroke in flight) counts too, or
-			// the stroke would complete under the focus pause and strand the
-			// focus on a note that has left the glass.
+			// Bring a focused note onto the page immediately. Count a note leaving on the
+			// out-stroke too, or the focus pause can strand it off the glass.
 			if (index >= 0 && view.paged && (pageOf(index, view.pageSize) !== view.currentPage || view.phase === 'out'))
 				engine.reveal(index);
 		}
@@ -135,9 +119,7 @@
 	}
 </script>
 
-<!-- A resting pointer over the pane is a courtesy pause on the intermittent
-     detent only (the machine decides); nothing is lost without it, so the
-     handlers sit on the plain wrapper. -->
+<!-- The intermittent detent pauses when the pointer rests over the pane. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="wiper"

@@ -1,6 +1,5 @@
-// The shove's per-page train (geometry.ts trainFor): one contact per page,
-// the row rides the first blade to touch it, and the run puts the leftmost
-// note's left edge on the glass's right edge at the turnaround.
+// In geometry.ts trainFor, each page follows the first blade that touches it. At turnaround
+// the leftmost note’s left edge reaches the right edge of the glass.
 import { describe, expect, it } from 'vitest';
 import { deriveGeometry, trainFor } from './geometry';
 
@@ -60,8 +59,7 @@ describe('the shove train', () => {
 				[0, 415, 830].map((left) => ({ left, top: 0, width: 370, height: 300 })),
 			),
 		);
-		// A last page holding only the middle column: its own corner is the
-		// contact, and the row only has to carry that note off the glass.
+		// A final page with only its middle column meets the blade at that note’s own corner.
 		const last = readTrain(trainFor(geometry, [{ left: 415, top: 0, width: 370, height: 300 }]));
 		expect(Math.abs(last.reachAt(last.contact))).toBeLessThan(1);
 		expect(last.reachAt(1) + last.run).toBeGreaterThanOrEqual(1200 - 415 - 0.5);

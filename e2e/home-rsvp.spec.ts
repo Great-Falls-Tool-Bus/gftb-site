@@ -142,8 +142,7 @@ test.describe('the RSVP dialog', () => {
 		expect(String(payload.message)).toContain(`Slot: ${SLOT}`);
 		expect(capture.headers[0]['content-type']).toBe('application/json');
 
-		// Closing hands focus back to the trigger, which stays enabled; the
-		// same slot then says it was already sent, from memory only.
+		// Closing restores focus to the trigger. In-memory state marks the slot as already sent.
 		await dialog.getByRole('button', { name: 'Close' }).click();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 		await expect(trigger).toBeFocused();

@@ -1,7 +1,6 @@
 version: 2
-# No npm ecosystem (R574, TIN-7477): dependencies enter only through the
-# Bazel module graph, so a package bump is a deliberate MODULE.bazel and
-# MODULE.bazel.lock change, never a lockfile pull request from this bot.
+# Under R574 and TIN-7477, dependencies enter through the Bazel module graph.
+# Package updates require a change to MODULE.bazel and MODULE.bazel.lock.
 updates:
   - package-ecosystem: 'github-actions'
     directory: '/'

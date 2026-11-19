@@ -5,15 +5,14 @@
 
 	let { data } = $props();
 
-	// The permalink surface (B1.2): breadcrumbs, the dated entry, and the
-	// per-post edit affordance (SourceLink resolves /log/<slug> to the .svx
-	// source through the generated map, #94 pattern).
+	// SourceLink resolves /log/<slug> to its .svx source for the B1.2 edit link through the
+	// #94 generated map.
 	const entry = $derived(publicLogs.find((candidate) => candidate.slug === data.slug)!);
 	const EntryBody = $derived(data.EntryBody);
 </script>
 
-<!-- No <svelte:head> title here: the layout's SEOHead is the single head
-     authority (see +layout.svelte — duplicate titles fought each other). -->
+<!-- +layout.svelte sets the title through SEOHead. A second <svelte:head> here would
+     duplicate it. -->
 <div class="page-shell">
 	<nav class="breadcrumbs" aria-label="Breadcrumb">
 		<ol>

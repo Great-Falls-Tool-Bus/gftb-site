@@ -1,26 +1,19 @@
 #!/usr/bin/env node
-// Served-artifact proof for the tinyvectors pin (TIN-4339).
-//
-// MODULE.bazel pins the brand-vectors package; nothing else in this repo
-// resolves it (no npm specifier, no lockfile entry). A build made outside the
-// Bazel action can still resolve a stray node_modules/@tummycrypt/tinyvectors
-// (a symlink, a stale pnpm store) and ship a different release's physics with
-// every other check green. This script reads the built client chunks and
-// proves the release that was actually bundled matches the pin, using each
-// release's distinctive minified literal (its "tell").
+// TIN-4339 checks whether the bundled tinyvectors release matches MODULE.bazel. A stray
+// node_modules/@tummycrypt/tinyvectors can influence builds outside Bazel. Check the minified
+// client chunks for literals specific to the pinned release.
 //
 // Usage: node scripts/check-served-tinyvectors.mjs <build-dir> [--module MODULE.bazel]
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 /**
- * Per-release tells. `present` literals must all appear somewhere in the
- * built client JS; `absent` literals must appear nowhere. Keep one entry per
- * pinned release; a bump without an entry fails closed with guidance.
+ * Each release defines `present` and `absent` literals for the built client JS. A pin without
+ * a matching entry fails.
  */
 export const TINYVECTORS_TELLS = {
 	'0.3.7': {
-		// The idle-drift cruise's per-blob drift speed (BlobPhysics.ts, 0.3.7).
+		// BlobPhysics.ts sets each blob's idle drift speed in 0.3.7.
 		present: ['driftSpeed:.05+Math.random()*.05'],
 		// The pre-cruise value shipped by 0.3.6 and earlier.
 		absent: ['driftSpeed:.01+Math.random()*.015'],

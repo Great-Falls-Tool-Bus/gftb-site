@@ -1,17 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-// Sharp edges is the operator ruling (de-slop directive §1.5-ii; restoration
-// PR-4). The grep gate over src/ cannot see the BUILT stylesheet: Skeleton 5
-// ships `@utility card { border-radius: var(--radius-container) }`, which
-// collided with the semantic class="card" and rounded four elements while
-// the rest of the card family computed 0px (review finding on this PR).
-// This spec asserts the property the ruling is actually about — what the
-// browser computes — so a utility collision can never slip past the source
-// grep again.
-//
-// The ALTCHA widget's internals are vendored third-party chrome, not site
-// styling, so descendants of <altcha-widget> are exempt; the widget's own
-// box is still swept.
+// The sharp-edge ruling in §1.5-ii covers computed styles. Skeleton 5's `@utility card {
+// border-radius: var(--radius-container) }` can round class="card" after the source check
+// passes. Include the <altcha-widget> box and exempt its third-party internals.
 
 const CORNERS = [
 	'border-top-left-radius',
@@ -20,12 +11,8 @@ const CORNERS = [
 	'border-bottom-left-radius',
 ];
 
-// D01 extension: the mode switch is the first mounted Skeleton component,
-// and v5 ships it with pill radii (`border-radius: calc(infinity * 1px)` on
-// control and thumb — exactly the built-stylesheet class of collision this
-// spec exists for). The sitewide sweep below already covers its resting
-// state; this row flips it and sweeps the checked state too, because
-// Skeleton styles the parts per data-state.
+// D01 covers both switch states. Skeleton v5 applies pill radii to the control and thumb and
+// styles each part by data-state.
 test('the mode switch computes sharp corners in both states', async ({ page }) => {
 	await page.goto('/');
 	await page.waitForLoadState('networkidle');

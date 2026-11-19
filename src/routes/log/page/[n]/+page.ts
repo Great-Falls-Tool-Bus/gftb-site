@@ -2,13 +2,10 @@ import { error } from '@sveltejs/kit';
 import { logPage, logPageCount } from '#lib/public-logs.js';
 import type { EntryGenerator, PageLoad } from './$types';
 
-// Prerendered archive pages 2..N (spec :90-91): the no-JavaScript pagination
-// path is plain anchors between fully prerendered pages. Page 1 is /log; the
-// generator only emits deeper pages when they exist, so the route disappears
-// from the build until the archive outgrows one page.
+// /log serves page 1. Prerender later pages only when they contain entries.
 export const prerender = true;
 
-// Directory-shaped output — see contact/+page.ts.
+// The static server serves directory URLs without extension rewriting.
 export const trailingSlash = 'always';
 
 export const entries: EntryGenerator = () => {

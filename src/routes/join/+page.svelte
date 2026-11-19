@@ -2,21 +2,11 @@
 	import GatedSlot from '#lib/components/GatedSlot.svelte';
 	import { INTEREST_PATH, JOIN_STEPS, MEMBER_INTAKE } from '#lib/membership.js';
 
-	// How membership works. MEMBER_INTAKE (src/lib/membership.ts) picks the
-	// sentence under Applications; the member app owns the application itself,
-	// and this page only explains it and links out. The steps and the
-	// contribution answer follow the ratified membership rules: application,
-	// tour, keyholder approval, and a contribution that is optional, separate,
-	// and may be $0.
-	//
-	// The header and hero link here as plain links, and the page is indexed and
-	// in the sitemap (operator ruling 2026-11-14). It is still left out of the
-	// source map, so it carries no "Edit this page" link. Its Apply and sign in
-	// links come from the member app's manifest (src/lib/gated/manifest.ts).
-	// While intake is closed, the contact call to action takes Apply's place.
-	// While it is open, the manifest may still fail to load, and the member app
-	// may close intake before this site is rebuilt, so the open branch also
-	// names the contact page as the way forward.
+	// MEMBER_INTAKE in src/lib/membership.ts selects the intake message. The member app owns
+	// applications and supplies Apply and sign-in links through src/lib/gated/manifest.ts.
+	// Keep contact available if the manifest fails or intake closes between builds. Membership
+	// requires an application, tour and keyholder approval. A separate contribution is
+	// optional and may be $0. The 2026-11-14 ruling includes this page in the sitemap.
 </script>
 
 <div class="page-shell">

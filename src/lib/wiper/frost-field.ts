@@ -1,11 +1,9 @@
-// Frost (M4): a static grain raster built once per glass, scaled by a
-// single strength that grows during the rest and falls to nothing where a
-// blade has just passed. The shader multiplies grain by strength and hides
-// it behind the moving edge; the clock here decides the strength.
+// Build the grain once for each glass surface. The clock controls its strength while the shader hides frost
+// behind the blade.
 import type { StrokeSample } from './machine';
 import { FROST_DELAY_S, FROST_PRESEED_S, FROST_TAU_S } from './renderer/shaders/constants';
 
-/** A small integer hash to 0..1, deterministic per seed. */
+/** Hash each seed to a repeatable value in 0..1. */
 function hash(ix: number, iy: number, seed: number): number {
 	let h = (ix * 374761393 + iy * 668265263 + seed * 1442695041) | 0;
 	h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -60,14 +58,8 @@ export function rasterizeFrostField(
 }
 
 /**
- * Frost strength from the stroke clock: age since the glass was last wiped
- * (the last back-stroke while resting or wiping out, the out-stroke just
- * run while wiping back), zero for FROST_DELAY_S, then 1 - exp(-age / tau).
- *
- * Stamps come from the stroke sample's counters, not from catching a
- * stroke's first frame: a slow rig can run a whole stroke, or a whole
- * cycle, between two frames, and a clock that only stamped what it saw
- * begin would keep the glass frosted through every rest after that.
+ * Frost starts growing after FROST_DELAY_S and approaches full strength as 1 - exp(-age / tau).
+ * Use completed stroke counts so missed frames cannot hide a wipe.
  */
 export class FrostClock {
 	lastOutStart = FROST_PRESEED_S;
@@ -75,7 +67,7 @@ export class FrostClock {
 	#seenIndex = -1;
 	#seenPasses = -1;
 
-	/** Read the sample's counters against the last frame's. Call once per frame before value(). */
+	/** Read the stroke counters on each frame before value(). */
 	note(sample: StrokeSample, time: number): void {
 		if (this.#seenIndex < 0) {
 			this.#seenIndex = sample.strokeIndex;
@@ -87,8 +79,7 @@ export class FrostClock {
 		this.#seenIndex = sample.strokeIndex;
 		this.#seenPasses = sample.passesDone;
 		if (strokes <= 0) return;
-		// Whatever ran since the last frame ran no earlier than then; stamping
-		// it at this frame errs toward a little less frost, never more.
+		// Stamp missed strokes at the current frame to avoid overestimating frost.
 		if (sample.phase === 'out') {
 			this.lastOutStart = time;
 			// An out-stroke that began after the previous cycle finished.

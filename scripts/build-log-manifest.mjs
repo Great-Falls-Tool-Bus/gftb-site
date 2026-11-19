@@ -1,28 +1,9 @@
-// `just log-manifest-build` — derive src/lib/generated/log-manifest.ts from
-// src/content/log/*.svx.
-//
-// B1 fix (PR #33 review comment
-// https://github.com/Great-Falls-Tool-Bus/gftb-site/pull/33#issuecomment-5364998251):
-// the previous loader (src/lib/public-logs.ts) built its published/draft
-// split at RUNTIME from an eager `import.meta.glob` over every entry, so
-// every draft's full prose and metadata were static imports in the module
-// graph and shipped to every visitor in build/_app/immutable/chunks/*
-// regardless of the `published` filter, which only ran after the bytes were
-// already bundled.
-//
-// This script moves the split to BUILD time and OUTSIDE Vite's module
-// graph entirely (plain node:fs via scripts/lib/log-content.mjs, never
-// import.meta.glob): it writes only entries with `published: true`, each as
-// a literal `import('../../content/log/<slug>.svx')` call. An unpublished
-// slug therefore never appears as an import specifier anywhere reachable
-// from src/lib/public-logs.ts, so Vite/Rollup has no path by which it could
-// bundle one — this is stronger than relying on tree-shaking an eager glob,
-// which is what the review asked for when it said "gate at the glob pattern
-// level instead, e.g. a generated include list".
-//
-// Output is deterministic (file order, tab-indented, trailing newline).
-// `//:log_manifest_drift_test` runs this generator read-only with `--check`,
-// mirroring scripts/build-source-map.mjs.
+// `just log-manifest-build` reads src/content/log/*.svx through scripts/lib/log-content.mjs
+// outside Vite's module graph. src/lib/generated/log-manifest.ts imports only entries with
+// `published: true`. An eager `import.meta.glob` would bundle draft prose before a runtime
+// filter could remove it. See
+// https://github.com/Great-Falls-Tool-Bus/gftb-site/pull/33#issuecomment-5364998251.
+// `//:log_manifest_drift_test` checks the generated file with `--check`.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 

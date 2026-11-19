@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCeiling } from './select';
 
-// The ladder's ceiling arithmetic, table-driven: the html attribute can only
-// cap, the page's own ceiling only lowers, and anything unrecognised asks
-// for the top rung.
+// The html attribute caps the renderer and the page can only lower its ceiling. Unknown
+// values request the top rung.
 describe('resolveCeiling', () => {
 	it('caps from the attribute and never raises above the page ceiling', () => {
 		expect(resolveCeiling(undefined, 'webgpu')).toBe('webgpu');

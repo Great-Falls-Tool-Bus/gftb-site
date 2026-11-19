@@ -3,16 +3,10 @@ import { expect, test } from './support/fixtures';
 import { decodePng } from './support/png-luminance';
 import { forceTierMax } from './support/wiper-tier';
 
-// Registered in the finite browser target within the validate action.
-//
-// The phone-motion permission is a silent first-gesture handshake (operator
-// ruling 2026-09-09): no control is rendered, the visitor's first
-// neutral tap inside main is borrowed once, and taps on links, buttons and
-// fields are never borrowed. Chromium now ships
-// `DeviceOrientationEvent.requestPermission`, so the harness below replaces
-// it with one that counts calls (or, for 'absent', with event classes that
-// have no permission API at all), and holds the layout's idle mount so the
-// deferred binding (the moment the handshake can arm) is under test control.
+// Under the 2026-09-09 ruling, the first neutral tap inside main may request phone-motion
+// permission. Interactive controls must keep their taps. The harness controls the idle mount
+// and replaces DeviceOrientationEvent.requestPermission to count requests or simulate a missing
+// API.
 type PermissionApi = 'granted' | 'denied' | 'absent';
 
 async function holdVectorMount(page: Page, permission: PermissionApi = 'granted') {
@@ -79,10 +73,8 @@ for (const permission of ['granted', 'denied'] as const) {
 		await expect(html(page)).toHaveAttribute('data-motion-handshake', 'armed');
 		await expect(html(page)).not.toHaveAttribute('data-motion-permission-calls');
 
-		// A tap on a control inside main (the wiper stalk's Off detent) does its
-		// own job and is never borrowed. Off first: with the wipers running the
-		// first note may be on another page, and a pointer resting over the
-		// pane holds Intermittent paused, so the link would never come round.
+		// Tap Off before finding the link. With the wipers running, the first note can be offscreen.
+		// Hovering over the pane pauses Intermittent.
 		const stalk = page.locator('#goals .wiper-stalk');
 		await expect(stalk).toHaveCount(1);
 		await stalk.locator('.wiper-stalk__item', { hasText: 'Off' }).click();

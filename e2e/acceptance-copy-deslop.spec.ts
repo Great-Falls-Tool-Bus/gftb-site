@@ -3,34 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
-// Acceptance rows for the copy de-slop slice (restoration PR-5).
-//
-// The bus is PERMANENTLY PARKED (operator fact, 2026-08-19, recorded after the
-// motion framing was re-hallucinated more than once). Because the fact is
-// absolute and the regression keeps creeping back, its gate is a required
-// acceptance row, not a review checklist item (meta maturity doc §1.5(i),
-// provenance row P23):
-//
-//   1. No motion language and no em-dash AI-tell anywhere in USER-FACING
-//      rendered output — visible text, image alt text, aria labels, document
-//      title, meta description — on / and /404.
-//   2. The site description is byte-identical across its three carriers:
-//      src/app.html's static <meta>, +layout.svelte's `description` constant
-//      (which also feeds the JSON-LD), and the rendered head. The
-//      "community-run tool library" naming changes atomically with the hero
-//      lede in +page.svelte.
-//   3. Every interim string this slice introduced still carries its
-//      TODO(jess) marker until Jess authors the final copy.
-//
-// Source comments legitimately QUOTE the stripped phrases (they are the
-// operator handoff), so the banned-phrase sweep runs against rendered output,
-// never against source text; Svelte drops template comments from the build.
+// The bus is permanently parked under the 2026-08-19 ruling. The rendered-copy gate covers /
+// and /404 under meta maturity §1.5(i), provenance row P23. Source comments may quote retired
+// wording for handoff. src/app.html, +layout.svelte and the rendered head must share the
+// description. The hero lede in +page.svelte carries the same naming.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readSource = (relative: string) => readFileSync(path.join(repoRoot, relative), 'utf8');
 
-// Word-boundaried so e.g. "automobile" or CSS class names would not
-// false-positive; "on its way" is a phrase, not a word.
+// Word boundaries exclude unrelated matches such as "automobile".
 const BANNED_MOTION = /\b(?:mobile|motion|moving|circulating|rolling)\b|on its way/iu;
 const EM_DASH = '—';
 
@@ -127,8 +108,7 @@ function expectCleanCopy(surfaces: UserFacingSurfaces, label: string) {
 	}
 }
 
-// The sweep runs on the shipped HTML: scripts disabled, so the DOM is exactly
-// what the prerender wrote, with <noscript> fallbacks active and swept too.
+// Disabling scripts exposes the prerendered DOM, including <noscript> fallbacks.
 test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 	test.use({ javaScriptEnabled: false });
 
@@ -161,23 +141,15 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		expect(appHtml?.[1], 'src/app.html meta description').toBe(first);
 		expect(layout?.[1], '+layout.svelte description constant').toBe(first);
 
-		// Atomic-phrase rule: "community-run tool library" (interim wording;
-		// TODO(jess)) changes in the lede and both description carriers
-		// together, and "mobile" never returns to any of them.
+		// "community-run tool library" must agree across the lede and both description carriers.
 		const lede = readSource('src/routes/+page.svelte');
 		expect(first).toContain('community-run tool library');
 		expect(lede).toContain('community-run tool library');
 	});
 
 	test('the FAQ carries the Thursday hours once and retains the local contact CTA', async ({ page }) => {
-		// Operator ruling 2026-09-19: the recurring hours moved out of the hero
-		// box into the FAQ, where the questions people ask already live. The hero
-		// box now carries what the club is, in one statement and two callouts.
-		// Operator interview 2026-10-02 (staffed hours rulings): the Thursday
-		// window is 3 to 4 PM ET, and dated sessions get their own band,
-		// superseding the FAQ-only placement for that band; the same day's
-		// layout feedback moved the band from under the hero to between the
-		// FAQ and the log. The hero box still carries no hours.
+		// Under the 2026-09-19 and 2026-10-02 rulings, the FAQ carries recurring hours. Dated
+		// sessions appear between the FAQ and log. The hero describes the club.
 		await page.goto('/');
 		const session = page.locator('#faq');
 		await expect(session).toContainText(
@@ -185,9 +157,7 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		);
 		await expect(session.getByRole('link', { name: 'contact form', exact: true })).toHaveAttribute('href', '/contact');
 		await expect(session.getByText(/Thursdays, 3 to 4 PM ET/u)).toHaveCount(1);
-		// The 2026-10-02 band replaces the old count-0 pins on .next-session and
-		// .hero-session: exactly one band, right after the FAQ and right before
-		// the log, and still nothing in the hero.
+		// The 2026-10-02 ruling places one session band between the FAQ and log.
 		await expect(page.locator('#hours')).toHaveCount(1);
 		await expect(page.locator('.page-shell > #faq + #hours + #log')).toHaveCount(1);
 		await expect(page.locator('#hours')).toHaveClass(/hours-band/u);
@@ -199,10 +169,7 @@ test.describe('copy de-slop acceptance (restoration PR-5)', () => {
 		// The credit is a <small>, not a <footer>: a second footer element on the
 		// page breaks the strict-mode locator in e2e/home-goals.spec.ts.
 		await expect(page.locator('#status footer')).toHaveCount(0);
-		// Operator ruling 2026-09-19 added a button row under the sentence
-		// (Contact a keyholder + Discussion board), so the section now carries
-		// three anchors instead of one; the inline sentence link is still the
-		// first and still points at the contact page.
+		// Under the 2026-09-19 ruling, the sentence links to contact before the two button links.
 		await expect(page.locator('#contact a')).toHaveCount(3);
 		await expect(page.locator('#contact a').first()).toHaveAttribute('href', '/contact');
 	});

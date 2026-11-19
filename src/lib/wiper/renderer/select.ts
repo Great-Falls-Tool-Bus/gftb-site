@@ -1,15 +1,7 @@
-// The renderer ladder: webgpu, then webgl2, then none (the plain grid: no
-// canvas, no scene). Silent by construction: every rung's failure comes back
-// as a selection result, never as a console line. A page-wide ceiling only
-// lowers: a rung that fails or is lost is never probed again on this page,
-// and `<html data-wiper-tier-max="webgl2|none">` caps it from the outside
-// (a test and LOOK hook; no URL query, no storage). Nothing GPU-shaped is
-// imported statically, so the SSR graph stays clean. The WebGL2 chunk is
-// fetched alongside the WebGPU rung, so a demotion (a deadline, a refusal,
-// a loss) costs no second round trip. A lost WebGL2 context does not lower
-// the ceiling: the browser restores such contexts, and a GPU reset that
-// takes one takes every rung with it, so the host tries WebGL2 again on
-// fresh canvases and only a creation failure ends the ladder.
+// Try WebGPU, then WebGL2, then the plain grid. Load both GPU modules dynamically so SSR
+// imports neither and demotion needs no extra round trip. A failed rung lowers the page
+// ceiling. A lost WebGL2 context can recover on fresh canvases. data-wiper-tier-max can lower
+// the ceiling for tests.
 import type { RendererOptions, RendererSelection, RendererTier } from './types';
 
 const RANK: Record<RendererTier, number> = { none: 0, webgl2: 1, webgpu: 2 };
@@ -21,10 +13,8 @@ function lowerCeiling(to: RendererTier): void {
 }
 
 /**
- * The highest rung to try, given the html attribute, the page's own ceiling
- * and how the document was reached. A reload starts on WebGL2: Chrome drops
- * the new document's WebGPU device while it tears the old one down, and the
- * two rungs paint the same picture, so the reload takes the rung that holds.
+ * Start a reload on WebGL2. Chrome can drop the new document’s WebGPU device while tearing down
+ * the old one.
  */
 export function resolveCeiling(
 	raw: string | undefined,
@@ -52,8 +42,7 @@ export async function selectRenderer(
 	const wantsWebGPU = top === 'webgpu' && typeof navigator !== 'undefined' && 'gpu' in navigator && !!navigator.gpu;
 	const hasWebGL2 = typeof WebGL2RenderingContext !== 'undefined';
 	const webgpuChunk = wantsWebGPU ? import('./webgpu') : null;
-	// Warmed, not awaited: a chunk that fails to load surfaces where it is
-	// awaited below, never as an unhandled rejection on the console.
+	// Start loading now and handle errors when the chunk is awaited.
 	const webgl2Chunk = hasWebGL2 ? import('./webgl2') : null;
 	webgl2Chunk?.catch(() => {});
 	if (webgpuChunk) {

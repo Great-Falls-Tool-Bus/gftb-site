@@ -1,16 +1,8 @@
 /**
- * Resolves the CSS custom-property graph the site paints through.
- *
- * `src/app.css` declares roles (`--heading`, `--inverse-panel`, …) that point at
- * CityLink palette tokens in `src/lib/styles/theme-gftb.css`, which are `oklch()`
- * values. Nothing in the stylesheet is a colour until that chain is walked, so a
- * gate that greps `src/app.css` for `#rrggbb` measures a file that no longer
- * exists. This module walks the chain instead, per scheme, and hands back a
- * colour the WCAG maths in `color-contrast.mjs` can measure.
- *
- * Test-only, so it sits beside the other gate modules under `scripts/lib` rather
- * than in `src/lib`: a module a route cannot import is a module that cannot be
- * bundled by accident. Plain ESM, no dependencies.
+ * Resolve the roles in `src/app.css` against CityLink palette tokens in
+ * `src/lib/styles/theme-gftb.css`. The test can then calculate each scheme's WCAG contrast
+ * with `color-contrast.mjs`. Keep this resolver under `scripts/lib` so routes cannot bundle
+ * it.
  */
 
 import { parseCssColor } from './color-contrast.mjs';
@@ -47,14 +39,8 @@ export function paletteTokens(themeCss) {
 }
 
 /**
- * The role layer, per scheme. `dark` is `light` with the `[data-mode='dark']`
- * overrides applied, which is exactly how the cascade resolves it in a
- * browser (D01 re-key: the dark role block is keyed on the data-mode
- * attribute the FOUC script / theme store set on <html>, not on the OS media
- * query — the v5 light-switch strategy). The dark regex is anchored at line
- * start with `{` directly after the selector, so the compound
- * `[data-mode='dark'] pre.shiki` code-surface rules can never be mistaken
- * for the role block.
+ * Apply `[data-mode='dark']` overrides to the light roles. Match the selector through its
+ * opening brace to exclude compound rules such as `[data-mode='dark'] pre.shiki`.
  *
  * @param {string} appCss
  * @returns {{ light: Record<string, string>, dark: Record<string, string> }}
@@ -66,7 +52,7 @@ export function roleTokens(appCss) {
 }
 
 /**
- * Both layers merged, per scheme, ready for {@link resolveColor}.
+ * Merge the two layers for each scheme before calling {@link resolveColor}.
  *
  * @param {{ appCss: string, themeCss: string }} sources
  * @returns {{ light: Record<string, string>, dark: Record<string, string> }}
@@ -117,11 +103,8 @@ export function expandVars(tokens, value, depth = 0) {
 const COLOR_MIX_TRANSPARENT_RE = /^color-mix\(\s*in\s+[a-z-]+\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s*\)$/iu;
 
 /**
- * Resolves a declaration to a measurable colour.
- *
- * Handles the one `color-mix()` shape this stylesheet uses — a colour mixed with
- * `transparent`, which is just that colour at the given alpha, and is how the
- * browser serialises it back (`oklab(… / 0.16)`).
+ * Resolve each CSS declaration to a colour. Mixing with `transparent` in `color-mix()` scales
+ * that colour's alpha.
  *
  * @param {Record<string, string>} tokens
  * @param {string} value A declaration body or a raw colour.
@@ -138,7 +121,7 @@ export function resolveColor(tokens, value) {
 }
 
 /**
- * Resolves a role by name, e.g. `resolveRole(scheme, '--heading')`.
+ * Resolve a named role, such as `resolveRole(scheme, '--heading')`.
  *
  * @param {Record<string, string>} tokens
  * @param {string} name

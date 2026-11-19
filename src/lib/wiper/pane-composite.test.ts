@@ -5,14 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { contrastRatio, roundRatio } from '../../../scripts/lib/color-contrast.mjs';
 import { resolveRole, schemes } from '../../../scripts/lib/css-tokens.mjs';
 
-// The notes are glass panes: the content-surface fill at 70% over whatever
-// the scene paints (src/app.css `.goal-list > li::before`). The scene owes the text
-// nothing (operator ruling at the M4 ratification: the former ink clamp
-// darkened blocks under the copy and lagged the shoved notes), so the panes
-// alone must carry the inks. This pin composites the pane over the two
-// extremes any scene pixel can reach, black and white, with no help from the
-// backdrop blur, and holds every glass role to its floor in both schemes.
-// The browser row in e2e/home-goals.spec.ts measures the real composite.
+// The `.goal-list > li::before` fill in src/app.css paints each glass pane at 70%. Under
+// the M4 ruling the pane alone carries text contrast. The old ink clamp darkened the copy
+// and lagged behind moving notes. Measure each role over black and white without blur in
+// both schemes. e2e/home-goals.spec.ts measures the browser composite.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const appCss = readFileSync(path.join(repoRoot, 'src/app.css'), 'utf8');
 const themeCss = readFileSync(path.join(repoRoot, 'src/lib/styles/theme-gftb.css'), 'utf8');

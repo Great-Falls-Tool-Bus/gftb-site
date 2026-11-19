@@ -15,16 +15,9 @@ import {
 } from '../../scripts/lib/color-contrast.mjs';
 import { resolveColor, resolveRole, schemes } from '../../scripts/lib/css-tokens.mjs';
 
-// Acceptance rows: AA text contrast, and WCAG 1.4.11 3:1 non-text contrast for
-// filled controls against the surface they sit on.
-//
-// The site paints through the role layer in src/app.css, which resolves into the
-// CityLink palette in src/lib/styles/theme-gftb.css, so this gate resolves the
-// same var() graph the browser does and measures the colour that comes out.
-// Every pair is swept in BOTH schemes: the dark block is code with no shipped
-// predecessor to diff against, so nothing there is covered by "it used to work".
-// e2e/acceptance-contrast.spec.ts re-measures the same rule against computed
-// styles in a real browser.
+// Resolve the var() graph from src/app.css and src/lib/styles/theme-gftb.css in both
+// schemes. Text must meet AA. Filled controls must reach WCAG 1.4.11’s 3:1 against their
+// surface. e2e/acceptance-contrast.spec.ts measures the computed styles in a browser.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const appCss = readFileSync(path.join(repoRoot, 'src/app.css'), 'utf8');
@@ -35,19 +28,10 @@ type SchemeName = keyof typeof SCHEMES;
 const SCHEME_NAMES = Object.keys(SCHEMES) as SchemeName[];
 
 /**
- * The surfaces the page actually composites, per scheme. A card is a
- * translucent panel over the page, so it is composited here rather than
- * approximated.
- *
- * `page` is the UNWASHED --bg. body paints
- * `linear-gradient(180deg, var(--wash), transparent 22rem)` over it, so the top
- * 352px of the document is not this colour. In light the wash darkens and --bg
- * is therefore the conservative ground; in dark --wash is primary-300 at 12%
- * and LIGHTENS that band from #28222b to #383042, which makes the dark numbers
- * below the optimistic ones. Recomputed inside the band the dark pairs still
- * clear AA: error-300 4.79 (this gate reports 5.89), primary-300 4.93
- * (reports 6.06), surface-400 6.17. Disclosed rather than modelled, because
- * modelling a gradient means picking a y and every pair has a different one.
+ * Composite each card over the unwashed --bg. The body gradient darkens the light ground
+ * and lightens the top 352px in dark mode. At 12% the wash lifts #28222b to #383042. Inside
+ * that band error-300 reaches 4.79 instead of 5.89 and primary-300 reaches 4.93 instead of
+ * 6.06. Surface-400 reaches 6.17. The ratio varies with each element’s position.
  */
 function surfaces(scheme: SchemeName) {
 	const tokens = SCHEMES[scheme];
@@ -68,7 +52,9 @@ function surfaces(scheme: SchemeName) {
 		inversePanel: resolveRole(tokens, '--inverse-panel'),
 		/** paper-filled controls sitting on that panel (gen_board.py:176) */
 		paper: resolveRole(tokens, '--inverse-fg'),
-		/** the mode switch's track (D01) — the accent thumb rides on it */
+		/**
+		 * The accent thumb rides on the D01 mode switch track.
+		 */
 		controlTrack: resolveRole(tokens, '--control-track'),
 		/** Existing .contribute-panel fallback (92%). Its browser-side
 		 * appearance checks remain separate from the shared glass surface. */
@@ -145,9 +131,8 @@ const nonTextPairs: Pair[] = [
 	{ name: 'primary button fill on a card', role: '--accent', on: 'card', minimum: NON_TEXT_RATIO },
 	{ name: 'secondary button border on the page', role: '--accent', on: 'page', minimum: NON_TEXT_RATIO },
 	{ name: 'skip-link edge on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	// The restored livery band's 1.4.11 boundary is its rescue edge (the
-	// fill alone fails on the light page — the regression guard below
-	// records that pair).
+	// The rescue edge supplies the livery band's 1.4.11 boundary. The fill alone fails on the
+	// light page.
 	{ name: 'yellow livery band edge on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
 	// The SHIPPED contact surface since the 2026-08-31 flattening. The field
 	// border is the 1.4.11 boundary and it adjoins two grounds: the page
@@ -160,11 +145,8 @@ const nonTextPairs: Pair[] = [
 	{ name: 'invalid contact field border on the page', role: '--danger', on: 'page', minimum: NON_TEXT_RATIO },
 	{ name: 'invalid contact field border on its own fill', role: '--danger', on: 'panel', minimum: NON_TEXT_RATIO },
 	{ name: 'contact field focus ring on the page', role: '--highlight-edge', on: 'page', minimum: NON_TEXT_RATIO },
-	// ARCHIVED RUNGS, not shipped paint (same marker as the text table): the
-	// panel border against the page, the paper control fill against the
-	// panel, the success rung on paper, and the yellow outline the panel-era
-	// focus ring and notice edge used (gen_board.py:221: 7.77:1 in both
-	// schemes). Nothing here describes a surface the site currently paints.
+	// The surface rows retain the archived panel and paper control pairs. The panel-era focus
+	// ring and notice edge reached 7.77:1 in both schemes at gen_board.py:221.
 	{ name: 'archived inverse panel border on the page', role: '--inverse-edge', on: 'page', minimum: NON_TEXT_RATIO },
 	{
 		name: 'archived paper control fill on the panel',
@@ -179,37 +161,20 @@ const nonTextPairs: Pair[] = [
 		minimum: NON_TEXT_RATIO,
 	},
 	{ name: 'archived panel-era yellow outline', role: '--highlight', on: 'inversePanel', minimum: NON_TEXT_RATIO },
-	// The mode switch (D01): the accent thumb is the control's 1.4.11
-	// boundary, both against its own track and against the page the switch
-	// sits on (the page pair is the primary-fill row above; this one is the
-	// track). Dark pins --control-track to surface-800 because surface-700
-	// leaves this pair at 2.53:1.
+	// The D01 thumb needs 1.4.11 contrast against its track and the page. The primary-fill row
+	// covers the page. Dark --control-track uses surface-800 because surface-700 gives only
+	// 2.53:1.
 	{ name: 'mode switch thumb on its track', role: '--accent', on: 'controlTrack', minimum: NON_TEXT_RATIO },
-	// ContributeMenu.svelte (review finding C): no border pair here, on the
-	// same precedent the (now fill-less) card family set — measured, not
-	// assumed: --rule reaches only 1.56:1 (light) / 2.02:1 (dark) against
-	// this panel's own fill, and 1.41:1 / 2.39:1 against bare page, neither
-	// of which clears 3:1. --rule is a decorative divider role sitewide (the
-	// card family's border, .section's rule, .next-session's edge all used
-	// it the same way), never a 1.4.11-gated UI-component boundary, and
-	// nothing about this panel changes that. The trigger's own fill-on-page
-	// pair is not repeated here either — it is the same --accent-on-page
-	// combination the primary button pair already proves.
+	// ContributeMenu.svelte uses --rule as a decorative divider. It reaches 1.56:1 in light
+	// mode and 2.02:1 in dark mode against the panel. Against the page it reaches 1.41:1 and
+	// 2.39:1. The primary button row covers the trigger’s --accent-on-page boundary.
 ];
 
 /**
- * The `.button` focus glow: a translucent highlight composited on its ground.
- *
- * The opacity is READ OUT of src/app.css rather than restated here, and the
- * read-out is anchored INSIDE the `.button:focus-visible` rule. Scanning the
- * whole file takes the FIRST `color-mix(… var(--highlight) …)` it finds, so a
- * decorative glow declared earlier — on `.skip-link`, say — becomes what the
- * ratio sweeps below measure while the real focus ring drifts unmeasured.
- *
- * Reading the shipped value rather than restating it is what makes a nudge to
- * the glow surface as the ratio that broke instead of as a string mismatch on
- * the structural test. The separate assertion on RATIFIED_GLOW_PERCENT is what
- * makes a nudge that stays inside the ratio floors surface at all.
+ * Read the glow opacity inside `.button:focus-visible` in src/app.css. An earlier
+ * decorative glow on `.skip-link` could match a file-wide search. The ratios test the
+ * shipped glow. RATIFIED_GLOW_PERCENT also catches opacity changes that still meet both
+ * floors.
  */
 const RATIFIED_GLOW_PERCENT = 56;
 const FOCUS_RULE = /\.button:focus-visible\s*\{([^}]*)\}/u.exec(appCss);
@@ -267,13 +232,9 @@ describe('the role layer resolves', () => {
 	});
 
 	it('describes the whole second scheme in the dark block', () => {
-		// The file's header comment promises this. A role that is only declared
-		// in :root silently keeps its light value on a dark page. D01 re-key:
-		// the dark block is `[data-mode='dark']` (v5 light-switch strategy);
-		// the regex is anchored at line start with `{` directly after the
-		// selector so the compound `[data-mode='dark'] pre.shiki` code-surface
-		// rules cannot satisfy it — the same anchor scripts/lib/css-tokens.mjs
-		// extracts the scheme with.
+		// Anchor `[data-mode='dark']` at line start with `{` immediately after the selector. A
+		// match inside `[data-mode='dark'] pre.shiki` would hide a missing dark override and
+		// leave the light role active. scripts/lib/css-tokens.mjs uses the same anchor.
 		const darkBlock = /^\[data-mode='dark'\]\s*\{([\s\S]*?)\n\}/mu.exec(appCss)?.[1];
 		expect(darkBlock).toBeDefined();
 		const lightRoot = /^:root\s*\{([\s\S]*?)\n\}/mu.exec(appCss)?.[1] ?? '';
@@ -287,14 +248,9 @@ describe('the role layer resolves', () => {
 
 describe('the surfaces these pairs assume are the ones the stylesheet paints', () => {
 	it('flattens the contact panel to plain page ground (operator ruling 2026-08-31)', () => {
-		// The ratified role table (gen_board.py:157-180; decisions/0015) still
-		// carries the --inverse-* group. PR #25 deleted it on an invalid
-		// interview and addendum B1 restored it (2026-08-20), but a later
-		// operator ruling ("surfaces are borderless", 2026-08-31) flattened
-		// the panel a second time. The tokens stay declared (still swept by
-		// the ROLES table below) but nothing paints them any more; pinned
-		// structurally so a future re-inversion is a deliberate edit, not a
-		// silent one.
+		// The role table in gen_board.py:157-180 and decisions/0015 retains --inverse-*. PR #25
+		// removed it before addendum B1 restored it on 2026-08-20. The 2026-08-31 borderless
+		// ruling removed its painted surfaces. ROLES still covers the declared tokens.
 		expect(appCss).toMatch(/--inverse-panel:\s*var\(--color-primary-900\)/u);
 		expect(appCss).toMatch(/\.contact-card \{\s*border-radius: 0;\s*\}/u);
 		expect(appCss).not.toMatch(/\.contact-card \{[\s\S]*?background: var\(--inverse-panel\);/u);
@@ -305,12 +261,9 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 	});
 
 	it('keeps the field focus indicator on the page-ground rescue edge, same as the skip-link', () => {
-		// While the panel stood, the bare yellow WAS the ratified indicator
-		// (secondary-300 on primary-900, 7.77:1, gen_board.py:221). The
-		// 2026-08-31 flattening put the field back on plain page ground, where
-		// the bare fill fails 3:1 (the regression guard below records the
-		// pair), so the field now takes the same --highlight-edge rescue the
-		// skip-link and mode-switch already carry for exactly that reason.
+		// The panel’s secondary-300 indicator reached 7.77:1 on primary-900 at gen_board.py:221.
+		// Since 2026-08-31 the field sits on the page. Bare yellow fails 3:1 there and needs the
+		// same --highlight-edge as the skip-link and mode-switch.
 		expect(appCss).toMatch(
 			/\.contact-form :is\(input, textarea\):focus-visible \{\s*outline: 2px solid var\(--highlight-edge\);/u,
 		);
@@ -324,12 +277,9 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 		expect(appCss).toMatch(
 			/\.button:focus-visible \{\s*box-shadow: 0 0 0 4px color-mix\(in oklab, var\(--highlight\)/u,
 		);
-		// 56% is the ratified operating point, not an arbitrary number that happens
-		// to be positive: it is where the WEAKER of the two contact-panel readings
-		// peaks (3.54:1 against the paper button, 3.50:1 against the panel), and
-		// 65% drops the paper side to 2.95:1. The sweeps below measure whatever is
-		// declared, so a nudge moves those ratios too; this line is what fails when
-		// a nudge stays inside them.
+		// At 56% the weaker contact-panel ratio peaks. The glow reaches 3.54:1 on the paper
+		// button and 3.50:1 on the panel. At 65% the paper ratio falls to 2.95:1. Pin the
+		// operating point even when a change still clears both floors.
 		expect(GLOW_PERCENT, `focus glow declared at ${GLOW_PERCENT}%`).toBe(RATIFIED_GLOW_PERCENT);
 	});
 
@@ -373,14 +323,8 @@ describe('the surfaces these pairs assume are the ones the stylesheet paints', (
 });
 
 /**
- * ── The 28 named ratified pairs (gen_board.py:200-230) ────────────────────
- *
- * The palette board publishes a named-pair table; this sweep transcribes it
- * so the shipped tokens keep clearing exactly the floors the ratification
- * names, scheme-scoped the way the board scopes them ("both" runs in each
- * scheme against the scheme-invariant rungs). Where the board publishes a
- * spec ratio it is a floor disclosure, not a re-pin — the WCAG floor is what
- * is asserted, the way the board's own JS recomputes every number.
+ * The 28 named pairs in gen_board.py:200-230 use the board’s WCAG floors. Run each pair in
+ * the schemes the board names.
  */
 describe('the ratified named pairs hold (gen_board.py:200-230)', () => {
 	type PairKind = 'AA' | 'LARGE' | 'NONTEXT';
@@ -477,14 +421,9 @@ for (const scheme of SCHEME_NAMES) {
 		});
 
 		it('keeps the archived paper-button glow separating from BOTH inverse edges', () => {
-			// ARCHIVED, not shipped. The 2026-08-31 flattening removed the paper
-			// button and the panel under it (gen_board.py:176-177); the /contact
-			// submit button is now the page-ground row above. This row is kept
-			// because the ratified 56% operating point was CHOSEN on this pair
-			// (the glow rationale above: 3.54:1 against the paper button, 3.50:1
-			// against the panel; 65% drops the paper side to 2.95:1), so a nudge
-			// to the glow that only the boxed case would catch still surfaces
-			// here rather than silently passing the looser page-ground test.
+			// The 2026-08-31 flattening removed the /contact paper button and panel from
+			// gen_board.py:176-177. Keep the pair that sets the 56% glow. The page-ground test
+			// accepts opacities that fail on paper.
 			const grounds = surfaces(scheme);
 			const glow = glowOn(scheme, grounds.inversePanel);
 			const againstButton = roundRatio(contrastRatio(glow, grounds.paper));
@@ -505,12 +444,9 @@ for (const scheme of SCHEME_NAMES) {
  * the real composited pixels and local ink colors.
  */
 const HERO_SCRIM_RATIFIED_PERCENT = 0;
-// Both hero regexes are anchored INSIDE `.hero__scrim { ... }` specifically
-// (review round 2, finding B.3.2) — matching the file's own
-// `.button:focus-visible` precedent above. Un-anchored, a decoy rule
-// elsewhere (an `@media print` reset, a comment quoting stop syntax, a
-// later `max-width` override) can satisfy a global match and ship a wrong
-// scrim under a green suite; all three were demonstrated in review.
+// Scope both regexes to `.hero__scrim { ... }`, as for `.button:focus-visible`. A global
+// search can match `@media print`, a comment or a `max-width` override and leave a broken
+// scrim undetected.
 const HERO_SCRIM_RULE_BLOCK = /\.hero__scrim\s*\{([^}]*)\}/u.exec(appCss);
 if (!HERO_SCRIM_RULE_BLOCK) {
 	throw new Error('src/app.css no longer declares a .hero__scrim rule this gate can anchor to');
@@ -523,23 +459,11 @@ if (!HERO_SCRIM_RULE) {
 }
 const HERO_SCRIM_PERCENT = Number(HERO_SCRIM_RULE[2]);
 
-// The true measured ink span at every acceptance-responsive breakpoint
-// (320/375/768/1280 — e2e/acceptance-responsive.spec.ts:14-19; there is no
-// "P4" list anywhere in this repo, and 360/390 are not real breakpoints —
-// review round 2, finding B.3.3, both corrected here). Re-measured
-// 2026-09-19, after the hero gained the pitch list and the right-hand box
-// became the about statement; the earlier fixture had gone stale and was
-// hiding ink that had moved onto the heavier edge tint, so the scrim's
-// content stops widened to 6%/94% to contain the true span again. This is no longer an AA fixture (the scrim
-// carries no AA obligation — see above); it stays as a VISUAL invariant so
-// ink does not render on the heavier edge tint. A hand-typed constant goes
-// stale silently (review round 2, finding B.3.1: shrinking the hero padding
-// so ink moved outside the band left 158/158 still green) — the real
-// backstop is e2e/acceptance-hero-glass-contrast.spec.ts, which measures
-// live ink position on every run and fails if it has drifted from this
-// fixture past a small tolerance. This file cannot re-derive layout from
-// CSS alone, so it cannot self-check; it can only assert containment of
-// whatever is currently written here, which the line below does.
+// Ink spans at 320/375/768/1280 follow e2e/acceptance-responsive.spec.ts:14-19.
+// Measurements on 2026-09-19 put the pitch list and about statement inside the 6%/94%
+// stops. This fixture tests their visual containment.
+// e2e/acceptance-hero-glass-contrast.spec.ts measures live ink and detects drift that
+// static CSS cannot.
 const HERO_MEASURED_INK_SPAN: Record<number, [number, number]> = {
 	320: [7.3, 92.7],
 	375: [8.3, 91.7],
@@ -585,11 +509,8 @@ interface HeroPair {
 	minimum: number;
 }
 
-// The eyebrow kickers the revision-1 sweep also gated were stripped sitewide
-// by the decoration-strip slice (de-slop ruling), so no --accent TEXT sits on
-// the hero anymore; --accent stays swept below as the button fill/border
-// (non-text), and the --link pair stays because the copy slice will demote
-// the hero CTAs to plain links.
+// The hero uses --accent on button fills and borders. Keep --link coverage for the hero
+// CTAs.
 const heroTextPairs: HeroPair[] = [
 	{ name: 'hero lede over the hero', role: '--fg', on: 'card', minimum: AA },
 	{ name: 'hero h1 over the hero', role: '--heading', on: 'card', minimum: LARGE },
@@ -611,35 +532,27 @@ const heroNonTextPairs: HeroPair[] = [
 	{ name: 'invalid contact field edge on glass', role: '--danger', on: 'card', minimum: NON_TEXT_RATIO },
 ];
 
-/** contrastRatio(x, pure black) is strictly monotone in relative luminance
- * (a fixed anchor for ORDERING colours, not a claim about the photo), so it
- * serves as the luminance proxy the envelope assertion below orders
- * colours by. */
+/**
+ * Against pure black, contrastRatio increases with relative luminance. Use it to order the
+ * envelope colours.
+ */
 function luminanceProxy(color: Rgb): number {
 	return contrastRatio(color, parseCssColor('#000000'));
 }
 
 describe('hero backdrop scrim', () => {
 	it(`declares the ratified ${HERO_SCRIM_RATIFIED_PERCENT}% (fully transparent) content-zone mix`, () => {
-		// 0% — genuinely transparent, matching the demo exactly (review round 2,
-		// finding A). Earlier revisions pinned 74%, then 65%, both because the
-		// scrim was treated as load-bearing for AA; it is not, once
-		// `.hero-glass` itself clears AA against the real backdrop (see
-		// heroGrounds() above and .hero-glass's own comment in src/app.css for
-		// the swept numbers). A nudge off 0% now means someone gave the scrim
-		// an AA job again without updating this pin — worth a loud failure,
-		// not a silent one.
+		// The demo uses 0% opacity. `.hero-glass` in src/app.css clears AA over the backdrop
+		// measured by heroGrounds(), so the scrim can stay transparent.
 		expect(HERO_SCRIM_PERCENT, `hero scrim content-zone declared at ${HERO_SCRIM_PERCENT}%`).toBe(
 			HERO_SCRIM_RATIFIED_PERCENT,
 		);
 	});
 
 	it('content-zone stops contain the true measured ink span at every acceptance-responsive breakpoint', () => {
-		// No longer an AA invariant (see above) — a visual one: ink should not
-		// render on the heavier edge tint. Reads the two --hero-scrim-content
-		// gradient stops back out of src/app.css (rule-anchored, see above) and
-		// checks they contain the real measured ink span at every breakpoint,
-		// not just the widest one.
+		// Read both --hero-scrim-content stops from src/app.css and check that they contain the
+		// measured ink at every breakpoint. Text outside that band would render on the heavier
+		// edge tint.
 		for (const [viewport, [start, end]] of Object.entries(HERO_MEASURED_INK_SPAN)) {
 			expect(
 				HERO_SCRIM_CONTENT_START,
@@ -666,9 +579,8 @@ describe('hero backdrop scrim', () => {
 		});
 
 		it(`keeps every hero ink outside the scrim's luminance envelope in the ${scheme} scheme`, () => {
-			// The precondition that makes the two extremes the worst case: were an
-			// ink INSIDE the envelope, some photograph pixel could pull the
-			// composite to the ink's own luminance and the ratio toward 1:1.
+			// Ink inside the envelope could match a photo pixel’s composite luminance and bring
+			// contrast toward 1:1.
 			const grounds = heroGrounds(scheme);
 			for (const pair of [...heroTextPairs, ...heroNonTextPairs]) {
 				const ink = luminanceProxy(resolveRole(GLASS_TOKENS[scheme], pair.role));
@@ -697,11 +609,9 @@ describe('hero backdrop scrim', () => {
 
 describe('regression guards', () => {
 	it('records the pair that keeps bare yellow off paper-side grounds', () => {
-		// --highlight fails 1.4.11 on the light card (about 1.57:1): that is
-		// WHY the rescue edge exists (gen_board.py:167, ratified item 4) —
-		// the skip-link chip and the livery band carry --highlight-edge on
-		// paper-side grounds, while ON the primary-900 panel the bare yellow
-		// is the ratified 7.77:1 indicator. Recorded so a swap fails loudly.
+		// --highlight reaches only 1.57:1 on the light card. The skip-link and livery band need
+		// --highlight-edge there to meet 1.4.11. Bare yellow reaches 7.77:1 on primary-900. See
+		// item 4 at gen_board.py:167.
 		const ratio = roundRatio(contrastRatio(resolveRole(SCHEMES.light, '--highlight'), surfaces('light').card));
 		expect(ratio, `light: --highlight on the card measured ${ratio}:1`).toBeLessThan(NON_TEXT_RATIO);
 	});
@@ -711,10 +621,7 @@ describe('regression guards', () => {
 // documented hexes must be what the CSS oklch values actually paint.
 const palettePath = path.join(repoRoot, 'src/lib/theme/palette.ts');
 
-// The suite below is `runIf`-gated, so on its own a deleted palette.ts makes
-// the parity checks VANISH rather than fail. This asserts the gate's own
-// premise first: the SSOT has to be on disk before "when present" is a
-// reasonable thing to say.
+// A missing palette.ts would skip the `runIf` parity checks. Assert that it exists first.
 it('palette SSOT file exists', () => {
 	expect(existsSync(palettePath), 'src/lib/theme/palette.ts is the typed mirror of theme-gftb.css').toBe(true);
 });

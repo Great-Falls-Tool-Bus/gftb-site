@@ -1,48 +1,8 @@
 <script lang="ts">
-	// Floating "Contribute" affordance — ported from the demo
-	// (greatfallstoolbus.org@fa5552c src/lib/components/ContributeMenu.svelte),
-	// per the 2026-08-20 review finding C: the operator's 2026-08-20 ~09:30
-	// rejection named the absence of a floating/Zag-vocabulary element as a
-	// miss, and the maturity doc §5 V2 disposition is ADOPT, scoped — asked
-	// for, not optional. Scoped DOWN from the demo for this microsite: no
-	// platform flows (nav-items.ts's own scope note — /tools, /cells*,
-	// /cell-sheets*, /keyholders, /discuss live in gftb-platform, not here),
-	// so the two items are the two non-platform destinations this site
-	// actually has: contact and the public log.
-	//
-	// WAI-ARIA menu-button pattern, plus the demo's explicit focus-trap:
-	//   - trigger: aria-haspopup/expanded/controls; Enter/Space toggle;
-	//     Arrow up/down open onto the first/last item.
-	//   - open menu: focus lands on the first item; Arrow up/down + Home + End
-	//     move WITHIN THE ITEMS; Tab/Shift+Tab are TRAPPED across the WHOLE
-	//     panel (close button + items, review round 2 finding C: the prior
-	//     revision's Tab handler jumped past the close button, leaving a
-	//     visible control no keyboard user could reach) rather than tabbing
-	//     out; Escape closes and returns focus to the trigger; a pointer
-	//     press outside dismisses it.
-	// role="menu" wraps ONLY the item list (review round 2 finding C: the
-	// header <p> and close <button> are non-permitted children of role=menu;
-	// the <ul>/<li> markup — kept for list semantics/styling — is marked
-	// role="presentation" so it does not inject list/listitem between the
-	// menu and its menuitems in the AX tree); items carry aria-posinset/
-	// aria-setsize for "N of M" announcement.
-	// Motion is reduced-motion-safe (a MediaQuery gates the open/close
-	// duration to zero, the same idiom app.css already uses for scroll-reveal
-	// and ThemeSwitcher's crossfade), the panel is the featured-glass idiom
-	// (translucent + backdrop-blur with an opaque, unconditional fallback —
-	// never opaque-only, never blur-only), corners are sharp (de-slop
-	// ruling), and it never prints. Anchored bottom-left, --z-dropdown (below
-	// the sticky header); .site-footer reserves clearance below it (review
-	// round 2 finding C.3 — the closed trigger was stealing the footer's own
-	// link clicks on short/narrow pages). No icon dependency (house-stack
-	// contract; nav-items.ts's own comment) — plain text labels only.
-	//
-	// No-JS (review round 2 finding C.1): the trigger advertised
-	// aria-haspopup/aria-controls to assistive tech with no menu markup and
-	// no working click in a served, JS-disabled page — a dead control, not
-	// an absent one. Fixed by mounting nothing until hydrated: SSR/no-JS
-	// visitors get no trigger at all (the "absent gracefully" option), never
-	// a broken one.
+	// Ported from src/lib/components/ContributeMenu.svelte at greatfallstoolbus.org@fa5552c.
+	// Maturity §5 V2 limits the menu to contact and the public log. Mount after hydration so
+	// a scriptless page has no dead trigger. Keep the close button outside role="menu" but
+	// inside the focus trap. .site-footer reserves space below the closed trigger.
 	import { onMount, tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 
@@ -69,8 +29,7 @@
 		return menuEl ? Array.from(menuEl.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')) : [];
 	}
 
-	/** Full Tab-trap order: the close button first, then the menu items —
-	 * mirrors visual/DOM order (header above the list). */
+	/** Follow visual order with the close button first and the menu items next. */
 	function trapFocusables(): HTMLElement[] {
 		if (!menuEl) return [];
 		const close = menuEl.querySelector<HTMLElement>('.contribute-panel__close');
@@ -118,8 +77,7 @@
 		}
 
 		if (event.key === 'Tab') {
-			// Focus trap across the whole panel (close button + items), not
-			// just the items — see the header comment, review round 2 finding C.
+			// Trap focus across the close button and all menu items.
 			event.preventDefault();
 			const focusables = trapFocusables();
 			if (focusables.length === 0) return;
@@ -130,8 +88,7 @@
 			return;
 		}
 
-		// Arrow/Home + End navigate WITHIN the items only (standard menu
-		// semantics) — a no-op when focus is on the close button.
+		// Arrow keys, Home and End move between items only. Leave the close button alone.
 		const els = menuItems();
 		const current = els.indexOf(document.activeElement as HTMLAnchorElement);
 		if (current === -1) return;

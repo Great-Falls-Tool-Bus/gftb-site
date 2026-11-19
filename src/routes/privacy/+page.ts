@@ -1,3 +1,2 @@
-// Directory-shaped output (privacy/index.html), matching /contact — the
-// serving plane is a plain static file server with no extension rewriting.
+// Prerender an index.html file so the static server can serve the directory URL.
 export const trailingSlash = 'always';

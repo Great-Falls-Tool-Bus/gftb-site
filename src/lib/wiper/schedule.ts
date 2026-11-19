@@ -16,19 +16,12 @@ export interface WiperDetentEntry {
 	sweepMs: number;
 }
 
-/**
- * One full out-and-back sweep, the same at every speed (operator ruling
- * 2026-09-09), slowed at LOOK 3 so the blades read as blades and the shove
- * has time to carry a note off the glass.
- */
+/** One full sweep takes the same time at every speed. */
 export const SWEEP_MS = 3400;
 
 /**
- * The stalk, Off first, then faster detents. A detent sets how often a wipe
- * comes, never how fast the blades move: dwell strictly decreases down the
- * table while the sweep stays SWEEP_MS, and every dwell is longer than the
- * sweep, so the notes are always readable for longer than the blades cover
- * them.
+ * The stalk sets the dwell between wipes. Each faster detent shortens the dwell while the sweep
+ * stays at SWEEP_MS. Every dwell lasts longer than the sweep.
  */
 export const WIPER_DETENTS: readonly WiperDetentEntry[] = [
 	{ id: 'off', label: 'Off', dwellMs: 0, sweepMs: 0 },
@@ -37,10 +30,7 @@ export const WIPER_DETENTS: readonly WiperDetentEntry[] = [
 	{ id: 'high', label: 'High', dwellMs: 3600, sweepMs: SWEEP_MS },
 ];
 
-/**
- * High on load (operator ruling at LOOK 3); the stroke slowed again at the
- * M4 ratification, so High's cycle is 7 s, the retired carousel's cadence.
- */
+/** Start on High. Its full cycle lasts 7 seconds. */
 export const DEFAULT_WIPER_DETENT: ActiveWiperDetent = 'high';
 
 /** Intermittent wipers never fall on a metronome: the dwell wanders inside this band. */
