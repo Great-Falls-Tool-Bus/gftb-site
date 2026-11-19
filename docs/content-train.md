@@ -120,7 +120,7 @@ The operator or a developer with repository authority reviews the exact text and
 naming consent before setting `published: true`. Run `just log-manifest-build`
 and commit the updated manifest when publishing or withdrawing an entry.
 After the change merges, the release owner deploys it and verifies the served site.
-See [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/main/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
+See [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/7c82800092c566a034a47799575b0aef95f72d7c/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
 
 ## What a content PR looks like
 
