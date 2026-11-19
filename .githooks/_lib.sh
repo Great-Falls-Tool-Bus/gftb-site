@@ -57,10 +57,9 @@ gftb_ai_attribution_line() {
   return 1
 }
 
-# Run the hook of the same name from the global core.hooksPath, when one is
-# set, executable, and a different directory, so a machine-wide hook layer
-# keeps running. Never chains twice and never chains to itself.
-# $1 hook name, $2 file holding the stdin to replay (or empty), rest: args.
+# Chain the matching executable hook in the global core.hooksPath once.
+# $1 names the hook. $2 names the file to replay on stdin, or is empty.
+# Forward the remaining arguments to the hook.
 gftb_chain() {
   local hook="$1" input="$2" global here there
   shift 2
