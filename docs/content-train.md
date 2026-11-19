@@ -116,7 +116,7 @@ for each draft's title, summary and a distinctive phrase from its body.
 
 ## Review and website publication
 
-An operator or a developer with repository authority reviews the exact text and
+The operator or a developer with repository authority reviews the exact text and
 naming consent before setting `published: true`. Run `just log-manifest-build`
 and commit the updated manifest when publishing or withdrawing an entry.
 After the change merges, the release owner deploys it and verifies the served site.
@@ -222,7 +222,7 @@ Then, in the same pull request:
 2. Update the rows that pin the published content: `RULES`, `SESSIONS` and
    the "the published content" rows in `e2e/home-hours.spec.ts`, and the
    published-content row in `e2e/home-rsvp.spec.ts`.
-3. Run `just check` and post the receipt from a Linux lab host.
+3. Run `just check` locally. Post the Linux lab host's `just gate-deploy` receipt on the pull request.
 
 After the merge, the attended `web-release-*` run from
 `great-falls-tool-bus-infra` puts the change live (see
