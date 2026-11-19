@@ -11,8 +11,7 @@ set -u
 remote_name="${1:-}"
 remote_url="${2:-}"
 
-# True for the all-zero object name git uses for a missing ref, in either
-# object format (40 hex digits for SHA-1, 64 for SHA-256).
+# Git marks a missing ref with zeros: 40 hex digits for SHA-1 or 64 for SHA-256.
 gftb_is_null_oid() {
   case "$1" in
     "" | *[!0]*) return 1 ;;

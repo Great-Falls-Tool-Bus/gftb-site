@@ -158,11 +158,11 @@ check "em dash added to a file that had one is quiet" 0 --quiet -- commit -m "do
 mkdir "$work/bin"
 cat > "$work/bin/huskycat" <<'HOOK'
 #!/usr/bin/env bash
-printf '%s %s\n' "$1" "$2" >> "$GFTB_TEST_DISPATCH"
+printf '%s %s %s\n' "$1" "$2" "${!#}" >> "$GFTB_TEST_DISPATCH"
 HOOK
 chmod +x "$work/bin/huskycat"
 export PATH="$work/bin:$PATH" GFTB_TEST_DISPATCH="$work/dispatch"
-printf 'hook pre-commit\nhook commit-msg\n' > "$work/expected"
+printf 'hook pre-commit --complete-staged\nhook commit-msg --complete-staged\n' > "$work/expected"
 : > "$work/dispatch"
 check "the global hook owns Huskycat by default" 0 --quiet -- commit -m "test: global hooks"
 check "the repository does not run a second formatter" 0 --quiet -- test ! -s "$work/dispatch"
