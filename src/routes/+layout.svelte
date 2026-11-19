@@ -12,6 +12,7 @@
 	import TailnetPrompt from '#lib/components/TailnetPrompt.svelte';
 	import { gatedSurface } from '#lib/gated/surface.svelte.js';
 	import { pageTitle } from '#lib/page-title.js';
+	import { TOOLS_LINK_LABEL } from '#lib/tools-copy.js';
 	import BusMark from '#lib/components/BusMark.svelte';
 	import ToolBusMark from '#lib/components/ToolBusMark.svelte';
 	import { theme } from '#lib/theme.svelte.js';
@@ -273,7 +274,10 @@
 				     sanctioned anchors that the gated-join-link and
 				     gated-member-app-url leak-scan rules let through. Keep each mark
 				     before its href, and the members URLs exact. The manifest's
-				     header-join item is no longer rendered. -->
+				     header-join item is no longer rendered. Tools sits with them, a
+				     plain link to the members Tools pages, which anyone can open
+				     (operator answers on the public Tools pages). -->
+				<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
 				<a
 					data-public-join="header"
 					href="/join/"
@@ -299,9 +303,8 @@
 				<!-- Build provenance (D10, demo #140 fe32de1): the short sha only.
 				     Degrade-to-nothing on
 				     local/unstamped builds is already the build-info contract.
-				     DELIBERATELY NO ANCHOR (review B1): the demo could link its
-				     /commit page because that repo is public; this carrier is
-				     private and the leak-scan internal-tracker-reference rule bans
+				     DELIBERATELY NO ANCHOR (review B1): this repository is public
+				     now, but the leak-scan internal-tracker-reference rule still bans
 				     the repo's pull/issues/commit path segments in the artifact by
 				     name (docs/operating-rules.md sanctions exactly one repository pointer, the
 				     SourceLink affordance) — no sha length escapes a path-segment
@@ -329,8 +332,9 @@
 			     pages. Each members URL is exact and carries its data-public-member
 			     mark before the href, which is what the gated-member-app-url
 			     leak-scan rule lets through. A signed-out visitor who follows
-			     Membership, Tools, Contribution or Mailbox name is sent to sign in
-			     by the members area. -->
+			     Membership, Contribution or Mailbox name is sent to sign in by the
+			     members area. Tools opens the members Tools pages, which need no
+			     sign in. -->
 			<nav class="site-footer__group" aria-label="Members">
 				<h2>Members</h2>
 				<ul>
@@ -339,7 +343,9 @@
 					<li>
 						<a data-public-member="membership" href="https://members.greatfallstoolbus.org/membership">Membership</a>
 					</li>
-					<li><a data-public-member="tools" href="https://members.greatfallstoolbus.org/scan">Tools</a></li>
+					<li>
+						<a data-public-member="tools" href="https://members.greatfallstoolbus.org/tools">{TOOLS_LINK_LABEL}</a>
+					</li>
 					<li>
 						<a data-public-member="contribution" href="https://members.greatfallstoolbus.org/contribution"
 							>Contribution</a
@@ -355,7 +361,7 @@
 				<ul>
 					<li>
 						<ExternalLink href="https://lists.latoolb.us/hyperkitty/list/discuss@latoolb.us/"
-							>Discuss archive</ExternalLink
+							>Discussion archive</ExternalLink
 						>
 					</li>
 					<li>
@@ -383,12 +389,13 @@
 				<h2>Meta</h2>
 				<ul>
 					<!-- D11's AX/agent row was retired by operator ruling 2026-08-31.
-					     Source and Security still point at the private site repo (a
-					     404 for visitors, review E4); whether they should point at the
-					     organization root instead is a separate operator call. D06:
-					     outbound meta links ride ExternalLink. -->
+					     The site repository is public, so Source opens it. Security
+					     opens its SECURITY.md policy page, which says to report a
+					     problem by email. The advisory form is not linked: private
+					     vulnerability reporting is off on the repository, so the form
+					     does not open. D06: outbound meta links ride ExternalLink. -->
 					<li><ExternalLink href={repoUrl}>Source</ExternalLink></li>
-					<li><ExternalLink href={`${repoUrl}/security/advisories/new`}>Security</ExternalLink></li>
+					<li><ExternalLink href={`${repoUrl}/security/policy`}>Security</ExternalLink></li>
 					<!-- The tailnet button mounts in the browser only, with a stamped probe
 					     URL, and leaves no empty item behind for anyone else. -->
 					{#if gatedSurface.showTailnetButton}
