@@ -106,10 +106,14 @@ describe('leak-scan detections', () => {
 
 	it('sanctions only the SourceLink surfaces of the site repo, never its tracker pages', () => {
 		// The edit-this-page affordance (demo #94, addendum B1.2) publishes the
-		// repo root plus /edit/, /blob/ and /tree/ source links and the advisory form.
+		// repo root plus /edit/, /blob/ and /tree/ source links and the security policy page.
 		// Every OTHER repo, and this repo's PR/issue/commit surfaces, stay
 		// banned repository pointers.
 		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site')).not.toContain('internal-tracker-reference');
+		// The footer Security link opens the repository's SECURITY.md policy page.
+		expect(idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/security/policy')).not.toContain(
+			'internal-tracker-reference',
+		);
 		expect(
 			idsFiring('https://github.com/Great-Falls-Tool-Bus/gftb-site/edit/main/src/content/log/x.svx'),
 		).not.toContain('internal-tracker-reference');
@@ -254,10 +258,10 @@ describe('leak-scan detections', () => {
 		for (const sanctioned of [
 			`<a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a>`,
 			`<a data-public-member="membership" href="${MEMBERS}/membership">Membership</a>`,
-			`<a data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/tools">Tools</a>`,
 			`<a data-public-member="contribution" href="${MEMBERS}/contribution">Contribution</a>`,
 			`<a data-public-member="mailbox" href="${MEMBERS}/membership">Mailbox name</a>`,
-			`<a class="x" data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a class="x" data-public-member="tools" href="${MEMBERS}/tools">Tools</a>`,
 			`\`<li><a data-public-member="sign-in" href="${MEMBERS}/login">Sign in</a></li>\``,
 		]) {
 			expect(idsFiring(sanctioned), sanctioned).not.toContain('gated-member-app-url');
@@ -268,6 +272,10 @@ describe('leak-scan detections', () => {
 			`<a href="${MEMBERS}/login" data-public-member="sign-in">Sign in</a>`,
 			// a mark on the wrong URL, or a mark value outside the fixed set
 			`<a data-public-member="tools" href="${MEMBERS}/login">x</a>`,
+			// the retired tools target and deeper tool paths (TIN-3814)
+			`<a data-public-member="tools" href="${MEMBERS}/scan">Tools</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/tools/drill">x</a>`,
+			`<a data-public-member="tools" href="${MEMBERS}/tools?q=drill">x</a>`,
 			`<a data-public-member="sign-in" href="${MEMBERS}/membership">x</a>`,
 			`<a data-public-member="keyholder" href="${MEMBERS}/review">Review</a>`,
 			`<a data-public-member="sign-in" href="${MEMBERS}/apply">Apply</a>`,

@@ -1397,6 +1397,6 @@ test('GitHub sits in the header as an outbound link and the AX footer row is gon
 	const github = nav.getByRole('link', { name: /^GitHub/u });
 	await expect(github).toHaveAttribute('href', 'https://github.com/Great-Falls-Tool-Bus');
 	await expect(github).toHaveAttribute('rel', /external/u);
-	await expect(nav.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/contact');
+	await expect(nav.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/contact/');
 	await expect(page.locator('footer')).not.toContainText('AGENTS.md');
 });

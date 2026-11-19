@@ -97,7 +97,7 @@ describe('join path', () => {
 				['sign-in', '/login'],
 				['sign-in', '/login'],
 				['membership', '/membership'],
-				['tools', '/scan'],
+				['tools', '/tools'],
 				['contribution', '/contribution'],
 				['mailbox', '/membership'],
 			],

@@ -30,7 +30,7 @@ const SIGN_IN_URL = `${MEMBERS_HOST}/login`;
 const PUBLIC_MEMBER_URLS = new Set([
 	SIGN_IN_URL,
 	`${MEMBERS_HOST}/membership`,
-	`${MEMBERS_HOST}/scan`,
+	`${MEMBERS_HOST}/tools`,
 	`${MEMBERS_HOST}/contribution`,
 ]);
 
