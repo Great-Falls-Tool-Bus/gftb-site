@@ -103,71 +103,36 @@ omit optional fields you do not need. Keep `published: false` and the
 `TODO(jess)` marker while the draft awaits review. The templates are ordinary
 SVX examples, with no editor-specific variables or configuration.
 
-The originals live outside the log directory and never become log entries.
-Their actual bytes are checked through the shared frontmatter parser and
-schema by the existing `//:unit_tests` target (`just test-unit` and the remote
-`validate` action). A copied draft also enters the normal log, manifest, and
-build-output checks. No manifest regeneration is needed for an unpublished
-draft; publishing still follows the operator review below.
+The templates live outside the log directory. `just test-unit` checks them with the
+shared frontmatter parser. An unpublished draft leaves the published manifest unchanged.
 
 ## `published: false` on every new entry
 
-Every new entry ships as `published: false`. That is not a
-suggestion, it is enforced practice going back to addendum B1.2, and the
-exclusion happens at BUILD time, not by filtering at render time.
-
-`scripts/build-log-manifest.mjs` reads every `.svx` file straight off disk
-(`scripts/lib/log-content.mjs`, plain `node:fs`, no Vite involved) and
-writes `src/lib/generated/log-manifest.ts`, a checked-in file that lists
-ONLY the entries with `published: true`, each as a literal
-`import('.../<slug>.svx')`. `src/lib/public-logs.ts` imports that
-generated file and nothing else content-shaped, so an unpublished draft's
-title, summary, or body is never an import statement anywhere the client
-bundle can reach. It can sit in the content tree, reviewed and merged,
-without ever being live.
-
-`just log-manifest-check` (wired into `just check`) runs the generator read-only
-inside its registered Bazel test and compares it to the committed copy. It is
-deliberately
-asymmetric: a new draft that never got a manifest entry is safe (there is
-nothing for it to leak), but a manifest that still lists an entry after it
-flips back to `published: false` fails the check loudly, because that is
-the direction that would actually put a draft in front of a visitor.
-
-As a second, independent net over the real built bytes, `scripts/
-check-build-output.mjs` folds every `published: false` entry's title,
-summary, and a distinctive opening body phrase (`distinctiveDraftLiterals`
-in `scripts/lib/log-content.mjs`) into the leak-scan denylist on every
-build, so `just build` and `just leak-scan-stamped` prove — not just
-assume — that no draft's content shipped.
+Draft files and pull requests are public on GitHub. Keep private correspondence
+and identities out of them. At build time, `scripts/build-log-manifest.mjs`
+includes only published entries in `src/lib/generated/log-manifest.ts`.
+`just log-manifest-check` flags a stale manifest. The build also scans its output
+for each draft's title, summary and a distinctive phrase from its body.
 
 ## Review and website publication
 
-Draft source and draft pull requests are publicly readable on GitHub.
-`published: false` excludes an entry from the website; it does not make that
-source private. The operator or another developer with repository authority
-reviews the exact text and naming consent before explicitly setting
-`published: true`. Contributors open drafts; only the operator or a developer with repository authority sets published: true or merges.
-
-After the reviewed change merges to `main`, website publication still requires
-the existing owner release and served proof. The intended GF convergence
-develops in parallel; a merge alone is not deployment evidence. These boundaries
-follow [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/main/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
+The operator or a developer with repository authority reviews the exact text and
+naming consent before setting `published: true`. Run `just log-manifest-build`
+and commit the updated manifest when publishing or withdrawing an entry.
+After the change merges, the release owner deploys it and verifies the served site.
+See [Meta ADR 0027 §§1 and 3](https://github.com/Great-Falls-Tool-Bus/meta/blob/7c82800092c566a034a47799575b0aef95f72d7c/decisions/0027-keyholder-email-draft-authoring-2026-09-08.md#1-selected-authoring-flow).
 
 ## What a content PR looks like
 
 - One `.svx` file per entry (or a small batch of related entries), with verified
   public facts. Put supporting program-board receipts, PR numbers, commit SHAs,
-  and ticket references in the PR description, never in the SVX file. Drafts
-  are not private mail storage; do not copy private identities or correspondence
-  into them. Never invent details.
+  and ticket references in the PR description, never in the SVX file.
 - `published: false` on every entry, no exceptions.
 - A short `<!-- TODO(jess): ... -->` comment at the top of the body,
   matching the templates above, so it's obvious at a
   glance that the body is a draft awaiting the operator's own words.
 - `just check` and `just build` both green, including the leak-scan pass
-  that runs over every draft in the tree, published or not (drafts are
-  still build input and are never a place to stash anything sensitive).
+  that runs over every draft in the tree, published or not.
 - A normal PR the operator reviews and merges like any other change. No
   auto-merge; only the operator or a developer with repository authority merges content PRs.
 
@@ -257,7 +222,7 @@ Then, in the same pull request:
 2. Update the rows that pin the published content: `RULES`, `SESSIONS` and
    the "the published content" rows in `e2e/home-hours.spec.ts`, and the
    published-content row in `e2e/home-rsvp.spec.ts`.
-3. Run `just check` and post the receipt from a Linux lab host.
+3. Run `just check` locally. Post the Linux lab host's `just gate-deploy` receipt on the pull request.
 
 After the merge, the attended `web-release-*` run from
 `great-falls-tool-bus-infra` puts the change live (see
