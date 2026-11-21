@@ -175,7 +175,6 @@ filegroup(
         ".gitignore",
         ".gitleaks.toml",
         ".gitleaksignore",
-        ".nvmrc",
         ".prettierignore",
         ".prettierrc",
         "BUILD.bazel",
