@@ -178,7 +178,7 @@ conformance:
 
 # Git hooks (fork-first contribution; see CONTRIBUTING.md).
 # The hook files, byte-identical to the organization .github mirror.
-hook_files := "_lib.sh pre-commit commit-msg pre-push test.sh"
+hook_files := "_lib.sh pre-commit commit-msg pre-push test.sh tooling-paths.txt"
 hooks_mirror := "https://raw.githubusercontent.com/Great-Falls-Tool-Bus/.github/main/githooks"
 
 # Use .githooks for this clone, push to the fork by default, and disable pushes to upstream.
