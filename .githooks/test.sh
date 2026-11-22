@@ -313,7 +313,7 @@ greatfallstoolbus.org scripts/build-agent-skills.mjs
 greatfallstoolbus.org scripts/validate-skills.py
 greatfallstoolbus.org docs/agent-notes/2026-11-01.md
 greatfallstoolbus.org docs/agent-adoption.md
-greatfallstoolbus.org static/agent-map.md
+gftb-site static/agent-map.md
 greatfallstoolbus.org .github/copilot-instructions.md
 greatfallstoolbus.org .github/instructions/svelte.instructions.md
 greatfallstoolbus.org .github/prompts/release.prompt.md
@@ -410,7 +410,12 @@ greatfallstoolbus.org scripts/landing-check.sh
 greatfallstoolbus.org scripts/lanesync.sh
 greatfallstoolbus.org docs/agent-notes.md
 greatfallstoolbus.org .claude-code.txt
+greatfallstoolbus.org static/llms.txt
+greatfallstoolbus.org src/lib/data/mail-clients.ts
 PATHS
+
+# Product by operator ruling, TIN-3847 comment f95ca12f.
+expect_path 'allowed TIN-3847' greatfallstoolbus.org static/agent-map.md
 
 # Allow entries need a repository, an exact path, a ticket and a reason.
 alt="$work/tooling-paths.txt"
