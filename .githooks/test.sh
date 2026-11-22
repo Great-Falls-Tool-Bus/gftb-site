@@ -60,7 +60,8 @@ passed=0
 failed=0
 out="$work/out"
 
-# check NAME WANT_STATUS [--warns|--quiet|--refused] -- COMMAND...
+# check NAME WANT_STATUS [--warns|--quiet|--refused|--any] -- COMMAND...
+# WANT_STATUS 2 means exactly 2; any other nonzero value means any failure.
 check() {
   local name="$1" want="$2" expect="$3" got
   shift 4
@@ -71,6 +72,7 @@ check() {
   local ok=1
   if [ "$want" = 0 ] && [ "$got" -ne 0 ]; then ok=0; fi
   if [ "$want" != 0 ] && [ "$got" -eq 0 ]; then ok=0; fi
+  if [ "$want" = 2 ] && [ "$got" -ne 2 ]; then ok=0; fi
   case "$expect" in
     --warns) grep -q '^gftb-hooks: warning:' "$out" || ok=0 ;;
     --quiet) grep -q '^gftb-hooks:' "$out" && ok=0 ;;
@@ -154,9 +156,32 @@ printf 'more %s dash\n' "$em" >> dash.txt
 git add dash.txt
 check "em dash added to a file that had one is quiet" 0 --quiet -- commit -m "docs: extend dash file"
 
+# Record each local Huskycat dispatch without loading a developer's formatter.
+mkdir "$work/bin"
+cat > "$work/bin/huskycat" <<'HOOK'
+#!/usr/bin/env bash
+printf '%s %s %s\n' "$1" "$2" "${!#}" >> "$GFTB_TEST_DISPATCH"
+HOOK
+chmod +x "$work/bin/huskycat"
+export PATH="$work/bin:$PATH" GFTB_TEST_DISPATCH="$work/dispatch"
+printf 'hook pre-commit --complete-staged\nhook commit-msg --complete-staged\n' > "$work/expected"
+: > "$work/dispatch"
+check "the global hook owns Huskycat by default" 0 --quiet -- commit -m "test: global hooks"
+check "the repository does not run a second formatter" 0 --quiet -- test ! -s "$work/dispatch"
+git config gftb.huskycatOwner repo
+check "a custom global hook can delegate formatting" 0 --quiet -- commit -m "test: custom hooks"
+check "both Huskycat hooks run once" 0 --quiet -- cmp "$work/expected" "$work/dispatch"
+git config --unset gftb.huskycatOwner
+git config --global --unset core.hooksPath
+: > "$work/dispatch"
+check "a contributor without global hooks runs Huskycat" 0 --quiet -- commit -m "test: contributor hooks"
+check "the standalone path runs both hooks once" 0 --quiet -- cmp "$work/expected" "$work/dispatch"
+: > "$work/dispatch"
+
 # Loop guard: a global hooks path equal to this directory is never chained to.
 git config --global core.hooksPath "$hooks"
 check "global hooks path equal to the repo hooks does not loop" 0 --quiet -- commit -m "chore: loop guard"
+check "the shared hook path runs both hooks once" 0 --quiet -- cmp "$work/expected" "$work/dispatch"
 git config --global core.hooksPath "$work/global-hooks"
 
 # pre-push
@@ -225,6 +250,235 @@ git merge -q --no-verify --no-ff --no-gpg-sign -m "Merge branch 'feat/ok'" feat/
 check "unsigned local merge commit refused" 1 --refused -- git push -q origin feat/local-merge
 
 check "branch deletion passes" 0 --quiet -- git push -q origin :wip/x
+
+# tooling-paths.txt: path fixtures only, no network.
+out_lacks() {
+  if grep -qF -- "$2" "$out"; then
+    failed=$((failed + 1))
+    printf 'FAIL %s\n' "$1"
+  else
+    passed=$((passed + 1))
+    printf 'ok   %s\n' "$1"
+  fi
+}
+
+# shellcheck source=_lib.sh
+. "$hooks/_lib.sh"
+list="$hooks/tooling-paths.txt"
+
+# path_status LIST REPO PATH prints the status column, or `clean`.
+path_status() {
+  local got
+  got="$(printf '%s\n' "$3" | gftb_tooling_hits "$1" "$2" | cut -f3)"
+  printf '%s\n' "${got:-clean}"
+}
+
+expect_path() {
+  local want="$1" repo="$2" path="$3" got
+  got="$(path_status "$list" "$repo" "$path")"
+  if [ "$got" = "$want" ]; then
+    passed=$((passed + 1))
+    printf 'ok   %s %s:%s\n' "$want" "$repo" "$path"
+  else
+    failed=$((failed + 1))
+    printf 'FAIL %s:%s is %s, wanted %s\n' "$repo" "$path" "$got" "$want"
+  fi
+}
+
+while read -r repo path; do
+  expect_path hit "$repo" "$path"
+done <<'PATHS'
+greatfallstoolbus.org AGENTS.md
+greatfallstoolbus.org CLAUDE.md
+greatfallstoolbus.org CLAUDE.local.md
+greatfallstoolbus.org GEMINI.md
+greatfallstoolbus.org docs/AGENTS.md
+greatfallstoolbus.org packages/app/CLAUDE.md
+greatfallstoolbus.org .claude/settings.json
+greatfallstoolbus.org .claude/skills/release/SKILL.md
+greatfallstoolbus.org .agents/skills/gftb-mail-laceup-gmail/SKILL.md
+greatfallstoolbus.org .claude-plugin/marketplace.json
+greatfallstoolbus.org .codex/config.toml
+greatfallstoolbus.org .cursor/rules/house.mdc
+greatfallstoolbus.org .cursorrules
+greatfallstoolbus.org .gemini/settings.json
+greatfallstoolbus.org .windsurf/rules/house.md
+greatfallstoolbus.org .windsurfrules
+greatfallstoolbus.org .aider.conf.yml
+greatfallstoolbus.org .aiderignore
+greatfallstoolbus.org .aider.tags.cache.v3/cache.db
+greatfallstoolbus.org .mcp.json
+greatfallstoolbus.org skills/release/SKILL.md
+greatfallstoolbus.org scripts/build-agent-skills.mjs
+greatfallstoolbus.org scripts/validate-skills.py
+greatfallstoolbus.org docs/agent-notes/2026-11-01.md
+greatfallstoolbus.org docs/agent-adoption.md
+greatfallstoolbus.org static/agent-map.md
+greatfallstoolbus.org .github/copilot-instructions.md
+greatfallstoolbus.org .github/instructions/svelte.instructions.md
+greatfallstoolbus.org .github/prompts/release.prompt.md
+great-falls-tool-bus-infra docs/runbooks/platform-release-sitting-2026-11-n27.md
+great-falls-tool-bus-infra docs/runbooks/platform-release-sitting-2026-10.md
+great-falls-tool-bus-infra docs/runbooks/p0-sitting-2026-09.md
+great-falls-tool-bus-infra tools/inventory-readiness/guard.py
+great-falls-tool-bus-infra tools/inventory-readiness/guard_test.py
+great-falls-tool-bus-infra docs/operating-rules.md
+greatfallstoolbus.org ci/gate-box/Dockerfile
+greatfallstoolbus.org ci/gate-box/examples/modal_gate.py
+greatfallstoolbus.org scripts/gate-box.sh
+greatfallstoolbus.org scripts/merge/squash-receipt.py
+greatfallstoolbus.org scripts/house-graph-key.sh
+greatfallstoolbus.org scripts/house-graph-key.test.mts
+greatfallstoolbus.org AGENT.md
+greatfallstoolbus.org agents.md
+greatfallstoolbus.org Agents.md
+greatfallstoolbus.org claude.md
+greatfallstoolbus.org .Claude/settings.json
+greatfallstoolbus.org a/b/c/skill.md
+greatfallstoolbus.org .claude
+greatfallstoolbus.org .agents
+greatfallstoolbus.org packages/app/.claude
+greatfallstoolbus.org .githooks/AGENTS.md
+.github githooks/SKILL.md
+greatfallstoolbus.org .huskycat/CLAUDE.md
+greatfallstoolbus.org .github/workflows/.claude/settings.json
+greatfallstoolbus.org .claudeignore
+greatfallstoolbus.org .clinerules
+greatfallstoolbus.org .clinerules/house.md
+greatfallstoolbus.org .roo/rules/house.md
+greatfallstoolbus.org .kiro/steering/house.md
+greatfallstoolbus.org .continue/config.yaml
+greatfallstoolbus.org .opencode/agent/house.md
+greatfallstoolbus.org opencode.json
+greatfallstoolbus.org .junie/guidelines.md
+greatfallstoolbus.org .vscode/mcp.json
+greatfallstoolbus.org .github/agents/release.agent.md
+greatfallstoolbus.org apps/web/docs/agent-notes/x.md
+greatfallstoolbus.org plugins/scaffold-core/.claude-plugin/plugin.json
+greatfallstoolbus.org plugins/scaffold-core/skills/whoami/SKILL.md
+PATHS
+
+while read -r repo path; do
+  expect_path clean "$repo" "$path"
+done <<'PATHS'
+greatfallstoolbus.org .githooks/pre-push
+greatfallstoolbus.org .githooks/test.sh
+.github githooks/_lib.sh
+greatfallstoolbus.org .github/workflows/release.yml
+greatfallstoolbus.org .github/workflows/agents.yml
+greatfallstoolbus.org .github/lanes.json
+greatfallstoolbus.org .github/PULL_REQUEST_TEMPLATE.md
+greatfallstoolbus.org scripts/validate-lanes.py
+greatfallstoolbus.org docs/schemas/lanes.schema.json
+greatfallstoolbus.org src/routes/agents/+page.svelte
+greatfallstoolbus.org src/routes/agents/+page.server.ts
+greatfallstoolbus.org src/routes/mcp/+server.ts
+greatfallstoolbus.org src/routes/.well-known/oauth-protected-resource/mcp/+server.ts
+greatfallstoolbus.org src/routes/oauth/consent/+page.svelte
+greatfallstoolbus.org src/routes/(member)/account/connected-agents/+page.svelte
+greatfallstoolbus.org src/lib/server/agent/oauth.ts
+greatfallstoolbus.org src/lib/server/agent/oauth.test.ts
+greatfallstoolbus.org src/lib/agent/agents-page-copy.ts
+greatfallstoolbus.org src/lib/server/db/agent-schema.ts
+greatfallstoolbus.org e2e/agent-skeleton.spec.ts
+greatfallstoolbus.org drizzle/0069_agent_grant.sql
+greatfallstoolbus.org docs/runbooks/agent-kill-switch.md
+greatfallstoolbus.org docs/runbooks/lab-release.md
+greatfallstoolbus.org docs/operating-rules.md
+greatfallstoolbus.org src/routes/(finance)/contributions/receipts/+page.svelte
+greatfallstoolbus.org src/lib/server/contribution/receipt.ts
+greatfallstoolbus.org scripts/check-tracked-tree.mjs
+great-falls-tool-bus-infra tools/inventory-readiness/readiness.py
+great-falls-tool-bus-infra tools/mail-owner-publication/guards_test.py
+great-falls-tool-bus-infra scripts/remote-only-guard.sh
+great-falls-tool-bus-infra docs/runbooks/platform-release.md
+gftb-site src/content/goals/62-drafting-skillshare.md
+gftb-site scripts/lib/log-source-guard.mjs
+meta steering/operating-rules.md
+meta packets/printed/2026-09-11/RECEIPT.md
+greatfallstoolbus.org plugins/stripe/index.ts
+greatfallstoolbus.org plugins/stripe/plugin.json
+greatfallstoolbus.org skills/woodworking/intro.md
+greatfallstoolbus.org src/lib/skills/index.ts
+greatfallstoolbus.org docs/skills.md
+greatfallstoolbus.org .huskycat/config.toml
+greatfallstoolbus.org .vscode/settings.json
+greatfallstoolbus.org src/routes/membership/agents/+page.svelte
+greatfallstoolbus.org src/routes/oauth/authorize/+page.server.ts
+greatfallstoolbus.org scripts/lanes.json
+greatfallstoolbus.org scripts/landing-check.sh
+greatfallstoolbus.org scripts/lanesync.sh
+greatfallstoolbus.org docs/agent-notes.md
+greatfallstoolbus.org .claude-code.txt
+PATHS
+
+# Allow entries need a repository, an exact path, a ticket and a reason.
+alt="$work/tooling-paths.txt"
+cp "$list" "$alt"
+printf 'allow greatfallstoolbus.org:scripts/house-graph-key.sh TIN-3847 fixture reason\n' >> "$alt"
+check "an allow entry admits its exact path" 0 --quiet -- \
+  test "$(path_status "$alt" greatfallstoolbus.org scripts/house-graph-key.sh)" = "allowed TIN-3847"
+check "an allow entry admits no neighbour" 0 --quiet -- \
+  test "$(path_status "$alt" greatfallstoolbus.org scripts/house-graph-key.test.mts)" = hit
+check "an allow entry admits no other repository" 0 --quiet -- \
+  test "$(path_status "$alt" gftb-site scripts/house-graph-key.sh)" = hit
+for entry in 'allow greatfallstoolbus.org:scripts/x.sh' \
+  'allow greatfallstoolbus.org:scripts/x.sh TIN-3847' \
+  'allow scripts/x.sh TIN-3847 no repository' \
+  'allow greatfallstoolbus.org:scripts/*.sh TIN-3847 a pattern' \
+  'allow greatfallstoolbus.org:scripts/x.sh tin3847 bad ticket' \
+  'allow greatfallstoolbus.org:scripts/../AGENTS.md TIN-3847 a parent segment' \
+  'allow greatfallstoolbus.org:../AGENTS.md TIN-3847 a parent segment' \
+  'permit AGENTS.md' \
+  'keep .githooks/'; do
+  cp "$list" "$alt"
+  printf '%s\n' "$entry" >> "$alt"
+  check "malformed entry rejected: $entry" 2 --any -- \
+    bash -c ". '$hooks/_lib.sh'; printf 'AGENTS.md\n' | gftb_tooling_hits '$alt' meta"
+done
+check "a missing list is an error" 2 --any -- \
+  bash -c ". '$hooks/_lib.sh'; printf 'AGENTS.md\n' | gftb_tooling_hits '$work/none.txt' meta"
+
+# The pre-push hook warns about listed paths on organization pushes only.
+git switch -q -c feat/tooling "$base"
+mkdir -p ci/gate-box
+printf 'notes\n' > AGENTS.md
+printf 'FROM scratch\n' > ci/gate-box/Dockerfile
+git add AGENTS.md ci/gate-box/Dockerfile
+commit --no-verify -m "chore: add listed paths"
+check "organization push with listed paths stays refused" 1 --refused -- git push -q upstream feat/tooling
+out_has "the warning names AGENTS.md" 'adds or changes AGENTS.md'
+out_has "the warning names the gate box path" 'adds or changes ci/gate-box/Dockerfile'
+out_has "the warning names the Agents section" 'section "Agents"'
+check "fork push with listed paths is not path checked" 0 --quiet -- git push -q origin feat/tooling
+check "the fork's agents-overlay branch is not path checked" 0 --warns -- git push -q origin feat/tooling:agents-overlay
+out_lacks "the overlay push has no path warning" 'tooling-paths.txt'
+check "organization push after a fork push still warns" 1 --refused -- git push -q upstream feat/tooling
+out_has "the warning survives a remote-tracking fork ref" 'adds or changes AGENTS.md'
+git switch -q -c feat/unicode "$base"
+mkdir -p "docs/$(printf '\303\251')"
+printf 'notes\n' > "docs/$(printf '\303\251')/AGENTS.md"
+git add docs
+commit -m "docs: add a non-ASCII path"
+check "organization push with a non-ASCII listed path stays refused" 1 --refused -- git push -q upstream feat/unicode
+out_has "the warning names the non-ASCII path" "adds or changes docs/$(printf '\303\251')/AGENTS.md"
+
+git switch -q feat/ok
+check "organization push without listed paths has no path warning" 1 --refused -- git push -q upstream feat/ok
+out_lacks "a clean organization push names no path" 'tooling-paths.txt'
+
+git switch -q -c feat/rules "$base"
+mkdir -p docs
+printf 'rules\n' > docs/operating-rules.md
+git add docs/operating-rules.md
+commit -m "docs: add rules"
+sha="$(git rev-parse HEAD)"
+check "infra-only entry warns for infra" 1 --refused -- \
+  bash -c "printf 'refs/heads/feat/rules %s refs/heads/feat/rules %s\n' '$sha' '$null' | '$hooks/pre-push' upstream https://github.com/Great-Falls-Tool-Bus/great-falls-tool-bus-infra.git"
+out_has "infra-only entry names the path" 'adds or changes docs/operating-rules.md'
+check "infra-only entry is quiet for the platform" 1 --refused -- \
+  bash -c "printf 'refs/heads/feat/rules %s refs/heads/feat/rules %s\n' '$sha' '$null' | '$hooks/pre-push' upstream git@github.com:Great-Falls-Tool-Bus/greatfallstoolbus.org.git"
+out_lacks "the platform push names no path" 'tooling-paths.txt'
 
 printf '\nhooks-test: %s passed, %s failed\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]

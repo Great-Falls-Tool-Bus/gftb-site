@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Great Falls Tool Bus pre-push hook.
 # Refuses: a push to any Great-Falls-Tool-Bus remote, unsigned commits and AI
-# attribution in the pushed range. Warns: branch name without a semantic prefix.
+# attribution in the pushed range. Warns: branch name without a semantic prefix,
+# and, on a push to an organization remote, each path the push adds or changes
+# that tooling-paths.txt lists. Pushes to a fork are never path checked.
 # The pushed range is every commit not already on a remote-tracking ref.
 set -u
 
@@ -32,7 +34,52 @@ input="$(mktemp "${TMPDIR:-/tmp}/gftb-pre-push.XXXXXX")"
 trap 'rm -f "$input"' EXIT
 cat > "$input"
 
+# Warn about each listed path that a push to an organization remote adds or
+# changes, compared with the remote's ref or, for a new ref, the nearest
+# commit already on that remote.
+gftb_tooling_paths_warn() {
+  local list repo paths hits base refs
+  list="$(dirname "$0")/tooling-paths.txt"
+  repo="${remote_url%/}"
+  repo="${repo##*/}"
+  repo="${repo%.git}"
+  paths="$(mktemp "${TMPDIR:-/tmp}/gftb-pre-push-paths.XXXXXX")" || return 0
+  hits="$(mktemp "${TMPDIR:-/tmp}/gftb-pre-push-hits.XXXXXX")" || { rm -f "$paths"; return 0; }
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "${local_sha:-}" ] || continue
+    if gftb_is_null_oid "$local_sha"; then continue; fi
+    base=""
+    if ! gftb_is_null_oid "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      base="$remote_sha"
+    else
+      refs="$(git for-each-ref --format='%(objectname)' "refs/remotes/$remote_name/" 2>/dev/null)"
+      if [ -n "$refs" ]; then
+        # shellcheck disable=SC2086 # one argument per ref
+        base="$(git merge-base "$local_sha" $refs 2>/dev/null || true)"
+      fi
+    fi
+    if [ -z "$base" ]; then
+      base="$(git hash-object -t tree /dev/null)"
+    fi
+    # NUL-separated names are never quoted, so non-ASCII paths arrive intact.
+    git diff -z --name-only --no-renames --diff-filter=AMT "$base" "$local_sha" -- | tr '\000' '\n' >> "$paths"
+  done < "$input"
+  if ! sort -u "$paths" | gftb_tooling_hits "$list" "$repo" > "$hits"; then
+    gftb_warn "could not read $list; the pushed paths were not checked" \
+      "Agents" \
+      "just hooks-check"
+  fi
+  while IFS="$(printf '\t')" read -r path rule status; do
+    [ "$status" = hit ] || continue
+    gftb_warn "the push adds or changes $path, listed in tooling-paths.txt as $rule; it belongs on your <repo>-contrib fork, not upstream" \
+      "Agents" \
+      "git rm --cached -r -- '$path' && git commit   # keep it on your fork's agents-overlay branch"
+  done < "$hits"
+  rm -f "$paths" "$hits"
+}
+
 if printf '%s\n' "$remote_url" | grep -iqE 'github\.com[:/]+Great-Falls-Tool-Bus/'; then
+  gftb_tooling_paths_warn
   gftb_refuse "push to the organization remote '$remote_name' ($remote_url); work lands only through a pull request from your fork" \
     "Fork first" \
     "git push origin HEAD && git config remote.pushDefault origin   # then open the pull request from your fork"
