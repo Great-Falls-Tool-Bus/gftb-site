@@ -1,9 +1,6 @@
 <script lang="ts">
-	// The toolbox-bus glyph from static/favicon.svg on currentColor: the same
-	// mark as the browser tab, drawn in whatever role the parent sets (the
-	// footer, forced colours, anything too small for the colour mark).
-	// Decorative and unfocusable; a unit pin keeps the body path equal to the
-	// favicon's, and the body path comes first for that pin.
+	// Draw the glyph from static/favicon.svg in currentColor so it follows the parent in
+	// forced colours. Keep the body path first for the favicon parity check.
 	let { class: className = '' }: { class?: string } = $props();
 </script>
 

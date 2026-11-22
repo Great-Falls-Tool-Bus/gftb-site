@@ -4,26 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from './support/fixtures';
 import { installExternalGuard } from './support/network';
 
-// Acceptance row (§3): a missing path is answered with a real, branded body —
-// and with the same body whether or not the client runs scripts.
-//
-// The regression this guards is specific. adapter-static was configured with an
-// SPA fallback, so `build/404.html` was a shell rendered with `ssr: false`: no
-// title, no heading, no link home, an empty <body>. A scriptless visitor saw
-// exactly what the zero-byte 404 gave them. `src/routes/404` is now a
-// prerendered route with `csr = false`, so those bytes ARE the page.
-//
-// The serving side of the same behaviour is written twice — `handle_errors` in
-// flake.nix (what the image runs) and `_StaticPreviewHandler.send_error` in
-// scripts/bazel_output.py (what this suite measures). These tests hold the
-// preview half; scripts/test-bazel-cutover-contracts.py pins the two texts
-// against each other so neither can be edited away in silence.
+// §3 requires a branded 404 even with scripts disabled. The prerendered `src/routes/404` uses
+// `csr = false` so `build/404.html` contains the page. These requests exercise
+// `_StaticPreviewHandler.send_error` in scripts/bazel_output.py.
+// scripts/test-bazel-cutover-contracts.py checks parity with `handle_errors` in flake.nix.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// /log and /contact left this fixture with addendum B1: they are real pages
-// now. /tools stays missing on purpose — that surface is platform-owned
-// (ADR 0014 §1) and must never appear here.
+// /log and /contact are public pages under addendum B1. ADR 0014 §1 reserves /tools for the
+// platform.
 const MISSING_PATHS = ['/nope', '/tools', '/cells', '/keyholders', '/a/b/c.html', '/log/not-a-post'];
 
 test.describe('a missing path', () => {
@@ -62,17 +51,14 @@ test.describe('a missing path', () => {
 		await installExternalGuard(page, baseUrl);
 		await page.goto('/nope');
 
-		// The layout renders SEOHead for every route, so the assertion is that
-		// exactly one robots meta exists and it is the restrictive one — the
-		// previous shape emitted the layout's `index, follow` alongside the error
-		// page's own tag, and the layout's won.
+		// SEOHead runs on every route. A second robots tag could expose the layout's `index, follow`
+		// alongside the error directive.
 		const robots = page.locator('meta[name="robots"]');
 		await expect(robots).toHaveCount(1);
 		await expect(robots).toHaveAttribute('content', 'noindex, nofollow');
 		await expect(page.locator('title')).toHaveCount(1);
 
-		// A canonical on a 404 is a soft-404 signal, and one pointing at the home
-		// page tells a crawler the missing URL IS the home page.
+		// A canonical pointing home would tell crawlers the missing URL represents the home page.
 		await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
 		await expect(page.locator('meta[property="og:url"]')).toHaveCount(0);
 	});
@@ -92,8 +78,7 @@ test.describe('a missing path', () => {
 			expect(response.headers()['content-type'] ?? '', `content-type for ${servedPath}`).toContain(expectedType);
 		}
 
-		// The printed apex QR must survive this change byte for byte: it is on
-		// physical signage and cannot be proofread by eye.
+		// Physical signage carries the printed apex QR, so its bytes must match.
 		const served = await (await page.request.get('/qr/greatfallstoolbus-apex.svg')).body();
 		const committed = readFileSync(path.join(repoRoot, 'static/qr/greatfallstoolbus-apex.svg'));
 		expect(Buffer.compare(served, committed), 'served QR differs from the committed artefact').toBe(0);

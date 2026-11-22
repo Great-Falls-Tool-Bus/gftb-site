@@ -1,12 +1,9 @@
 <script lang="ts">
 	import SourceLink from '#lib/components/SourceLink.svelte';
 
-	// The club's agreements as the compiled documents themselves (operator
-	// ruling 2026-09-19): each PDF is built from its LaTeX source in the
-	// private meta repository by the tectonic pipeline, published as a public
-	// release, and fetched into this build by pinned URL and sha256
-	// (MODULE.bazel) under /agreements/, away from this route's own output
-	// directory. No status line: the document carries its own date.
+	// The private meta repository builds each agreement from LaTeX with tectonic. MODULE.bazel
+	// pins the public release URL and sha256. Serve the PDFs from /agreements/ so they stay
+	// outside this route’s output directory. Each document carries its own date.
 	const documents = [
 		{
 			id: 'member-agreement',

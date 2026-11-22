@@ -55,9 +55,8 @@ def main() -> int:
     PINS.write_text(json.dumps(fresh, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     host = HOST.get((platform.system(), platform.machine()))
     if host:
-        # The out-link is the GC root that keeps the pinned store path alive
-        # (gitignored and bazelignored); without it a Nix GC removes the
-        # browser and @chromium_nix refuses to resolve.
+        # The out-link keeps the pinned browser alive through Nix GC so @chromium_nix can
+        # still resolve it.
         subprocess.run(
             ["nix", "build", "--out-link", str(ROOT / ".e2e-chromium"), f"{ROOT}#packages.{host}.e2e-chromium"],
             check=True,

@@ -1,12 +1,7 @@
 <script lang="ts">
-	// The one body for both error surfaces: the prerendered /404 route, whose
-	// output Caddy serves for any missing path, and +error.svelte, which the
-	// client router renders for a navigation that fails after boot. Sharing it
-	// is what stops the two from drifting into different copy.
-	//
-	// Only the status code is echoed. The framework's error text can carry an
-	// internal path or handler detail, and this page is public, so it is never
-	// printed here — the leak scan is a backstop for that rule, not the rule.
+	// Caddy serves the prerendered /404 for missing paths. +error.svelte shares its body for
+	// client navigation. Render only the status code because framework error text can expose
+	// an internal path or handler detail.
 	interface Props {
 		status?: number;
 	}

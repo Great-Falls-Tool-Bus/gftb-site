@@ -1,8 +1,5 @@
-// The runes adapter around WiperMachine: owns the pane element, the frame
-// loop, the per-frame DOM write (one inherited custom property on the pane),
-// the per-item mask geometry, and a reactive view for the template. Coarse
-// state changes a few times per cycle and lives in $state; the 60 Hz channel
-// never touches reactivity. Every listener hangs off one AbortSignal.
+// WiperMachine exposes coarse state through $state. Each frame writes one inherited CSS
+// property on the pane to avoid reactive updates at 60 Hz. One AbortSignal owns the listeners.
 import {
 	armsOver,
 	bladePoseAt,
@@ -31,10 +28,8 @@ export interface WiperEngineOptions extends WiperMachineOptions {
 }
 
 /**
- * Test and LOOK hook: `<html data-wiper-freeze="0.5">` holds the out-stroke
- * at that unit; `data-wiper-freeze="rest"` holds a rest open (the dwell
- * stops counting) while the scene keeps running, so beads and frost build
- * for as long as a row needs to look at them.
+ * <html data-wiper-freeze="0.5"> holds an out-stroke at that unit. The value rest pauses the
+ * dwell while beads and frost accumulate.
  */
 const FREEZE_ATTR = 'wiperFreeze';
 const REST_HOLD = 'rest';
@@ -95,8 +90,7 @@ export class WiperEngine {
 	relayout(): void {
 		const pane = this.#pane;
 		if (!pane) return;
-		// The glass is the list, not the wrapper: the hub hangs below the notes,
-		// never below the stalk or the collection link.
+		// Measure the list so the hub hangs below the notes.
 		const glass = pane.querySelector<HTMLElement>('.goal-list') ?? pane;
 		// Layout reads first, all of them, then the writes. offsetLeft and
 		// offsetTop ignore transforms (a resize landing mid-stroke must not bake
@@ -118,12 +112,8 @@ export class WiperEngine {
 			const { item } = entry;
 			const [owner, second] = armsOver(geometry, entry);
 			if (second) {
-				// A note both blades pass over is wiped by both, each where it
-				// passes. The stylesheet composites the pair as the left arm's
-				// wedge plus the right arm's wedge cut to the right blade's own
-				// disc (a wedge is unbounded in radius, and the right blade's
-				// would otherwise reveal the whole left column ahead of the left
-				// blade), so the sets are written by side, not by ownership.
+				// Each blade wipes the notes it crosses. Clip the right mask to its own disc so
+				// its wedge cannot reveal the left column early.
 				const [left, right] = leftToRight([owner, second]);
 				this.#writeArmVars(item, left, entry, '');
 				this.#writeArmVars(item, right, entry, '-2');
@@ -136,9 +126,7 @@ export class WiperEngine {
 				delete item.dataset.wipeArms;
 			}
 		}
-		// The shove (app.css --wipe-push) moves a page's notes as one row driven
-		// by the first blade to touch one of them; every note on the page gets
-		// the same contact so the row cannot come apart.
+		// Use the first blade contact for the whole row so notes move together.
 		const pageSize = this.machine.pageSize;
 		const pages: (typeof items)[] = [];
 		items.forEach((entry, index) => {
@@ -160,11 +148,8 @@ export class WiperEngine {
 	}
 
 	/**
-	 * The blades as they stand at `now` (the animation frame's own timestamp),
-	 * for the scene to draw in the same frame the mask moves. Both read the
-	 * machine's clock through the same easing, and a LOOK or test hold
-	 * (data-wiper-freeze) pins both to the held unit, so the drawn blade and
-	 * the mask edge cannot come apart.
+	 * Sample the blades and mask on the same frame timestamp. Both use the same easing and
+	 * honor data-wiper-freeze.
 	 */
 	blades(now: number): BladePose[] {
 		const geometry = this.#geometry;
@@ -254,8 +239,7 @@ export class WiperEngine {
 			return;
 		}
 		if (frozen !== undefined && frozen !== REST_HOLD && this.machine.phase === 'out') {
-			// Held for a test or a LOOK: the blade stays where the attribute says
-			// and the stroke resumes from there once the hold lifts.
+			// Resume the stroke at the held angle when the attribute clears.
 			const unit = Math.min(Math.max(Number.parseFloat(frozen) || 0, 0), 1);
 			this.#writeUnit(this.machine.holdStrokeAt(unit, now));
 			this.#raf = requestAnimationFrame(this.#frame);

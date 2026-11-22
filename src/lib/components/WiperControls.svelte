@@ -1,18 +1,14 @@
 <script lang="ts">
-	// The stalk: one Skeleton SegmentedControl (a radio group) with four
-	// detents, Off first. Interim text treatment by operator ruling at LOOK 1
-	// (app.css .wiper-stalk*): plain text, the active detent in the accent
-	// with a rule under it, radius 0 on every part, no track, no slider, no
-	// fill, and no timed rule at all; the source contract pins each of those.
+	// The Skeleton SegmentedControl exposes four detents with Off first. LOOK 1 specifies the
+	// active underline, radius 0 and plain text. app.css styles .wiper-stalk*.
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import type { WiperEngine } from '#lib/wiper/engine.svelte.js';
 	import { WIPER_DETENTS, isWiperDetent } from '#lib/wiper/schedule.js';
 
 	const { engine }: { engine: WiperEngine } = $props();
 
-	// Destructured on purpose: the minified member access on the anatomy
-	// object (a single capital followed by a dotted capitalised word) reads
-	// as an initialled personal name to the build-output leak scan.
+	// Destructure the anatomy so a minified member access cannot resemble a personal name in
+	// the build-output leak scan.
 	const { Label, Control, Item, ItemText, ItemHiddenInput } = SegmentedControl;
 
 	function onValueChange(details: { value: string | null }) {

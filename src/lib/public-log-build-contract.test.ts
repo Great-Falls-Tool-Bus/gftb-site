@@ -5,10 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { parseLogFrontmatter, readLogEntries } from '../../scripts/lib/log-content.mjs';
 import { assertPublicLogMetadata } from './public-log-schema';
 
-// Acceptance row: static build and frontmatter validity for the .svx logs.
-// src/lib/public-log-content.test.ts already guards which *keys* may appear;
-// this asserts the parsed *values* survive the real schema gate, and that the
-// build wiring which turns them into a prerendered page is still in place.
+// src/lib/public-log-content.test.ts checks the .svx frontmatter keys. These rows check
+// parsed values against the schema and verify that the build prerenders the logs.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const contentDirectory = path.join(repoRoot, 'src/content/log');
@@ -17,10 +15,8 @@ const logFiles = readdirSync(contentDirectory).filter((file) => file.endsWith('.
 const unquote = (value: string) => value.trim().replace(/^['"]|['"]$/gu, '');
 
 /**
- * The frontmatter subset these logs are allowed to use: top-level scalars,
- * inline arrays, and block sequences. Anything richer is rejected rather than
- * guessed at, so a log that needs new syntax has to update this contract
- * deliberately instead of quietly reaching the public build.
+ * Log frontmatter accepts top-level scalars, inline arrays and block sequences. Reject
+ * other syntax so the public build cannot misinterpret it.
  */
 function parseFrontmatter(raw: string, source: string): Record<string, unknown> {
 	const block = /^---\n([\s\S]*?)\n---/u.exec(raw)?.[1];
@@ -90,9 +86,8 @@ describe('public log frontmatter', () => {
 		);
 	});
 
-	// The featured-image keys are FLAT scalars by design: this parser (and the
-	// real one in scripts/lib/log-content.mjs) rejects nested maps, so the
-	// group must round-trip as top-level keys and survive the schema intact.
+	// Featured-image keys must round-trip as top-level scalars. This parser and
+	// scripts/lib/log-content.mjs reject nested maps.
 	it('round-trips flat featured-image frontmatter through the parser and the schema', () => {
 		const fixture = [
 			'---',
@@ -117,11 +112,8 @@ describe('public log frontmatter', () => {
 		expect(metadata.image_aspect).toBe('3/2');
 	});
 
-	// Loader fence (spec §3 :112-116), moved off src/lib/public-logs.ts by the
-	// B1 fix: two entries sharing a date would be a silent tie-break at the
-	// reader-visible sort key, so it stays a build-time rejection — just
-	// asserted here, over every checked-in file (published or draft), instead
-	// of inside the module the client bundle reaches.
+	// Spec §3 :112-116 requires a unique date for sorting. Check every published entry and
+	// draft at build time, outside the client module src/lib/public-logs.ts.
 	it('rejects two log entries sharing a frontmatter date', () => {
 		const dates = logFiles.map((file) => {
 			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');
@@ -184,11 +176,9 @@ describe('static build wiring for the logs', () => {
 	});
 
 	it('highlights code fences at build time with the dual-theme shiki contract (D07)', () => {
-		// The code-surface contract: shiki runs inside the mdsvex preprocessor
-		// (never in the client bundle) with a light+dark theme pair and
-		// defaultColor: false, so the emitted markup carries only the
-		// --shiki-light/--shiki-dark variables that src/app.css walks, keyed
-		// on the same data-mode attribute as the role layer.
+		// The mdsvex preprocessor runs shiki with defaultColor: false. src/app.css uses data-mode
+		// to select the emitted --shiki-light/--shiki-dark variables. The client needs no
+		// highlighter.
 		const svelteConfig = readFileSync(path.join(repoRoot, 'kit.config.js'), 'utf8');
 		expect(svelteConfig).toContain("import { codeToHtml } from 'shiki'");
 		expect(svelteConfig).toMatch(/themes:\s*SHIKI_THEMES/u);
@@ -207,12 +197,9 @@ describe('static build wiring for the logs', () => {
 		expect(svelteConfig).toContain('@sveltejs/adapter-static');
 	});
 
-	// The 404 body must be a PRERENDERED route, never an SPA fallback. A
-	// fallback renders with `ssr: false` and an empty branch, so the served
-	// bytes carried no title, no heading and no link home: a scriptless visitor
-	// saw the same blank page the zero-byte 404 gave them. Both halves are
-	// asserted because adapter-static writes the fallback AFTER the prerendered
-	// pages, so re-adding one silently takes 404.html back.
+	// A scriptless visitor needs a title, heading and home link in 404.html. An SPA fallback
+	// renders an empty branch with `ssr: false`. adapter-static writes that fallback after
+	// prerendering and would overwrite the 404 route.
 	it('builds the 404 body from a prerendered route, not an SPA fallback', () => {
 		const svelteConfig = readFileSync(path.join(repoRoot, 'kit.config.js'), 'utf8');
 		expect(svelteConfig).not.toMatch(/^\s*fallback:/mu);
@@ -225,13 +212,9 @@ describe('static build wiring for the logs', () => {
 	});
 
 	it('never re-introduces an eager glob over the content tree (B1 regression guard)', () => {
-		// PR #33 review B1: an eager `import.meta.glob` over every entry —
-		// published or not — made every draft's prose and metadata a static
-		// import, so it shipped to every visitor regardless of the runtime
-		// `published` filter. The fix (src/lib/generated/log-manifest.ts,
-		// scripts/build-log-manifest.mjs) reads the content tree with plain
-		// node:fs at generation time instead, so this module must never glob
-		// src/content/log again.
+		// PR #33 found that eager `import.meta.glob` bundled every draft before the runtime
+		// `published` filter. scripts/build-log-manifest.mjs reads src/content/log with node:fs
+		// and supplies the public entries in src/lib/generated/log-manifest.ts.
 		const publicLogs = readFileSync(path.join(repoRoot, 'src/lib/public-logs.ts'), 'utf8');
 		expect(publicLogs).not.toContain('import.meta.glob(');
 		expect(publicLogs).toContain("import { publishedLogEntries } from './generated/log-manifest'");
@@ -249,8 +232,7 @@ describe('static build wiring for the logs', () => {
 			const slug = file.replace(/\.svx$/u, '');
 			expect(manifest).toContain(`slug: '${slug}'`);
 		}
-		// ...and no UNPUBLISHED entry's title or summary appears in it at all —
-		// the exact defect the review's grep proved against build output.
+		// Draft titles and summaries must also stay out of the generated manifest.
 		for (const file of logFiles) {
 			if (publishedFiles.includes(file)) continue;
 			const raw = readFileSync(path.join(contentDirectory, file), 'utf8');

@@ -1,26 +1,9 @@
 <script lang="ts">
-	// RSVP for a work session (operator interview 2026-10-02, Option A). One
-	// instance on the home page takes the band's RSVP_OPEN_EVENT (and cancels
-	// it, so the band does not fall back to the contact section) and opens a
-	// modal for that session. The RSVP rides the public contact relay as a
-	// contact message: the name starts with "RSVP ", the message carries
-	// "Slot: <id>", and no acknowledgement is sent; a keyholder replies by
-	// hand. Fields: email (required), name or handle (optional), "Anything we
-	// should know?" (optional), the honeypot and the shared ALTCHA widget.
-	//
-	// States: an invalid email is caught here and sends nothing; a 400 about
-	// the address says to check it; 429 and 500 have their own copy; when the
-	// relay cannot be reached at all (offline, CORS, down) the dialog offers
-	// the same RSVP by email. A filled honeypot shows the quiet success and
-	// sends nothing. A sent slot is remembered in memory only, for this page
-	// view: reopening it says "Already sent". The trigger stays enabled, and
-	// focus goes back to it whenever the dialog closes. A send keeps running
-	// when the dialog closes: its answer marks its own slot as sent and shows
-	// only while that slot's dialog is open, and reopening that slot while it
-	// is in flight shows the disabled "Sending…" button again.
-	//
-	// The Dialog anatomy is the one SubscribeCapture.svelte adopted (see the
-	// ADOPTION RECORD there); the dress is this file's own :global block.
+	// The page accepts RSVP_OPEN_EVENT so the band skips its contact fallback. Send each RSVP
+	// through the contact relay with an “RSVP ” name prefix and a “Slot: <id>” message. A
+	// keyholder replies by hand. Keep in-flight and sent state by slot for this page view.
+	// Closing a dialog leaves its request running. A reply updates the open dialog only if its
+	// slot matches. Follow the Dialog anatomy in SubscribeCapture.svelte.
 	import { onMount, tick } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -44,9 +27,8 @@
 		type RsvpOpenDetail,
 		type RsvpSlot,
 	} from '#lib/rsvp-form.js';
-	// The parts are bound to flat local names once, so the minified bundle
-	// carries no `X.Title`-style member access for the leak scan to read
-	// as a personal name (operator ruling 2026-10-02).
+	// Bind the Dialog parts to flat names. Minified `X.Title` member access can look like a
+	// personal name to the leak scan.
 	const {
 		Backdrop: DialogBackdrop,
 		Positioner: DialogPositioner,
@@ -112,8 +94,7 @@
 		return () => document.documentElement.removeAttribute(RSVP_OPEN_ATTR);
 	});
 
-	// The widget is rebuilt each time the form shows, so every opening solves
-	// a fresh proof (proofs are single use and expire after 30 minutes).
+	// Rebuild the widget on each opening. A proof is single use and expires after 30 minutes.
 	$effect(() => {
 		const element = widgetEl;
 		if (!element) return;
@@ -147,9 +128,8 @@
 		}
 	}
 
-	// The form, and the Send button that had focus, give way to the
-	// confirmation: focus moves to its heading so the confirmation is read
-	// out and keyboard focus stays in the dialog.
+	// Move focus from the disappearing Send button to the confirmation heading so assistive
+	// technology announces the result.
 	async function focusConfirmation() {
 		await tick();
 		document.querySelector<HTMLElement>('[data-testid="rsvp-dialog"] .rsvp-dialog__title')?.focus();
@@ -394,9 +374,8 @@
 		overflow: auto;
 	}
 
-	/* The box is the site's shared glass (app.css lists .rsvp-dialog with the
-	   surface rule, which sets its inks and fill), the same surface as the
-	   work sessions band that opens it; yellow is the accent edge only. */
+	/* app.css gives .rsvp-dialog the shared surface fill and inks. Reserve yellow for the
+	 * accent edge. */
 	:global(.rsvp-dialog) {
 		width: min(30rem, 100%);
 		max-height: calc(100vh - 2rem);

@@ -6,23 +6,10 @@ test.beforeEach(async ({ page }) => {
 	await skipHomeIntro(page);
 });
 
-// Restoration rows for the hero backdrop. The drift is a CSS scroll-driven
-// animation, double-gated behind `@supports (animation-timeline: view())`
-// and `@media (prefers-reduced-motion: no-preference)`.
-//
-// B5 (inventory Appendix A): under prefers-reduced-motion: reduce the layer
-// declares no animation and holds no transform — the acceptance-motion suite
-// already sweeps every element, this row pins the hero layer by name.
-//
-// Clamp: the layer over-scans the band by 20% on the block axis and the
-// keyframes travel ±8% of the layer's own height (≤ 11.2% of the band), so
-// the layer must cover the band rect at EVERY scroll position. Asserted at
-// top and max scroll, at the inventory's widths. The assertions are
-// support-agnostic on purpose: in a browser without scroll-driven animations
-// (Firefox, behind PLAYWRIGHT_ALL_BROWSERS — WebKit supports
-// animation-timeline and animates) the layer is the static centered cover
-// image and covers the band trivially — that IS the specified fallback, so
-// the same rows prove it.
+// B5 in inventory Appendix A requires a static cover image under reduced motion. Animation also
+// requires `@supports (animation-timeline: view())`. The layer overscans the band by 20% and
+// travels ±8% of its own height. Verify coverage at both scroll limits, including browsers that
+// use the static fallback.
 
 const WIDTHS = [375, 768, 1440];
 
@@ -54,8 +41,7 @@ test('the drift layer is inert under prefers-reduced-motion: reduce (B5)', async
 	const drift = await driftState(page);
 	expect(drift.animationName, 'no animation is declared under reduce').toBe('none');
 	expect(drift.transform, 'the layer holds no transform under reduce').toBe('none');
-	// The reduced-motion state is the same static cover image the no-support
-	// fallback ships — still present, still covering the band.
+	// Reduced motion keeps the static cover image across the band.
 	expect(drift).toMatchObject({ coversTop: true, coversBottom: true, coversLeft: true, coversRight: true });
 	await expect(page.locator('.hero__drift img')).toBeVisible();
 });

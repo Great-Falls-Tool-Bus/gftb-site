@@ -9,7 +9,7 @@ export type TailnetState = 'idle' | 'checking' | 'yes' | 'yes-empty' | 'no';
 class GatedSurface {
 	items = $state<SurfaceItem[]>([]);
 	tailnet = $state<TailnetState>('idle');
-	/** True when the build stamped a tailnet probe URL; otherwise there is no button. */
+	/** Show the button only when the build supplied a probe URL. */
 	readonly canAskTailnet = TAILNET_PROBE_URL !== '';
 	/** True once the browser has loaded the surface (never during prerender). */
 	ready = $state(false);
@@ -26,13 +26,12 @@ class GatedSurface {
 		return this.items.filter((item) => item.slot === slot);
 	}
 
-	/** Starts the load once per page load. Never throws. */
+	/** Reuse the page’s first request and handle errors locally. */
 	load(): void {
 		if (this.#started || typeof window === 'undefined') return;
 		this.#started = true;
 		this.ready = true;
-		// A fetch cut off by navigation fails; that is not a real "no", so the
-		// outcome is not cached once the page is on its way out.
+		// An interrupted navigation gives no probe result to cache.
 		let leaving = false;
 		const leave = () => {
 			leaving = true;
@@ -45,8 +44,7 @@ class GatedSurface {
 			getSession: () => window.sessionStorage,
 			canCache: () => !leaving,
 			pageOrigin: window.location.origin,
-			// The build flag is inlined by Vite, so this import is dead code (and
-			// the fixture module is dropped) in any build without it.
+			// Vite removes the fixture import when the build flag is off.
 			loadFixture: __MEMBERSHIP_FIXTURE__ === true ? async () => (await import('./fixture')).FIXTURE_ITEMS : undefined,
 		}).then(
 			(items) => {

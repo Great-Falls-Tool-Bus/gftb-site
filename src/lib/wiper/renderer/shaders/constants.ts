@@ -7,7 +7,7 @@ export const BLOB_WINDOW_EXTENT = 133;
 /** Rendered body radius over the physics size, and the halo beyond it. */
 export const BLOB_RENDER_SCALE = 1.15;
 export const BLOB_GLOW_SCALE = 2.2;
-/** Terminal cruise as tinyvectors driftSpeed (units per substep gain); the package default is 0.05 to 0.10. */
+/** Terminal driftSpeed for each substep. The package default ranges from 0.05 to 0.10. */
 export const CRUISE_SPEED: readonly [number, number] = [0.18, 0.3];
 export const CRUISE_SPEED_COARSE: readonly [number, number] = [0.1, 0.16];
 
@@ -16,11 +16,11 @@ export const MAX_ARMS = 2;
 
 // ---- M4: droplets and frost ------------------------------------------------
 
-/** One bead at most per cell of this size, CSS px. */
+/** Cell size in CSS pixels. Each cell holds at most one bead. */
 export const DROP_CELL_PX = 32;
 export const DROP_MAX_COLS = 96;
 export const DROP_MAX_ROWS = 40;
-/** Births per empty cell per second at full ramp and headroom. */
+/** Birth rate in an empty cell at full ramp and headroom. */
 export const DROP_BIRTH_RATE = 0.28;
 /** After a pass a cell stays dry this long, then ramps back to full births over DROP_RAMP_S. */
 export const DROP_RAMP_DELAY_S = 0.5;

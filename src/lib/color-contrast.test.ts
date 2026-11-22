@@ -27,8 +27,8 @@ describe('WCAG colour maths', () => {
 		expect(formatRgb(parseCssColor('oklch(38.32% 0.0755 294.64deg)'))).toBe('#463a67');
 		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 94.09deg)'))).toBe('#efc822');
 		expect(formatRgb(parseCssColor('oklch(26.25% 0.0186 314.48deg)'))).toBe('#28222b');
-		// Computed form: Chromium serialises the same declaration with a 0..1
-		// lightness and a unitless hue, and does not down-convert it to rgb().
+		// Chromium serialises the computed declaration with 0..1 lightness and a unitless hue in
+		// place of rgb().
 		expect(formatRgb(parseCssColor('oklch(0.3832 0.0755 294.64)'))).toBe('#463a67');
 		// color-mix(in oklab, …, transparent) comes back as oklab() with alpha.
 		expect(parseCssColor('oklab(0.842 -0.0118611 0.165876 / 0.16)').alpha).toBeCloseTo(0.16, 10);
@@ -38,10 +38,9 @@ describe('WCAG colour maths', () => {
 	});
 
 	it('reads every CSS angle unit the hue component may carry', () => {
-		// 94.09deg is --color-secondary-300, the site's --highlight. Each spelling
-		// below is the same angle: 104.544grad, 1.642199rad, 0.2613611turn.
-		// `grad` is the trap — it ends in `rad`, so an unanchored radian probe
-		// converts it with the wrong factor and lands on #0eddff instead.
+		// The --highlight angle of 94.09deg for --color-secondary-300 also reads as 104.544grad,
+		// 1.642199rad or 0.2613611turn. An unanchored `rad` check matches `grad` and returns
+		// #0eddff.
 		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 94.09deg)'))).toBe('#efc822');
 		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 104.544grad)'))).toBe('#efc822');
 		expect(formatRgb(parseCssColor('oklch(84.2% 0.1663 1.642199rad)'))).toBe('#efc822');

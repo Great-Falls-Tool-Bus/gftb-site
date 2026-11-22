@@ -1,17 +1,9 @@
 <script lang="ts">
-	// The footer button that asks whether you are on the tool bus network
-	// (operator ruling 2026-10-05: "Set, gated by a footer button that opens a
-	// modal to ask for permission using the skeleton v5 pattern"). The site never
-	// probes the tailnet on page load: the probe runs only from the button inside
-	// this modal, after the visitor reads that the browser will ask for permission
-	// to connect to devices on the local network. A blocked request, a denied
-	// permission, a timeout or a non-true answer is a quiet "no". A yes mounts the
-	// membership surface through the gated store (src/lib/gated/manifest.ts).
-	//
-	// This file is the modal. The footer button that opens it is in
-	// +layout.svelte; it is public and harmless, renders only in the browser, only
-	// when the build stamped a probe URL, and only while no member links are
-	// showing. The Dialog anatomy is the one RsvpDialog.svelte follows.
+	// The 2026-10-05 ruling puts the network probe behind an explicit action inside the modal.
+	// A denied permission, timeout or unsuccessful response leaves the member links hidden. A
+	// positive response loads the membership surface through src/lib/gated/manifest.ts.
+	// +layout.svelte renders the footer trigger in the browser when the build supplied a probe
+	// URL and no member links are visible.
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { gatedSurface } from '#lib/gated/surface.svelte.js';
 

@@ -1,9 +1,5 @@
-// Contract for src/content/hours/<id>.json: one file per staffed work-session
-// slot on the bus. Fails closed like public-goal-schema.ts: unknown keys are
-// rejected at both levels (the slot and its `repeat`), and no string may carry
-// an em dash. Dates are calendar dates in New York; nothing here reads a clock.
-// The build never expands occurrences: src/lib/hours-recurrence.ts does that
-// on the visitor's clock after mount.
+// Each file in src/content/hours names one staffed slot. Validate both slot and repeat keys.
+// Dates use the New York calendar. Expand occurrences on the visitor’s clock after mount.
 import { isValidIsoDate } from './public-log-schema';
 
 export const HOURS_WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -53,7 +49,7 @@ export interface PublicHoursSlot {
 	timezone: typeof HOURS_TIMEZONE;
 	staff: ConsentedStaff[];
 	repeat: HoursRepeat;
-	/** Cancelled dates; each one must be a generated occurrence. */
+	/** Canceled dates; each one must be a generated occurrence. */
 	skip?: string[];
 	location?: (typeof HOURS_LOCATIONS)[number];
 	notes?: string;

@@ -1,7 +1,6 @@
-// Source pins for the home intro (operator ruling 2026-09-10): the pre-paint
-// arm, the stylesheet's zero-timed-rule contract under reduce, the veil's
-// self-hiding keyframes, paper, the decorative components, and a controller
-// that registers no scroll listener and never moves focus.
+// The 2026-09-10 ruling requires the intro to arm before paint and hide its veil. The
+// stylesheet disables timing under reduced motion. The controller leaves scrolling and
+// focus alone.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -125,8 +124,8 @@ describe('home intro contract', () => {
 		expect(mark).toContain('fill="currentColor"');
 		expect(colour).toContain('focusable="false"');
 		expect(colour).not.toMatch(/<style|currentColor/u);
-		// The body path of the favicon's glyph is the first path of the mono mark
-		// and of the colour glyph, so the tab, the header and the footer agree.
+		// The favicon shares its first glyph path with the mono and colour marks in the header
+		// and footer.
 		const favicon = read('static/favicon.svg');
 		const faviconPath = /<path class="body" fill-rule="evenodd" d="([^"]+)"/u.exec(favicon)?.[1];
 		// Fills live in CSS rules (a favicon's own style block, app.css for the

@@ -1,8 +1,5 @@
-// The shipped lib.dom (TypeScript 6.0) declares the WebGPU interfaces
-// (GPUDevice, GPUCanvasContext, GPUTexture and the rest) but not the four
-// constant namespaces nor the canvas context overload, and this spoke ships
-// no @webgpu/types package (no new npm package: house ruling). These are the
-// spec's own shapes, nothing more; they vanish the day lib.dom carries them.
+// TypeScript 6.0 lib.dom declares WebGPU interfaces but lacks the four constant namespaces and
+// the canvas context overload.
 
 declare const GPUShaderStage: {
 	readonly VERTEX: 1;

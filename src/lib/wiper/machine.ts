@@ -16,7 +16,7 @@ export type WiperPhase = 'dwell' | 'out' | 'back';
 export type WiperState = 'off' | 'dwell' | 'paused' | 'wiping';
 
 export interface WiperMachineOptions {
-	/** Notes per page at the current width (3 wide, 1 narrow). */
+	/** Show 3 notes in a wide pane or 1 in a narrow pane. */
 	pageSize: () => number;
 	itemCount: () => number;
 	/** Motion is allowed at all (enhanced, not reduced). */
@@ -25,7 +25,7 @@ export interface WiperMachineOptions {
 	random?: () => number;
 }
 
-/** The coarse state a template or a test reads; a new object per change. */
+/** Publish a new snapshot on each coarse state change. */
 export interface WiperView {
 	detent: WiperDetent;
 	phase: WiperPhase;
@@ -54,21 +54,12 @@ export interface TickResult {
 	finish: boolean;
 }
 
-/**
- * The most one animation frame may advance the dwell. Real time otherwise:
- * a slow rig (software GL, a busy phone) at a few frames a second still
- * counts its dwell at wall-clock pace instead of slow motion, while a
- * frame that arrives after a long gap (a tab shown again) cannot swallow
- * the whole gap at once. Hidden tabs are paused by the engine anyway.
- */
+/** Cap the dwell advance after a long frame gap. Slow frames still count at wall-clock pace. */
 export const MAX_STEP_MS = 1000;
 
 /**
- * The stroke clock as a renderer sees it between two frames: which stroke
- * is running, how far it is, and how many passes (an out-stroke reaching
- * the turnaround, a back-stroke reaching park) have completed in total.
- * Two samples are enough to reconstruct every angle a blade crossed
- * between them, whatever the frame gap.
+ * Each sample records progress and completed out-strokes and back-strokes. Two samples
+ * reconstruct all angles crossed between frames.
  */
 export interface StrokeSample {
 	phase: WiperPhase;
@@ -199,11 +190,7 @@ export class WiperMachine {
 		this.#lastTick = now;
 	}
 
-	/**
-	 * Hold an out-stroke at a chosen eased unit (a test or a LOOK frame): the
-	 * stroke clock is rewound so that releasing the hold continues from the
-	 * held angle rather than snapping to wherever the wall clock got to.
-	 */
+	/** Rewind the clock to the held angle so the stroke continues there when released. */
 	holdStrokeAt(unit: number, now: number): number {
 		if (this.phase !== 'out' || this.#strokeMs <= 0) return this.#unit;
 		const clamped = Math.min(Math.max(unit, 0), 1);

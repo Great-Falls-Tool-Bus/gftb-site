@@ -1,9 +1,5 @@
-// The vendored ALTCHA widget, shared by the three forms that carry it: the
-// contact form, the list signup and the work-session RSVP dialog. The script
-// is loaded once per page, from this repository's own static/vendor copy, and
-// only when a form that needs it is on screen. Each form keeps its own proof:
-// the widget raises `verified` with a single-use payload, and any other state
-// clears it, so a stale proof is never sent.
+// Load the vendored ALTCHA script when the first form on a page needs it. Each form keeps its own
+// single-use proof and clears it when the widget leaves the verified state.
 
 export const ALTCHA_SCRIPT_SRC = '/vendor/altcha/altcha.js';
 

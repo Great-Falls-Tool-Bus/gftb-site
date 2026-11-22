@@ -1,8 +1,6 @@
 /**
- * Node-only reader for `src/content/goals/*.md` (the home page's near-term
- * goals, help asks, and member benefits). Same posture as log-content.mjs:
- * plain `node:fs`, never Vite's module graph, so an unpublished entry has no
- * path into the client bundle. The frontmatter parser is the log one.
+ * Read `src/content/goals/*.md` through `node:fs` and reuse the log-content.mjs frontmatter
+ * parser. Keeping unpublished entries outside Vite's import graph protects draft content.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -57,9 +55,8 @@ export function distinctiveDraftGoalLiterals(entries) {
 	const literals = [];
 	for (const entry of entries) {
 		if (entry.metadata.published !== false) continue;
-		// The title IS the whole public copy for help and benefit rows, so it
-		// joins the denylist whenever present, like draft log titles do; the
-		// length floor applies only to free prose.
+		// Help and benefit rows use the title as their entire public copy. Include every draft
+		// title in the denylist. Only free prose has a length floor.
 		if (typeof entry.metadata.title === 'string' && entry.metadata.title.length > 0) {
 			literals.push(entry.metadata.title);
 		}

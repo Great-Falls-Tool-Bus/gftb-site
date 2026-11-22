@@ -9,10 +9,8 @@ import { WIPER_DETENTS } from './schedule';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (file: string) => readFileSync(path.join(repoRoot, file), 'utf8');
 
-// The parts of the wiper the browser rows cannot see from a single state:
-// where the masks may live, that the pane is not a card, that every timed
-// rule sits behind the motion preference, and that the stalk is the one
-// Skeleton control with radius 0 on every part.
+// Browser checks sample one state. Source checks cover mask placement, motion preferences
+// and radius 0 across the Skeleton stalk control.
 describe('the wiper source contract', () => {
 	const css = read('src/app.css');
 	const blockStart = css.indexOf('/* ===== The Notes & Goals wiper');
@@ -69,8 +67,8 @@ describe('the wiper source contract', () => {
 			);
 		expect(push).not.toBeNull();
 		expect(push![1]).toMatch(/transform: translateX\(var\(--wipe-push\)\);/u);
-		// One row per page: the first blade's contact drives every note, and the
-		// run carries the row the rest of the way by the turnaround.
+		// The row follows the first blade to make contact. The run carries every note clear by
+		// the turnaround.
 		expect(push![1]).toMatch(/tan\(var\(--wipe-tphi\)\)/u);
 		expect(push![1]).toMatch(/--wipe-push: calc\(max\(0px, var\(--wipe-reach\)\) \+ var\(--wipe-slide\)\);/u);
 		expect(push![1]).toMatch(
@@ -115,10 +113,9 @@ describe('the wiper source contract', () => {
 		expect(inks![1]).toMatch(/border-radius: 0;/u);
 		expect(inks![1]).toMatch(/--fg: var\(--glass-fg\);/u);
 		expect(inks![1]).not.toMatch(/border(?!-radius)|box-shadow|background|backdrop/u);
-		// The fill sits on a pseudo under the note, and no pane carries a
-		// backdrop-filter: masks and backdrop filters do not compose (Chromium
-		// drops the mask, Firefox skips the filtered child, the spec makes the
-		// masked note a backdrop root with nothing behind it).
+		// Keep the fill on the pseudo-element under the note. A backdrop-filter on the masked
+		// pane breaks composition. Chromium drops the mask and Firefox skips the filtered child.
+		// The mask makes the note its own backdrop root.
 		const pane = /\.goal-list > li::before \{([^}]*)\}/u.exec(css);
 		expect(pane).not.toBeNull();
 		expect(pane![1]).toMatch(/background: color-mix\(in oklab, var\(--glass-panel\) 70%, transparent\);/u);
@@ -229,16 +226,15 @@ describe('the wiper source contract', () => {
 		const goals = read('src/lib/components/NotesAndGoals.svelte');
 		expect(goals).toContain('{#if view.paged && glassEl}');
 		expect(goals).toMatch(/<WiperScene\s+\{engine\}\s+colors=\{BRAND_BLOB_COLORS\}\s+glass=\{glassEl\}\s+onlost=/u);
-		// A device lost after selection remounts the scene on fresh canvases,
-		// a bounded number of times, at the ceiling the loss lowered.
+		// Device loss lowers the ceiling. Remount on fresh canvases within the retry limit.
 		expect(goals).toContain('{#key sceneGeneration}');
 		// Nothing about the wiper is stored (operator ruling 2026-09-10).
 		expect(goals).not.toMatch(/localStorage|sessionStorage/u);
 		expect(goals).toContain('SCENE_RELAUNCH_LIMIT = 3');
 		expect(goals).toContain('SCENE_RELAUNCH_PAUSE_MS = 400');
 		expect(goals).toContain('window.clearTimeout(relaunchTimer)');
-		// The scene draws under the intro's veil and marks its canvases warm after
-		// a run of frames; the intro waits for that, not for the rung alone.
+		// The intro waits for the scene to draw several frames beneath its veil before uncovering
+		// the canvases.
 		expect(host).toContain("classList.contains('intro-live')");
 		expect(host).toContain("data-warm={warm ? '' : undefined}");
 		expect(host).toContain('WARM_FRAMES = 12');
@@ -247,8 +243,7 @@ describe('the wiper source contract', () => {
 		expect(host).toContain('renderer.onLost(() => lose());');
 		expect(host).toContain('blades.onLost(() => lose());');
 		expect(host).not.toContain('onLost(() => demote())');
-		// A loss during the ladder (the blades rung refused, or a mixed pair)
-		// relaunches too; only a scene rung that no rung can serve demotes.
+		// Retry a refused blades rung or a mixed pair. Demote the scene when all its rungs fail.
 		const bladesFail = host.indexOf('if (!bladeSelection.ok) {');
 		expect(host.slice(bladesFail, host.indexOf('blades = bladeSelection.handle;'))).toContain('lose();');
 		const mixed = host.indexOf('if (blades.tier !== renderer.tier) {');
@@ -338,10 +333,8 @@ describe('the wiper source contract', () => {
 		expect(webgpu).toContain("'unfilterable-float'");
 		expect(webgpu).toContain("alphaMode: options.layer === 'blades' ? 'premultiplied' : 'opaque'");
 		expect(webgpu.match(/requestDevice\(/gu)).toHaveLength(1);
-		// The handshake is bounded: the adapter and device request sit under a
-		// deadline that steps the ladder down to WebGL2, a late device is closed
-		// on arrival, and the deadline covers acquisition only (the handlers and
-		// the compile come after it).
+		// Limit the deadline to adapter and device acquisition. A timeout falls back to WebGL2
+		// and closes a late device on arrival. Handler setup and compilation run afterward.
 		expect(WEBGPU_ACQUIRE_DEADLINE_MS).toBe(1500);
 		expect(WEBGPU_ACQUIRE_DEADLINE_MS * 4).toBeLessThan(15_000); // awaitTier's budget
 		expect(webgpu).toContain("from './deadline'");

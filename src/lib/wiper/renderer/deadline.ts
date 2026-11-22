@@ -1,8 +1,5 @@
-// A bound on a promise the host may never settle. Chrome has been seen to
-// hold a WebGPU adapter or device request open until the next compositor
-// event (a viewport resize), which left the wiper's canvases pending for as
-// long as the visitor kept still. The timer is injected so a node test can
-// drive the deadline by hand; nothing here reads the page or the host.
+// Chrome can leave an adapter or device request pending until the next compositor event. Bound
+// the wait and inject the timer so tests can drive it.
 export interface DeadlineTimer {
 	set(run: () => void, ms: number): unknown;
 	clear(token: unknown): void;

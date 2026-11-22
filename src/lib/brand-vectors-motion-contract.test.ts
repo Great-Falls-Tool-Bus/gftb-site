@@ -3,35 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// Brand-vectors default-motion contract (TinyVectors idle drift) — apex port
-// of the members site's src/lib/brand-vectors-motion-contract.test.ts.
-//
-// Through v0.3.6 the tinyvectors physics loop never read each blob's
-// driftAngle/driftSpeed cruise field: with no pointer, scroll, or
-// devicemotion input (that is every idle desktop), the only motion was a
-// zero-mean jitter random walk the engine's damping erased in ~1.4s, so the
-// background read as frozen-with-a-shiver. v0.3.7 wires that cruise in —
-// idle drift/bounce is the package default on ALL environments, with no
-// permission grant or sensor required, while devicemotion still only
-// ENHANCES motion and prefers-reduced-motion still freezes the frame
-// entirely.
-//
-// The members site delivers the pin through a package.json URL-tarball spec
-// plus a prepare-hook PINNED_INTEGRITY table. This carrier is Bazel-only
-// (TIN-2838; scripts/check-inhouse-package-parity.py forbids the npm
-// specifier), so the same seams live in the Bazel supply chain instead:
-// - the MODULE.bazel bazel_dep pin must stay at or above 0.3.7 (the first
-//   release with the idle drift cruise);
-// - MODULE.bazel must bind the module to an exact immutable bazel-registry
-//   commit with single_version_override, and .bazelrc must name no registry
-//   (R574: the module graph alone resolves it, under --ignore_all_rc_files
-//   too);
-// - MODULE.bazel.lock must record the pinned version's source.json under
-//   that commit. That registry file carries the archive's sha256 integrity,
-//   so the lock hashing it is the frozen-lockfile analog of the members'
-//   PINNED_INTEGRITY entry;
-// - the layout call site must not opt out of the animated default or the
-//   reduced-motion default.
+// The members site pins idle drift in src/lib/brand-vectors-motion-contract.test.ts.
+// Through v0.3.6 damping erased idle jitter in ~1.4s. v0.3.7 reads driftAngle/driftSpeed
+// even without pointer or sensor input. prefers-reduced-motion still freezes the frame. The
+// members site records its package.json archive in PINNED_INTEGRITY. TIN-2838 requires this
+// site to pin the same supply chain through Bazel. scripts/check-inhouse-package-parity.py
+// excludes an npm specifier. MODULE.bazel selects 0.3.7 or later and binds
+// single_version_override to an immutable bazel-registry commit. R574 requires resolution
+// under --ignore_all_rc_files without a registry in .bazelrc. MODULE.bazel.lock records
+// that commit’s source.json with the archive’s sha256 integrity.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -80,17 +60,10 @@ describe('tinyvectors default-motion contract', () => {
 		expect(layer, 'a .brand-vectors-bg rule in app.css').not.toBe('');
 		expect(layer).toMatch(/position: fixed;/u);
 		expect(layer).toMatch(/z-index: -1;/u);
-		// Canvas propagation contract (CSS Backgrounds 3 §2.11.2): a
-		// negative-z layer paints above the canvas background but below every
-		// in-flow background, so the page ground must live on the CANVAS —
-		// body propagates it there. Skeleton imports an html background, so
-		// merely omitting one here does not clear it. An opaque root stops the
-		// propagation: body's opaque ground then paints on body's own box,
-		// which stacks OVER all negative-z layers, and the blobs render fully
-		// occluded while their physics loop keeps burning frames (the PR #62
-		// round-3 regression). The print block's `html, body` reset is a
-		// different selector shape and stays exempt: paper hides the layer
-		// outright.
+		// CSS Backgrounds 3 §2.11.2 lets body propagate its background to a transparent root
+		// canvas. Skeleton sets an html background. Leaving it opaque puts the body background
+		// above the negative-z layer and hides the blobs. PR #62 exposed this failure. The `html,
+		// body` print reset hides the layer on paper.
 		for (const match of appCss.matchAll(/^:root\s*\{([\s\S]*?)\n\}/gmu)) {
 			expect(match[1], `root-level rule must not declare a background (canvas propagation):\n${match[0]}`).not.toMatch(
 				/^\s*background(?:-color|-image)?\s*:/mu,
@@ -108,9 +81,8 @@ describe('tinyvectors default-motion contract', () => {
 		const layout = readFileSync(path.join(repoRoot, 'src', 'routes', '+layout.svelte'), 'utf8');
 		const block = layout.match(/<TinyVectors[\s\S]*?\/>/);
 		expect(block, 'a <TinyVectors ... /> block in +layout.svelte').not.toBeNull();
-		// animated defaults to true and respectReducedMotion defaults to true:
-		// the call site must not override either (idle drift on desktop,
-		// full freeze under prefers-reduced-motion).
+		// Keep animated and respectReducedMotion at their true defaults for idle drift and a
+		// frozen frame under prefers-reduced-motion.
 		expect(block![0]).not.toMatch(/animated=\{false\}/);
 		expect(block![0]).not.toMatch(/respectReducedMotion=\{false\}/);
 		// Devicemotion stays the enhancement layer. The bound instance's
@@ -122,10 +94,8 @@ describe('tinyvectors default-motion contract', () => {
 		expect(layout).not.toContain('MotionPermissionState');
 		expect(layout).not.toContain('Let the blobs feel');
 		expect(layout).toContain('createDeviceMotionHandshake(');
-		// Desktop roam (operator ruling 2026-09-09): pointer physics off, so the
-		// scroll effect pulls the blobs toward the field centre (the blog's
-		// behaviour) instead of pooling them under a resting cursor; the 0.3.7
-		// idle cruise needs no sensor and no gesture.
+		// The 2026-09-09 ruling disables pointer physics so scroll pulls blobs toward the centre.
+		// The 0.3.7 idle cruise needs neither a sensor nor a gesture.
 		expect(block![0]).toMatch(/enablePointerPhysics=\{false\}/);
 		const appCss = readFileSync(path.join(repoRoot, 'src', 'app.css'), 'utf8');
 		expect(appCss).not.toContain('.motion-permission');

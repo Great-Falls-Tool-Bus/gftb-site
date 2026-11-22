@@ -2,12 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// //:e2e_test (R583, TIN-7477): every e2e spec against Bazel's declared
-// //:build, with the Chromium that //tools/chromium resolves (the Nix store
-// Chromium on a lab host). It keeps the discipline of
-// browser-acceptance.config.ts: only the enclosing harness supplies the
-// loopback base URL and the scratch output; no webServer, no preview rebuild,
-// no ambient base URL, no browser download.
+// //:e2e_test runs every spec against //:build with the browser from //tools/chromium under
+// R583 and TIN-7477. As in browser-acceptance.config.ts, the harness supplies the loopback URL
+// and scratch output.
 const baseURL = process.env.GF_BROWSER_ACCEPTANCE_BASE_URL;
 const outputDir = process.env.GF_BROWSER_ACCEPTANCE_OUTPUT_DIR;
 const executablePath = process.env.GF_E2E_CHROMIUM_EXECUTABLE;
@@ -65,7 +62,6 @@ export default defineConfig({
 	retries: 0,
 	workers: 1,
 	reporter: 'list',
-	// The per-test limit of the retired host playwright.config.ts.
 	timeout: 180_000,
 	globalTimeout: 3_300_000,
 	outputDir,

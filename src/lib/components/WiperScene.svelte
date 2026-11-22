@@ -1,17 +1,9 @@
 <script lang="ts">
-	// The GPU scene behind the notes: an opaque canvas sized to the glass (the
-	// list box), clearing to the page ground, drawing tinyvectors' blob field,
-	// frost and beads; a second, transparent canvas over the notes draws the
-	// chrome arms and blades, posed by the engine from the same clock and
-	// easing as the DOM mask. The scene canvas sits behind the notes and the
-	// blade canvas over them; both are pointer-inert and aria-hidden, absent
-	// under reduce, no-JS, print and forced colours, and never write to the
-	// console: a failure while the ladder runs demotes to the plain grid, and
-	// a device lost after it ran hands the host back to its parent through
-	// `onlost`, which remounts a fresh pair of canvases so the ladder runs
-	// again at the ceiling the loss lowered (a canvas that has held one
-	// context kind cannot take another). The notes are glass panes whose inks
-	// read over any backdrop (no clamp under text).
+	// The scene canvas draws the page ground, tinyvectors blobs, frost and beads beneath the
+	// notes. The transparent canvas draws the blades above them on the mask clock. Both
+	// canvases ignore pointer input and assistive technology. A failed renderer falls back to
+	// the plain grid. After device loss, `onlost` requests fresh canvases at the lower ceiling
+	// because a canvas cannot switch context kinds.
 	import { onMount } from 'svelte';
 	import { deviceTilt } from '#lib/motion/device-tilt.svelte.js';
 	import { createBlobField, type BlobFieldHandle } from '#lib/wiper/blob-field.js';
@@ -45,9 +37,8 @@
 	let canvas = $state<HTMLCanvasElement>();
 	let bladesCanvas = $state<HTMLCanvasElement>();
 	let tier = $state<'pending' | RendererTier>('pending');
-	// Set once the scene has drawn a run of frames on its rung: the intro
-	// waits for this, not for the rung alone, so a device that dies on its
-	// first real frames is seen (and relaunched) under the veil, not after it.
+	// Keep the intro veil up until several frames have drawn so an immediate device loss can
+	// recover underneath it.
 	let warm = $state(false);
 	const WARM_FRAMES = 12;
 	function hexToRgb(hex: string): [number, number, number] {
@@ -69,7 +60,8 @@
 		return [r / 255, g / 255, b / 255];
 	}
 
-	/** The box the arms can touch this frame, CSS px, or null when every blade is out of frame. */
+	/** Track the area the arms can touch in CSS pixels. Return null while every blade is
+	 * out of frame. */
 	function armsBox(arms: readonly SceneArm[], width: number, height: number) {
 		let left = Infinity;
 		let top = Infinity;
@@ -100,8 +92,7 @@
 		if (!host || !element || !bladesElement) return;
 		let alive = true;
 		let renderer: RendererHandle | null = null;
-		// The blade layer: a transparent canvas over the notes, so the arms pass
-		// over the panes they wipe (operator ruling at LOOK 3).
+		// Draw the blades on a transparent canvas above the notes as specified at LOOK 3.
 		let blades: RendererHandle | null = null;
 		let field: BlobFieldHandle | null = null;
 		let raf = 0;
@@ -139,10 +130,8 @@
 			engine.tier = 'none';
 		};
 
-		// A loss, during the ladder or after it: the rung's own callback has
-		// already lowered the page ceiling where that is warranted, so a fresh
-		// mount lands where the page can still draw. Without a parent to
-		// remount, the loss is a demotion like any other.
+		// The rung lowers the page ceiling on loss before the parent remounts. Without a
+		// parent, fall back to the plain grid.
 		const lose = () => {
 			if (!alive) return;
 			delete element.dataset.glassTime;
@@ -172,8 +161,8 @@
 			blades?.resize(width, height, ratio);
 		};
 
-		// Under the intro's veil the pane is off screen but must draw anyway:
-		// its first frames are where a doomed device shows itself.
+		// Draw behind the intro veil even while off screen to catch failures on the first
+		// frames.
 		const veiled = () => document.documentElement.classList.contains('intro-live');
 		const needsFrames = () =>
 			alive && (visible || veiled()) && !hidden && renderer !== null && blades !== null && field !== null;
@@ -182,8 +171,7 @@
 		const syncGlass = () => {
 			const geometry = engine.geometry;
 			if (!renderer || !geometry || width <= 0 || height <= 0) return null;
-			// Keyed on the bead grid, not the pixel box: a one-pixel resize keeps
-			// every bead and the frost grain; a new column or row of cells rebuilds.
+			// Key the field on grid dimensions. Preserve beads and frost until the row or column count changes.
 			if (!drops) drops = new DropletField(geometry);
 			else drops.relayout(geometry);
 			const key = `${drops.cols}x${drops.rows}`;
@@ -221,25 +209,23 @@
 					r: blob.size * BLOB_RENDER_SCALE * scale,
 					color: palette[index % palette.length],
 				}));
-			// The blades at this frame's timestamp: the engine derives them from
-			// the machine clock through the mask's own easing, so the drawn blade
-			// sits on the mask edge whichever callback the browser runs first.
+			// The machine clock and mask easing place the blades on the mask edge regardless
+			// of which callback runs first.
 			const arms: SceneArm[] = engine.blades(now);
 			const frame = { time: now / 1000, ground, blend, blobs, frost };
-			// A render may demote synchronously (a WebGPU frame that throws), so
-			// the handles are taken once and re-checked between the two draws.
+			// A WebGPU draw can demote synchronously. Recheck the handles between the two
+			// draws.
 			const scene = renderer;
 			const over = blades;
 			// Layer 0 reads the arms for its swept edge only; it draws no blade.
 			scene.render({ ...frame, arms });
 			if (!alive || renderer !== scene || blades !== over) return;
-			// The rest-freeze probe reads the droplet clock only after this exact
-			// canvas has drawn it; wall time can outrun the capped field step.
+			// Read the droplet clock after this canvas draws. Wall time can outrun the capped
+			// field step.
 			if (document.documentElement.dataset.wiperFreeze === 'rest' && drops && geometry)
 				element.dataset.glassTime = String(drops.time);
 			else delete element.dataset.glassTime;
-			// Parked blades cost nothing: the layer is cleared once when the
-			// arms come to rest and left alone until one moves again.
+			// Clear the layer once when the arms park. Redraw when they move.
 			const idle = arms.every((arm) => arm.travel === 0);
 			if (idle && bladesIdle) return;
 			over.render({ ...frame, arms, scissor: idle ? null : armsBox(arms, width, height) });
@@ -252,13 +238,13 @@
 			const dt = last ? Math.min((now - last) / 1000, 0.1) : 1 / 60;
 			const gap = last ? (now - last) / 1000 : 1 / 60;
 			last = now;
-			// The stroke clock decides what moves: under a keyboard pause the
-			// blob field rests too, so a reader is not read to over a moving scene.
+			// Pause the blobs with the stroke clock so the scene stays still during keyboard
+			// reading.
 			const clock = engine.strokeClock(now);
 			field.setTilt({ x: deviceTilt.x, y: deviceTilt.y, z: deviceTilt.z });
 			field.tick(clock.paused ? 0 : dt, now / 1000);
-			// The bead field steps on the stroke clock: it stands still under a
-			// hold or a paused rest, and never jumps more than the machine does.
+			// Use the stroke clock for the beads so they stay still during holds and follow
+			// the machine’s step limit.
 			const geometry = syncGlass();
 			if (drops && geometry && renderer) {
 				frostClock.note(clock, drops.time);
@@ -308,10 +294,8 @@
 			}
 			blades = bladeSelection.handle;
 			blades.onLost(() => lose());
-			// Both canvases run the same rung, or the pane runs none: a mixed
-			// pair would draw two renderers' floating point against each other.
-			// The ladder has already stepped down for the second canvas, so a
-			// fresh mount lands both on the lower rung.
+			// Both canvases need the same rung so their geometry uses the same floating-point
+			// arithmetic. Remount both at the lower rung after the second canvas steps down.
 			if (blades.tier !== renderer.tier) {
 				lose();
 				return;
@@ -333,8 +317,8 @@
 			tier = renderer.tier;
 			engine.tier = renderer.tier;
 			measure();
-			// A page that loads in a background tab gets no animation frames until
-			// it is shown; paint once now so the buffer never shows empty.
+			// Paint once on load. A background tab receives no animation frames until it
+			// becomes visible.
 			paint(performance.now());
 			arm();
 		})();

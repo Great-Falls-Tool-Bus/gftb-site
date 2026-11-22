@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-// Acceptance rows for the print spec-sheet treatment (D03): chrome and
-// backgrounds dropped, ink on white, outbound URLs expanded after their link
-// text (pairs with the D06 ExternalLink), break-avoidance declared — and the
-// printed QR stays first-class output.
+// D03 covers ink on white, link destinations, break avoidance and the printed QR. D06 supplies
+// ExternalLink.
 
 test.describe('print media', () => {
 	test('page chrome and the hero backdrop are dropped; the sheet is ink on white', async ({ page }) => {
@@ -47,9 +45,8 @@ test.describe('print media', () => {
 		await page.waitForLoadState('networkidle');
 		await page.emulateMedia({ media: 'print' });
 
-		// The footer's ExternalLinks are hidden with the footer chrome, but
-		// their computed styles still resolve — which is exactly what any
-		// external link placed in printable content inherits.
+		// ExternalLinks inherit printable styles even when the footer hides them. Their computed
+		// styles expose those rules.
 		const link = await page.evaluate(() => {
 			const anchor = document.querySelector('.external-link[href^="http"]');
 			if (!anchor) return null;

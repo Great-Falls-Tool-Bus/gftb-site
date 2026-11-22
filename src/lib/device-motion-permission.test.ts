@@ -28,7 +28,9 @@ function preference(initial = false) {
 	};
 }
 
-/** A click source whose taps carry a duck-typed target with `closest`. */
+/**
+ * Each tap supplies a target with `closest`.
+ */
 function gestures() {
 	const listeners = new Set<(event: Event) => void>();
 	const root = { id: 'main' } as unknown as Element;
@@ -131,8 +133,8 @@ describe('first-gesture phone motion handshake', () => {
 		const handshake = createDeviceMotionHandshake(preference(), source, { root: source.root, publish });
 		handshake.setTarget(target);
 		source.tapNeutral();
-		// Synchronous inside the click stack (transient activation), and the
-		// listener is already gone so a double tap cannot double-call.
+		// Request permission within the input handler while transient activation holds. Removing
+		// the listener immediately prevents a second tap from requesting permission twice.
 		expect(target.requestDeviceMotionPermission).toHaveBeenCalledTimes(1);
 		expect(source.listeners.size).toBe(0);
 		expect(publish).toHaveBeenLastCalledWith('asking');

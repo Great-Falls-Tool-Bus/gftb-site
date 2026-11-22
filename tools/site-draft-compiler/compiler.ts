@@ -1,8 +1,8 @@
 /**
- * Server-only source computation. The caller must authenticate the canonical
- * GitHub repository and base commit/tree association, authorize the sender and
- * retain a durable effect plan before writing. This module does not fetch,
- * publish, grant consent, or certify a deployed build.
+ * Compute source on the server. Before writing, the caller must authenticate the GitHub
+ * repository and its base commit/tree association. It must authorize the sender and retain a
+ * durable effect plan. Fetching, publication, consent and deployed-build certification
+ * happen outside this module.
  */
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
@@ -404,7 +404,7 @@ export async function prepareDraftProjection(input: SiteDraftProjectionInput): P
 			return content;
 		};
 		const custody = toolCustody();
-		// A complete authenticated tree is sufficient for this check. Never fetch
+		// A complete authenticated tree is enough for this check. Never fetch
 		// or execute the canonical tree's code to compensate for a stale package.
 		for (const source of custody.siteInputs) {
 			const entry = treeByPath.get(source.path);

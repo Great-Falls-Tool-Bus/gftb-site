@@ -1,10 +1,6 @@
-// Minimal, dependency-free PNG decoder (8-bit RGB/RGBA, non-interlaced) plus
-// a luminance scan. Exists so acceptance-hero-glass-contrast.spec.ts can
-// measure the REAL rendered pixels behind a backdrop-filter panel — the
-// point of that spec (review round 2, finding B: a token-math model of the
-// composite silently diverged from what the browser actually painted). No
-// image-processing dependency is added to the project for this: PNG's
-// filter reconstruction is a few dozen lines against Node's built-in zlib.
+// Decode non-interlaced 8-bit RGB/RGBA PNGs using Node's zlib.
+// acceptance-hero-glass-contrast.spec.ts samples the pixels Chromium paints behind a
+// backdrop-filter panel.
 
 import { inflateSync } from 'node:zlib';
 
@@ -105,9 +101,8 @@ export function relativeLuminance({ red, green, blue }: Rgb): number {
 }
 
 /**
- * Scans a decoded PNG (inset by `margin` px on every edge, to dodge
- * anti-aliased clip-region fringes) for the darkest and lightest pixel by
- * WCAG relative luminance.
+ * Find the darkest and lightest pixels by WCAG relative luminance. Inset each edge by `margin`
+ * pixels to exclude antialiased fringes.
  */
 export function luminanceExtremes(
 	image: { width: number; height: number; channels: number; pixels: Buffer },

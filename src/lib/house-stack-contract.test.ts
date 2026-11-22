@@ -138,11 +138,9 @@ describe('house frontend-stack exact-pin contract', () => {
 	});
 
 	it('keeps @tummycrypt/tinyvectors Bazel-only at EXACT 1.0.0 (bazel_dep pin, no npm specifier)', () => {
-		// Bazel-only ingestion (TIN-2838): the version pin lives in
-		// MODULE.bazel and the package is graph-linked via npm_link_package;
-		// scripts/check-inhouse-package-parity.py forbids the npm-shadow
-		// specifier this row also guards against. The 0.3.7 FLOOR (idle drift
-		// default) is pinned separately by brand-vectors-motion-contract.
+		// TIN-2838 keeps the version in MODULE.bazel and links the package through
+		// npm_link_package. scripts/check-inhouse-package-parity.py guards against npm shadowing.
+		// brand-vectors-motion-contract pins the 0.3.7 idle drift floor.
 		const moduleBazel = readFileSync(path.join(repoRoot, 'MODULE.bazel'), 'utf8');
 		const pin = moduleBazel.match(/bazel_dep\(name = "tummycrypt_tinyvectors", version = "([^"]+)"\)/)?.[1];
 		expect(pin).toBe('1.0.0');

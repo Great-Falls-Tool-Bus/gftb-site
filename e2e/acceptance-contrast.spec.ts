@@ -12,35 +12,14 @@ import {
 	type Rgb,
 } from '../scripts/lib/color-contrast.mjs';
 
-// Acceptance rows (§3): AA text contrast, and WCAG 1.4.11 3:1 non-text contrast
-// for filled buttons and controls against their surface.
-//
-// The colour maths is imported from scripts/lib/color-contrast.mjs so this spec and
-// the unit suite cannot disagree about what 4.5:1 means. The browser's job here
-// is only to report what is actually painted, including inherited colours and
-// composited panels the token test can only model.
-//
-// The page collectors return raw computed colour STRINGS and the stack of
-// background layers above each element; every parse and composite happens back
-// in Node through the shared module. That is deliberate. Chromium serialises a
-// computed `oklch()` token as `oklch(0.38 0.0755 294.64)` and a
-// `color-mix(in oklab, …)` one as `oklab(L a b / A)` — it does not convert
-// either to `rgb()` — so an in-page parser that assumes `rgb()` reads an OKLab
-// lightness as a red channel and reports a passing pair as 1.0:1.
-//
-// Known limitation, stated rather than hidden: `body` paints
-// `linear-gradient(180deg, var(--wash), transparent 22rem)` over --bg, and
-// getComputedStyle does not resolve a gradient to a flat colour. Every
-// measurement against the page surface therefore reads the UNWASHED --bg.
-//
-// That is the conservative reading in the light scheme (the wash darkens) but
-// the OPTIMISTIC one in dark, where --wash is primary-300 at 12% and lightens
-// the top 352px of the page from #28222b to #383042. Recomputed inside that
-// washed band the dark pairs still clear AA, by less than the gate reports:
-// error-300 4.79 (reported 5.89), primary-300 4.93 (reported 6.06),
-// surface-400 6.17, and the status card at y=237 gives 4.88 / 5.02 / 6.29.
-// The contact card sits far below the 352px band, outside the wash entirely.
-// A disclosure about which number is quoted, not a failing pair.
+// §3 covers AA text contrast and WCAG 1.4.11's 3:1 threshold for controls. The browser collects
+// computed colours and background layers. scripts/lib/color-contrast.mjs parses them for both
+// browser and unit tests. Chromium preserves `oklch()` and returns `oklab(L a b / A)` for a
+// `color-mix(in oklab, …)`. Reading those channels as RGB distorts the ratio. getComputedStyle
+// leaves the body gradient unresolved, so the measurements use --bg. In dark mode, --wash
+// lightens the top 352px from #28222b to #383042. There, error-300 measures 4.79 against the
+// wash versus 5.89 against --bg. For primary-300 the ratios are 4.93 and 6.06. The contact card
+// sits below the wash.
 
 interface TextSample {
 	label: string;
@@ -60,10 +39,8 @@ interface ControlSample {
 }
 
 /**
- * Composites a nearest-first stack of computed background colours down to the
- * opaque colour a person actually sees behind the element, exactly as the
- * compositor does. The page hands over strings; the parsing lives here so every
- * colour spelling Chromium emits is understood in one place.
+ * Composite the nearest background layers first. The shared parser handles Chromium's computed
+ * colour formats.
  */
 function resolveBackground(layers: string[]): Rgb {
 	const painted = layers.map((layer) => parseCssColor(layer)).filter((layer) => layer.alpha > 0);
@@ -82,11 +59,8 @@ function resolveBackground(layers: string[]): Rgb {
 
 async function openPage(page: Page, guardedPage: GuardedGoto, path = '/') {
 	await guardedPage(path);
-	// Disarm the scroll-reveal start state (D04): below-fold sections start
-	// at opacity 0 until they intersect, and this spec's visibility filter
-	// would silently drop them from the sweep. Contrast is about paint, not
-	// motion; removing the arm class renders everything at rest — the same
-	// resting state no-JS and reduced-motion visitors get.
+	// D04 hides sections at opacity 0 until they intersect. Disarm the reveal so the visibility
+	// filter includes below-fold content.
 	await page.evaluate(() => document.documentElement.classList.remove('motion-safe-ready'));
 }
 
@@ -177,10 +151,8 @@ function requiredTextRatio(sample: TextSample): number {
 	return isLarge ? LARGE_TEXT_AA_RATIO : TEXT_AA_RATIO;
 }
 
-// Both schemes are measured, not just the default one. The dark block in
-// src/app.css is code with no shipped predecessor to diff against, so nothing in
-// it is covered by "it used to work"; src/lib/design-token-contrast.test.ts
-// sweeps the same pairs on the tokens, and this is the browser's answer.
+// src/lib/design-token-contrast.test.ts checks the tokens. The browser measures the colours
+// painted in both schemes.
 for (const scheme of ['light', 'dark'] as const) {
 	test.describe(`${scheme} scheme`, () => {
 		test.use({ colorScheme: scheme });
@@ -189,9 +161,7 @@ for (const scheme of ['light', 'dark'] as const) {
 			for (const [name, path] of [
 				['the landing view', '/'],
 				['the log archive', '/log'],
-				// Panel flattened to plain page ground, operator ruling 2026-08-31
-				// ("surfaces are borderless"); the label just tracked the panel's
-				// prior state and carries no assertion of its own.
+				// The 2026-08-31 ruling puts this panel directly on the page ground.
 				['the contact page', '/contact'],
 			] as const) {
 				test(`text contrast holds across ${name}`, async ({ page, guardedPage }) => {
@@ -247,8 +217,7 @@ for (const scheme of ['light', 'dark'] as const) {
 				const failures: string[] = [];
 				for (const sample of samples) {
 					const surface = resolveBackground(sample.surfaceLayers);
-					// A control may be identified by its fill or by its border; take the
-					// stronger of the two, which is what a person actually perceives.
+					// Either the fill or the border can distinguish the control from its surface.
 					const fillRatio = roundRatio(contrastRatio(sample.fill, surface));
 					const borderRatio = sample.borderWidth > 0 ? roundRatio(contrastRatio(sample.borderColor, surface)) : 0;
 					const best = Math.max(fillRatio, borderRatio);
@@ -294,21 +263,11 @@ for (const scheme of ['light', 'dark'] as const) {
 					'the focused submit button paints no indicator at all',
 				).toBe(false);
 
-				// What THIS test measures: the submit button sits on plain page
-				// ground since the 2026-08-31 flattening (operator ruling: surfaces
-				// are borderless), which superseded the 2026-08-20 purple
-				// restoration (addendum B1), so the ring adjoins the button's accent
-				// fill on one side and the page on the other.
-				//
-				// The ring is drawn on that ground, so composite it there first, then
-				// take the better of the two edges. max() rather than both is a
-				// REINTERPRETATION of the TIN-3855 gate, which required 3:1 against
-				// the control unconditionally: SC 1.4.11 (technique G195) asks a focus
-				// indicator to be distinguishable from an ADJACENT colour, and an
-				// outer ring adjoins two, so separating from either edge makes it
-				// perceivable — exactly one edge clears 3:1 in a given scheme here.
-				// src/lib/design-token-contrast.test.ts re-measures the same best-of
-				// pair on the modelled card and page grounds.
+				// The 2026-08-31 ruling places the button on the page ground. Composite the focus ring
+				// there first. Under SC 1.4.11 technique G195, either adjacent edge can distinguish the
+				// ring. This differs from the unconditional 3:1 against the control in TIN-3855.
+				// src/lib/design-token-contrast.test.ts models both edges against the card and page
+				// grounds.
 				const surface = resolveBackground(measured.surfaceLayers);
 				const ringOnPanel = compositeOver(parseCssColor(measured.ring), surface);
 				const againstControl = roundRatio(contrastRatio(ringOnPanel, measured.fill));

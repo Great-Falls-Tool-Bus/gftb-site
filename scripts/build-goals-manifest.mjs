@@ -1,9 +1,6 @@
-// `just goals-manifest-build`: derive src/lib/generated/goals-manifest.ts
-// from src/content/goals/*.md, PUBLISHED entries only, the log-manifest
-// pattern (scripts/build-log-manifest.mjs) applied to the home page's
-// Notes & Goals rows, help asks, and member benefits. The internal `source`
-// provenance key is dropped here so it never reaches the bundle.
-// `//:goals_manifest_drift_test` runs this generator read-only with `--check`.
+// `just goals-manifest-build` reads published src/content/goals/*.md into
+// src/lib/generated/goals-manifest.ts. Omit the internal `source` key from the bundle.
+// `//:goals_manifest_drift_test` runs `--check` without writing.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,9 +23,8 @@ const OUT_FILE = path.join(ROOT, 'src', 'lib', 'generated', 'goals-manifest.ts')
 const CHECK_ONLY = generatedFileCheckMode(process.argv.slice(2));
 
 const KINDS = new Set(['goal', 'help', 'benefit']);
-// Mirrors src/lib/public-goal-schema.ts (the binding contract, exercised by
-// src/lib/public-goal-schema.test.ts over every content file); the generator
-// refuses the same shapes so an invalid file never reaches the manifest.
+// Mirror src/lib/public-goal-schema.ts so invalid entries cannot reach the manifest.
+// src/lib/public-goal-schema.test.ts checks every content file.
 const ALLOWED_KEYS = new Set([
 	'kind',
 	'order',

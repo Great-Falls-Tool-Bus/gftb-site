@@ -2,19 +2,10 @@ import { test as base, type Page } from '@playwright/test';
 import { installExternalGuard, stubChallenge } from './network';
 
 /**
- * Shared Playwright fixtures for the acceptance specs.
- *
- * `baseUrl` is the suite's base URL with the local-preview fallback applied
- * once, replacing the `baseURL ?? 'http://localhost:3000'` expression that
- * was previously restated across the specs.
- *
- * `guardedPage` is the shared acceptance prologue: installExternalGuard →
- * stubChallenge → goto → waitForLoadState('domcontentloaded'). The guard is
- * installed before anything else so more specific routes registered
- * afterwards take precedence (Playwright matches routes in reverse
- * registration order). A spec whose prologue deviates — a failing challenge
- * stub, a captured guard, a different load state — keeps composing the
- * support/network helpers by hand on top of `baseUrl`.
+ * `baseUrl` supplies the local preview fallback. `guardedPage` installs the external guard
+ * before the challenge stub because Playwright matches newer routes first. It then navigates
+ * and waits for domcontentloaded. Specs with different setup can compose support/network
+ * helpers on top of `baseUrl`.
  */
 
 export type GuardedGoto = (path?: string) => Promise<Page>;

@@ -1,8 +1,5 @@
-// The scene's blob field: tinyvectors' public BlobPhysics (the Bazel-linked
-// package, never npm) driven by the scene's own clock, with the idle cruise
-// raised on the live blob references so the roam reads at blog liveliness.
-// The site-wide SVG layer keeps its own instance; this one lives only under
-// the glass.
+// The glass owns a BlobPhysics instance driven by the scene clock. The site-wide SVG uses a
+// separate instance.
 import { BlobPhysics, type ConvexBlob, type TiltVector } from '@tummycrypt/tinyvectors/core';
 import { CRUISE_SPEED, CRUISE_SPEED_COARSE } from './renderer/shaders/constants';
 

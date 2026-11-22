@@ -5,17 +5,10 @@
 	import SourceLink from '#lib/components/SourceLink.svelte';
 	import { logPage, logPageCount } from '#lib/public-logs.js';
 
-	// The public log archive, page 1 (spec §3 rows 5-6, :89-91): a plain
-	// list — never cards — with plain-text badges, per the
-	// jesssullivan.github.io blog-list structure (addendum B1.2). Older pages
-	// are plain prerendered links under /log/page/<n>: pagination that works
-	// with JavaScript disabled (spec :90-91).
-	//
-	// Work sessions on the bus (operator interview 2026-10-02): on desktop the
-	// schedule is a sticky right-hand aside with its own scroll; on phones and
-	// tablets it is the home page's marquee above the list. Both render from
-	// the one band component and CSS shows exactly one (app.css, .log-layout),
-	// so the served HTML is already in its final layout.
+	// The public archive follows the jesssullivan.github.io list structure in B1.2. Prerender
+	// links under /log/page/<n> for scriptless pagination as specified at §3 :89-91. The same
+	// work sessions band renders the desktop aside and phone marquee. The .log-layout rules in
+	// app.css select the layout before hydration.
 
 	const entries = logPage(1);
 	const pageCount = logPageCount();

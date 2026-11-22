@@ -1,24 +1,8 @@
-// `just source-map-build` — derive the page source map from the routes tree.
-//
-// Ported from the demo site (greatfallstoolbus.org@origin/main
-// scripts/build-source-map.mjs, operator commit #94) and extended for the
-// public log (B1.2): in addition to every src/routes/**/+page.svelte, each
-// PUBLISHED src/content/log/*.svx post is mapped at its /log/<slug>
-// permalink, so the "Edit this page" affordance is wired PER POST.
-//
-// Unpublished drafts are excluded (B1 fix, PR #33 review): the review found
-// draft slugs shipping here too (source-map.json is a build output, walked
-// by leak-scan, and read by src/lib/components/SourceLink.svelte), which
-// would advertise a draft's existence — and, at the `/log/<slug>` permalink
-// it names — even though the draft itself never prerenders.
-//
-// Why derived, not per-page hand-links: the map is generated from
-// architectural zero so a new page or post cannot silently lack the
-// affordance, and NO org/repo string is hardcoded in any component (it flows
-// from tinyland.repo.json / package.json).
-//
-// Output is deterministic (sorted route keys, tab-indented, trailing newline).
-// `//:source_map_drift_test` runs this generator read-only with `--check`.
+// `just source-map-build` maps src/routes/**/+page.svelte and published src/content/log/*.svx
+// posts to their source. Exclude drafts because even a /log/<slug> link reveals the slug.
+// src/lib/components/SourceLink.svelte reads the map. tinyland.repo.json or package.json
+// supplies the repository. `//:source_map_drift_test` checks the sorted output with
+// `--check`.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
