@@ -76,4 +76,8 @@ deny scripts/merge/squash-receipt*
 deny scripts/house-graph-key*
 deny tools/inventory-readiness/guard*.py
 
-# Admitted paths. None yet.
+# Admitted paths.
+# Product by operator ruling, November 22, 2026, TIN-3847 comment f95ca12f.
+# Platform static/llms.txt and src/lib/data/mail-clients.ts match no entry.
+# Platform static/agent-map.md matches the deny above and is admitted here.
+allow greatfallstoolbus.org:static/agent-map.md TIN-3847 product by operator ruling f95ca12f
